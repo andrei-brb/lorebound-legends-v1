@@ -1,139 +1,62 @@
 
 
-# TCG Combat System Overhaul
+# Card Catalog Tab — Plan
 
-## Overview
-Complete rewrite of the battle system into a strategic hand/field TCG with 5 card types, deck drawing, 30 HP + shield, and a mirror-match AI.
+## What We're Building
+A new **"Catalog"** tab showing ALL cards in the game, organized by type (Gods, Heroes, Weapons/Shields, Skills, Traps) and then by rarity. Locked cards appear greyed out; owned cards show full color. Clicking any card opens a modal with the card at full size, flippable to see stats/lore on the back.
 
----
-
-## Card Types
-
-| Type | Role | Field? |
-|------|------|--------|
-| **Hero** | Core fighters, placed on field (max 4), have HP/ATK/DEF | Yes |
-| **God** | Powerful field units, synergize with Heroes, have HP/ATK/DEF | Yes |
-| **Weapon** | Equip to a Hero/God on field, consumed from hand, boosts stats | No (consumed) |
-| **Spell** | Instant effect (damage, heal, buff), single-use, discarded | No (consumed) |
-| **Trap** | Played face-down, triggers on enemy action (counter, redirect) | Yes (hidden) |
-
-Current `item` type cards will be reclassified as `weapon`. New spell and trap cards will be added to the card pool.
-
----
-
-## Battle Flow
+## Layout
 
 ```text
-SETUP
-  - Both sides: 30 HP + 10 Shield (shield absorbs first direct hits)
-  - Shuffle deck, draw 5 cards
-  - Player goes first
-
-EACH TURN (1 action only):
-  ┌─ Play Hero/God → place on field (max 4 slots)
-  ├─ Play Weapon → attach to field card (consumed)
-  ├─ Play Spell → instant effect, discard
-  ├─ Set Trap → place face-down on field
-  ├─ Attack with field card → pick target (field card or direct)
-  └─ Use Active Ability → costs the turn action
-  
-  Then: draw 1 card from deck
-  If hand empty + no field cards + deck empty → instant loss
-  Drawing from empty deck → lose 5 HP
-
-DIRECT ATTACK
-  - Only when opponent has NO field cards
-  - Damage = Attacker ATK (DEF doesn't apply)
-  - Shield absorbs first, then HP
-
-WIN: Opponent HP reaches 0
-LOSS: Your HP reaches 0
-DRAW: Both hit 0 same turn → 50% rewards
+┌─────────────────────────────────────────────┐
+│ [Collection] [Catalog] [Summon] [Deck] [Battle] │  ← new tab added
+├─────────────────────────────────────────────┤
+│  Filter pills: [Gods] [Heroes] [Weapons] [Skills] [Traps] [All]  │
+├─────────────────────────────────────────────┤
+│  ⚜️ Legendary                               │
+│  ┌──┐ ┌──┐ ┌──┐ ┌──┐                       │
+│  │🔓│ │🔒│ │🔓│ │🔒│  ← color vs greyscale │
+│  └──┘ └──┘ └──┘ └──┘                       │
+│  💎 Rare                                    │
+│  ...                                        │
+│  🗡️ Common                                  │
+│  ...                                        │
+├─────────────────────────────────────────────┤
+│           Card Detail Modal                 │
+│  ┌────────────────────────┐                 │
+│  │   Full-size GameCard   │  ← click to flip│
+│  │   (front / back)      │                  │
+│  └────────────────────────┘                 │
+│         [Close]                             │
+└─────────────────────────────────────────────┘
 ```
 
----
+## Steps
 
-## Synergy System
+### 1. Create `CardCatalog.tsx` component
+- Import `allCards` and group by `card.type`, then within each type group by `rarity` (legendary → rare → common).
+- Add filter pills at the top to show one type or all.
+- For each card, check if `playerState.ownedCardIds` includes it. If not, render with a CSS `grayscale` filter and reduced opacity.
+- On card click, open a modal (Dialog) with the card rendered at `size="lg"`, flippable (the existing GameCard flip behavior handles this already since without an `onClick` prop it toggles flip).
+- Show a count badge like "12/50 Gods unlocked".
 
-Three synergy tiers:
-1. **Hero + God** — Both on field at same time → stat buff (e.g. Warrior + Ares = +15% ATK)
-2. **Card + Weapon** — Matching tags → bonus stats beyond base weapon bonus
-3. **Multi-card (3+)** — Same tag on field → aura buff (e.g. 3x Olympus Gods = +2 DEF all, "Divine Shield")
+### 2. Update `GameCard.tsx`
+- Add an optional `locked` prop. When true, apply `filter: grayscale(100%)` and `opacity: 0.5` via CSS classes, and disable hover effects.
+- The card should still be clickable when locked (to open the modal and see what it looks like greyed out and its specs).
 
-Visual indicators: gold text for bonuses, glowing connection lines between synergy pairs, tooltip on hover.
+### 3. Card Detail Modal
+- Use the existing `Dialog` component from shadcn/ui.
+- Render the selected `GameCard` at `size="lg"` centered in the modal.
+- The card flips on click (default behavior when no `onClick` prop is passed).
+- Show owned/locked status text below the card.
 
----
+### 4. Add "Catalog" tab to `Index.tsx`
+- Add a new tab entry with a `BookOpen` or `Grid` icon.
+- Render `<CardCatalog playerState={playerState} />` when active.
 
-## Ability System
-
-- **Passive**: Always active while card is on field (e.g. "+1 ATK to all Warriors")
-- **Active**: Uses your turn action. 1 use per card per battle (or cooldown-based)
-- **Synergy Ability**: Appears only when synergy condition is met. Stronger than base abilities
-
----
-
-## Trap & Spell Cards
-
-**Spells** (instant, discard after use):
-- Damage spells (deal X to target), heals, buffs (temp ATK/DEF boost), debuffs
-
-**Traps** (set face-down, auto-trigger):
-- Counter-attack: When attacked, reflect X damage back
-- Damage redirect: Redirect attack to another target
-- Reveal: Force-flip an enemy trap
-
----
-
-## Enemy AI (Mirror System)
-
-The AI uses the same hand/field/deck mechanics as the player:
-- Draws cards, plays to field, equips weapons, attacks
-- Decision priority: Play high-value cards → equip weapons → attack weakest enemy → set traps
-- No cheating — AI follows same rules and card limits
-
----
-
-## Technical Changes
-
-### Data Model Updates (`src/data/cards.ts`)
-- Expand `CardType` to `"hero" | "god" | "weapon" | "spell" | "trap"`
-- Add `hp` field to hero/god cards (field units need HP)
-- Add `tags: string[]` for synergy matching (e.g. `["warrior", "olympus"]`)
-- Add `weaponBonus?: { attack: number; defense: number }` for weapon cards
-- Add `spellEffect?: { type: string; value: number; target: string }` for spells
-- Add `trapEffect?: { trigger: string; effect: string; value: number }` for traps
-- Add ~15 new weapon/spell/trap cards to the pool
-- Reclassify existing `item` type cards as `weapon`
-
-### New Engine (`src/lib/battleEngine.ts` — full rewrite)
-- `BattleState`: tracks hand[], field[], deck[], graveyard[], playerHp, shield, traps
-- Turn actions: `playCard`, `equipWeapon`, `castSpell`, `setTrap`, `attackTarget`, `useAbility`
-- Trap trigger resolution on enemy attacks
-- Draw phase at end of turn
-- Empty deck penalty (5 HP)
-
-### New Synergy Engine (`src/lib/synergyEngine.ts`)
-- Recalculate synergies whenever field changes
-- Three-tier check: Hero+God, Card+Weapon, Multi-card tag count
-- Return active synergy list with bonuses
-
-### New UI Components
-- `BattleField.tsx` — 4 slots per side, shows field cards with HP bars, weapon icons, trap face-downs
-- `BattleHand.tsx` — Scrollable hand of cards at bottom, click to play
-- `BattleTargetSelect.tsx` — Target picker when attacking (which enemy field card, or direct)
-- Update `BattleArena.tsx` — Wire new components, handle turn flow, AI turn logic
-
-### Files Summary
-
-| Action | File | Purpose |
-|--------|------|---------|
-| Modify | `src/data/cards.ts` | Add hp, tags, weapon/spell/trap fields, new cards, reclassify items |
-| Rewrite | `src/lib/battleEngine.ts` | Full TCG state machine with hand/field/deck |
-| Create | `src/lib/synergyEngine.ts` | Field-based synergy calculations |
-| Rewrite | `src/components/BattleArena.tsx` | New layout with hand, field, HP bars |
-| Create | `src/components/BattleField.tsx` | 4-slot field display per player |
-| Create | `src/components/BattleHand.tsx` | Hand card display and play actions |
-| Create | `src/components/BattleTargetSelect.tsx` | Target selection overlay |
-| Modify | `src/components/BattleCardDisplay.tsx` | Show HP bar, weapon icon, trap state |
-| Modify | `src/components/DeckBuilder.tsx` | Support mixed deck building (heroes, weapons, spells, traps) |
+## Technical Details
+- Greyscale is pure CSS: `className="grayscale opacity-50"` (Tailwind classes).
+- No new dependencies needed — uses existing Dialog, GameCard, and card data.
+- Filter state is local `useState` in the Catalog component.
+- Card types from data: `"hero" | "god" | "weapon" | "spell" | "trap"` — we'll label "spell" as "Skill" and group weapon as "Weapon/Shield" in the UI labels.
 
