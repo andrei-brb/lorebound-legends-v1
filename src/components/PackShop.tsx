@@ -67,9 +67,11 @@ export default function PackShop({ playerState, onStateChange }: PackShopProps) 
 
   const handlePackOpeningComplete = (cardIds: string[]) => {
     let state = { ...playerState, cardProgress: { ...playerState.cardProgress }, ownedCardIds: [...playerState.ownedCardIds] };
+    let totalStardust = 0;
     for (const id of cardIds) {
       const result = addCardToCollection(state, id);
       state = result.state;
+      totalStardust += result.stardustEarned;
     }
     onStateChange(state);
     savePlayerState(state);
@@ -90,7 +92,7 @@ export default function PackShop({ playerState, onStateChange }: PackShopProps) 
 
       <div>
         <h2 className="font-heading text-2xl font-bold text-foreground mb-2">✦ Summon Cards</h2>
-        <p className="text-sm text-muted-foreground">Open packs to expand your collection. Duplicates grant bonus XP!</p>
+        <p className="text-sm text-muted-foreground">Open packs to expand your collection. Duplicates earn ⭐ stars & 💎 stardust!</p>
       </div>
 
       {/* Stats Bar */}
@@ -99,6 +101,11 @@ export default function PackShop({ playerState, onStateChange }: PackShopProps) 
           <Coins className="w-4 h-4 text-legendary" />
           <span className="font-heading font-bold text-foreground">{playerState.gold}</span>
           <span className="text-xs text-muted-foreground">Gold</span>
+        </div>
+        <div className="flex items-center gap-2 bg-card border border-border rounded-xl px-4 py-2.5">
+          <span className="text-sm">💎</span>
+          <span className="font-heading font-bold text-foreground">{playerState.stardust || 0}</span>
+          <span className="text-xs text-muted-foreground">Stardust</span>
         </div>
         <div className="flex items-center gap-2 bg-card border border-border rounded-xl px-4 py-2.5">
           <Sparkles className="w-4 h-4 text-primary" />
