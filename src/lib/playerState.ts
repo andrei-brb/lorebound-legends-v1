@@ -1,5 +1,5 @@
 import { allCards } from "@/data/cards";
-import { type StarProgress, getDefaultStarProgress } from "./starSystem";
+import { type StarProgress, getDefaultStarProgress, processDuplicate } from "./starSystem";
 
 export interface CardProgress {
   level: number;
@@ -85,7 +85,6 @@ export function freePackTimeRemaining(state: PlayerState): number {
 }
 
 export function addCardToCollection(state: PlayerState, cardId: string): { state: PlayerState; isDuplicate: boolean; stardustEarned: number; newGoldStar: boolean; newRedStar: boolean } {
-  const { processDuplicate } = require("./starSystem");
   const newState = { ...state, cardProgress: { ...state.cardProgress } };
   
   if (newState.ownedCardIds.includes(cardId)) {
