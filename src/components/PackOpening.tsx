@@ -1,11 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { allCards } from "@/data/cards";
 import { cn } from "@/lib/utils";
+import type { PlayerState } from "@/lib/playerState";
 
 interface PackOpeningProps {
   cardIds: string[];
   onComplete: (cardIds: string[]) => void;
+  playerState?: PlayerState;
 }
 
 const rarityParticleColor: Record<string, string> = {
@@ -20,10 +22,14 @@ const rarityGlowBg: Record<string, string> = {
   common: "shadow-[0_0_20px_10px_hsl(230,10%,50%,0.3)]",
 };
 
-export default function PackOpening({ cardIds, onComplete }: PackOpeningProps) {
+export default function PackOpening({ cardIds, onComplete, playerState }: PackOpeningProps) {
   const [phase, setPhase] = useState<"intro" | "spread" | "revealing" | "summary">("intro");
   const [revealedIndices, setRevealedIndices] = useState<Set<number>>(new Set());
   const cards = cardIds.map(id => allCards.find(c => c.id === id)!).filter(Boolean);
+
+  const dupeFlags = useMemo(() => {
+    return cardIds.map(id => playerState ? playerState.ownedCardIds.includes(id) : false);
+  }, [cardIds, playerState]);
 
   useEffect(() => {
     const timer = setTimeout(() => setPhase("spread"), 1500);
