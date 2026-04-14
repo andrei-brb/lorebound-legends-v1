@@ -206,6 +206,11 @@ export default function PackOpening({ cardIds, onComplete, playerState }: PackOp
                       {card.rarity} {card.type}
                     </p>
                   </div>
+                  {dupeFlags[i] && (
+                    <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-primary/20 text-primary">
+                      +⭐ Dupe
+                    </span>
+                  )}
                 </motion.div>
               ))}
             </div>
