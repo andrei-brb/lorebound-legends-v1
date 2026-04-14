@@ -188,28 +188,28 @@ export default function GameCard({ card, onClick, selected, showSynergy, size = 
         >
           <div className="absolute inset-0 z-10 pointer-events-none rounded-[10px] border-[6px] border-card/60" />
           <div className="absolute inset-[5px] z-10 pointer-events-none rounded-lg border border-foreground/10" />
-          <div className="p-5 flex flex-col h-full relative z-20">
-            <h3 className="font-heading text-sm font-bold text-foreground mb-2">{card.name}</h3>
-            <p className="text-[11px] text-muted-foreground leading-relaxed flex-1 overflow-auto">{card.lore}</p>
+          <div className="p-3 flex flex-col h-full relative z-20 overflow-hidden">
+            <h3 className="font-heading text-xs font-bold text-foreground mb-1 truncate">{card.name}</h3>
+            <p className="text-[9px] text-muted-foreground leading-snug flex-1 min-h-0 overflow-auto">{card.lore}</p>
 
-            <div className="mt-2 p-2 rounded-lg bg-secondary">
-              <div className="flex items-center gap-1 mb-1">
-                <Zap className="w-3 h-3 text-legendary" />
-                <span className="text-[11px] font-bold text-foreground">{abilityName}</span>
+            <div className="mt-1.5 p-1.5 rounded-lg bg-secondary shrink-0">
+              <div className="flex items-center gap-1 mb-0.5">
+                <Zap className="w-2.5 h-2.5 text-legendary shrink-0" />
+                <span className="text-[9px] font-bold text-foreground truncate">{abilityName}</span>
               </div>
-              <p className="text-[10px] text-muted-foreground">{card.specialAbility.description}</p>
+              <p className="text-[8px] text-muted-foreground leading-snug">{card.specialAbility.description}</p>
             </div>
 
             {card.synergies.length > 0 && (
-              <div className="mt-2 space-y-1">
-                <span className="text-[10px] font-semibold uppercase tracking-wider text-synergy">Synergies</span>
+              <div className="mt-1.5 space-y-0.5 shrink-0">
+                <span className="text-[8px] font-semibold uppercase tracking-wider text-synergy">Synergies</span>
                 {card.synergies.map((syn) => {
                   const partner = allCards.find((c) => c.id === syn.partnerId);
                   return (
-                    <div key={syn.partnerId} className="synergy-highlight rounded p-1.5">
-                      <span className="text-[10px] font-bold text-synergy">{syn.name}</span>
-                      <span className="text-[10px] text-muted-foreground"> — with {partner?.name}</span>
-                      <p className="text-[9px] text-synergy-glow mt-0.5">{syn.description}</p>
+                    <div key={syn.partnerId} className="synergy-highlight rounded p-1">
+                      <span className="text-[8px] font-bold text-synergy">{syn.name}</span>
+                      <span className="text-[8px] text-muted-foreground"> — {partner?.name}</span>
+                      <p className="text-[8px] text-synergy-glow mt-0.5 leading-snug">{syn.description}</p>
                     </div>
                   );
                 })}
