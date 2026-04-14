@@ -106,6 +106,104 @@ import vesper from "@/assets/cards/vesper.jpg";
 import tormund from "@/assets/cards/tormund.jpg";
 import ember from "@/assets/cards/ember.jpg";
 import wraith from "@/assets/cards/wraith.jpg";
+import sunfangBladeImg from "@/assets/cards/sunfang-blade.jpg";
+import aegisMoonImg from "@/assets/cards/aegis-moon.jpg";
+import frostAxeImg from "@/assets/cards/frost-axe.jpg";
+import shadowDaggerImg from "@/assets/cards/shadow-dagger.jpg";
+import natureStaffImg from "@/assets/cards/nature-staff.jpg";
+import flameSwordImg from "@/assets/cards/flame-sword.jpg";
+import stormHammerImg from "@/assets/cards/storm-hammer.jpg";
+import voidOrbImg from "@/assets/cards/void-orb.jpg";
+import lunarScepterImg from "@/assets/cards/lunar-scepter.jpg";
+import dragonsFangImg from "@/assets/cards/dragons-fang.jpg";
+import vexCloakImg from "@/assets/cards/vex-cloak.jpg";
+import oakrootShieldImg from "@/assets/cards/oakroot-shield.jpg";
+import frostCrownImg from "@/assets/cards/frost-crown.jpg";
+import stormGauntletsImg from "@/assets/cards/storm-gauntlets.jpg";
+import deathScytheImg from "@/assets/cards/death-scythe.jpg";
+import warBannerImg from "@/assets/cards/war-banner.jpg";
+import sunfireBowImg from "@/assets/cards/sunfire-bow.jpg";
+import earthHammerImg from "@/assets/cards/earth-hammer.jpg";
+import venomBladeImg from "@/assets/cards/venom-blade.jpg";
+import crystalStaffImg from "@/assets/cards/crystal-staff.jpg";
+import wolfPeltImg from "@/assets/cards/wolf-pelt.jpg";
+import runeHammerImg from "@/assets/cards/rune-hammer.jpg";
+import tideTridentImg from "@/assets/cards/tide-trident.jpg";
+import windCloakImg from "@/assets/cards/wind-cloak.jpg";
+import chaosOrbImg from "@/assets/cards/chaos-orb.jpg";
+import boneShieldImg from "@/assets/cards/bone-shield.jpg";
+import starPendantImg from "@/assets/cards/star-pendant.jpg";
+import lavaGauntletsImg from "@/assets/cards/lava-gauntlets.jpg";
+import spiderSilkArmorImg from "@/assets/cards/spider-silk-armor.jpg";
+import timeWatchImg from "@/assets/cards/time-watch.jpg";
+import dawnBladeImg from "@/assets/cards/dawn-blade.jpg";
+import ironChainImg from "@/assets/cards/iron-chain.jpg";
+import ravenFeatherImg from "@/assets/cards/raven-feather.jpg";
+import dreamCatcherImg from "@/assets/cards/dream-catcher.jpg";
+import phoenixPlumeImg from "@/assets/cards/phoenix-plume.jpg";
+import coralArmorImg from "@/assets/cards/coral-armor.jpg";
+import beastFangNecklaceImg from "@/assets/cards/beast-fang-necklace.jpg";
+import etherealRobesImg from "@/assets/cards/ethereal-robes.jpg";
+import warAxeImg from "@/assets/cards/war-axe.jpg";
+import sandCloakImg from "@/assets/cards/sand-cloak.jpg";
+import titanGauntletsImg from "@/assets/cards/titan-gauntlets.jpg";
+import harmonyHarpImg from "@/assets/cards/harmony-harp.jpg";
+import dragonScaleShieldImg from "@/assets/cards/dragon-scale-shield.jpg";
+import vineWhipImg from "@/assets/cards/vine-whip.jpg";
+import psychicCrownImg from "@/assets/cards/psychic-crown.jpg";
+import nightDaggerImg from "@/assets/cards/night-dagger.jpg";
+import healingChaliceImg from "@/assets/cards/healing-chalice.jpg";
+import fateThreadsImg from "@/assets/cards/fate-threads.jpg";
+import sleepDustImg from "@/assets/cards/sleep-dust.jpg";
+import lavaShieldImg from "@/assets/cards/lava-shield.jpg";
+import iceCrownImg from "@/assets/cards/ice-crown.jpg";
+import warriorHelmImg from "@/assets/cards/warrior-helm.jpg";
+import necroTomeImg from "@/assets/cards/necro-tome.jpg";
+import galeBowImg from "@/assets/cards/gale-bow.jpg";
+import mistVeilImg from "@/assets/cards/mist-veil.jpg";
+import sparkRingImg from "@/assets/cards/spark-ring.jpg";
+import sunShieldImg from "@/assets/cards/sun-shield.jpg";
+import fireballImg from "@/assets/cards/fireball.jpg";
+import healingLightImg from "@/assets/cards/healing-light.jpg";
+import lightningBoltImg from "@/assets/cards/lightning-bolt.jpg";
+import warCryImg from "@/assets/cards/war-cry.jpg";
+import frostNovaImg from "@/assets/cards/frost-nova.jpg";
+import divineBlessingImg from "@/assets/cards/divine-blessing.jpg";
+import shadowBoltImg from "@/assets/cards/shadow-bolt.jpg";
+import earthquakeImg from "@/assets/cards/earthquake.jpg";
+import venomCloudImg from "@/assets/cards/venom-cloud.jpg";
+import voidRiftImg from "@/assets/cards/void-rift.jpg";
+import ironFortressImg from "@/assets/cards/iron-fortress.jpg";
+import moonlightHealImg from "@/assets/cards/moonlight-heal.jpg";
+import infernoWaveImg from "@/assets/cards/inferno-wave.jpg";
+import timeStopImg from "@/assets/cards/time-stop.jpg";
+import naturesWrathImg from "@/assets/cards/natures-wrath.jpg";
+import windSlashImg from "@/assets/cards/wind-slash.jpg";
+import tidalSurgeImg from "@/assets/cards/tidal-surge.jpg";
+import darkPactImg from "@/assets/cards/dark-pact.jpg";
+import dragonBreathImg from "@/assets/cards/dragon-breath.jpg";
+import massHealImg from "@/assets/cards/mass-heal.jpg";
+import chaosBoltImg from "@/assets/cards/chaos-bolt.jpg";
+import starlightBarrierImg from "@/assets/cards/starlight-barrier.jpg";
+import mirrorTrapImg from "@/assets/cards/mirror-trap.jpg";
+import spikeTrapImg from "@/assets/cards/spike-trap.jpg";
+import stunTrapImg from "@/assets/cards/stun-trap.jpg";
+import damageTrapImg from "@/assets/cards/damage-trap.jpg";
+import iceWallTrapImg from "@/assets/cards/ice-wall-trap.jpg";
+import shadowSnareImg from "@/assets/cards/shadow-snare.jpg";
+import firePitTrapImg from "@/assets/cards/fire-pit-trap.jpg";
+import vineTrapImg from "@/assets/cards/vine-trap.jpg";
+import voidTrapImg from "@/assets/cards/void-trap.jpg";
+import thunderTrapImg from "@/assets/cards/thunder-trap.jpg";
+import mirrorImageTrapImg from "@/assets/cards/mirror-image-trap.jpg";
+import poisonTrapImg from "@/assets/cards/poison-trap.jpg";
+import gravityTrapImg from "@/assets/cards/gravity-trap.jpg";
+import boneCageTrapImg from "@/assets/cards/bone-cage-trap.jpg";
+import sandTrapImg from "@/assets/cards/sand-trap.jpg";
+import chainTrapImg from "@/assets/cards/chain-trap.jpg";
+import crystalTrapImg from "@/assets/cards/crystal-trap.jpg";
+import dreamTrapImg from "@/assets/cards/dream-trap.jpg";
+
 
 export type Rarity = "legendary" | "rare" | "common";
 export type CardType = "hero" | "god" | "weapon" | "spell" | "trap";
@@ -1592,7 +1690,7 @@ const heroCards: GameCard[] = [
 
 const weaponCards: GameCard[] = [
   {
-    id: "enchanted-sword", name: "Sunfang Blade", type: "weapon", rarity: "rare", image: enchantedSword,
+    id: "enchanted-sword", name: "Sunfang Blade", type: "weapon", rarity: "rare", image: sunfangBladeImg,
     attack: 6, defense: 0, hp: 0,
     tags: ["forge", "warrior"],
     weaponBonus: { attack: 6, defense: 0 },
@@ -1605,7 +1703,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 80, loreArc: "The Crown of Storms",
   },
   {
-    id: "divine-shield", name: "Aegis of the Moon", type: "weapon", rarity: "common", image: divineShield,
+    id: "divine-shield", name: "Aegis of the Moon", type: "weapon", rarity: "common", image: aegisMoonImg,
     attack: 0, defense: 8, hp: 0,
     tags: ["divine", "lunar"],
     weaponBonus: { attack: 0, defense: 8 },
@@ -1618,7 +1716,7 @@ const weaponCards: GameCard[] = [
   },
   // New weapon cards
   {
-    id: "frost-axe", name: "Frostbite Axe", type: "weapon", rarity: "common", image: iceMage,
+    id: "frost-axe", name: "Frostbite Axe", type: "weapon", rarity: "common", image: frostAxeImg,
     attack: 4, defense: 2, hp: 0,
     tags: ["ice", "warrior"],
     weaponBonus: { attack: 4, defense: 2 },
@@ -1630,7 +1728,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "shadow-dagger", name: "Nightfang Dagger", type: "weapon", rarity: "rare", image: shadowAssassin,
+    id: "shadow-dagger", name: "Nightfang Dagger", type: "weapon", rarity: "rare", image: shadowDaggerImg,
     attack: 5, defense: 0, hp: 0,
     tags: ["shadow", "rogue"],
     weaponBonus: { attack: 5, defense: 0 },
@@ -1642,7 +1740,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 80,
   },
   {
-    id: "nature-staff", name: "Staff of the Grove", type: "weapon", rarity: "common", image: forestDruid,
+    id: "nature-staff", name: "Staff of the Grove", type: "weapon", rarity: "common", image: natureStaffImg,
     attack: 2, defense: 4, hp: 0,
     tags: ["nature", "healer"],
     weaponBonus: { attack: 2, defense: 4 },
@@ -1654,7 +1752,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "flame-sword", name: "Inferno Blade", type: "weapon", rarity: "rare", image: fireDragon,
+    id: "flame-sword", name: "Inferno Blade", type: "weapon", rarity: "rare", image: flameSwordImg,
     attack: 7, defense: 0, hp: 0,
     tags: ["fire", "warrior"],
     weaponBonus: { attack: 7, defense: 0 },
@@ -1666,7 +1764,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 80,
   },
   {
-    id: "storm-hammer", name: "Thunderfall Hammer", type: "weapon", rarity: "common", image: stormGod,
+    id: "storm-hammer", name: "Thunderfall Hammer", type: "weapon", rarity: "common", image: stormHammerImg,
     attack: 5, defense: 3, hp: 0,
     tags: ["storm", "forge"],
     weaponBonus: { attack: 5, defense: 3 },
@@ -1678,7 +1776,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "void-orb", name: "Orb of the Void", type: "weapon", rarity: "rare", image: umbra,
+    id: "void-orb", name: "Orb of the Void", type: "weapon", rarity: "rare", image: voidOrbImg,
     attack: 3, defense: 3, hp: 0,
     tags: ["void", "arcane"],
     weaponBonus: { attack: 3, defense: 3 },
@@ -1691,7 +1789,7 @@ const weaponCards: GameCard[] = [
   },
   // ===== NEW WEAPONS (50 total new) =====
   {
-    id: "lunar-scepter", name: "Lunar Scepter", type: "weapon", rarity: "rare", image: moonGoddess,
+    id: "lunar-scepter", name: "Lunar Scepter", type: "weapon", rarity: "rare", image: lunarScepterImg,
     attack: 3, defense: 5, hp: 0, tags: ["divine", "lunar"],
     weaponBonus: { attack: 3, defense: 5 },
     specialAbility: { name: "Moonbeam Focus", description: "Adds +3 ATK and +5 DEF. Heals wielder 3 HP per turn at night.", cost: 0 },
@@ -1700,7 +1798,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 80,
   },
   {
-    id: "dragons-fang", name: "Dragon's Fang", type: "weapon", rarity: "legendary", image: fireDragon,
+    id: "dragons-fang", name: "Dragon's Fang", type: "weapon", rarity: "legendary", image: dragonsFangImg,
     attack: 8, defense: 0, hp: 0, tags: ["dragon", "fire"],
     weaponBonus: { attack: 8, defense: 0 },
     specialAbility: { name: "Draconic Edge", description: "Adds +8 ATK. Attacks burn for 3 damage per turn.", cost: 0 },
@@ -1709,7 +1807,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 100,
   },
   {
-    id: "vex-cloak", name: "Cloak of Shadows", type: "weapon", rarity: "rare", image: shadowAssassin,
+    id: "vex-cloak", name: "Cloak of Shadows", type: "weapon", rarity: "rare", image: vexCloakImg,
     attack: 3, defense: 3, hp: 0, tags: ["shadow", "rogue"],
     weaponBonus: { attack: 3, defense: 3 },
     specialAbility: { name: "Shadow Veil", description: "Adds +3 ATK and +3 DEF. Grants invisibility for 1 turn after kill.", cost: 0 },
@@ -1718,7 +1816,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 80,
   },
   {
-    id: "oakroot-shield", name: "Oakroot Shield", type: "weapon", rarity: "common", image: forestDruid,
+    id: "oakroot-shield", name: "Oakroot Shield", type: "weapon", rarity: "common", image: oakrootShieldImg,
     attack: 0, defense: 7, hp: 0, tags: ["nature", "earth"],
     weaponBonus: { attack: 0, defense: 7 },
     specialAbility: { name: "Living Bark", description: "Adds +7 DEF. Regenerates 2 HP per turn.", cost: 0 },
@@ -1727,7 +1825,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "frost-crown", name: "Crown of Frost", type: "weapon", rarity: "rare", image: glacius,
+    id: "frost-crown", name: "Crown of Frost", type: "weapon", rarity: "rare", image: frostCrownImg,
     attack: 2, defense: 6, hp: 0, tags: ["ice", "divine"],
     weaponBonus: { attack: 2, defense: 6 },
     specialAbility: { name: "Frozen Aura", description: "Adds +2 ATK and +6 DEF. Slows all attackers.", cost: 0 },
@@ -1736,7 +1834,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 80,
   },
   {
-    id: "storm-gauntlets", name: "Stormfist Gauntlets", type: "weapon", rarity: "common", image: stormGod,
+    id: "storm-gauntlets", name: "Stormfist Gauntlets", type: "weapon", rarity: "common", image: stormGauntletsImg,
     attack: 5, defense: 2, hp: 0, tags: ["storm", "warrior"],
     weaponBonus: { attack: 5, defense: 2 },
     specialAbility: { name: "Thunder Fists", description: "Adds +5 ATK and +2 DEF. Attacks chain lightning.", cost: 0 },
@@ -1745,7 +1843,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "death-scythe", name: "Reaper's Scythe", type: "weapon", rarity: "legendary", image: thanatos,
+    id: "death-scythe", name: "Reaper's Scythe", type: "weapon", rarity: "legendary", image: deathScytheImg,
     attack: 9, defense: 0, hp: 0, tags: ["death", "void"],
     weaponBonus: { attack: 9, defense: 0 },
     specialAbility: { name: "Soul Harvest", description: "Adds +9 ATK. Kills grant +2 permanent ATK.", cost: 0 },
@@ -1754,7 +1852,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 100,
   },
   {
-    id: "war-banner", name: "Banner of Valor", type: "weapon", rarity: "common", image: ares,
+    id: "war-banner", name: "Banner of Valor", type: "weapon", rarity: "common", image: warBannerImg,
     attack: 2, defense: 4, hp: 0, tags: ["warrior"],
     weaponBonus: { attack: 2, defense: 4 },
     specialAbility: { name: "Inspire", description: "Adds +2 ATK and +4 DEF. All warrior allies gain +1 ATK.", cost: 0 },
@@ -1763,7 +1861,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "sunfire-bow", name: "Sunfire Bow", type: "weapon", rarity: "rare", image: solarius,
+    id: "sunfire-bow", name: "Sunfire Bow", type: "weapon", rarity: "rare", image: sunfireBowImg,
     attack: 6, defense: 0, hp: 0, tags: ["light", "wind"],
     weaponBonus: { attack: 6, defense: 0 },
     specialAbility: { name: "Solar Arrow", description: "Adds +6 ATK. Attacks blind targets for 1 turn.", cost: 0 },
@@ -1772,7 +1870,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 80,
   },
   {
-    id: "earth-hammer", name: "Earthshaker Maul", type: "weapon", rarity: "common", image: terragon,
+    id: "earth-hammer", name: "Earthshaker Maul", type: "weapon", rarity: "common", image: earthHammerImg,
     attack: 6, defense: 2, hp: 0, tags: ["earth", "stone"],
     weaponBonus: { attack: 6, defense: 2 },
     specialAbility: { name: "Quake Strike", description: "Adds +6 ATK and +2 DEF. Attacks stun grounded enemies.", cost: 0 },
@@ -1781,7 +1879,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "venom-blade", name: "Serpent's Kiss Blade", type: "weapon", rarity: "common", image: serpentia,
+    id: "venom-blade", name: "Serpent's Kiss Blade", type: "weapon", rarity: "common", image: venomBladeImg,
     attack: 4, defense: 0, hp: 0, tags: ["nature"],
     weaponBonus: { attack: 4, defense: 0 },
     specialAbility: { name: "Poison Edge", description: "Adds +4 ATK. Attacks poison for 2 damage/turn.", cost: 0 },
@@ -1790,7 +1888,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "crystal-staff", name: "Prismatic Staff", type: "weapon", rarity: "rare", image: crystalia,
+    id: "crystal-staff", name: "Prismatic Staff", type: "weapon", rarity: "rare", image: crystalStaffImg,
     attack: 4, defense: 4, hp: 0, tags: ["arcane", "light"],
     weaponBonus: { attack: 4, defense: 4 },
     specialAbility: { name: "Refraction", description: "Adds +4 ATK and +4 DEF. Spells bounce to extra targets.", cost: 0 },
@@ -1799,7 +1897,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 80,
   },
   {
-    id: "wolf-pelt", name: "Direwolf Pelt", type: "weapon", rarity: "common", image: fenris,
+    id: "wolf-pelt", name: "Direwolf Pelt", type: "weapon", rarity: "common", image: wolfPeltImg,
     attack: 3, defense: 4, hp: 0, tags: ["beast", "nature"],
     weaponBonus: { attack: 3, defense: 4 },
     specialAbility: { name: "Wolf Spirit", description: "Adds +3 ATK and +4 DEF. Grants pack hunting bonus.", cost: 0 },
@@ -1808,7 +1906,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "rune-hammer", name: "Runeforged Hammer", type: "weapon", rarity: "common", image: hephara,
+    id: "rune-hammer", name: "Runeforged Hammer", type: "weapon", rarity: "common", image: runeHammerImg,
     attack: 5, defense: 3, hp: 0, tags: ["forge"],
     weaponBonus: { attack: 5, defense: 3 },
     specialAbility: { name: "Runic Strike", description: "Adds +5 ATK and +3 DEF. Attacks inscribe weakening runes.", cost: 0 },
@@ -1817,7 +1915,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "tide-trident", name: "Trident of the Deep", type: "weapon", rarity: "rare", image: thalassia,
+    id: "tide-trident", name: "Trident of the Deep", type: "weapon", rarity: "rare", image: tideTridentImg,
     attack: 6, defense: 2, hp: 0, tags: ["water", "divine"],
     weaponBonus: { attack: 6, defense: 2 },
     specialAbility: { name: "Tidal Pierce", description: "Adds +6 ATK and +2 DEF. Attacks push enemies back.", cost: 0 },
@@ -1826,7 +1924,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 80,
   },
   {
-    id: "wind-cloak", name: "Zephyr Cloak", type: "weapon", rarity: "common", image: zephyros,
+    id: "wind-cloak", name: "Zephyr Cloak", type: "weapon", rarity: "common", image: windCloakImg,
     attack: 2, defense: 5, hp: 0, tags: ["wind"],
     weaponBonus: { attack: 2, defense: 5 },
     specialAbility: { name: "Wind Ward", description: "Adds +2 ATK and +5 DEF. Grants evasion against ranged.", cost: 0 },
@@ -1835,7 +1933,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "chaos-orb", name: "Orb of Entropy", type: "weapon", rarity: "rare", image: dionara,
+    id: "chaos-orb", name: "Orb of Entropy", type: "weapon", rarity: "rare", image: chaosOrbImg,
     attack: 4, defense: 2, hp: 0, tags: ["chaos", "arcane"],
     weaponBonus: { attack: 4, defense: 2 },
     specialAbility: { name: "Chaos Touch", description: "Adds +4 ATK and +2 DEF. Randomizes enemy stats on hit.", cost: 0 },
@@ -1844,7 +1942,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 80,
   },
   {
-    id: "bone-shield", name: "Shield of the Fallen", type: "weapon", rarity: "common", image: nekros,
+    id: "bone-shield", name: "Shield of the Fallen", type: "weapon", rarity: "common", image: boneShieldImg,
     attack: 0, defense: 6, hp: 0, tags: ["death", "undead"],
     weaponBonus: { attack: 0, defense: 6 },
     specialAbility: { name: "Bone Ward", description: "Adds +6 DEF. Absorbs first lethal hit, surviving with 1 HP.", cost: 0 },
@@ -1853,7 +1951,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "star-pendant", name: "Stellar Pendant", type: "weapon", rarity: "common", image: celestia,
+    id: "star-pendant", name: "Stellar Pendant", type: "weapon", rarity: "common", image: starPendantImg,
     attack: 2, defense: 3, hp: 0, tags: ["light", "arcane"],
     weaponBonus: { attack: 2, defense: 3 },
     specialAbility: { name: "Starlight", description: "Adds +2 ATK and +3 DEF. Abilities cost 1 less.", cost: 0 },
@@ -1862,7 +1960,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "lava-gauntlets", name: "Magma Gauntlets", type: "weapon", rarity: "common", image: magmus,
+    id: "lava-gauntlets", name: "Magma Gauntlets", type: "weapon", rarity: "common", image: lavaGauntletsImg,
     attack: 5, defense: 2, hp: 0, tags: ["fire", "earth"],
     weaponBonus: { attack: 5, defense: 2 },
     specialAbility: { name: "Molten Fists", description: "Adds +5 ATK and +2 DEF. Attacks melt enemy armor.", cost: 0 },
@@ -1871,7 +1969,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "spider-silk-armor", name: "Arachnid Silk Vest", type: "weapon", rarity: "common", image: arachnia,
+    id: "spider-silk-armor", name: "Arachnid Silk Vest", type: "weapon", rarity: "common", image: spiderSilkArmorImg,
     attack: 0, defense: 5, hp: 0, tags: ["nature"],
     weaponBonus: { attack: 0, defense: 5 },
     specialAbility: { name: "Web Armor", description: "Adds +5 DEF. Attackers get slowed for 1 turn.", cost: 0 },
@@ -1880,7 +1978,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "time-watch", name: "Chronos Timepiece", type: "weapon", rarity: "legendary", image: chronos,
+    id: "time-watch", name: "Chronos Timepiece", type: "weapon", rarity: "legendary", image: timeWatchImg,
     attack: 2, defense: 2, hp: 0, tags: ["temporal", "arcane"],
     weaponBonus: { attack: 2, defense: 2 },
     specialAbility: { name: "Time Warp", description: "Adds +2 ATK and +2 DEF. Wielder gets 2 actions per turn.", cost: 0 },
@@ -1889,7 +1987,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 100,
   },
   {
-    id: "dawn-blade", name: "Blade of Dawn", type: "weapon", rarity: "rare", image: aurora,
+    id: "dawn-blade", name: "Blade of Dawn", type: "weapon", rarity: "rare", image: dawnBladeImg,
     attack: 5, defense: 3, hp: 0, tags: ["light"],
     weaponBonus: { attack: 5, defense: 3 },
     specialAbility: { name: "Dawn Strike", description: "Adds +5 ATK and +3 DEF. First attack each turn dispels debuffs.", cost: 0 },
@@ -1898,7 +1996,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 80,
   },
   {
-    id: "iron-chain", name: "Chains of Binding", type: "weapon", rarity: "common", image: ferros,
+    id: "iron-chain", name: "Chains of Binding", type: "weapon", rarity: "common", image: ironChainImg,
     attack: 3, defense: 4, hp: 0, tags: ["forge", "warrior"],
     weaponBonus: { attack: 3, defense: 4 },
     specialAbility: { name: "Chain Lash", description: "Adds +3 ATK and +4 DEF. Attacks bind target for 1 turn.", cost: 0 },
@@ -1907,7 +2005,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "raven-feather", name: "Raven Feather Cloak", type: "weapon", rarity: "common", image: corvus,
+    id: "raven-feather", name: "Raven Feather Cloak", type: "weapon", rarity: "common", image: ravenFeatherImg,
     attack: 3, defense: 3, hp: 0, tags: ["shadow", "death"],
     weaponBonus: { attack: 3, defense: 3 },
     specialAbility: { name: "Raven's Gift", description: "Adds +3 ATK and +3 DEF. Grants flight.", cost: 0 },
@@ -1916,7 +2014,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "dream-catcher", name: "Dreamcatcher Talisman", type: "weapon", rarity: "common", image: phantos,
+    id: "dream-catcher", name: "Dreamcatcher Talisman", type: "weapon", rarity: "common", image: dreamCatcherImg,
     attack: 1, defense: 4, hp: 0, tags: ["arcane", "shadow"],
     weaponBonus: { attack: 1, defense: 4 },
     specialAbility: { name: "Dream Shield", description: "Adds +1 ATK and +4 DEF. Immune to sleep and confusion.", cost: 0 },
@@ -1925,7 +2023,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "phoenix-plume", name: "Phoenix Plume", type: "weapon", rarity: "legendary", image: ignis,
+    id: "phoenix-plume", name: "Phoenix Plume", type: "weapon", rarity: "legendary", image: phoenixPlumeImg,
     attack: 4, defense: 4, hp: 0, tags: ["fire"],
     weaponBonus: { attack: 4, defense: 4 },
     specialAbility: { name: "Rebirth", description: "Adds +4 ATK and +4 DEF. Wielder revives once with 50% HP.", cost: 0 },
@@ -1934,7 +2032,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 100,
   },
   {
-    id: "coral-armor", name: "Coral Plate Armor", type: "weapon", rarity: "common", image: oceanus,
+    id: "coral-armor", name: "Coral Plate Armor", type: "weapon", rarity: "common", image: coralArmorImg,
     attack: 0, defense: 7, hp: 0, tags: ["water"],
     weaponBonus: { attack: 0, defense: 7 },
     specialAbility: { name: "Ocean Shield", description: "Adds +7 DEF. Heals 2 HP when hit.", cost: 0 },
@@ -1943,7 +2041,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "beast-fang-necklace", name: "Fang Necklace", type: "weapon", rarity: "common", image: fenris,
+    id: "beast-fang-necklace", name: "Fang Necklace", type: "weapon", rarity: "common", image: beastFangNecklaceImg,
     attack: 4, defense: 1, hp: 0, tags: ["beast"],
     weaponBonus: { attack: 4, defense: 1 },
     specialAbility: { name: "Predator's Instinct", description: "Adds +4 ATK and +1 DEF. Extra damage to wounded enemies.", cost: 0 },
@@ -1952,7 +2050,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "ethereal-robes", name: "Ethereal Robes", type: "weapon", rarity: "rare", image: ethera,
+    id: "ethereal-robes", name: "Ethereal Robes", type: "weapon", rarity: "rare", image: etherealRobesImg,
     attack: 2, defense: 5, hp: 0, tags: ["arcane"],
     weaponBonus: { attack: 2, defense: 5 },
     specialAbility: { name: "Phase Body", description: "Adds +2 ATK and +5 DEF. 30% chance to dodge attacks.", cost: 0 },
@@ -1961,7 +2059,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 80,
   },
   {
-    id: "war-axe", name: "Berserker's Axe", type: "weapon", rarity: "common", image: bellator,
+    id: "war-axe", name: "Berserker's Axe", type: "weapon", rarity: "common", image: warAxeImg,
     attack: 6, defense: 0, hp: 0, tags: ["warrior", "chaos"],
     weaponBonus: { attack: 6, defense: 0 },
     specialAbility: { name: "Rage Edge", description: "Adds +6 ATK. Gains +1 ATK each time wielder takes damage.", cost: 0 },
@@ -1970,7 +2068,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "sand-cloak", name: "Sandstorm Shroud", type: "weapon", rarity: "common", image: mistra,
+    id: "sand-cloak", name: "Sandstorm Shroud", type: "weapon", rarity: "common", image: sandCloakImg,
     attack: 2, defense: 4, hp: 0, tags: ["earth", "wind"],
     weaponBonus: { attack: 2, defense: 4 },
     specialAbility: { name: "Sand Veil", description: "Adds +2 ATK and +4 DEF. Ranged attacks miss 40%.", cost: 0 },
@@ -1979,7 +2077,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "titan-gauntlets", name: "Titan's Grasp", type: "weapon", rarity: "rare", image: titanor,
+    id: "titan-gauntlets", name: "Titan's Grasp", type: "weapon", rarity: "rare", image: titanGauntletsImg,
     attack: 6, defense: 4, hp: 0, tags: ["stone", "warrior"],
     weaponBonus: { attack: 6, defense: 4 },
     specialAbility: { name: "Giant Strength", description: "Adds +6 ATK and +4 DEF. Can attack twice if target survives.", cost: 0 },
@@ -1988,7 +2086,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 80,
   },
   {
-    id: "harmony-harp", name: "Harp of Harmony", type: "weapon", rarity: "common", image: harmonia,
+    id: "harmony-harp", name: "Harp of Harmony", type: "weapon", rarity: "common", image: harmonyHarpImg,
     attack: 1, defense: 5, hp: 0, tags: ["arcane"],
     weaponBonus: { attack: 1, defense: 5 },
     specialAbility: { name: "Soothing Song", description: "Adds +1 ATK and +5 DEF. Heals all allies 2 HP per turn.", cost: 0 },
@@ -1997,7 +2095,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "dragon-scale-shield", name: "Dragon Scale Shield", type: "weapon", rarity: "rare", image: draconus,
+    id: "dragon-scale-shield", name: "Dragon Scale Shield", type: "weapon", rarity: "rare", image: dragonScaleShieldImg,
     attack: 0, defense: 8, hp: 0, tags: ["dragon", "fire"],
     weaponBonus: { attack: 0, defense: 8 },
     specialAbility: { name: "Dragon Ward", description: "Adds +8 DEF. Immune to fire damage.", cost: 0 },
@@ -2006,7 +2104,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 80,
   },
   {
-    id: "vine-whip", name: "Thornlash Whip", type: "weapon", rarity: "common", image: verdantia,
+    id: "vine-whip", name: "Thornlash Whip", type: "weapon", rarity: "common", image: vineWhipImg,
     attack: 4, defense: 1, hp: 0, tags: ["nature"],
     weaponBonus: { attack: 4, defense: 1 },
     specialAbility: { name: "Thorn Lash", description: "Adds +4 ATK and +1 DEF. Attacks poison for 2 dmg/turn.", cost: 0 },
@@ -2015,7 +2113,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "psychic-crown", name: "Psionic Crown", type: "weapon", rarity: "rare", image: phantos,
+    id: "psychic-crown", name: "Psionic Crown", type: "weapon", rarity: "rare", image: psychicCrownImg,
     attack: 3, defense: 3, hp: 0, tags: ["arcane"],
     weaponBonus: { attack: 3, defense: 3 },
     specialAbility: { name: "Mind Amp", description: "Adds +3 ATK and +3 DEF. Abilities deal 50% more damage.", cost: 0 },
@@ -2024,7 +2122,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 80,
   },
   {
-    id: "night-dagger", name: "Nightfall Dagger", type: "weapon", rarity: "common", image: obscura,
+    id: "night-dagger", name: "Nightfall Dagger", type: "weapon", rarity: "common", image: nightDaggerImg,
     attack: 4, defense: 1, hp: 0, tags: ["shadow"],
     weaponBonus: { attack: 4, defense: 1 },
     specialAbility: { name: "Night Strike", description: "Adds +4 ATK and +1 DEF. Critical hits in darkness.", cost: 0 },
@@ -2033,7 +2131,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "healing-chalice", name: "Chalice of Life", type: "weapon", rarity: "rare", image: vitalis,
+    id: "healing-chalice", name: "Chalice of Life", type: "weapon", rarity: "rare", image: healingChaliceImg,
     attack: 0, defense: 3, hp: 0, tags: ["healer", "divine"],
     weaponBonus: { attack: 0, defense: 3 },
     specialAbility: { name: "Life Spring", description: "Adds +3 DEF. Healing spells heal 50% more.", cost: 0 },
@@ -2042,7 +2140,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 80,
   },
   {
-    id: "fate-threads", name: "Threads of Fate", type: "weapon", rarity: "rare", image: felara,
+    id: "fate-threads", name: "Threads of Fate", type: "weapon", rarity: "rare", image: fateThreadsImg,
     attack: 2, defense: 4, hp: 0, tags: ["arcane", "divine"],
     weaponBonus: { attack: 2, defense: 4 },
     specialAbility: { name: "Destiny Weave", description: "Adds +2 ATK and +4 DEF. Can reroll one attack per turn.", cost: 0 },
@@ -2051,7 +2149,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 80,
   },
   {
-    id: "sleep-dust", name: "Somnium Dust Pouch", type: "weapon", rarity: "common", image: somnia,
+    id: "sleep-dust", name: "Somnium Dust Pouch", type: "weapon", rarity: "common", image: sleepDustImg,
     attack: 1, defense: 3, hp: 0, tags: ["arcane", "shadow"],
     weaponBonus: { attack: 1, defense: 3 },
     specialAbility: { name: "Sleep Touch", description: "Adds +1 ATK and +3 DEF. Attacks put targets to sleep 25%.", cost: 0 },
@@ -2060,7 +2158,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "lava-shield", name: "Obsidian Bulwark", type: "weapon", rarity: "common", image: magmus,
+    id: "lava-shield", name: "Obsidian Bulwark", type: "weapon", rarity: "common", image: lavaShieldImg,
     attack: 0, defense: 6, hp: 0, tags: ["fire", "stone"],
     weaponBonus: { attack: 0, defense: 6 },
     specialAbility: { name: "Molten Guard", description: "Adds +6 DEF. Attackers take 2 fire damage.", cost: 0 },
@@ -2069,7 +2167,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "ice-crown", name: "Glacial Diadem", type: "weapon", rarity: "common", image: glacius,
+    id: "ice-crown", name: "Glacial Diadem", type: "weapon", rarity: "common", image: iceCrownImg,
     attack: 1, defense: 5, hp: 0, tags: ["ice"],
     weaponBonus: { attack: 1, defense: 5 },
     specialAbility: { name: "Frost Aura", description: "Adds +1 ATK and +5 DEF. Reduces nearby enemy ATK by 1.", cost: 0 },
@@ -2078,7 +2176,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "warrior-helm", name: "Helm of the Conqueror", type: "weapon", rarity: "rare", image: warriorKing,
+    id: "warrior-helm", name: "Helm of the Conqueror", type: "weapon", rarity: "rare", image: warriorHelmImg,
     attack: 3, defense: 5, hp: 0, tags: ["warrior"],
     weaponBonus: { attack: 3, defense: 5 },
     specialAbility: { name: "Conquest", description: "Adds +3 ATK and +5 DEF. Immune to fear and stun.", cost: 0 },
@@ -2087,7 +2185,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 80,
   },
   {
-    id: "necro-tome", name: "Tome of the Dead", type: "weapon", rarity: "rare", image: mortuus,
+    id: "necro-tome", name: "Tome of the Dead", type: "weapon", rarity: "rare", image: necroTomeImg,
     attack: 4, defense: 2, hp: 0, tags: ["death", "arcane"],
     weaponBonus: { attack: 4, defense: 2 },
     specialAbility: { name: "Necrotic Knowledge", description: "Adds +4 ATK and +2 DEF. Summons a skeleton each turn.", cost: 0 },
@@ -2096,7 +2194,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 80,
   },
   {
-    id: "gale-bow", name: "Stormwind Bow", type: "weapon", rarity: "common", image: ventoris,
+    id: "gale-bow", name: "Stormwind Bow", type: "weapon", rarity: "common", image: galeBowImg,
     attack: 5, defense: 0, hp: 0, tags: ["wind"],
     weaponBonus: { attack: 5, defense: 0 },
     specialAbility: { name: "Wind Shot", description: "Adds +5 ATK. Arrows travel instantly and never miss.", cost: 0 },
@@ -2105,7 +2203,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "mist-veil", name: "Veil of Mist", type: "weapon", rarity: "common", image: mistra,
+    id: "mist-veil", name: "Veil of Mist", type: "weapon", rarity: "common", image: mistVeilImg,
     attack: 0, defense: 5, hp: 0, tags: ["water", "wind"],
     weaponBonus: { attack: 0, defense: 5 },
     specialAbility: { name: "Mist Shroud", description: "Adds +5 DEF. Cannot be targeted by ranged attacks.", cost: 0 },
@@ -2114,7 +2212,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "spark-ring", name: "Ring of Sparks", type: "weapon", rarity: "common", image: tempestia,
+    id: "spark-ring", name: "Ring of Sparks", type: "weapon", rarity: "common", image: sparkRingImg,
     attack: 3, defense: 2, hp: 0, tags: ["storm"],
     weaponBonus: { attack: 3, defense: 2 },
     specialAbility: { name: "Static Charge", description: "Adds +3 ATK and +2 DEF. Attacks chain to 1 extra target.", cost: 0 },
@@ -2123,7 +2221,7 @@ const weaponCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "sun-shield", name: "Shield of Solarius", type: "weapon", rarity: "rare", image: solarius,
+    id: "sun-shield", name: "Shield of Solarius", type: "weapon", rarity: "rare", image: sunShieldImg,
     attack: 0, defense: 7, hp: 0, tags: ["light", "divine"],
     weaponBonus: { attack: 0, defense: 7 },
     specialAbility: { name: "Solar Guard", description: "Adds +7 DEF. Reflects 3 damage to melee attackers.", cost: 0 },
@@ -2137,7 +2235,7 @@ const weaponCards: GameCard[] = [
 
 const spellCards: GameCard[] = [
   {
-    id: "fireball", name: "Fireball", type: "spell", rarity: "common", image: pyrothos,
+    id: "fireball", name: "Fireball", type: "spell", rarity: "common", image: fireballImg,
     attack: 0, defense: 0, hp: 0,
     tags: ["fire", "arcane"],
     spellEffect: { type: "damage", value: 8, target: "single_enemy" },
@@ -2147,7 +2245,7 @@ const spellCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "healing-light", name: "Healing Light", type: "spell", rarity: "common", image: healer,
+    id: "healing-light", name: "Healing Light", type: "spell", rarity: "common", image: healingLightImg,
     attack: 0, defense: 0, hp: 0,
     tags: ["light", "healer"],
     spellEffect: { type: "heal", value: 8, target: "single_ally" },
@@ -2157,7 +2255,7 @@ const spellCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "lightning-bolt", name: "Lightning Bolt", type: "spell", rarity: "common", image: stormGod,
+    id: "lightning-bolt", name: "Lightning Bolt", type: "spell", rarity: "common", image: lightningBoltImg,
     attack: 0, defense: 0, hp: 0,
     tags: ["storm", "arcane"],
     spellEffect: { type: "damage", value: 6, target: "all_enemies" },
@@ -2167,7 +2265,7 @@ const spellCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "war-cry", name: "Battle Cry", type: "spell", rarity: "rare", image: ares,
+    id: "war-cry", name: "Battle Cry", type: "spell", rarity: "rare", image: warCryImg,
     attack: 0, defense: 0, hp: 0,
     tags: ["warrior"],
     spellEffect: { type: "buff_attack", value: 3, target: "all_allies", duration: 2 },
@@ -2177,7 +2275,7 @@ const spellCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 80,
   },
   {
-    id: "frost-nova", name: "Frost Nova", type: "spell", rarity: "rare", image: glacius,
+    id: "frost-nova", name: "Frost Nova", type: "spell", rarity: "rare", image: frostNovaImg,
     attack: 0, defense: 0, hp: 0,
     tags: ["ice", "arcane"],
     spellEffect: { type: "debuff_attack", value: 4, target: "all_enemies", duration: 2 },
@@ -2187,7 +2285,7 @@ const spellCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 80,
   },
   {
-    id: "divine-blessing", name: "Divine Blessing", type: "spell", rarity: "rare", image: eirene,
+    id: "divine-blessing", name: "Divine Blessing", type: "spell", rarity: "rare", image: divineBlessingImg,
     attack: 0, defense: 0, hp: 0,
     tags: ["divine", "healer"],
     spellEffect: { type: "heal", value: 5, target: "all_allies" },
@@ -2197,7 +2295,7 @@ const spellCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 80,
   },
   {
-    id: "shadow-bolt", name: "Shadow Bolt", type: "spell", rarity: "common", image: nyx,
+    id: "shadow-bolt", name: "Shadow Bolt", type: "spell", rarity: "common", image: shadowBoltImg,
     attack: 0, defense: 0, hp: 0,
     tags: ["shadow", "arcane"],
     spellEffect: { type: "damage", value: 10, target: "single_enemy" },
@@ -2208,105 +2306,105 @@ const spellCards: GameCard[] = [
   },
   // ===== NEW SPELLS (15) =====
   {
-    id: "earthquake", name: "Earthquake", type: "spell", rarity: "rare", image: terragon,
+    id: "earthquake", name: "Earthquake", type: "spell", rarity: "rare", image: earthquakeImg,
     attack: 0, defense: 0, hp: 0, tags: ["earth", "arcane"],
     spellEffect: { type: "damage", value: 5, target: "all_enemies" },
     specialAbility: { name: "Earthquake", description: "Deals 5 damage to all enemies and stuns grounded units.", cost: 0 },
     lore: "The earth cracks and shudders, swallowing those who cannot fly.", synergies: [], level: 1, xp: 0, xpToNext: 80,
   },
   {
-    id: "venom-cloud", name: "Venom Cloud", type: "spell", rarity: "common", image: serpentia,
+    id: "venom-cloud", name: "Venom Cloud", type: "spell", rarity: "common", image: venomCloudImg,
     attack: 0, defense: 0, hp: 0, tags: ["nature"],
     spellEffect: { type: "debuff_defense", value: 3, target: "all_enemies", duration: 3 },
     specialAbility: { name: "Venom Cloud", description: "Reduces all enemies' DEF by 3 for 3 turns.", cost: 0 },
     lore: "A toxic mist that corrodes armor and weakens defenses.", synergies: [], level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "void-rift", name: "Void Rift", type: "spell", rarity: "legendary", image: umbra,
+    id: "void-rift", name: "Void Rift", type: "spell", rarity: "legendary", image: voidRiftImg,
     attack: 0, defense: 0, hp: 0, tags: ["void", "arcane"],
     spellEffect: { type: "damage", value: 12, target: "single_enemy" },
     specialAbility: { name: "Void Rift", description: "Opens a rift dealing 12 damage to one enemy.", cost: 0 },
     lore: "A tear in reality that devours everything it touches.", synergies: [], level: 1, xp: 0, xpToNext: 100,
   },
   {
-    id: "iron-fortress", name: "Iron Fortress", type: "spell", rarity: "rare", image: ferros,
+    id: "iron-fortress", name: "Iron Fortress", type: "spell", rarity: "rare", image: ironFortressImg,
     attack: 0, defense: 0, hp: 0, tags: ["forge", "warrior"],
     spellEffect: { type: "buff_defense", value: 4, target: "all_allies", duration: 2 },
     specialAbility: { name: "Iron Fortress", description: "All allies gain +4 DEF for 2 turns.", cost: 0 },
     lore: "Conjures walls of enchanted iron around all allies.", synergies: [], level: 1, xp: 0, xpToNext: 80,
   },
   {
-    id: "moonlight-heal", name: "Moonlight Restoration", type: "spell", rarity: "common", image: moonGoddess,
+    id: "moonlight-heal", name: "Moonlight Restoration", type: "spell", rarity: "common", image: moonlightHealImg,
     attack: 0, defense: 0, hp: 0, tags: ["lunar", "healer"],
     spellEffect: { type: "heal", value: 6, target: "all_allies" },
     specialAbility: { name: "Moonlight Restoration", description: "Heals all allies for 6 HP under moonlight.", cost: 0 },
     lore: "Silver moonbeams cascade across the battlefield, mending all wounds.", synergies: [], level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "inferno-wave", name: "Inferno Wave", type: "spell", rarity: "rare", image: inferna,
+    id: "inferno-wave", name: "Inferno Wave", type: "spell", rarity: "rare", image: infernoWaveImg,
     attack: 0, defense: 0, hp: 0, tags: ["fire"],
     spellEffect: { type: "damage", value: 7, target: "all_enemies" },
     specialAbility: { name: "Inferno Wave", description: "Deals 7 fire damage to all enemies.", cost: 0 },
     lore: "A wave of divine hellfire that scorches everything in its path.", synergies: [], level: 1, xp: 0, xpToNext: 80,
   },
   {
-    id: "time-stop", name: "Time Stop", type: "spell", rarity: "legendary", image: chronos,
+    id: "time-stop", name: "Time Stop", type: "spell", rarity: "legendary", image: timeStopImg,
     attack: 0, defense: 0, hp: 0, tags: ["temporal", "arcane"],
     spellEffect: { type: "debuff_attack", value: 99, target: "all_enemies", duration: 1 },
     specialAbility: { name: "Time Stop", description: "Freezes all enemies for 1 turn, preventing all actions.", cost: 0 },
     lore: "Time itself stops. Only the caster remains in motion.", synergies: [], level: 1, xp: 0, xpToNext: 100,
   },
   {
-    id: "natures-wrath-spell", name: "Nature's Wrath", type: "spell", rarity: "common", image: gaiara,
+    id: "natures-wrath-spell", name: "Nature's Wrath", type: "spell", rarity: "common", image: naturesWrathImg,
     attack: 0, defense: 0, hp: 0, tags: ["nature", "earth"],
     spellEffect: { type: "damage", value: 4, target: "all_enemies" },
     specialAbility: { name: "Nature's Wrath", description: "Vines erupt dealing 4 damage to all enemies and healing allies 2.", cost: 0 },
     lore: "The earth fights back, thorny vines erupting to punish the unworthy.", synergies: [], level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "wind-slash", name: "Wind Slash", type: "spell", rarity: "common", image: zephyros,
+    id: "wind-slash", name: "Wind Slash", type: "spell", rarity: "common", image: windSlashImg,
     attack: 0, defense: 0, hp: 0, tags: ["wind"],
     spellEffect: { type: "damage", value: 7, target: "single_enemy" },
     specialAbility: { name: "Wind Slash", description: "A razor-sharp gust deals 7 damage to one enemy.", cost: 0 },
     lore: "An invisible blade of compressed air that cuts through armor.", synergies: [], level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "tidal-surge", name: "Tidal Surge", type: "spell", rarity: "common", image: thalassia,
+    id: "tidal-surge", name: "Tidal Surge", type: "spell", rarity: "common", image: tidalSurgeImg,
     attack: 0, defense: 0, hp: 0, tags: ["water"],
     spellEffect: { type: "damage", value: 5, target: "all_enemies" },
     specialAbility: { name: "Tidal Surge", description: "A massive wave deals 5 damage to all enemies.", cost: 0 },
     lore: "The ocean rises to crash upon the battlefield.", synergies: [], level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "dark-pact", name: "Dark Pact", type: "spell", rarity: "rare", image: thanatos,
+    id: "dark-pact", name: "Dark Pact", type: "spell", rarity: "rare", image: darkPactImg,
     attack: 0, defense: 0, hp: 0, tags: ["death", "void"],
     spellEffect: { type: "buff_attack", value: 5, target: "single_ally", duration: 3 },
     specialAbility: { name: "Dark Pact", description: "One ally gains +5 ATK for 3 turns at the cost of 5 HP.", cost: 0 },
     lore: "Power borrowed from death itself, at a terrible price.", synergies: [], level: 1, xp: 0, xpToNext: 80,
   },
   {
-    id: "dragon-breath", name: "Dragon's Breath", type: "spell", rarity: "rare", image: draconus,
+    id: "dragon-breath", name: "Dragon's Breath", type: "spell", rarity: "rare", image: dragonBreathImg,
     attack: 0, defense: 0, hp: 0, tags: ["dragon", "fire"],
     spellEffect: { type: "damage", value: 9, target: "single_enemy" },
     specialAbility: { name: "Dragon's Breath", description: "Unleashes draconic fire for 9 damage to one enemy.", cost: 0 },
     lore: "Channel the ancient breath of dragons to incinerate a single target.", synergies: [], level: 1, xp: 0, xpToNext: 80,
   },
   {
-    id: "mass-heal", name: "Circle of Renewal", type: "spell", rarity: "rare", image: vitalis,
+    id: "mass-heal", name: "Circle of Renewal", type: "spell", rarity: "rare", image: massHealImg,
     attack: 0, defense: 0, hp: 0, tags: ["healer", "nature"],
     spellEffect: { type: "heal", value: 7, target: "all_allies" },
     specialAbility: { name: "Circle of Renewal", description: "Heals all allies for 7 HP.", cost: 0 },
     lore: "Life energy radiates outward, restoring all who stand within the sacred circle.", synergies: [], level: 1, xp: 0, xpToNext: 80,
   },
   {
-    id: "chaos-bolt", name: "Chaos Bolt", type: "spell", rarity: "common", image: dionara,
+    id: "chaos-bolt", name: "Chaos Bolt", type: "spell", rarity: "common", image: chaosBoltImg,
     attack: 0, defense: 0, hp: 0, tags: ["chaos", "arcane"],
     spellEffect: { type: "damage", value: 6, target: "single_enemy" },
     specialAbility: { name: "Chaos Bolt", description: "Deals 6 random-element damage. May inflict a random debuff.", cost: 0 },
     lore: "A bolt of pure chaotic energy that changes form mid-flight.", synergies: [], level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "starlight-barrier", name: "Starlight Barrier", type: "spell", rarity: "common", image: celestia,
+    id: "starlight-barrier", name: "Starlight Barrier", type: "spell", rarity: "common", image: starlightBarrierImg,
     attack: 0, defense: 0, hp: 0, tags: ["light", "arcane"],
     spellEffect: { type: "buff_defense", value: 3, target: "all_allies", duration: 2 },
     specialAbility: { name: "Starlight Barrier", description: "All allies gain +3 DEF for 2 turns.", cost: 0 },
@@ -2318,28 +2416,28 @@ const spellCards: GameCard[] = [
 
 const trapCards: GameCard[] = [
   {
-    id: "mirror-trap", name: "Mirror Shield Trap", type: "trap", rarity: "rare", image: luminara,
+    id: "mirror-trap", name: "Mirror Shield Trap", type: "trap", rarity: "rare", image: mirrorTrapImg,
     attack: 0, defense: 0, hp: 0, tags: ["arcane", "light"],
     trapEffect: { trigger: "on_attacked", effect: "reflect_damage", value: 6 },
     specialAbility: { name: "Mirror Shield", description: "When attacked, reflects 6 damage back to the attacker.", cost: 0 },
     lore: "A magical mirror that turns an enemy's aggression against them.", synergies: [], level: 1, xp: 0, xpToNext: 80,
   },
   {
-    id: "spike-trap", name: "Spike Trap", type: "trap", rarity: "common", image: elara,
+    id: "spike-trap", name: "Spike Trap", type: "trap", rarity: "common", image: spikeTrapImg,
     attack: 0, defense: 0, hp: 0, tags: ["nature"],
     trapEffect: { trigger: "on_enemy_play", effect: "damage", value: 5 },
     specialAbility: { name: "Hidden Spikes", description: "When enemy plays a card, deals 5 damage to that card.", cost: 0 },
     lore: "Concealed thorns and spikes that punish careless enemies.", synergies: [], level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "stun-trap", name: "Paralyzing Glyph", type: "trap", rarity: "rare", image: chronos,
+    id: "stun-trap", name: "Paralyzing Glyph", type: "trap", rarity: "rare", image: stunTrapImg,
     attack: 0, defense: 0, hp: 0, tags: ["arcane", "temporal"],
     trapEffect: { trigger: "on_attacked", effect: "stun", value: 1 },
     specialAbility: { name: "Time Freeze", description: "When attacked, stuns the attacker for 1 turn.", cost: 0 },
     lore: "An ancient glyph that freezes time around anyone who triggers it.", synergies: [], level: 1, xp: 0, xpToNext: 80,
   },
   {
-    id: "damage-trap", name: "Exploding Rune", type: "trap", rarity: "common", image: lyra,
+    id: "damage-trap", name: "Exploding Rune", type: "trap", rarity: "common", image: damageTrapImg,
     attack: 0, defense: 0, hp: 0, tags: ["fire", "arcane"],
     trapEffect: { trigger: "on_attacked", effect: "damage", value: 8 },
     specialAbility: { name: "Explosive Rune", description: "When attacked, explodes for 8 damage to the attacker.", cost: 0 },
@@ -2347,98 +2445,98 @@ const trapCards: GameCard[] = [
   },
   // ===== NEW TRAPS (15) =====
   {
-    id: "ice-wall-trap", name: "Frost Barrier Trap", type: "trap", rarity: "common", image: glacius,
+    id: "ice-wall-trap", name: "Frost Barrier Trap", type: "trap", rarity: "common", image: iceWallTrapImg,
     attack: 0, defense: 0, hp: 0, tags: ["ice"],
     trapEffect: { trigger: "on_attacked", effect: "stun", value: 1 },
     specialAbility: { name: "Frost Barrier", description: "When attacked, freezes attacker for 1 turn and deals 3 cold damage.", cost: 0 },
     lore: "A hidden ice wall that erupts from the ground, trapping attackers.", synergies: [], level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "shadow-snare", name: "Shadow Snare", type: "trap", rarity: "rare", image: nyx,
+    id: "shadow-snare", name: "Shadow Snare", type: "trap", rarity: "rare", image: shadowSnareImg,
     attack: 0, defense: 0, hp: 0, tags: ["shadow"],
     trapEffect: { trigger: "on_enemy_play", effect: "stun", value: 2 },
     specialAbility: { name: "Shadow Snare", description: "When enemy plays a card, binds it in shadows for 2 turns.", cost: 0 },
     lore: "Tendrils of shadow that reach up and drag enemies into darkness.", synergies: [], level: 1, xp: 0, xpToNext: 80,
   },
   {
-    id: "fire-pit-trap", name: "Infernal Pit", type: "trap", rarity: "common", image: pyrothos,
+    id: "fire-pit-trap", name: "Infernal Pit", type: "trap", rarity: "common", image: firePitTrapImg,
     attack: 0, defense: 0, hp: 0, tags: ["fire"],
     trapEffect: { trigger: "on_enemy_play", effect: "damage", value: 6 },
     specialAbility: { name: "Infernal Pit", description: "When enemy plays a card, the ground opens into a fire pit dealing 6 damage.", cost: 0 },
     lore: "The ground conceals a pit of eternal flame, waiting to swallow the unwary.", synergies: [], level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "vine-trap", name: "Strangling Vines", type: "trap", rarity: "common", image: verdantia,
+    id: "vine-trap", name: "Strangling Vines", type: "trap", rarity: "common", image: vineTrapImg,
     attack: 0, defense: 0, hp: 0, tags: ["nature", "earth"],
     trapEffect: { trigger: "on_attacked", effect: "stun", value: 1 },
     specialAbility: { name: "Strangling Vines", description: "When attacked, vines grab the attacker, stunning for 1 turn and dealing 4 damage.", cost: 0 },
     lore: "Living vines that lie in wait, ready to ensnare the unwary.", synergies: [], level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "void-trap", name: "Void Rift Trap", type: "trap", rarity: "legendary", image: umbra,
+    id: "void-trap", name: "Void Rift Trap", type: "trap", rarity: "legendary", image: voidTrapImg,
     attack: 0, defense: 0, hp: 0, tags: ["void"],
     trapEffect: { trigger: "on_attacked", effect: "damage", value: 12 },
     specialAbility: { name: "Void Rift", description: "When attacked, opens a void rift dealing 12 damage to the attacker.", cost: 0 },
     lore: "A tear in the fabric of reality that devours anyone who triggers it.", synergies: [], level: 1, xp: 0, xpToNext: 100,
   },
   {
-    id: "thunder-trap", name: "Lightning Ward", type: "trap", rarity: "rare", image: stormGod,
+    id: "thunder-trap", name: "Lightning Ward", type: "trap", rarity: "rare", image: thunderTrapImg,
     attack: 0, defense: 0, hp: 0, tags: ["storm"],
     trapEffect: { trigger: "on_attacked", effect: "damage", value: 7 },
     specialAbility: { name: "Lightning Ward", description: "When attacked, unleashes a lightning bolt dealing 7 damage.", cost: 0 },
     lore: "A ward charged with storm energy that strikes back with lightning.", synergies: [], level: 1, xp: 0, xpToNext: 80,
   },
   {
-    id: "mirror-image-trap", name: "Phantom Decoy", type: "trap", rarity: "common", image: phantos,
+    id: "mirror-image-trap", name: "Phantom Decoy", type: "trap", rarity: "common", image: mirrorImageTrapImg,
     attack: 0, defense: 0, hp: 0, tags: ["arcane", "shadow"],
     trapEffect: { trigger: "on_attacked", effect: "redirect", value: 0 },
     specialAbility: { name: "Phantom Decoy", description: "When attacked, redirects the attack to the strongest enemy.", cost: 0 },
     lore: "An illusory decoy that redirects attacks back toward the enemy's own forces.", synergies: [], level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "poison-trap", name: "Venom Pool", type: "trap", rarity: "common", image: arachnia,
+    id: "poison-trap", name: "Venom Pool", type: "trap", rarity: "common", image: poisonTrapImg,
     attack: 0, defense: 0, hp: 0, tags: ["nature"],
     trapEffect: { trigger: "on_enemy_play", effect: "damage", value: 4 },
     specialAbility: { name: "Venom Pool", description: "When enemy plays a card, splashes venom dealing 4 damage and poisoning.", cost: 0 },
     lore: "A hidden pool of concentrated venom from Arachnia's deadliest spiders.", synergies: [], level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "gravity-trap", name: "Gravity Well", type: "trap", rarity: "rare", image: celestia,
+    id: "gravity-trap", name: "Gravity Well", type: "trap", rarity: "rare", image: gravityTrapImg,
     attack: 0, defense: 0, hp: 0, tags: ["arcane"],
     trapEffect: { trigger: "on_enemy_ability", effect: "stun", value: 1 },
     specialAbility: { name: "Gravity Well", description: "When enemy uses an ability, creates a gravity well that stuns them.", cost: 0 },
     lore: "A collapsed star hidden in the ground, its gravity catching the unwary.", synergies: [], level: 1, xp: 0, xpToNext: 80,
   },
   {
-    id: "bone-cage-trap", name: "Bone Cage", type: "trap", rarity: "common", image: nekros,
+    id: "bone-cage-trap", name: "Bone Cage", type: "trap", rarity: "common", image: boneCageTrapImg,
     attack: 0, defense: 0, hp: 0, tags: ["death", "undead"],
     trapEffect: { trigger: "on_attacked", effect: "stun", value: 2 },
     specialAbility: { name: "Bone Cage", description: "When attacked, skeletal hands rise and trap the attacker for 2 turns.", cost: 0 },
     lore: "The bones of the fallen reach up to drag the living down.", synergies: [], level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "sand-trap", name: "Quicksand Trap", type: "trap", rarity: "common", image: dune,
+    id: "sand-trap", name: "Quicksand Trap", type: "trap", rarity: "common", image: sandTrapImg,
     attack: 0, defense: 0, hp: 0, tags: ["earth"],
     trapEffect: { trigger: "on_enemy_play", effect: "stun", value: 1 },
     specialAbility: { name: "Quicksand", description: "When enemy plays a card, the ground swallows it, stunning for 1 turn.", cost: 0 },
     lore: "Treacherous sand that collapses beneath the enemy's feet.", synergies: [], level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "chain-trap", name: "Chain Snare", type: "trap", rarity: "rare", image: ferros,
+    id: "chain-trap", name: "Chain Snare", type: "trap", rarity: "rare", image: chainTrapImg,
     attack: 0, defense: 0, hp: 0, tags: ["forge", "warrior"],
     trapEffect: { trigger: "on_attacked", effect: "stun", value: 1 },
     specialAbility: { name: "Chain Snare", description: "When attacked, enchanted chains bind the attacker for 1 turn and reduce ATK by 3.", cost: 0 },
     lore: "Ferros's enchanted chains hidden in the ground, waiting to bind the unwary.", synergies: [], level: 1, xp: 0, xpToNext: 80,
   },
   {
-    id: "crystal-trap", name: "Crystal Prison", type: "trap", rarity: "rare", image: crystalia,
+    id: "crystal-trap", name: "Crystal Prison", type: "trap", rarity: "rare", image: crystalTrapImg,
     attack: 0, defense: 0, hp: 0, tags: ["arcane", "earth"],
     trapEffect: { trigger: "on_enemy_ability", effect: "reflect_damage", value: 5 },
     specialAbility: { name: "Crystal Prison", description: "When enemy uses ability, encases them in crystal reflecting 5 damage.", cost: 0 },
     lore: "Crystals that grow rapidly around anyone who channels magic nearby.", synergies: [], level: 1, xp: 0, xpToNext: 80,
   },
   {
-    id: "dream-trap", name: "Nightmare Snare", type: "trap", rarity: "common", image: somnia,
+    id: "dream-trap", name: "Nightmare Snare", type: "trap", rarity: "common", image: dreamTrapImg,
     attack: 0, defense: 0, hp: 0, tags: ["arcane", "shadow"],
     trapEffect: { trigger: "on_attacked", effect: "stun", value: 1 },
     specialAbility: { name: "Nightmare Snare", description: "When attacked, puts the attacker to sleep for 1 turn with nightmares.", cost: 0 },
