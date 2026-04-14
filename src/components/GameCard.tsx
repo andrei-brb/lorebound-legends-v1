@@ -1,11 +1,12 @@
 import { useState } from "react";
-import { Sword, Shield, Sparkles, Zap, Star, ArrowUp } from "lucide-react";
+import { Sword, Shield, Sparkles, Zap, Star, ArrowUp, Circle } from "lucide-react";
 import type { GameCard as GameCardType } from "@/data/cards";
 import { allCards } from "@/data/cards";
 import { cn } from "@/lib/utils";
 import type { CardProgress } from "@/lib/playerState";
 import { getVisualTier, getAbilityEvolutionName, getPassiveAbilities } from "@/lib/progressionEngine";
 import { xpForLevel } from "@/lib/playerState";
+import { getDupesForNextStar } from "@/lib/starSystem";
 
 interface GameCardProps {
   card: GameCardType;
@@ -114,6 +115,17 @@ export default function GameCard({ card, onClick, selected, showSynergy, size = 
                 </div>
               )}
             </div>
+            {/* Star display */}
+            {(progress.starProgress.goldStars > 0 || progress.starProgress.redStars > 0) && (
+              <div className="absolute bottom-2 right-2 flex items-center gap-0.5">
+                {Array.from({ length: progress.starProgress.goldStars }).map((_, i) => (
+                  <Star key={`g${i}`} className="w-3 h-3 text-yellow-400 fill-yellow-400 drop-shadow-sm" />
+                ))}
+                {Array.from({ length: progress.starProgress.redStars }).map((_, i) => (
+                  <Star key={`r${i}`} className="w-3 h-3 text-red-500 fill-red-500 drop-shadow-sm" />
+                ))}
+              </div>
+            )}
             {/* XP bar on card */}
             {progress.level < 20 && (
               <div className="absolute bottom-0 left-0 right-0 h-1 bg-secondary/50">
@@ -123,6 +135,19 @@ export default function GameCard({ card, onClick, selected, showSynergy, size = 
                 />
               </div>
             )}
+            {/* Dupe progress bar (above XP bar) */}
+            {progress.starProgress.dupeCount > 0 && (() => {
+              const next = getDupesForNextStar(progress.starProgress.dupeCount, card.rarity);
+              if (next.starType === "max") return null;
+              return (
+                <div className="absolute bottom-1 left-0 right-0 h-0.5 bg-secondary/30">
+                  <div
+                    className={cn("h-full transition-all", next.starType === "gold" ? "bg-yellow-400" : "bg-red-500")}
+                    style={{ width: `${(next.current / next.needed) * 100}%` }}
+                  />
+                </div>
+              );
+            })()}
           </div>
           <div className="bg-card p-3 space-y-1.5 border-t-2 border-foreground/10 relative z-20">
             <div className="absolute -top-[1px] left-3 right-3 h-[1px] bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
