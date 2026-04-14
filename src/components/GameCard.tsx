@@ -49,7 +49,7 @@ const visualTierClasses: Record<string, string> = {
 
 export default function GameCard({ card, onClick, selected, showSynergy, size = "md", cardProgress }: GameCardProps) {
   const [flipped, setFlipped] = useState(false);
-  const progress = cardProgress || { level: 1, xp: 0, prestigeLevel: 0 };
+  const progress = cardProgress || { level: 1, xp: 0, prestigeLevel: 0, starProgress: { dupeCount: 0, goldStars: 0, redStars: 0 } };
   const visualTier = getVisualTier(progress.level);
   const passives = getPassiveAbilities(progress);
   const abilityName = getAbilityEvolutionName(card.specialAbility.name, progress.level);
