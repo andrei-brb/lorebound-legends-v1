@@ -1,16 +1,18 @@
 import { useState, useEffect } from "react";
-import { BookOpen, Layers, Swords, Coins, Sparkles as SparklesIcon } from "lucide-react";
+import { BookOpen, Layers, Swords, Coins, Sparkles as SparklesIcon, Grid3X3 } from "lucide-react";
 import CollectionView from "@/components/CollectionView";
 import DeckBuilder from "@/components/DeckBuilder";
 import BattleArena from "@/components/BattleArena";
 import PackShop from "@/components/PackShop";
+import CardCatalog from "@/components/CardCatalog";
 import { cn } from "@/lib/utils";
 import { loadPlayerState, savePlayerState, type PlayerState } from "@/lib/playerState";
 
-type Tab = "collection" | "deck" | "battle" | "summon";
+type Tab = "collection" | "catalog" | "deck" | "battle" | "summon";
 
 const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "collection", label: "Collection", icon: <BookOpen className="w-4 h-4" /> },
+  { id: "catalog", label: "Catalog", icon: <Grid3X3 className="w-4 h-4" /> },
   { id: "summon", label: "Summon", icon: <SparklesIcon className="w-4 h-4" /> },
   { id: "deck", label: "Deck Builder", icon: <Layers className="w-4 h-4" /> },
   { id: "battle", label: "Battle", icon: <Swords className="w-4 h-4" /> },
@@ -92,6 +94,9 @@ export default function Index() {
             </div>
             <CollectionView playerState={playerState} onStateChange={setPlayerState} />
           </div>
+        )}
+        {activeTab === "catalog" && (
+          <CardCatalog playerState={playerState} />
         )}
         {activeTab === "summon" && (
           <PackShop playerState={playerState} onStateChange={setPlayerState} />
