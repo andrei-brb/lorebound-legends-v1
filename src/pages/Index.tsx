@@ -63,6 +63,11 @@ export default function Index() {
               <Coins className="w-4 h-4 text-legendary" />
               <span className="font-heading font-bold text-sm text-foreground">{playerState.gold}</span>
             </div>
+            {/* Stardust Display */}
+            <div className="flex items-center gap-1.5 bg-secondary/80 rounded-lg px-3 py-1.5">
+              <span className="text-sm">💎</span>
+              <span className="font-heading font-bold text-sm text-foreground">{playerState.stardust || 0}</span>
+            </div>
             <nav className="flex gap-1">
               {tabs.map((tab) => (
                 <button

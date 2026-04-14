@@ -103,5 +103,6 @@ export function prestige(progress: CardProgress): CardProgress {
     level: 1,
     xp: 0,
     prestigeLevel: progress.prestigeLevel + 1,
+    starProgress: progress.starProgress,
   };
 }

@@ -1,13 +1,16 @@
 import { allCards } from "@/data/cards";
+import { type StarProgress, getDefaultStarProgress, processDuplicate } from "./starSystem";
 
 export interface CardProgress {
   level: number;
   xp: number;
   prestigeLevel: number; // 0-3
+  starProgress: StarProgress;
 }
 
 export interface PlayerState {
   gold: number;
+  stardust: number;
   ownedCardIds: string[];
   cardProgress: Record<string, CardProgress>;
   pityCounter: number; // pulls since last legendary
@@ -25,10 +28,11 @@ const STARTER_CARD_IDS = [
 function createDefaultState(): PlayerState {
   const cardProgress: Record<string, CardProgress> = {};
   for (const id of STARTER_CARD_IDS) {
-    cardProgress[id] = { level: 1, xp: 0, prestigeLevel: 0 };
+    cardProgress[id] = { level: 1, xp: 0, prestigeLevel: 0, starProgress: getDefaultStarProgress() };
   }
   return {
     gold: 500,
+    stardust: 0,
     ownedCardIds: [...STARTER_CARD_IDS],
     cardProgress,
     pityCounter: 0,
@@ -40,7 +44,18 @@ function createDefaultState(): PlayerState {
 export function loadPlayerState(): PlayerState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const state = JSON.parse(raw) as PlayerState;
+      // Migration: add stardust if missing
+      if (state.stardust === undefined) state.stardust = 0;
+      // Migration: add starProgress to existing cards
+      for (const id of Object.keys(state.cardProgress)) {
+        if (!state.cardProgress[id].starProgress) {
+          state.cardProgress[id].starProgress = getDefaultStarProgress();
+        }
+      }
+      return state;
+    }
   } catch { /* ignore */ }
   return createDefaultState();
 }
@@ -50,7 +65,7 @@ export function savePlayerState(state: PlayerState): void {
 }
 
 export function getCardProgress(state: PlayerState, cardId: string): CardProgress {
-  return state.cardProgress[cardId] || { level: 1, xp: 0, prestigeLevel: 0 };
+  return state.cardProgress[cardId] || { level: 1, xp: 0, prestigeLevel: 0, starProgress: getDefaultStarProgress() };
 }
 
 export function xpForLevel(level: number): number {
@@ -69,16 +84,31 @@ export function freePackTimeRemaining(state: PlayerState): number {
   return Math.max(0, remaining);
 }
 
-export function addCardToCollection(state: PlayerState, cardId: string): { state: PlayerState; isDuplicate: boolean } {
+export function addCardToCollection(state: PlayerState, cardId: string): { state: PlayerState; isDuplicate: boolean; stardustEarned: number; newGoldStar: boolean; newRedStar: boolean } {
   const newState = { ...state, cardProgress: { ...state.cardProgress } };
+  
   if (newState.ownedCardIds.includes(cardId)) {
-    // Duplicate: give bonus XP
-    const progress = { ...(newState.cardProgress[cardId] || { level: 1, xp: 0, prestigeLevel: 0 }) };
-    progress.xp += 50;
-    newState.cardProgress[cardId] = progress;
-    return { state: newState, isDuplicate: true };
+    // Duplicate: process star system
+    const card = allCards.find(c => c.id === cardId);
+    const rarity = card?.rarity || "common";
+    const currentProgress = { ...(newState.cardProgress[cardId] || { level: 1, xp: 0, prestigeLevel: 0, starProgress: getDefaultStarProgress() }) };
+    const starResult = processDuplicate(currentProgress.starProgress || getDefaultStarProgress(), rarity);
+    
+    currentProgress.starProgress = starResult.progress;
+    currentProgress.xp += 50; // Keep XP bonus too
+    newState.cardProgress[cardId] = currentProgress;
+    newState.stardust = (newState.stardust || 0) + starResult.stardustEarned;
+    
+    return { 
+      state: newState, 
+      isDuplicate: true, 
+      stardustEarned: starResult.stardustEarned,
+      newGoldStar: starResult.newGoldStar,
+      newRedStar: starResult.newRedStar,
+    };
   }
+  
   newState.ownedCardIds = [...newState.ownedCardIds, cardId];
-  newState.cardProgress[cardId] = { level: 1, xp: 0, prestigeLevel: 0 };
-  return { state: newState, isDuplicate: false };
+  newState.cardProgress[cardId] = { level: 1, xp: 0, prestigeLevel: 0, starProgress: getDefaultStarProgress() };
+  return { state: newState, isDuplicate: false, stardustEarned: 0, newGoldStar: false, newRedStar: false };
 }
