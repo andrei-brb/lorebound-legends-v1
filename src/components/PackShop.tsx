@@ -87,6 +87,7 @@ export default function PackShop({ playerState, onStateChange }: PackShopProps) 
         <PackOpening
           cardIds={openingPack.cardIds}
           onComplete={handlePackOpeningComplete}
+          playerState={playerState}
         />
       )}
 
