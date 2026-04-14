@@ -155,10 +155,10 @@ export default function GameCard({ card, onClick, selected, showSynergy, size = 
             <h3 className="font-heading text-sm font-bold truncate text-foreground">{card.name}</h3>
             <div className="flex items-center justify-between text-xs">
               <div className="flex items-center gap-1 text-destructive">
-                <Sword className="w-3 h-3" /> <span className="font-semibold">{card.attack + (progress.level - 1) + (progress.prestigeLevel * 2)}</span>
+                <Sword className="w-3 h-3" /> <span className="font-semibold">{card.attack + (progress.level - 1) + (progress.prestigeLevel * 2) + starBonuses.attack}</span>
               </div>
               <div className="flex items-center gap-1 text-rare">
-                <Shield className="w-3 h-3" /> <span className="font-semibold">{card.defense + (progress.level - 1) + (progress.prestigeLevel * 2)}</span>
+                <Shield className="w-3 h-3" /> <span className="font-semibold">{card.defense + (progress.level - 1) + (progress.prestigeLevel * 2) + starBonuses.defense}</span>
               </div>
               <div className="flex items-center gap-1 text-legendary">
                 <Sparkles className="w-3 h-3" />
