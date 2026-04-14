@@ -54,6 +54,7 @@ export default function GameCard({ card, onClick, selected, showSynergy, size = 
   const visualTier = getVisualTier(progress.level);
   const passives = getPassiveAbilities(progress);
   const abilityName = getAbilityEvolutionName(card.specialAbility.name, progress.level);
+  const starBonuses = getStarStatBonuses(card.rarity, progress.starProgress.goldStars, progress.starProgress.redStars);
 
   const handleClick = () => {
     if (onClick) onClick();
