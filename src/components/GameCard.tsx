@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import type { CardProgress } from "@/lib/playerState";
 import { getVisualTier, getAbilityEvolutionName, getPassiveAbilities } from "@/lib/progressionEngine";
 import { xpForLevel } from "@/lib/playerState";
-import { getDupesForNextStar } from "@/lib/starSystem";
+import { getDupesForNextStar, getStarStatBonuses } from "@/lib/starSystem";
 
 interface GameCardProps {
   card: GameCardType;
