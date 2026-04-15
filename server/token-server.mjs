@@ -1137,23 +1137,44 @@ async function handleSeasonalPull(req, res) {
 
   await prisma.$transaction(async (tx) => {
     await tx.player.update({ where: { id: player.id }, data: { gold: player.gold - event.packCost } });
+    let totalStardustEarned = 0;
     for (const cardId of pulledIds) {
-      await tx.cardProgress.upsert({
+      const existing = await tx.cardProgress.findUnique({
         where: { playerId_cardId: { playerId: player.id, cardId } },
-        create: {
-          playerId: player.id,
-          cardId,
-          level: 1,
-          xp: 0,
-          prestigeLevel: 0,
-          dupeCount: 0,
-          goldStars: 0,
-          redStars: 0,
-        },
-        update: {
-          dupeCount: { increment: 1 },
-          xp: { increment: 50 },
-        },
+      });
+
+      if (existing) {
+        const dupeResult = processDuplicatePull(existing, cardId);
+        totalStardustEarned += dupeResult.stardustEarned;
+        await tx.cardProgress.update({
+          where: { id: existing.id },
+          data: {
+            dupeCount: dupeResult.dupeCount,
+            goldStars: dupeResult.goldStars,
+            redStars: dupeResult.redStars,
+            xp: existing.xp + dupeResult.xpBonus,
+          },
+        });
+      } else {
+        await tx.cardProgress.create({
+          data: {
+            playerId: player.id,
+            cardId,
+            level: 1,
+            xp: 0,
+            prestigeLevel: 0,
+            dupeCount: 0,
+            goldStars: 0,
+            redStars: 0,
+          },
+        });
+      }
+    }
+
+    if (totalStardustEarned > 0) {
+      await tx.player.update({
+        where: { id: player.id },
+        data: { stardust: { increment: totalStardustEarned } },
       });
     }
   });

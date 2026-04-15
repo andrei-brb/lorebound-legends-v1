@@ -260,7 +260,7 @@ export default function GameCard({ card, onClick, selected, showSynergy, size = 
                 </span>
               </div>
 
-              {/* Level badge */}
+              {/* Level + Stars */}
               <div className="absolute bottom-2 left-2 flex items-center gap-1 z-20 transition-opacity duration-300" style={{ opacity: flipped ? 0 : 1 }}>
                 <div className="bg-primary text-primary-foreground text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5">
                   <ArrowUp className="w-2.5 h-2.5" />
@@ -273,19 +273,18 @@ export default function GameCard({ card, onClick, selected, showSynergy, size = 
                     ))}
                   </div>
                 )}
-              </div>
 
-              {/* Star display */}
-              {(progress.starProgress.goldStars > 0 || progress.starProgress.redStars > 0) && (
-                <div className="absolute bottom-2 right-2 flex items-center gap-0.5 z-20 transition-opacity duration-300" style={{ opacity: flipped ? 0 : 1 }}>
-                  {Array.from({ length: progress.starProgress.goldStars }).map((_, i) => (
-                    <Star key={`g${i}`} className="w-3 h-3 text-yellow-400 fill-yellow-400 drop-shadow-sm" />
-                  ))}
-                  {Array.from({ length: progress.starProgress.redStars }).map((_, i) => (
-                    <Star key={`r${i}`} className="w-3 h-3 text-red-500 fill-red-500 drop-shadow-sm" />
-                  ))}
-                </div>
-              )}
+                {(progress.starProgress.goldStars > 0 || progress.starProgress.redStars > 0) && (
+                  <div className="flex items-center gap-0.5 ml-0.5">
+                    {Array.from({ length: progress.starProgress.goldStars }).map((_, i) => (
+                      <Star key={`g${i}`} className="w-3 h-3 text-yellow-400 fill-yellow-400 drop-shadow-sm" />
+                    ))}
+                    {Array.from({ length: progress.starProgress.redStars }).map((_, i) => (
+                      <Star key={`r${i}`} className="w-3 h-3 text-red-500 fill-red-500 drop-shadow-sm" />
+                    ))}
+                  </div>
+                )}
+              </div>
 
               {/* XP bar */}
               {progress.level < 20 && (
