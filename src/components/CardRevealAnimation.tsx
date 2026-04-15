@@ -47,12 +47,10 @@ const RARITY_CONFIG: Record<Rarity, {
 export default function CardRevealAnimation({ cardId, onClose }: CardRevealAnimationProps) {
   const [phase, setPhase] = useState<"burst" | "reveal" | "shown">("burst");
   const card = allCards.find(c => c.id === cardId) || allSeasonalCards.find(c => c.id === cardId);
-
-  if (!card) return null;
-
-  const config = RARITY_CONFIG[card.rarity];
+  const config = card ? RARITY_CONFIG[card.rarity] : RARITY_CONFIG.common;
 
   useEffect(() => {
+    if (!card) return;
     const t1 = setTimeout(() => setPhase("reveal"), 600);
     const t2 = setTimeout(() => setPhase("shown"), 1400);
     const t3 = setTimeout(onClose, config.duration);
