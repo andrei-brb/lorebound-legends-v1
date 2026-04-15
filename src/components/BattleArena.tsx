@@ -9,6 +9,7 @@ import CardLevelUp from "./CardLevelUp";
 import { type PlayerState, getCardProgress, savePlayerState } from "@/lib/playerState";
 import { awardXp, type LevelUpResult } from "@/lib/progressionEngine";
 import { getBattleGoldReward } from "@/lib/gachaEngine";
+import { loadDailyQuests, progressQuest, saveDailyQuests } from "@/lib/questEngine";
 
 interface BattleArenaProps {
   playerDeckIds: string[];
@@ -40,6 +41,7 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
   const [selectedHandIndex, setSelectedHandIndex] = useState<number | null>(null);
   const [selectedFieldIndex, setSelectedFieldIndex] = useState<number | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
+  const cardsPlayedRef = useRef(0);
 
   useEffect(() => {
     const enemyIds = generateEnemyDeck(playerDeckIds.length);
@@ -47,6 +49,7 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
     setRewardsGiven(false);
     setGoldEarned(0);
     setLevelUps([]);
+    cardsPlayedRef.current = 0;
   }, [playerDeckIds]);
 
   useEffect(() => {
@@ -81,6 +84,12 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
     const won = state.winner === "player";
     const isDraw = state.winner === "draw";
 
+    // Progress daily quests
+    let questState = loadDailyQuests();
+    if (won) questState = progressQuest(questState, "win_battles");
+    if (cardsPlayedRef.current > 0) questState = progressQuest(questState, "play_cards_in_battle", cardsPlayedRef.current);
+    saveDailyQuests(questState);
+
     if (isOnline && submitBattleResultApi) {
       submitBattleResultApi({
         won,
@@ -95,7 +104,11 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
             milestone: null as string | null,
           }));
           setLevelUps(mapped);
-          if (mapped.length > 0) setShowLevelUps(true);
+          if (mapped.length > 0) {
+            setShowLevelUps(true);
+            const qs = progressQuest(loadDailyQuests(), "level_up_card", mapped.length);
+            saveDailyQuests(qs);
+          }
         }
       });
       return;
@@ -113,7 +126,11 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
       for (const lu of result.levelUps) allLevelUps.push({ ...lu, cardId: id });
     }
     setLevelUps(allLevelUps);
-    if (allLevelUps.length > 0) setShowLevelUps(true);
+    if (allLevelUps.length > 0) {
+      setShowLevelUps(true);
+      const qs = progressQuest(loadDailyQuests(), "level_up_card", allLevelUps.length);
+      saveDailyQuests(qs);
+    }
     onStateChange(newState);
     savePlayerState(newState);
   }, [state?.phase]);
@@ -124,6 +141,7 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
     if (!card) return;
 
     if (card.type === "hero" || card.type === "god" || card.type === "trap") {
+      cardsPlayedRef.current += 1;
       setAnimating(true);
       setTimeout(() => {
         setState(prev => prev ? playCard(prev, index) : prev);
@@ -134,6 +152,7 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
       setSelectedHandIndex(index);
       setActionMode("select-equip-target");
     } else if (card.type === "spell") {
+      cardsPlayedRef.current += 1;
       if (card.spellEffect?.target === "all_enemies" || card.spellEffect?.target === "all_allies") {
         setAnimating(true);
         setTimeout(() => {
@@ -152,6 +171,7 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
     if (!state || state.turn !== "player" || animating || state.phase === "game-over") return;
 
     if (actionMode === "select-equip-target" && side === "player" && selectedHandIndex !== null) {
+      cardsPlayedRef.current += 1;
       setAnimating(true);
       setTimeout(() => {
         setState(prev => prev ? equipWeapon(prev, selectedHandIndex!, index) : prev);

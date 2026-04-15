@@ -5,6 +5,7 @@ import { PACK_DEFINITIONS, FREE_PACK_CARD_COUNT, canAffordPack, pullCards, type 
 import { canClaimFreePack, freePackTimeRemaining, addCardToCollection, savePlayerState, type PlayerState } from "@/lib/playerState";
 import PackOpening from "./PackOpening";
 import { allCards } from "@/data/cards";
+import { loadDailyQuests, progressQuest, saveDailyQuests } from "@/lib/questEngine";
 import bronzePackImg from "@/assets/packs/bronze-pack.jpg";
 import silverPackImg from "@/assets/packs/silver-pack.jpg";
 import goldPackImg from "@/assets/packs/gold-pack.jpg";
@@ -49,6 +50,13 @@ export default function PackShop({ playerState, onStateChange, isOnline, pullCar
     return () => clearInterval(interval);
   }, [playerState.lastFreePackTime]);
 
+  const trackPackQuests = (isFree: boolean) => {
+    let questState = loadDailyQuests();
+    questState = progressQuest(questState, "pull_packs");
+    if (isFree) questState = progressQuest(questState, "open_free_pack");
+    saveDailyQuests(questState);
+  };
+
   const buyPack = async (pack: PackDefinition) => {
     if (!canAffordPack(playerState.gold, pack)) return;
 
@@ -56,6 +64,7 @@ export default function PackShop({ playerState, onStateChange, isOnline, pullCar
       const result = await pullCardsApi(pack.id);
       if (result) {
         setOpeningPack({ cardIds: result.pullResults.map((r) => r.cardId) });
+        trackPackQuests(false);
       }
       return;
     }
@@ -69,6 +78,7 @@ export default function PackShop({ playerState, onStateChange, isOnline, pullCar
     };
     onStateChange(newState);
     setOpeningPack({ cardIds });
+    trackPackQuests(false);
   };
 
   const claimFreePack = async () => {
@@ -78,6 +88,7 @@ export default function PackShop({ playerState, onStateChange, isOnline, pullCar
       const result = await pullCardsApi("free");
       if (result) {
         setOpeningPack({ cardIds: result.pullResults.map((r) => r.cardId) });
+        trackPackQuests(true);
       }
       return;
     }
@@ -92,6 +103,7 @@ export default function PackShop({ playerState, onStateChange, isOnline, pullCar
     };
     onStateChange(newState);
     setOpeningPack({ cardIds });
+    trackPackQuests(true);
   };
 
   const handlePackOpeningComplete = (cardIds: string[]) => {

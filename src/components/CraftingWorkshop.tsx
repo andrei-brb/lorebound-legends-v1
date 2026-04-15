@@ -6,6 +6,7 @@ import { allCards, type Rarity } from "@/data/cards";
 import { FUSION_RECIPES, performFusion, performSacrifice, canFuse, type FusionRecipe } from "@/lib/craftingEngine";
 import type { PlayerState } from "@/lib/playerState";
 import { toast } from "@/hooks/use-toast";
+import { loadDailyQuests, progressQuest, saveDailyQuests } from "@/lib/questEngine";
 
 interface CraftingWorkshopProps {
   playerState: PlayerState;
@@ -52,6 +53,7 @@ export default function CraftingWorkshop({ playerState, onStateChange, isOnline,
         setResultCard(result.resultCardId);
         const card = allCards.find(c => c.id === result.resultCardId);
         toast({ title: "🔥 Fusion Complete!", description: `You forged ${card?.name || "a new card"}!` });
+        const qs = progressQuest(loadDailyQuests(), "craft_card"); saveDailyQuests(qs);
       } else {
         toast({ title: "Fusion failed", description: "Could not complete fusion. Try again.", variant: "destructive" });
       }
@@ -62,6 +64,7 @@ export default function CraftingWorkshop({ playerState, onStateChange, isOnline,
         setResultCard(result.resultCardId);
         const card = allCards.find(c => c.id === result.resultCardId);
         toast({ title: "🔥 Fusion Complete!", description: `You forged ${card?.name || "a new card"}!` });
+        const qs = progressQuest(loadDailyQuests(), "craft_card"); saveDailyQuests(qs);
       }
     }
     setIsAnimating(false);
@@ -77,6 +80,7 @@ export default function CraftingWorkshop({ playerState, onStateChange, isOnline,
       const result = await craftSacrificeApi(selectedCards);
       if (result) {
         toast({ title: "💎 Sacrifice Complete!", description: `Gained ${result.totalStardust} stardust!` });
+        const qs = progressQuest(loadDailyQuests(), "craft_card"); saveDailyQuests(qs);
       } else {
         toast({ title: "Sacrifice failed", description: "Could not complete sacrifice. Try again.", variant: "destructive" });
       }
@@ -85,6 +89,7 @@ export default function CraftingWorkshop({ playerState, onStateChange, isOnline,
       if (result) {
         onStateChange(result.playerState);
         toast({ title: "💎 Sacrifice Complete!", description: `Gained ${result.totalStardust} stardust!` });
+        const qs = progressQuest(loadDailyQuests(), "craft_card"); saveDailyQuests(qs);
       }
     }
     setIsAnimating(false);
