@@ -32,6 +32,19 @@ export default function Index() {
   const [battleDeckIds, setBattleDeckIds] = useState<string[]>([]);
   const { playerState, setPlayerState, status, isOnline, pullCards, submitBattleResult, completeOnboarding } = usePlayerApi();
 
+  // Achievement checking on state changes
+  useEffect(() => {
+    if (!playerState.hasCompletedOnboarding) return;
+    const achieveState = loadAchievementState();
+    const { achieveState: newState, newlyUnlocked } = checkNewAchievements(achieveState, playerState);
+    if (newlyUnlocked.length > 0) {
+      saveAchievementState(newState);
+      for (const ach of newlyUnlocked) {
+        toast({ title: `${ach.icon} Achievement Unlocked!`, description: ach.title });
+      }
+    }
+  }, [playerState]);
+
   if (status === "loading") {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
