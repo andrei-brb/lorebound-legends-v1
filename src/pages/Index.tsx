@@ -35,6 +35,16 @@ export default function Index() {
     );
   }
 
+  // Show onboarding for new players
+  if (!playerState.hasCompletedOnboarding) {
+    return (
+      <Onboarding
+        playerState={playerState}
+        onComplete={(newState) => setPlayerState(newState)}
+      />
+    );
+  }
+
   const startBattle = (deckIds: string[]) => {
     setBattleDeckIds(deckIds);
     setActiveTab("battle");
