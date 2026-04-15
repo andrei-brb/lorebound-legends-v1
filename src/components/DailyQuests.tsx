@@ -15,9 +15,11 @@ import { toast } from "@/hooks/use-toast";
 interface DailyQuestsProps {
   playerState: PlayerState;
   onStateChange: (state: PlayerState) => void;
+  isOnline?: boolean;
+  syncEconomyApi?: (gold: number, stardust: number) => Promise<void>;
 }
 
-export default function DailyQuests({ playerState, onStateChange }: DailyQuestsProps) {
+export default function DailyQuests({ playerState, onStateChange, isOnline, syncEconomyApi }: DailyQuestsProps) {
   const [questState, setQuestState] = useState<DailyQuestState>(loadDailyQuests);
   const [timeLeft, setTimeLeft] = useState(getQuestTimeUntilReset());
 
@@ -49,6 +51,10 @@ export default function DailyQuests({ playerState, onStateChange }: DailyQuestsP
         title: "🎉 Quest Complete!",
         description: `Earned ${def?.goldReward} gold and ${def?.stardustReward} stardust!`,
       });
+      // Sync gold/stardust to server so rewards persist across sessions
+      if (isOnline && syncEconomyApi) {
+        syncEconomyApi(result.playerState.gold, result.playerState.stardust ?? 0).catch(() => {});
+      }
     }
   };
 

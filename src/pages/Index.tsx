@@ -41,7 +41,7 @@ const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
 export default function Index() {
   const [activeTab, setActiveTab] = useState<Tab>("collection");
   const [battleDeckIds, setBattleDeckIds] = useState<string[]>([]);
-  const { playerState, setPlayerState, status, isOnline, pullCards, submitBattleResult, completeOnboarding } = usePlayerApi();
+  const { playerState, setPlayerState, status, isOnline, pullCards, submitBattleResult, completeOnboarding, syncEconomy, craftFuse, craftSacrifice } = usePlayerApi();
 
   // Achievement checking on state changes
   useEffect(() => {
@@ -164,10 +164,10 @@ export default function Index() {
           <BattleArena playerDeckIds={battleDeckIds} onExit={() => setActiveTab("deck")} playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} submitBattleResultApi={submitBattleResult} />
         )}
         {activeTab === "quests" && (
-          <DailyQuests playerState={playerState} onStateChange={setPlayerState} />
+          <DailyQuests playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} syncEconomyApi={syncEconomy} />
         )}
         {activeTab === "workshop" && (
-          <CraftingWorkshop playerState={playerState} onStateChange={setPlayerState} />
+          <CraftingWorkshop playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} craftFuseApi={craftFuse} craftSacrificeApi={craftSacrifice} />
         )}
         {activeTab === "achievements" && (
           <AchievementPanel playerState={playerState} />

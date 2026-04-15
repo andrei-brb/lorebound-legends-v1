@@ -3,6 +3,7 @@
  * Called from the interaction handler when /mythic drop is used,
  * or can be triggered on a schedule via setInterval in token-server.
  */
+import { processDuplicatePull, getCardRarity } from "./gameLogic.mjs";
 
 // Pick a random card weighted by rarity
 const RARITY_WEIGHTS = { legendary: 5, rare: 20, common: 75 };
@@ -87,12 +88,22 @@ export async function processCardClaim(prisma, discordUserId, username, avatar, 
   // Check if already owns this card (dupe handling)
   const existing = player.cards.find((c) => c.cardId === cardId);
   if (existing) {
-    // Increment dupe count
+    const dupeResult = processDuplicatePull(existing, cardId);
     await prisma.cardProgress.update({
       where: { id: existing.id },
-      data: { dupeCount: existing.dupeCount + 1, xp: existing.xp + 50 },
+      data: {
+        dupeCount: dupeResult.dupeCount,
+        goldStars: dupeResult.goldStars,
+        redStars: dupeResult.redStars,
+        xp: existing.xp + dupeResult.xpBonus,
+      },
     });
-    return { claimed: true, isDuplicate: true };
+    // Award stardust to player
+    await prisma.player.update({
+      where: { id: player.id },
+      data: { stardust: { increment: dupeResult.stardustEarned } },
+    });
+    return { claimed: true, isDuplicate: true, stardustEarned: dupeResult.stardustEarned };
   }
 
   // Add new card

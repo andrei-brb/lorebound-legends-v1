@@ -126,4 +126,37 @@ export const api = {
     });
     return handleResponse(res);
   },
+
+  async craftFuse(inputRarity: string, selectedCardIds: string[]) {
+    const res = await fetch(`${getApiBase()}/api/craft/fuse`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({ inputRarity, selectedCardIds }),
+    });
+    return handleResponse<{
+      resultCardId: string;
+      state: import("./playerState").PlayerState;
+    }>(res);
+  },
+
+  async craftSacrifice(cardIds: string[]) {
+    const res = await fetch(`${getApiBase()}/api/craft/sacrifice`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({ cardIds }),
+    });
+    return handleResponse<{
+      totalStardust: number;
+      state: import("./playerState").PlayerState;
+    }>(res);
+  },
+
+  async syncEconomy(data: { gold: number; stardust: number }) {
+    const res = await fetch(`${getApiBase()}/api/player`, {
+      method: "PATCH",
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(res);
+  },
 };

@@ -135,6 +135,15 @@ export function getCardElement(cardId) {
 
 export const ALL_CARD_IDS = allCardMeta.map((c) => c.id);
 
+// ─── Crafting (mirrors src/lib/craftingEngine.ts) ────────────────────────────
+
+export const FUSION_RECIPES = [
+  { inputRarity: "common", inputCount: 3, outputRarity: "rare",      goldCost: 150 },
+  { inputRarity: "rare",   inputCount: 3, outputRarity: "legendary", goldCost: 500 },
+];
+
+export const SACRIFICE_STARDUST = { common: 10, rare: 30, legendary: 100 };
+
 export function processDuplicatePull(cardRow, cardId) {
   const rarity = getCardRarity(cardId);
   const oldStars = calculateStars(cardRow.dupeCount, rarity);

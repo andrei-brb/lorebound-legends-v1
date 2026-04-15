@@ -29,6 +29,9 @@ interface UsePlayerApiReturn {
     goldReward: number;
     levelUps: Array<{ cardId: string; oldLevel: number; newLevel: number }>;
   } | null>;
+  syncEconomy: (gold: number, stardust: number) => Promise<void>;
+  craftFuse: (inputRarity: string, selectedCardIds: string[]) => Promise<{ resultCardId: string } | null>;
+  craftSacrifice: (cardIds: string[]) => Promise<{ totalStardust: number } | null>;
 }
 
 const MIGRATION_KEY = "lorebound-migrated";
@@ -139,6 +142,50 @@ export function usePlayerApi(): UsePlayerApiReturn {
     [online],
   );
 
+  const syncEconomy = useCallback(
+    async (gold: number, stardust: number) => {
+      if (!online) return;
+      try {
+        await api.syncEconomy({ gold, stardust });
+      } catch (err) {
+        console.error("[usePlayerApi] syncEconomy failed:", err);
+      }
+    },
+    [online],
+  );
+
+  const craftFuse = useCallback(
+    async (inputRarity: string, selectedCardIds: string[]) => {
+      if (!online) return null;
+      try {
+        const result = await api.craftFuse(inputRarity, selectedCardIds);
+        setPlayerStateInternal(result.state);
+        savePlayerState(result.state);
+        return { resultCardId: result.resultCardId };
+      } catch (err) {
+        console.error("[usePlayerApi] craftFuse failed:", err);
+        return null;
+      }
+    },
+    [online],
+  );
+
+  const craftSacrifice = useCallback(
+    async (cardIds: string[]) => {
+      if (!online) return null;
+      try {
+        const result = await api.craftSacrifice(cardIds);
+        setPlayerStateInternal(result.state);
+        savePlayerState(result.state);
+        return { totalStardust: result.totalStardust };
+      } catch (err) {
+        console.error("[usePlayerApi] craftSacrifice failed:", err);
+        return null;
+      }
+    },
+    [online],
+  );
+
   return {
     playerState,
     setPlayerState,
@@ -147,5 +194,8 @@ export function usePlayerApi(): UsePlayerApiReturn {
     completeOnboarding,
     pullCards,
     submitBattleResult,
+    syncEconomy,
+    craftFuse,
+    craftSacrifice,
   };
 }

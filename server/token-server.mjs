@@ -13,6 +13,8 @@ import {
   STARTER_CARD_IDS,
   FACTION_STARTER_CARDS,
   PACK_DEFINITIONS,
+  FUSION_RECIPES,
+  SACRIFICE_STARDUST,
   canClaimFreePack,
   pullCards,
   getCardRarity,
@@ -166,7 +168,7 @@ async function handleInteractions(req, res) {
       const result = await processCardClaim(prisma, userId, username, avatar, cardId);
       const cardName = getCardName(cardId);
       const msg = result.isDuplicate
-        ? `📦 **${username}** claimed **${cardName}** (duplicate — +50 XP & star progress)!`
+        ? `📦 **${username}** claimed **${cardName}** (duplicate — +50 XP, +${result.stardustEarned ?? 0}💎 stardust & star progress)!`
         : `🎉 **${username}** claimed **${cardName}**! Added to their collection!`;
 
       return sendJson(res, 200, {
@@ -812,6 +814,105 @@ async function handleImport(req, res) {
   sendJson(res, 201, playerToClientState(player, player.cards));
 }
 
+// ─── Crafting API ─────────────────────────────────────────────────────────────
+
+async function handleCraftFuse(req, res) {
+  const user = await requireAuth(req, res);
+  if (!user) return;
+
+  const body = await readJsonBody(req);
+  const { inputRarity, selectedCardIds } = body;
+
+  const recipe = FUSION_RECIPES.find((r) => r.inputRarity === inputRarity);
+  if (!recipe) return sendJson(res, 400, { error: "Unknown fusion recipe" });
+  if (!Array.isArray(selectedCardIds) || selectedCardIds.length !== recipe.inputCount) {
+    return sendJson(res, 400, { error: `Must select exactly ${recipe.inputCount} cards` });
+  }
+
+  const player = await prisma.player.findUnique({
+    where: { discordId: user.id },
+    include: { cards: true },
+  });
+  if (!player) return sendJson(res, 404, { error: "Player not found" });
+  if (player.gold < recipe.goldCost) return sendJson(res, 400, { error: "Not enough gold" });
+
+  // Verify ownership of all selected cards with correct rarity
+  for (const cardId of selectedCardIds) {
+    const owned = player.cards.find((c) => c.cardId === cardId);
+    if (!owned) return sendJson(res, 400, { error: `Card not owned: ${cardId}` });
+    if (getCardRarity(cardId) !== recipe.inputRarity) {
+      return sendJson(res, 400, { error: `Card ${cardId} is not ${recipe.inputRarity}` });
+    }
+  }
+
+  // Pick random output card of the target rarity (not already owned)
+  const outputPool = ALL_CARD_IDS.filter((id) => {
+    if (getCardRarity(id) !== recipe.outputRarity) return false;
+    // Prefer cards not already owned, fall back to any if needed
+    return !player.cards.find((c) => c.cardId === id);
+  });
+  const fallbackPool = ALL_CARD_IDS.filter((id) => getCardRarity(id) === recipe.outputRarity);
+  const finalPool = outputPool.length > 0 ? outputPool : fallbackPool;
+  if (finalPool.length === 0) return sendJson(res, 500, { error: "No cards available for fusion" });
+  const resultCardId = finalPool[Math.floor(Math.random() * finalPool.length)];
+
+  await prisma.$transaction(async (tx) => {
+    // Remove input cards
+    for (const cardId of selectedCardIds) {
+      const card = player.cards.find((c) => c.cardId === cardId);
+      if (card) await tx.cardProgress.delete({ where: { id: card.id } });
+    }
+    // Add result card
+    await tx.cardProgress.upsert({
+      where: { playerId_cardId: { playerId: player.id, cardId: resultCardId } },
+      create: { playerId: player.id, cardId: resultCardId, level: 1, xp: 0, prestigeLevel: 0, dupeCount: 0, goldStars: 0, redStars: 0 },
+      update: {},
+    });
+    // Deduct gold
+    await tx.player.update({ where: { id: player.id }, data: { gold: player.gold - recipe.goldCost } });
+  });
+
+  const updated = await prisma.player.findUnique({ where: { id: player.id }, include: { cards: true } });
+  sendJson(res, 200, { resultCardId, state: playerToClientState(updated, updated.cards) });
+}
+
+async function handleCraftSacrifice(req, res) {
+  const user = await requireAuth(req, res);
+  if (!user) return;
+
+  const body = await readJsonBody(req);
+  const { cardIds } = body;
+  if (!Array.isArray(cardIds) || cardIds.length === 0) {
+    return sendJson(res, 400, { error: "cardIds array required" });
+  }
+
+  const player = await prisma.player.findUnique({
+    where: { discordId: user.id },
+    include: { cards: true },
+  });
+  if (!player) return sendJson(res, 404, { error: "Player not found" });
+
+  let totalStardust = 0;
+  const toDelete = [];
+  for (const cardId of cardIds) {
+    const owned = player.cards.find((c) => c.cardId === cardId);
+    if (!owned) return sendJson(res, 400, { error: `Card not owned: ${cardId}` });
+    const rarity = getCardRarity(cardId);
+    totalStardust += SACRIFICE_STARDUST[rarity] ?? 10;
+    toDelete.push(owned.id);
+  }
+
+  await prisma.$transaction(async (tx) => {
+    for (const id of toDelete) {
+      await tx.cardProgress.delete({ where: { id } });
+    }
+    await tx.player.update({ where: { id: player.id }, data: { stardust: { increment: totalStardust } } });
+  });
+
+  const updated = await prisma.player.findUnique({ where: { id: player.id }, include: { cards: true } });
+  sendJson(res, 200, { totalStardust, state: playerToClientState(updated, updated.cards) });
+}
+
 // ─── Leaderboard API ───────────────────────────────────────────────────────────
 
 async function handleLeaderboard(req, res) {
@@ -912,6 +1013,8 @@ const server = http.createServer(async (req, res) => {
     if (method === "POST" && path === "/api/decks") return await handlePostDeck(req, res);
     if (method === "POST" && path === "/api/battle/result") return await handleBattleResult(req, res);
     if (method === "POST" && path === "/api/import") return await handleImport(req, res);
+    if (method === "POST" && path === "/api/craft/fuse") return await handleCraftFuse(req, res);
+    if (method === "POST" && path === "/api/craft/sacrifice") return await handleCraftSacrifice(req, res);
     if (method === "GET" && path === "/api/leaderboard") return await handleLeaderboard(req, res);
 
     // /api/cards/:cardId

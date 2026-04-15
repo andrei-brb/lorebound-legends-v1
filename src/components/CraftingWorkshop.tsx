@@ -10,11 +10,14 @@ import { toast } from "@/hooks/use-toast";
 interface CraftingWorkshopProps {
   playerState: PlayerState;
   onStateChange: (state: PlayerState) => void;
+  isOnline?: boolean;
+  craftFuseApi?: (inputRarity: string, selectedCardIds: string[]) => Promise<{ resultCardId: string } | null>;
+  craftSacrificeApi?: (cardIds: string[]) => Promise<{ totalStardust: number } | null>;
 }
 
 type CraftMode = "fuse" | "sacrifice";
 
-export default function CraftingWorkshop({ playerState, onStateChange }: CraftingWorkshopProps) {
+export default function CraftingWorkshop({ playerState, onStateChange, isOnline, craftFuseApi, craftSacrificeApi }: CraftingWorkshopProps) {
   const [mode, setMode] = useState<CraftMode>("fuse");
   const [selectedRecipe, setSelectedRecipe] = useState<FusionRecipe>(FUSION_RECIPES[0]);
   const [selectedCards, setSelectedCards] = useState<string[]>([]);
@@ -43,15 +46,23 @@ export default function CraftingWorkshop({ playerState, onStateChange }: Craftin
     setIsAnimating(true);
     await new Promise(r => setTimeout(r, 1500));
 
-    const result = performFusion(playerState, selectedRecipe, selectedCards);
-    if (result) {
-      onStateChange(result.playerState);
-      setResultCard(result.resultCardId);
-      const card = allCards.find(c => c.id === result.resultCardId);
-      toast({
-        title: "🔥 Fusion Complete!",
-        description: `You forged ${card?.name || "a new card"}!`,
-      });
+    if (isOnline && craftFuseApi) {
+      const result = await craftFuseApi(selectedRecipe.inputRarity, selectedCards);
+      if (result) {
+        setResultCard(result.resultCardId);
+        const card = allCards.find(c => c.id === result.resultCardId);
+        toast({ title: "🔥 Fusion Complete!", description: `You forged ${card?.name || "a new card"}!` });
+      } else {
+        toast({ title: "Fusion failed", description: "Could not complete fusion. Try again.", variant: "destructive" });
+      }
+    } else {
+      const result = performFusion(playerState, selectedRecipe, selectedCards);
+      if (result) {
+        onStateChange(result.playerState);
+        setResultCard(result.resultCardId);
+        const card = allCards.find(c => c.id === result.resultCardId);
+        toast({ title: "🔥 Fusion Complete!", description: `You forged ${card?.name || "a new card"}!` });
+      }
     }
     setIsAnimating(false);
     setSelectedCards([]);
@@ -62,13 +73,19 @@ export default function CraftingWorkshop({ playerState, onStateChange }: Craftin
     setIsAnimating(true);
     await new Promise(r => setTimeout(r, 800));
 
-    const result = performSacrifice(playerState, selectedCards);
-    if (result) {
-      onStateChange(result.playerState);
-      toast({
-        title: "💎 Sacrifice Complete!",
-        description: `Gained ${result.totalStardust} stardust!`,
-      });
+    if (isOnline && craftSacrificeApi) {
+      const result = await craftSacrificeApi(selectedCards);
+      if (result) {
+        toast({ title: "💎 Sacrifice Complete!", description: `Gained ${result.totalStardust} stardust!` });
+      } else {
+        toast({ title: "Sacrifice failed", description: "Could not complete sacrifice. Try again.", variant: "destructive" });
+      }
+    } else {
+      const result = performSacrifice(playerState, selectedCards);
+      if (result) {
+        onStateChange(result.playerState);
+        toast({ title: "💎 Sacrifice Complete!", description: `Gained ${result.totalStardust} stardust!` });
+      }
     }
     setIsAnimating(false);
     setSelectedCards([]);
