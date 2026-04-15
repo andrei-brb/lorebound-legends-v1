@@ -1,12 +1,11 @@
 import { useState } from "react";
-import { BookOpen, Layers, Swords, Coins, Sparkles as SparklesIcon, Grid3X3, Loader2, Eye } from "lucide-react";
+import { BookOpen, Layers, Swords, Coins, Sparkles as SparklesIcon, Grid3X3, Loader2 } from "lucide-react";
 import CollectionView from "@/components/CollectionView";
 import DeckBuilder from "@/components/DeckBuilder";
 import BattleArena from "@/components/BattleArena";
 import PackShop from "@/components/PackShop";
 import CardCatalog from "@/components/CardCatalog";
 import Onboarding from "@/components/Onboarding";
-import CardVisualDemo from "@/components/CardVisualDemo";
 import { cn } from "@/lib/utils";
 import { usePlayerApi } from "@/lib/usePlayerApi";
 
@@ -23,7 +22,6 @@ const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
 export default function Index() {
   const [activeTab, setActiveTab] = useState<Tab>("collection");
   const [battleDeckIds, setBattleDeckIds] = useState<string[]>([]);
-  const [showCardDemo, setShowCardDemo] = useState(false);
   const { playerState, setPlayerState, status, isOnline, pullCards, submitBattleResult, completeOnboarding } = usePlayerApi();
 
   if (status === "loading") {
