@@ -47,25 +47,7 @@ export default function Index() {
     );
   }
 
-  if (showCardDemo) {
-    return <CardVisualDemo onBack={() => setShowCardDemo(false)} />;
-  }
-
   const startBattle = (deckIds: string[]) => {
-    setBattleDeckIds(deckIds);
-    setActiveTab("battle");
-  };
-
-  return (
-    <div className="min-h-screen bg-background">
-      {/* Card Demo floating button */}
-      <button
-        onClick={() => setShowCardDemo(true)}
-        className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-2.5 rounded-full bg-primary text-primary-foreground font-heading font-bold text-sm shadow-lg hover:scale-105 transition-transform"
-      >
-        <Eye className="w-4 h-4" />
-        Preview Card Demo
-      </button>
       {/* Ambient particles */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
         {Array.from({ length: 20 }).map((_, i) => (
