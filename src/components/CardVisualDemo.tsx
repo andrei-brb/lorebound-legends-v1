@@ -184,15 +184,15 @@ export default function CardVisualDemo({ onBack }: { onBack: () => void }) {
                     }}
                   />
 
-                  {/* Rarity badge */}
-                  <div className="absolute top-3 left-3 z-20">
+                  {/* Rarity badge — hidden when flipped */}
+                  <div className="absolute top-3 left-3 z-20 transition-opacity duration-300" style={{ opacity: flipped ? 0 : 1 }}>
                     <span className="text-[10px] font-bold uppercase px-2.5 py-1 rounded-full bg-legendary text-primary-foreground tracking-wider shadow-lg">
                       ★ Legendary
                     </span>
                   </div>
 
-                  {/* Type badge */}
-                  <div className="absolute top-3 right-3 z-20">
+                  {/* Type badge — hidden when flipped */}
+                  <div className="absolute top-3 right-3 z-20 transition-opacity duration-300" style={{ opacity: flipped ? 0 : 1 }}>
                     <span className="text-[10px] font-medium uppercase px-2.5 py-1 rounded-full bg-card/80 text-foreground backdrop-blur-sm">
                       {card.type}
                     </span>
