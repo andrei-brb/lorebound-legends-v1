@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Coins, Sparkles, ArrowRight, Trash2 } from "lucide-react";
@@ -6,6 +7,7 @@ import { allCards, type Rarity } from "@/data/cards";
 import { FUSION_RECIPES, performFusion, performSacrifice, canFuse, type FusionRecipe } from "@/lib/craftingEngine";
 import type { PlayerState } from "@/lib/playerState";
 import { toast } from "@/hooks/use-toast";
+import CardRevealAnimation from "./CardRevealAnimation";
 
 interface CraftingWorkshopProps {
   playerState: PlayerState;

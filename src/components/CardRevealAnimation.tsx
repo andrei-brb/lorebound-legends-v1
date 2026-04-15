@@ -55,7 +55,9 @@ export default function CardRevealAnimation({ cardId, onClose }: CardRevealAnima
     const t2 = setTimeout(() => setPhase("shown"), 1400);
     const t3 = setTimeout(onClose, config.duration);
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
-  }, [config.duration, onClose]);
+  }, [card, config.duration, onClose]);
+
+  if (!card) return null;
 
   // Generate particle data once
   const particles = Array.from({ length: config.particleCount }, (_, i) => {
