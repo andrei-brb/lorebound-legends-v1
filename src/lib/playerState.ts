@@ -8,6 +8,8 @@ export interface CardProgress {
   starProgress: StarProgress;
 }
 
+export type FactionPath = "fire" | "nature" | "shadow";
+
 export interface PlayerState {
   gold: number;
   stardust: number;
@@ -16,7 +18,24 @@ export interface PlayerState {
   pityCounter: number; // pulls since last legendary
   lastFreePackTime: number | null;
   totalPulls: number;
+  hasCompletedOnboarding: boolean;
+  selectedPath: FactionPath | null;
 }
+
+export const FACTION_STARTER_CARDS: Record<FactionPath, string[]> = {
+  fire: [
+    "pyrothos", "fire-dragon", "inferna", "ignis", "magmus",
+    "draconus", "warrior-king", "ares", "ferros", "bellator",
+  ],
+  nature: [
+    "gaiara", "forest-druid", "verdantia", "sylvana", "vitalis",
+    "arachnia", "serpentia", "fenris", "healer", "aquaris",
+  ],
+  shadow: [
+    "nyx", "shadow-assassin", "thanatos", "nekros", "umbra",
+    "obscura", "corvus", "mortuus", "phantos", "somnia",
+  ],
+};
 
 const STORAGE_KEY = "mythic-arcana-player";
 
@@ -26,18 +45,31 @@ const STARTER_CARD_IDS = [
 ];
 
 function createDefaultState(): PlayerState {
-  const cardProgress: Record<string, CardProgress> = {};
-  for (const id of STARTER_CARD_IDS) {
-    cardProgress[id] = { level: 1, xp: 0, prestigeLevel: 0, starProgress: getDefaultStarProgress() };
-  }
   return {
     gold: 500,
     stardust: 0,
-    ownedCardIds: [...STARTER_CARD_IDS],
-    cardProgress,
+    ownedCardIds: [],
+    cardProgress: {},
     pityCounter: 0,
     lastFreePackTime: null,
     totalPulls: 0,
+    hasCompletedOnboarding: false,
+    selectedPath: null,
+  };
+}
+
+export function initializeStarterDeck(state: PlayerState, path: FactionPath): PlayerState {
+  const starterIds = FACTION_STARTER_CARDS[path];
+  const cardProgress: Record<string, CardProgress> = {};
+  for (const id of starterIds) {
+    cardProgress[id] = { level: 1, xp: 0, prestigeLevel: 0, starProgress: getDefaultStarProgress() };
+  }
+  return {
+    ...state,
+    ownedCardIds: [...starterIds],
+    cardProgress,
+    hasCompletedOnboarding: true,
+    selectedPath: path,
   };
 }
 
@@ -48,6 +80,9 @@ export function loadPlayerState(): PlayerState {
       const state = JSON.parse(raw) as PlayerState;
       // Migration: add stardust if missing
       if (state.stardust === undefined) state.stardust = 0;
+      // Migration: add onboarding fields
+      if (state.hasCompletedOnboarding === undefined) state.hasCompletedOnboarding = true; // existing players already onboarded
+      if (state.selectedPath === undefined) state.selectedPath = null;
       // Migration: add starProgress to existing cards
       for (const id of Object.keys(state.cardProgress)) {
         if (!state.cardProgress[id].starProgress) {

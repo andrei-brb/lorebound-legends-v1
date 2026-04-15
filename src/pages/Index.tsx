@@ -5,6 +5,7 @@ import DeckBuilder from "@/components/DeckBuilder";
 import BattleArena from "@/components/BattleArena";
 import PackShop from "@/components/PackShop";
 import CardCatalog from "@/components/CardCatalog";
+import Onboarding from "@/components/Onboarding";
 import { cn } from "@/lib/utils";
 import { usePlayerApi } from "@/lib/usePlayerApi";
 
@@ -31,6 +32,16 @@ export default function Index() {
           <p className="text-muted-foreground text-sm">Loading your adventure...</p>
         </div>
       </div>
+    );
+  }
+
+  // Show onboarding for new players
+  if (!playerState.hasCompletedOnboarding) {
+    return (
+      <Onboarding
+        playerState={playerState}
+        onComplete={(newState) => setPlayerState(newState)}
+      />
     );
   }
 
