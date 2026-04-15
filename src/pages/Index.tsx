@@ -151,6 +151,15 @@ export default function Index() {
         {activeTab === "battle" && battleDeckIds.length > 0 && (
           <BattleArena playerDeckIds={battleDeckIds} onExit={() => setActiveTab("deck")} playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} submitBattleResultApi={submitBattleResult} />
         )}
+        {activeTab === "quests" && (
+          <DailyQuests playerState={playerState} onStateChange={setPlayerState} />
+        )}
+        {activeTab === "workshop" && (
+          <CraftingWorkshop playerState={playerState} onStateChange={setPlayerState} />
+        )}
+        {activeTab === "achievements" && (
+          <AchievementPanel playerState={playerState} />
+        )}
         {activeTab === "battle" && battleDeckIds.length === 0 && (
           <div className="text-center py-20">
             <Swords className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
