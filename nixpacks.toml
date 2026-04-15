@@ -1,0 +1,12 @@
+#[nixpacks]
+# Railway sometimes auto-detects Bun; this repo is npm-based (package-lock.json).
+
+[phases.setup]
+nixPkgs = ["nodejs_20"]
+
+[phases.install]
+cmds = ["npm ci"]
+
+[start]
+cmd = "npm start"
+
