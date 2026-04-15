@@ -1,6 +1,7 @@
 import type { GameCard } from "@/data/cards";
 import { allCards } from "@/data/cards";
 import { calculateFieldSynergies, calculatePassiveBonuses, type ActiveSynergy } from "./synergyEngine";
+import { getElementMultiplier, getElementAdvantageLabel, elementEmoji } from "./elementSystem";
 
 // =================== Types ===================
 
@@ -573,13 +574,23 @@ export function attackTarget(state: BattleState, attackerFieldIndex: number, tar
     }
   }
 
-  // Calculate damage
+  // Calculate damage with elemental modifier
+  const attackerElement = attacker.card.element || "neutral";
+  const defenderElement = target.card.element || "neutral";
+  const elemMult = getElementMultiplier(attackerElement, defenderElement);
+  const elemLabel = getElementAdvantageLabel(attackerElement, defenderElement);
+
   const rawDmg = Math.max(1, attacker.attack - Math.floor(target.defense * 0.4));
   const variance = 0.9 + Math.random() * 0.2;
-  const dmg = Math.max(1, Math.round(rawDmg * variance));
+  const dmg = Math.max(1, Math.round(rawDmg * variance * elemMult));
 
   target.currentHp = Math.max(0, target.currentHp - dmg);
-  addLog(newState, `⚔️ ${attacker.card.name} attacks ${target.card.name} for ${dmg} damage!`, "attack");
+  
+  let attackMsg = `⚔️ ${attacker.card.name} attacks ${target.card.name} for ${dmg} damage!`;
+  if (elemLabel) {
+    attackMsg += ` ${elementEmoji[attackerElement]} ${elemLabel}`;
+  }
+  addLog(newState, attackMsg, "attack");
 
   if (target.currentHp <= 0) {
     addLog(newState, `💀 ${target.card.name} was destroyed!`, "defeat");
