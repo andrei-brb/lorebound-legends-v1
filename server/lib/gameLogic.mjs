@@ -117,6 +117,24 @@ export function getCardRarity(cardId) {
   return meta?.rarity || "common";
 }
 
+export function getCardName(cardId) {
+  // Simple: capitalize and replace hyphens
+  return cardId.split("-").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+}
+
+export function getCardElement(cardId) {
+  // Infer from ID keywords (server-side doesn't have the full card data with tags)
+  const id = cardId.toLowerCase();
+  if (id.includes("fire") || id.includes("flame") || id.includes("pyro") || id.includes("infern") || id.includes("lava") || id.includes("blaze") || id.includes("cinder") || id.includes("ember") || id.includes("ignis") || id.includes("magmus")) return "fire";
+  if (id.includes("ice") || id.includes("frost") || id.includes("water") || id.includes("ocean") || id.includes("sea") || id.includes("tidal") || id.includes("coral") || id.includes("aqua") || id.includes("glacius") || id.includes("boreas")) return "water";
+  if (id.includes("nature") || id.includes("forest") || id.includes("vine") || id.includes("druid") || id.includes("verdant") || id.includes("gaia") || id.includes("moss") || id.includes("thorn") || id.includes("sylv")) return "nature";
+  if (id.includes("shadow") || id.includes("dark") || id.includes("void") || id.includes("death") || id.includes("necro") || id.includes("nyx") || id.includes("umbra") || id.includes("wraith") || id.includes("phantom")) return "shadow";
+  if (id.includes("light") || id.includes("divine") || id.includes("solar") || id.includes("sun") || id.includes("lunar") || id.includes("moon") || id.includes("helio") || id.includes("aurora") || id.includes("celestia")) return "light";
+  return "neutral";
+}
+
+export const ALL_CARD_IDS = allCardMeta.map((c) => c.id);
+
 export function processDuplicatePull(cardRow, cardId) {
   const rarity = getCardRarity(cardId);
   const oldStars = calculateStars(cardRow.dupeCount, rarity);
