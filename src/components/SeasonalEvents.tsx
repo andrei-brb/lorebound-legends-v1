@@ -14,9 +14,11 @@ import { elementEmoji } from "@/lib/elementSystem";
 interface SeasonalEventsProps {
   playerState: PlayerState;
   onStateChange: (state: PlayerState) => void;
+  isOnline?: boolean;
+  pullSeasonalPackApi?: (eventId: string) => Promise<{ cardIds: string[]; state: PlayerState } | null>;
 }
 
-export default function SeasonalEvents({ playerState, onStateChange }: SeasonalEventsProps) {
+export default function SeasonalEvents({ playerState, onStateChange, isOnline, pullSeasonalPackApi }: SeasonalEventsProps) {
   const [selectedEvent, setSelectedEvent] = useState<SeasonalEvent | null>(null);
   const [packCardIds, setPackCardIds] = useState<string[] | null>(null);
   const [pendingState, setPendingState] = useState<PlayerState | null>(null);
@@ -24,9 +26,19 @@ export default function SeasonalEvents({ playerState, onStateChange }: SeasonalE
   const upcomingEvents = getUpcomingEvents();
   const pastEvents = getPastEvents();
 
-  const buySeasonalPack = (event: SeasonalEvent) => {
+  const buySeasonalPack = async (event: SeasonalEvent) => {
     if (playerState.gold < event.packCost) {
       toast({ title: "Not enough gold!", description: `You need ${event.packCost} gold.`, variant: "destructive" });
+      return;
+    }
+
+    if (isOnline && pullSeasonalPackApi) {
+      const result = await pullSeasonalPackApi(event.id);
+      if (result) {
+        onStateChange(result.state);
+        setPackCardIds(result.cardIds);
+        setPendingState(result.state);
+      }
       return;
     }
 

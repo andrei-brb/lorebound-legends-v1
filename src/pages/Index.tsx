@@ -41,7 +41,7 @@ const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
 export default function Index() {
   const [activeTab, setActiveTab] = useState<Tab>("collection");
   const [battleDeckIds, setBattleDeckIds] = useState<string[]>([]);
-  const { playerState, setPlayerState, status, isOnline, pullCards, submitBattleResult, completeOnboarding, syncEconomy, craftFuse, craftSacrifice } = usePlayerApi();
+  const { playerState, setPlayerState, status, isOnline, pullCards, submitBattleResult, completeOnboarding, syncEconomy, craftFuse, craftSacrifice, pullSeasonalPack } = usePlayerApi();
   const isDiscordActivityHost = typeof window !== "undefined" && window.location.hostname.endsWith("discordsays.com");
 
   // Achievement checking on state changes
@@ -183,10 +183,10 @@ export default function Index() {
           <TradeUI playerState={playerState} onStateChange={setPlayerState} />
         )}
         {activeTab === "events" && (
-          <SeasonalEvents playerState={playerState} onStateChange={setPlayerState} />
+          <SeasonalEvents playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} pullSeasonalPackApi={pullSeasonalPack} />
         )}
         {activeTab === "tournament" && (
-          <Tournament playerState={playerState} onStateChange={setPlayerState} />
+          <Tournament playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} syncEconomyApi={syncEconomy} />
         )}
         {activeTab === "boost" && (
           <BoostRewards />

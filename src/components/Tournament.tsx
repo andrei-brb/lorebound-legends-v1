@@ -9,6 +9,8 @@ import { cn } from "@/lib/utils";
 interface TournamentProps {
   playerState: PlayerState;
   onStateChange: (state: PlayerState) => void;
+  isOnline?: boolean;
+  syncEconomyApi?: (gold: number, stardust: number) => Promise<void>;
 }
 
 interface TournamentParticipant {
@@ -95,7 +97,7 @@ function generateBracket(participants: TournamentParticipant[]): BracketMatch[] 
   return matches;
 }
 
-export default function Tournament({ playerState, onStateChange }: TournamentProps) {
+export default function Tournament({ playerState, onStateChange, isOnline, syncEconomyApi }: TournamentProps) {
   const [status, setStatus] = useState<TournamentStatus>("lobby");
   const [bracket, setBracket] = useState<BracketMatch[]>([]);
   const [currentRound, setCurrentRound] = useState(1);
@@ -119,6 +121,9 @@ export default function Tournament({ playerState, onStateChange }: TournamentPro
     const newState = { ...playerState, gold: playerState.gold - ENTRY_FEE };
     savePlayerState(newState);
     onStateChange(newState);
+    if (isOnline && syncEconomyApi) {
+      syncEconomyApi(newState.gold, newState.stardust ?? 0).catch(() => {});
+    }
 
     const aiPlayers = generateAIParticipants(7);
     const participants = [playerParticipant, ...aiPlayers].sort(() => Math.random() - 0.5);
@@ -182,6 +187,9 @@ export default function Tournament({ playerState, onStateChange }: TournamentPro
         const newState = { ...playerState, gold: playerState.gold + prize };
         savePlayerState(newState);
         onStateChange(newState);
+        if (isOnline && syncEconomyApi) {
+          syncEconomyApi(newState.gold, newState.stardust ?? 0).catch(() => {});
+        }
         toast({ title: "🏆 CHAMPION!", description: `You won the tournament! +${prize} gold!` });
       } else if (!playerEliminated) {
         // Player was in finals but lost
@@ -190,6 +198,9 @@ export default function Tournament({ playerState, onStateChange }: TournamentPro
         const newState = { ...playerState, gold: playerState.gold + prize };
         savePlayerState(newState);
         onStateChange(newState);
+        if (isOnline && syncEconomyApi) {
+          syncEconomyApi(newState.gold, newState.stardust ?? 0).catch(() => {});
+        }
         toast({ title: "🥈 Runner-Up!", description: `Great run! +${prize} gold!` });
       }
     } else {

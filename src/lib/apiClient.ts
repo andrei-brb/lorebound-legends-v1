@@ -173,4 +173,13 @@ export const api = {
     });
     return handleResponse<{ ok: true; state: import("./playerState").PlayerState }>(res);
   },
+
+  async pullSeasonalPack(eventId: string) {
+    const res = await fetch(`${getApiBase()}/api/seasonal/pull`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({ eventId }),
+    });
+    return handleResponse<{ cardIds: string[]; state: import("./playerState").PlayerState }>(res);
+  },
 };

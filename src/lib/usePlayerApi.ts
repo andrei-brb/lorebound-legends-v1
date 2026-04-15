@@ -33,6 +33,7 @@ interface UsePlayerApiReturn {
   syncEconomy: (gold: number, stardust: number) => Promise<void>;
   craftFuse: (inputRarity: string, selectedCardIds: string[]) => Promise<{ resultCardId: string } | null>;
   craftSacrifice: (cardIds: string[]) => Promise<{ totalStardust: number } | null>;
+  pullSeasonalPack: (eventId: string) => Promise<{ cardIds: string[]; state: PlayerState } | null>;
 }
 
 const MIGRATION_KEY = "lorebound-migrated";
@@ -187,6 +188,22 @@ export function usePlayerApi(): UsePlayerApiReturn {
     [online],
   );
 
+  const pullSeasonalPack = useCallback(
+    async (eventId: string) => {
+      if (!online) return null;
+      try {
+        const result = await api.pullSeasonalPack(eventId);
+        setPlayerStateInternal(result.state);
+        savePlayerState(result.state);
+        return { cardIds: result.cardIds, state: result.state };
+      } catch (err) {
+        console.error("[usePlayerApi] pullSeasonalPack failed:", err);
+        return null;
+      }
+    },
+    [online],
+  );
+
   return {
     playerState,
     setPlayerState,
@@ -198,5 +215,6 @@ export function usePlayerApi(): UsePlayerApiReturn {
     syncEconomy,
     craftFuse,
     craftSacrifice,
+    pullSeasonalPack,
   };
 }

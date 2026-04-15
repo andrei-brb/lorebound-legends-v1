@@ -26,6 +26,7 @@ import {
   getCardElement,
 } from "./lib/gameLogic.mjs";
 import { pickRandomDropCard, buildDropEmbed, processCardClaim } from "./lib/cardDrop.mjs";
+import { getSeasonalEventById, isEventActive } from "./lib/seasonalEvents.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: join(__dirname, "..", ".env") });
@@ -1103,6 +1104,64 @@ async function handleLeaderboard(req, res) {
   sendJson(res, 200, { entries });
 }
 
+// ─── Seasonal Events API ───────────────────────────────────────────────────────
+
+async function handleSeasonalPull(req, res) {
+  const user = await requireAuth(req, res);
+  if (!user) return;
+
+  const body = await readJsonBody(req);
+  const eventId = body.eventId;
+  if (!eventId || typeof eventId !== "string") return sendJson(res, 400, { error: "eventId required" });
+
+  const event = getSeasonalEventById(eventId);
+  if (!event) return sendJson(res, 404, { error: "Unknown event" });
+  if (!isEventActive(event)) return sendJson(res, 400, { error: "Event not active" });
+
+  const player = await prisma.player.findUnique({
+    where: { discordId: user.id },
+    include: { cards: true },
+  });
+  if (!player) return sendJson(res, 404, { error: "Player not found" });
+  if (player.gold < event.packCost) return sendJson(res, 400, { error: "Not enough gold" });
+
+  const pool = event.seasonalCardIds;
+  if (!Array.isArray(pool) || pool.length === 0) return sendJson(res, 500, { error: "Empty seasonal pool" });
+
+  const pulledIds = [];
+  // 3-card seasonal pack
+  for (let i = 0; i < 3; i++) {
+    const cardId = pool[Math.floor(Math.random() * pool.length)];
+    pulledIds.push(cardId);
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.player.update({ where: { id: player.id }, data: { gold: player.gold - event.packCost } });
+    for (const cardId of pulledIds) {
+      await tx.cardProgress.upsert({
+        where: { playerId_cardId: { playerId: player.id, cardId } },
+        create: {
+          playerId: player.id,
+          cardId,
+          level: 1,
+          xp: 0,
+          prestigeLevel: 0,
+          dupeCount: 0,
+          goldStars: 0,
+          redStars: 0,
+        },
+        update: {
+          dupeCount: { increment: 1 },
+          xp: { increment: 50 },
+        },
+      });
+    }
+  });
+
+  const updated = await prisma.player.findUnique({ where: { id: player.id }, include: { cards: true } });
+  return sendJson(res, 200, { cardIds: pulledIds, state: playerToClientState(updated, updated.cards) });
+}
+
 // ─── Admin API (cheats) ─────────────────────────────────────────────────────────
 
 async function handleAdminGrant(req, res) {
@@ -1157,6 +1216,7 @@ const server = http.createServer(async (req, res) => {
     if (method === "POST" && path === "/api/decks") return await handlePostDeck(req, res);
     if (method === "POST" && path === "/api/battle/result") return await handleBattleResult(req, res);
     if (method === "POST" && path === "/api/import") return await handleImport(req, res);
+    if (method === "POST" && path === "/api/seasonal/pull") return await handleSeasonalPull(req, res);
     if (method === "POST" && path === "/api/craft/fuse") return await handleCraftFuse(req, res);
     if (method === "POST" && path === "/api/craft/sacrifice") return await handleCraftSacrifice(req, res);
     if (method === "GET" && path === "/api/leaderboard") return await handleLeaderboard(req, res);
