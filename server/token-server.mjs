@@ -82,6 +82,18 @@ function parsePath(url) {
   return (url || "").split("?")[0].replace(/^\/.proxy/, "");
 }
 
+function getAdminDiscordIds() {
+  return String(process.env.ADMIN_DISCORD_IDS || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function isAdminUser(discordId) {
+  const allow = getAdminDiscordIds();
+  return allow.includes(String(discordId));
+}
+
 // ─── Discord Interactions ──────────────────────────────────────────────────────
 
 async function verifyDiscordSignature(rawBody, signature, timestamp, publicKey) {
@@ -981,6 +993,41 @@ async function handleLeaderboard(req, res) {
   sendJson(res, 200, { entries });
 }
 
+// ─── Admin API (cheats) ─────────────────────────────────────────────────────────
+
+async function handleAdminGrant(req, res) {
+  const user = await requireAuth(req, res);
+  if (!user) return;
+
+  if (!isAdminUser(user.id)) {
+    return sendJson(res, 403, { error: "Forbidden" });
+  }
+
+  const body = await readJsonBody(req);
+  const allowedKeys = ["gold", "stardust", "pityCounter", "totalPulls"];
+  const data = {};
+
+  for (const k of allowedKeys) {
+    if (body[k] !== undefined) {
+      const n = Number(body[k]);
+      if (!Number.isFinite(n)) return sendJson(res, 400, { error: `Invalid number for ${k}` });
+      data[k] = { increment: Math.trunc(n) };
+    }
+  }
+
+  if (Object.keys(data).length === 0) {
+    return sendJson(res, 400, { error: "No valid fields provided" });
+  }
+
+  const updated = await prisma.player.update({
+    where: { discordId: user.id },
+    data,
+    include: { cards: true },
+  });
+
+  return sendJson(res, 200, { ok: true, state: playerToClientState(updated, updated.cards) });
+}
+
 // ─── Router ────────────────────────────────────────────────────────────────────
 
 const server = http.createServer(async (req, res) => {
@@ -1023,6 +1070,7 @@ const server = http.createServer(async (req, res) => {
     if (method === "POST" && path === "/api/craft/fuse") return await handleCraftFuse(req, res);
     if (method === "POST" && path === "/api/craft/sacrifice") return await handleCraftSacrifice(req, res);
     if (method === "GET" && path === "/api/leaderboard") return await handleLeaderboard(req, res);
+    if (method === "POST" && path === "/api/admin/grant") return await handleAdminGrant(req, res);
 
     // /api/cards/:cardId
     const cardMatch = path.match(/^\/api\/cards\/([^/]+)$/);

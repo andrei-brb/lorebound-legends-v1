@@ -164,4 +164,13 @@ export const api = {
     const res = await fetch(`${getApiBase()}/api/leaderboard?tab=${encodeURIComponent(tab)}`, { headers: getHeaders() });
     return handleResponse<{ entries: Array<{ rank: number; name: string; avatar?: string | null; discordId: string; value: number }> }>(res);
   },
+
+  async adminGrant(delta: { gold?: number; stardust?: number; pityCounter?: number; totalPulls?: number }) {
+    const res = await fetch(`${getApiBase()}/api/admin/grant`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify(delta),
+    });
+    return handleResponse<{ ok: true; state: import("./playerState").PlayerState }>(res);
+  },
 };
