@@ -124,6 +124,31 @@ async function main() {
         description: "Trigger a card drop event in this channel (admin only)",
         type: 1,
       },
+      {
+        name: "admin",
+        description: "Admin tools (allowlisted only)",
+        type: 1,
+        options: [
+          {
+            name: "action",
+            description: "What to grant",
+            type: 3, // STRING
+            required: true,
+            choices: [
+              { name: "gold", value: "gold" },
+              { name: "stardust", value: "stardust" },
+              { name: "pityCounter", value: "pityCounter" },
+              { name: "totalPulls", value: "totalPulls" },
+            ],
+          },
+          {
+            name: "amount",
+            description: "How much to add (can be negative)",
+            type: 4, // INTEGER
+            required: true,
+          },
+        ],
+      },
     ],
   });
 

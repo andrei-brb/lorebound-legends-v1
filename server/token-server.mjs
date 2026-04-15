@@ -94,6 +94,43 @@ function isAdminUser(discordId) {
   return allow.includes(String(discordId));
 }
 
+async function adminIncrementForUser(discordUserId, body) {
+  if (!isAdminUser(discordUserId)) {
+    const err = new Error("Forbidden");
+    err.statusCode = 403;
+    throw err;
+  }
+
+  const allowedKeys = ["gold", "stardust", "pityCounter", "totalPulls"];
+  const data = {};
+
+  for (const k of allowedKeys) {
+    if (body[k] !== undefined) {
+      const n = Number(body[k]);
+      if (!Number.isFinite(n)) {
+        const err = new Error(`Invalid number for ${k}`);
+        err.statusCode = 400;
+        throw err;
+      }
+      data[k] = { increment: Math.trunc(n) };
+    }
+  }
+
+  if (Object.keys(data).length === 0) {
+    const err = new Error("No valid fields provided");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const updated = await prisma.player.update({
+    where: { discordId: discordUserId },
+    data,
+    include: { cards: true },
+  });
+
+  return { ok: true, state: playerToClientState(updated, updated.cards) };
+}
+
 // ─── Discord Interactions ──────────────────────────────────────────────────────
 
 async function verifyDiscordSignature(rawBody, signature, timestamp, publicKey) {
@@ -164,6 +201,37 @@ async function handleInteractions(req, res) {
     }
     if (sub.name === "drop") {
       return await handleMythicDrop(res, interaction);
+    }
+    if (sub.name === "admin") {
+      const isGuild = Boolean(interaction.guild_id);
+      if (!isGuild) {
+        return sendJson(res, 200, { type: 4, data: { content: "❌ Admin command can only be used in servers.", flags: 64 } });
+      }
+
+      const action = sub.options?.find((o) => o.name === "action")?.value;
+      const amount = sub.options?.find((o) => o.name === "amount")?.value;
+
+      const userId = interaction.member?.user?.id || interaction.user?.id;
+      if (!userId) return sendJson(res, 200, { type: 4, data: { content: "❌ Missing user.", flags: 64 } });
+
+      try {
+        const delta = { [String(action)]: Number(amount) };
+        const result = await adminIncrementForUser(userId, delta);
+        const newVal =
+          String(action) === "gold" ? result.state.gold :
+          String(action) === "stardust" ? (result.state.stardust ?? 0) :
+          String(action) === "pityCounter" ? result.state.pityCounter :
+          String(action) === "totalPulls" ? result.state.totalPulls :
+          null;
+
+        return sendJson(res, 200, {
+          type: 4,
+          data: { content: `✅ Granted **${amount} ${action}**. New ${action}: **${newVal ?? "updated"}**`, flags: 64 },
+        });
+      } catch (e) {
+        const msg = e?.message || "Admin grant failed";
+        return sendJson(res, 200, { type: 4, data: { content: `❌ ${msg}`, flags: 64 } });
+      }
     }
 
     return sendJson(res, 200, { type: 4, data: { content: "Unknown subcommand.", flags: 64 } });
@@ -998,34 +1066,14 @@ async function handleLeaderboard(req, res) {
 async function handleAdminGrant(req, res) {
   const user = await requireAuth(req, res);
   if (!user) return;
-
-  if (!isAdminUser(user.id)) {
-    return sendJson(res, 403, { error: "Forbidden" });
+  try {
+    const body = await readJsonBody(req);
+    const result = await adminIncrementForUser(user.id, body);
+    return sendJson(res, 200, result);
+  } catch (e) {
+    const code = e?.statusCode || 500;
+    return sendJson(res, code, { error: e?.message || "Admin grant failed" });
   }
-
-  const body = await readJsonBody(req);
-  const allowedKeys = ["gold", "stardust", "pityCounter", "totalPulls"];
-  const data = {};
-
-  for (const k of allowedKeys) {
-    if (body[k] !== undefined) {
-      const n = Number(body[k]);
-      if (!Number.isFinite(n)) return sendJson(res, 400, { error: `Invalid number for ${k}` });
-      data[k] = { increment: Math.trunc(n) };
-    }
-  }
-
-  if (Object.keys(data).length === 0) {
-    return sendJson(res, 400, { error: "No valid fields provided" });
-  }
-
-  const updated = await prisma.player.update({
-    where: { discordId: user.id },
-    data,
-    include: { cards: true },
-  });
-
-  return sendJson(res, 200, { ok: true, state: playerToClientState(updated, updated.cards) });
 }
 
 // ─── Router ────────────────────────────────────────────────────────────────────
