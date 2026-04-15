@@ -298,7 +298,15 @@ export interface GameCard {
   // Passive ability (always active on field)
   passiveAbility?: { name: string; description: string; stat: "attack" | "defense"; value: number; targetTag?: string };
   // Element (auto-inferred from tags if not set)
-  element: Element;
+  element?: Element;
+}
+
+// Helper to add element to card arrays
+function withElements<T extends GameCard[]>(cards: T): T {
+  for (const card of cards) {
+    if (!card.element) card.element = inferElementFromTags(card.tags);
+  }
+  return cards;
 }
 
 // =================== GODS (50) ===================
