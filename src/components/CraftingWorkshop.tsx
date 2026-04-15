@@ -24,6 +24,7 @@ export default function CraftingWorkshop({ playerState, onStateChange, isOnline,
   const [selectedRecipe, setSelectedRecipe] = useState<FusionRecipe>(FUSION_RECIPES[0]);
   const [selectedCards, setSelectedCards] = useState<string[]>([]);
   const [resultCard, setResultCard] = useState<string | null>(null);
+  const [revealCardId, setRevealCardId] = useState<string | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
 
   const eligibleCards = playerState.ownedCardIds
