@@ -1,28 +1,49 @@
-import { useState } from "react";
-import { BookOpen, Layers, Swords, Coins, Sparkles as SparklesIcon, Grid3X3, Loader2 } from "lucide-react";
+import { useState, useEffect } from "react";
+import { BookOpen, Layers, Swords, Coins, Sparkles as SparklesIcon, Grid3X3, Loader2, ScrollText, Hammer, Trophy } from "lucide-react";
 import CollectionView from "@/components/CollectionView";
 import DeckBuilder from "@/components/DeckBuilder";
 import BattleArena from "@/components/BattleArena";
 import PackShop from "@/components/PackShop";
 import CardCatalog from "@/components/CardCatalog";
+import DailyQuests from "@/components/DailyQuests";
+import CraftingWorkshop from "@/components/CraftingWorkshop";
+import AchievementPanel from "@/components/AchievementPanel";
 import Onboarding from "@/components/Onboarding";
 import { cn } from "@/lib/utils";
 import { usePlayerApi } from "@/lib/usePlayerApi";
+import { loadAchievementState, checkNewAchievements, saveAchievementState, type AchievementState } from "@/lib/achievementEngine";
+import { toast } from "@/hooks/use-toast";
 
-type Tab = "collection" | "catalog" | "deck" | "battle" | "summon";
+type Tab = "collection" | "catalog" | "deck" | "battle" | "summon" | "quests" | "workshop" | "achievements";
 
 const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "collection", label: "Collection", icon: <BookOpen className="w-4 h-4" /> },
   { id: "catalog", label: "Catalog", icon: <Grid3X3 className="w-4 h-4" /> },
   { id: "summon", label: "Summon", icon: <SparklesIcon className="w-4 h-4" /> },
-  { id: "deck", label: "Deck Builder", icon: <Layers className="w-4 h-4" /> },
+  { id: "deck", label: "Deck", icon: <Layers className="w-4 h-4" /> },
   { id: "battle", label: "Battle", icon: <Swords className="w-4 h-4" /> },
+  { id: "quests", label: "Quests", icon: <ScrollText className="w-4 h-4" /> },
+  { id: "workshop", label: "Workshop", icon: <Hammer className="w-4 h-4" /> },
+  { id: "achievements", label: "Badges", icon: <Trophy className="w-4 h-4" /> },
 ];
 
 export default function Index() {
   const [activeTab, setActiveTab] = useState<Tab>("collection");
   const [battleDeckIds, setBattleDeckIds] = useState<string[]>([]);
   const { playerState, setPlayerState, status, isOnline, pullCards, submitBattleResult, completeOnboarding } = usePlayerApi();
+
+  // Achievement checking on state changes
+  useEffect(() => {
+    if (!playerState.hasCompletedOnboarding) return;
+    const achieveState = loadAchievementState();
+    const { achieveState: newState, newlyUnlocked } = checkNewAchievements(achieveState, playerState);
+    if (newlyUnlocked.length > 0) {
+      saveAchievementState(newState);
+      for (const ach of newlyUnlocked) {
+        toast({ title: `${ach.icon} Achievement Unlocked!`, description: ach.title });
+      }
+    }
+  }, [playerState]);
 
   if (status === "loading") {
     return (
@@ -129,6 +150,15 @@ export default function Index() {
         {activeTab === "deck" && <DeckBuilder onStartBattle={startBattle} playerState={playerState} />}
         {activeTab === "battle" && battleDeckIds.length > 0 && (
           <BattleArena playerDeckIds={battleDeckIds} onExit={() => setActiveTab("deck")} playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} submitBattleResultApi={submitBattleResult} />
+        )}
+        {activeTab === "quests" && (
+          <DailyQuests playerState={playerState} onStateChange={setPlayerState} />
+        )}
+        {activeTab === "workshop" && (
+          <CraftingWorkshop playerState={playerState} onStateChange={setPlayerState} />
+        )}
+        {activeTab === "achievements" && (
+          <AchievementPanel playerState={playerState} />
         )}
         {activeTab === "battle" && battleDeckIds.length === 0 && (
           <div className="text-center py-20">
