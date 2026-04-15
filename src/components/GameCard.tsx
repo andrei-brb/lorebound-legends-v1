@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Sword, Shield, Sparkles, Zap, Star, ArrowUp, Circle } from "lucide-react";
+import { useState, useRef, useCallback, useMemo } from "react";
+import { Sword, Shield, Sparkles, Zap, Star, ArrowUp, Heart } from "lucide-react";
 import type { GameCard as GameCardType } from "@/data/cards";
 import { allCards } from "@/data/cards";
 import { cn } from "@/lib/utils";
@@ -17,28 +17,69 @@ interface GameCardProps {
   cardProgress?: CardProgress;
 }
 
-const rarityGlow: Record<string, string> = {
-  legendary: "glow-legendary",
-  rare: "glow-rare",
-  common: "glow-common",
-};
-
-const rarityBorder: Record<string, string> = {
-  legendary: "border-legendary",
-  rare: "border-rare",
-  common: "border-common",
-};
-
 const rarityBadge: Record<string, string> = {
   legendary: "bg-legendary text-primary-foreground",
   rare: "bg-rare text-foreground",
   common: "bg-common text-foreground",
 };
 
+const rarityBadgeLabel: Record<string, string> = {
+  legendary: "★ Legendary",
+  rare: "◆ Rare",
+  common: "Common",
+};
+
+const rarityFrameClass: Record<string, string> = {
+  legendary: "card-frame-legendary",
+  rare: "card-frame-rare",
+  common: "card-frame-common",
+};
+
+const rarityGlowClass: Record<string, string> = {
+  legendary: "card-glow-legendary",
+  rare: "card-glow-rare",
+  common: "card-glow-common",
+};
+
+const rarityCornerClass: Record<string, string> = {
+  legendary: "card-corners-legendary",
+  rare: "card-corners-rare",
+  common: "card-corners-common",
+};
+
+const typeAccentColors: Record<string, string> = {
+  god: "from-amber-500/20 via-transparent to-purple-500/10",
+  hero: "from-red-500/15 via-transparent to-orange-500/10",
+  weapon: "from-slate-400/15 via-transparent to-blue-400/10",
+  spell: "from-purple-500/15 via-transparent to-indigo-500/10",
+  trap: "from-emerald-500/15 via-transparent to-cyan-500/10",
+};
+
 const sizeClasses: Record<string, string> = {
   sm: "w-44 h-64",
   md: "w-56 h-80",
   lg: "w-72 h-[420px]",
+};
+
+// Tilt intensity per rarity
+const tiltIntensity: Record<string, number> = {
+  legendary: 20,
+  rare: 14,
+  common: 8,
+};
+
+// Holo opacity per rarity
+const holoOpacity: Record<string, number> = {
+  legendary: 0.35,
+  rare: 0.2,
+  common: 0.1,
+};
+
+// Ember count per rarity on hover
+const emberCount: Record<string, number> = {
+  legendary: 8,
+  rare: 4,
+  common: 0,
 };
 
 const visualTierClasses: Record<string, string> = {
@@ -50,11 +91,47 @@ const visualTierClasses: Record<string, string> = {
 
 export default function GameCard({ card, onClick, selected, showSynergy, size = "md", cardProgress }: GameCardProps) {
   const [flipped, setFlipped] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const [tilt, setTilt] = useState({ x: 0, y: 0 });
+  const [holoPos, setHoloPos] = useState({ x: 50, y: 50 });
+  const cardRef = useRef<HTMLDivElement>(null);
+
   const progress = cardProgress || { level: 1, xp: 0, prestigeLevel: 0, starProgress: { dupeCount: 0, goldStars: 0, redStars: 0 } };
   const visualTier = getVisualTier(progress.level);
   const passives = getPassiveAbilities(progress);
   const abilityName = getAbilityEvolutionName(card.specialAbility.name, progress.level);
   const starBonuses = getStarStatBonuses(card.rarity, progress.starProgress.goldStars, progress.starProgress.redStars);
+
+  const totalAttack = card.attack + (progress.level - 1) + (progress.prestigeLevel * 2) + starBonuses.attack;
+  const totalDefense = card.defense + (progress.level - 1) + (progress.prestigeLevel * 2) + starBonuses.defense;
+
+  const intensity = tiltIntensity[card.rarity] || 8;
+
+  // Stable ember positions (memoized so they don't re-randomize on every render)
+  const emberPositions = useMemo(() =>
+    Array.from({ length: emberCount[card.rarity] || 0 }).map(() => ({
+      w: 2 + Math.random() * 3,
+      left: 10 + Math.random() * 80,
+      delay: Math.random() * 2,
+      duration: 2 + Math.random() * 2,
+    })),
+    [card.rarity]
+  );
+
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!cardRef.current) return;
+    const rect = cardRef.current.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    const y = (e.clientY - rect.top) / rect.height;
+    setTilt({ x: (y - 0.5) * -intensity, y: (x - 0.5) * intensity });
+    setHoloPos({ x: x * 100, y: y * 100 });
+  }, [intensity]);
+
+  const handleMouseLeave = useCallback(() => {
+    setTilt({ x: 0, y: 0 });
+    setHoloPos({ x: 50, y: 50 });
+    setIsHovered(false);
+  }, []);
 
   const handleClick = () => {
     if (onClick) onClick();
@@ -63,162 +140,286 @@ export default function GameCard({ card, onClick, selected, showSynergy, size = 
 
   return (
     <div
+      ref={cardRef}
       className={cn(
-        "card-flip-container cursor-pointer select-none transition-transform duration-200 hover:scale-105",
+        "cursor-pointer select-none",
         sizeClasses[size],
         selected && "ring-2 ring-primary scale-105"
       )}
+      onMouseMove={handleMouseMove}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={handleMouseLeave}
       onClick={handleClick}
+      style={{ perspective: "800px" }}
     >
-      <div className={cn("card-flip-inner", flipped && "flipped")}>
-        {/* FRONT */}
+      {/* 3D tilt wrapper */}
+      <div
+        className="w-full h-full transition-transform duration-150 ease-out"
+        style={{
+          transform: `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)`,
+          transformStyle: "preserve-3d",
+        }}
+      >
+        {/* Flip inner */}
         <div
-          className={cn(
-            "card-flip-front rounded-xl border-[3px] overflow-hidden flex flex-col",
-            rarityGlow[card.rarity],
-            rarityBorder[card.rarity],
-            showSynergy && "ring-2 ring-synergy",
-            visualTierClasses[visualTier]
-          )}
+          className="w-full h-full"
+          style={{
+            transformStyle: "preserve-3d",
+            transform: flipped ? "rotateY(180deg)" : "rotateY(0deg)",
+            transition: "transform 0.6s cubic-bezier(0.4, 0, 0.2, 1)",
+          }}
         >
-          <div className="absolute inset-0 z-10 pointer-events-none rounded-[10px] border-[6px] border-card/60" />
-          <div className="absolute inset-[5px] z-10 pointer-events-none rounded-lg border border-foreground/10" />
+          {/* ===== FRONT ===== */}
+          <div
+            className={cn(
+              "absolute inset-0 rounded-xl overflow-hidden flex flex-col",
+              showSynergy && "ring-2 ring-synergy",
+              visualTierClasses[visualTier]
+            )}
+            style={{ backfaceVisibility: "hidden" }}
+          >
+            {/* Rarity frame */}
+            <div className={cn("absolute inset-0 z-30 pointer-events-none rounded-xl", rarityFrameClass[card.rarity])} />
 
-          {/* Awakened overlay */}
-          {visualTier === "awakened" && (
-            <div className="absolute inset-0 z-20 pointer-events-none bg-gradient-to-t from-legendary/20 via-transparent to-legendary/10 animate-pulse" />
-          )}
+            {/* Corner flourishes */}
+            <div className={cn("absolute inset-0 z-30 pointer-events-none", rarityCornerClass[card.rarity])}>
+              <div className="absolute top-2 left-2 w-5 h-5 card-corner-tl" />
+              <div className="absolute top-2 right-2 w-5 h-5 card-corner-tr" />
+              <div className="absolute bottom-2 left-2 w-5 h-5 card-corner-bl" />
+              <div className="absolute bottom-2 right-2 w-5 h-5 card-corner-br" />
+            </div>
 
-          <div className="relative flex-1 overflow-hidden">
-            <img src={card.image} alt={card.name} className="w-full h-full object-cover" loading="lazy" />
-            <div className="absolute top-2 left-2">
-              <span className={cn("text-[10px] font-bold uppercase px-2 py-0.5 rounded-full", rarityBadge[card.rarity])}>
-                {card.rarity}
-              </span>
-            </div>
-            <div className="absolute top-2 right-2 flex flex-col gap-1 items-end">
-              <span className="text-[10px] font-medium uppercase px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground">
-                {card.type}
-              </span>
-            </div>
-            {/* Level badge */}
-            <div className="absolute bottom-2 left-2 flex items-center gap-1">
-              <div className="bg-primary text-primary-foreground text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5">
-                <ArrowUp className="w-2.5 h-2.5" />
-                LV {progress.level}
+            {/* Awakened overlay */}
+            {visualTier === "awakened" && (
+              <div className="absolute inset-0 z-20 pointer-events-none bg-gradient-to-t from-legendary/20 via-transparent to-legendary/10 animate-pulse" />
+            )}
+
+            {/* Card art area */}
+            <div className="relative flex-1 overflow-hidden">
+              <img src={card.image} alt={card.name} className="w-full h-full object-cover" loading="lazy" />
+
+              {/* Elemental accent (#5) */}
+              <div className={`absolute inset-0 bg-gradient-to-br ${typeAccentColors[card.type] || ""} pointer-events-none`} />
+
+              {/* Light sweep (#3) */}
+              <div
+                className="absolute inset-0 pointer-events-none demo-light-sweep"
+                style={{ opacity: isHovered ? 0.6 : 0.2 }}
+              />
+
+              {/* Ember particles (#3) — legendary/rare only */}
+              {isHovered && emberPositions.map((em, i) => (
+                <div
+                  key={i}
+                  className="absolute rounded-full demo-card-ember pointer-events-none"
+                  style={{
+                    width: `${em.w}px`,
+                    height: `${em.w}px`,
+                    left: `${em.left}%`,
+                    bottom: `0%`,
+                    animationDelay: `${em.delay}s`,
+                    animationDuration: `${em.duration}s`,
+                  }}
+                />
+              ))}
+
+              {/* Holographic rainbow sheen (#1) */}
+              <div
+                className="absolute inset-0 pointer-events-none transition-opacity duration-300"
+                style={{
+                  opacity: isHovered ? (holoOpacity[card.rarity] || 0.1) : 0,
+                  background: `radial-gradient(circle at ${holoPos.x}% ${holoPos.y}%, 
+                    hsl(0 80% 65% / 0.3),
+                    hsl(60 80% 65% / 0.2) 25%,
+                    hsl(120 80% 65% / 0.2) 40%,
+                    hsl(180 80% 65% / 0.2) 55%,
+                    hsl(240 80% 65% / 0.2) 70%,
+                    hsl(300 80% 65% / 0.2) 85%,
+                    transparent 100%)`,
+                  mixBlendMode: "overlay",
+                }}
+              />
+
+              {/* Rarity badge — hidden when flipped */}
+              <div className="absolute top-2 left-2 z-20 transition-opacity duration-300" style={{ opacity: flipped ? 0 : 1 }}>
+                <span className={cn("text-[10px] font-bold uppercase px-2 py-0.5 rounded-full shadow-sm", rarityBadge[card.rarity])}>
+                  {rarityBadgeLabel[card.rarity]}
+                </span>
               </div>
-              {/* Prestige stars */}
-              {progress.prestigeLevel > 0 && (
-                <div className="flex gap-0.5">
-                  {Array.from({ length: progress.prestigeLevel }).map((_, i) => (
-                    <Star key={i} className="w-3 h-3 text-legendary fill-legendary" />
+
+              {/* Type badge — hidden when flipped */}
+              <div className="absolute top-2 right-2 z-20 transition-opacity duration-300" style={{ opacity: flipped ? 0 : 1 }}>
+                <span className="text-[10px] font-medium uppercase px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground">
+                  {card.type}
+                </span>
+              </div>
+
+              {/* Level badge */}
+              <div className="absolute bottom-2 left-2 flex items-center gap-1 z-20 transition-opacity duration-300" style={{ opacity: flipped ? 0 : 1 }}>
+                <div className="bg-primary text-primary-foreground text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                  <ArrowUp className="w-2.5 h-2.5" />
+                  LV {progress.level}
+                </div>
+                {progress.prestigeLevel > 0 && (
+                  <div className="flex gap-0.5">
+                    {Array.from({ length: progress.prestigeLevel }).map((_, i) => (
+                      <Star key={i} className="w-3 h-3 text-legendary fill-legendary" />
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Star display */}
+              {(progress.starProgress.goldStars > 0 || progress.starProgress.redStars > 0) && (
+                <div className="absolute bottom-2 right-2 flex items-center gap-0.5 z-20 transition-opacity duration-300" style={{ opacity: flipped ? 0 : 1 }}>
+                  {Array.from({ length: progress.starProgress.goldStars }).map((_, i) => (
+                    <Star key={`g${i}`} className="w-3 h-3 text-yellow-400 fill-yellow-400 drop-shadow-sm" />
+                  ))}
+                  {Array.from({ length: progress.starProgress.redStars }).map((_, i) => (
+                    <Star key={`r${i}`} className="w-3 h-3 text-red-500 fill-red-500 drop-shadow-sm" />
                   ))}
                 </div>
               )}
-            </div>
-            {/* Star display */}
-            {(progress.starProgress.goldStars > 0 || progress.starProgress.redStars > 0) && (
-              <div className="absolute bottom-2 right-2 flex items-center gap-0.5">
-                {Array.from({ length: progress.starProgress.goldStars }).map((_, i) => (
-                  <Star key={`g${i}`} className="w-3 h-3 text-yellow-400 fill-yellow-400 drop-shadow-sm" />
-                ))}
-                {Array.from({ length: progress.starProgress.redStars }).map((_, i) => (
-                  <Star key={`r${i}`} className="w-3 h-3 text-red-500 fill-red-500 drop-shadow-sm" />
-                ))}
-              </div>
-            )}
-            {/* XP bar on card */}
-            {progress.level < 20 && (
-              <div className="absolute bottom-0 left-0 right-0 h-1 bg-secondary/50">
-                <div
-                  className="h-full bg-primary transition-all"
-                  style={{ width: `${(progress.xp / xpForLevel(progress.level)) * 100}%` }}
-                />
-              </div>
-            )}
-            {/* Dupe progress bar (above XP bar) */}
-            {progress.starProgress.dupeCount > 0 && (() => {
-              const next = getDupesForNextStar(progress.starProgress.dupeCount, card.rarity);
-              if (next.starType === "max") return null;
-              return (
-                <div className="absolute bottom-1 left-0 right-0 h-0.5 bg-secondary/30">
+
+              {/* XP bar */}
+              {progress.level < 20 && (
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-secondary/50 z-20" style={{ opacity: flipped ? 0 : 1 }}>
                   <div
-                    className={cn("h-full transition-all", next.starType === "gold" ? "bg-yellow-400" : "bg-red-500")}
-                    style={{ width: `${(next.current / next.needed) * 100}%` }}
+                    className="h-full bg-primary transition-all"
+                    style={{ width: `${(progress.xp / xpForLevel(progress.level)) * 100}%` }}
                   />
                 </div>
-              );
-            })()}
-          </div>
-          <div className="bg-card p-3 space-y-1.5 border-t-2 border-foreground/10 relative z-20">
-            <div className="absolute -top-[1px] left-3 right-3 h-[1px] bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
-            <h3 className="font-heading text-sm font-bold truncate text-foreground">{card.name}</h3>
-            <div className="flex items-center justify-between text-xs">
-              <div className="flex items-center gap-1 text-destructive">
-                <Sword className="w-3 h-3" /> <span className="font-semibold">{card.attack + (progress.level - 1) + (progress.prestigeLevel * 2) + starBonuses.attack}</span>
-              </div>
-              <div className="flex items-center gap-1 text-rare">
-                <Shield className="w-3 h-3" /> <span className="font-semibold">{card.defense + (progress.level - 1) + (progress.prestigeLevel * 2) + starBonuses.defense}</span>
-              </div>
-              <div className="flex items-center gap-1 text-legendary">
-                <Sparkles className="w-3 h-3" />
-                <span className="font-semibold text-[10px] truncate max-w-[80px]">{abilityName}</span>
-              </div>
+              )}
+
+              {/* Dupe progress bar */}
+              {progress.starProgress.dupeCount > 0 && (() => {
+                const next = getDupesForNextStar(progress.starProgress.dupeCount, card.rarity);
+                if (next.starType === "max") return null;
+                return (
+                  <div className="absolute bottom-1 left-0 right-0 h-0.5 bg-secondary/30 z-20" style={{ opacity: flipped ? 0 : 1 }}>
+                    <div
+                      className={cn("h-full transition-all", next.starType === "gold" ? "bg-yellow-400" : "bg-red-500")}
+                      style={{ width: `${(next.current / next.needed) * 100}%` }}
+                    />
+                  </div>
+                );
+              })()}
             </div>
-            {/* Passive indicators */}
-            {passives.length > 0 && (
-              <div className="flex gap-1 flex-wrap">
-                {passives.map(p => (
-                  <span key={p.name} className="text-[8px] px-1 py-0.5 rounded bg-synergy/20 text-synergy font-bold">
-                    {p.name}
-                  </span>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
 
-        {/* BACK */}
-        <div
-          className={cn(
-            "card-flip-back rounded-xl border-[3px] overflow-hidden bg-card flex flex-col",
-            rarityBorder[card.rarity],
-            rarityGlow[card.rarity]
-          )}
-        >
-          <div className="absolute inset-0 z-10 pointer-events-none rounded-[10px] border-[6px] border-card/60" />
-          <div className="absolute inset-[5px] z-10 pointer-events-none rounded-lg border border-foreground/10" />
-          <div className="p-2 flex flex-col h-full relative z-20 overflow-hidden">
-            <h3 className="font-heading text-[10px] font-bold leading-tight text-foreground mb-1 truncate shrink-0">{card.name}</h3>
+            {/* Stat area — collapses when flipped */}
+            <div
+              className="bg-card/95 backdrop-blur-sm border-t-2 border-primary/30 relative z-20 transition-all duration-300 ease-out overflow-hidden"
+              style={{
+                maxHeight: flipped ? "0px" : "200px",
+                padding: flipped ? "0 8px" : isHovered ? "8px 8px 10px" : "8px",
+                opacity: flipped ? 0 : 1,
+              }}
+            >
+              <div className="absolute -top-[1px] left-3 right-3 h-[1px] bg-gradient-to-r from-transparent via-primary/40 to-transparent" />
+              <h3 className="font-heading text-xs font-bold truncate text-foreground mb-1">{card.name}</h3>
 
-            <div className="flex-1 min-h-0 space-y-1 overflow-y-auto pr-1">
-              <p className="text-[8px] text-muted-foreground leading-tight">{card.lore}</p>
-
-              <div className="rounded-lg bg-secondary p-1">
-                <div className="flex items-center gap-1 mb-0.5">
-                  <Zap className="w-2.5 h-2.5 text-legendary shrink-0" />
-                  <span className="text-[8px] font-bold text-foreground truncate">{abilityName}</span>
+              {/* Stat gems (#4) */}
+              <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1 bg-destructive/15 border border-destructive/30 rounded px-1.5 py-0.5 demo-stat-gem">
+                  <Sword className="w-3 h-3 text-destructive" />
+                  <span className="font-heading font-bold text-[10px] text-destructive">{totalAttack}</span>
                 </div>
-                <p className="text-[7px] text-muted-foreground leading-tight">{card.specialAbility.description}</p>
+                <div className="flex items-center gap-1 bg-rare/15 border border-rare/30 rounded px-1.5 py-0.5 demo-stat-gem">
+                  <Shield className="w-3 h-3 text-rare" />
+                  <span className="font-heading font-bold text-[10px] text-rare">{totalDefense}</span>
+                </div>
+                {card.hp > 0 && (
+                  <div className="flex items-center gap-1 bg-green-500/15 border border-green-500/30 rounded px-1.5 py-0.5 demo-stat-gem">
+                    <Heart className="w-3 h-3 text-green-400" />
+                    <span className="font-heading font-bold text-[10px] text-green-400">{card.hp}</span>
+                  </div>
+                )}
+                <div className="ml-auto flex items-center gap-0.5 bg-primary/15 border border-primary/30 rounded px-1 py-0.5">
+                  <Sparkles className="w-2.5 h-2.5 text-primary" />
+                  <span className="font-heading font-bold text-[8px] text-primary truncate max-w-[60px]">{abilityName}</span>
+                </div>
               </div>
 
-              {card.synergies.length > 0 && (
-                <div className="space-y-0.5">
-                  <span className="text-[7px] font-semibold uppercase tracking-wider text-synergy">Synergies</span>
-                  {card.synergies.map((syn) => {
-                    const partner = allCards.find((c) => c.id === syn.partnerId);
-                    return (
-                      <div key={syn.partnerId} className="synergy-highlight rounded p-0.5">
-                        <div className="leading-tight">
-                          <span className="text-[7px] font-bold text-synergy">{syn.name}</span>
-                          <span className="text-[7px] text-muted-foreground"> — {partner?.name}</span>
-                        </div>
-                        <p className="text-[7px] text-synergy-glow leading-tight">{syn.description}</p>
-                      </div>
-                    );
-                  })}
+              {/* Passive indicators */}
+              {passives.length > 0 && (
+                <div className="flex gap-1 flex-wrap mt-1">
+                  {passives.map(p => (
+                    <span key={p.name} className="text-[7px] px-1 py-0.5 rounded bg-synergy/20 text-synergy font-bold">
+                      {p.name}
+                    </span>
+                  ))}
                 </div>
               )}
+
+              {/* Hover detail panel (#7) */}
+              <div
+                className="transition-all duration-300 ease-out overflow-hidden"
+                style={{
+                  maxHeight: isHovered && !flipped ? "60px" : "0px",
+                  opacity: isHovered && !flipped ? 1 : 0,
+                  marginTop: isHovered && !flipped ? "4px" : "0px",
+                }}
+              >
+                <div className="rounded bg-secondary/60 p-1.5 border border-border/50">
+                  <p className="text-[8px] text-muted-foreground leading-relaxed line-clamp-2">
+                    {card.specialAbility.description}
+                  </p>
+                  {card.synergies.length > 0 && (
+                    <span className="text-[7px] font-semibold text-synergy">
+                      🔗 {card.synergies.length} synerg{card.synergies.length === 1 ? "y" : "ies"}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Rarity glow */}
+            <div className={cn("absolute inset-0 rounded-xl pointer-events-none", rarityGlowClass[card.rarity])} />
+          </div>
+
+          {/* ===== BACK ===== */}
+          <div
+            className={cn(
+              "absolute inset-0 rounded-xl overflow-hidden bg-card flex flex-col",
+              rarityFrameClass[card.rarity]
+            )}
+            style={{
+              backfaceVisibility: "hidden",
+              transform: "rotateY(180deg)",
+            }}
+          >
+            <div className="p-2 flex flex-col h-full relative z-20 overflow-hidden">
+              <h3 className="font-heading text-[10px] font-bold leading-tight text-foreground mb-1 truncate shrink-0">{card.name}</h3>
+
+              <div className="flex-1 min-h-0 space-y-1 overflow-y-auto pr-1">
+                <p className="text-[8px] text-muted-foreground leading-tight">{card.lore}</p>
+
+                <div className="rounded-lg bg-secondary p-1">
+                  <div className="flex items-center gap-1 mb-0.5">
+                    <Zap className="w-2.5 h-2.5 text-legendary shrink-0" />
+                    <span className="text-[8px] font-bold text-foreground truncate">{abilityName}</span>
+                  </div>
+                  <p className="text-[7px] text-muted-foreground leading-tight">{card.specialAbility.description}</p>
+                </div>
+
+                {card.synergies.length > 0 && (
+                  <div className="space-y-0.5">
+                    <span className="text-[7px] font-semibold uppercase tracking-wider text-synergy">Synergies</span>
+                    {card.synergies.map((syn) => {
+                      const partner = allCards.find((c) => c.id === syn.partnerId);
+                      return (
+                        <div key={syn.partnerId} className="synergy-highlight rounded p-0.5">
+                          <div className="leading-tight">
+                            <span className="text-[7px] font-bold text-synergy">{syn.name}</span>
+                            <span className="text-[7px] text-muted-foreground"> — {partner?.name}</span>
+                          </div>
+                          <p className="text-[7px] text-synergy-glow leading-tight">{syn.description}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
