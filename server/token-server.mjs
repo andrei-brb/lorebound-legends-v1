@@ -912,6 +912,7 @@ const server = http.createServer(async (req, res) => {
     if (method === "POST" && path === "/api/decks") return await handlePostDeck(req, res);
     if (method === "POST" && path === "/api/battle/result") return await handleBattleResult(req, res);
     if (method === "POST" && path === "/api/import") return await handleImport(req, res);
+    if (method === "GET" && path === "/api/leaderboard") return await handleLeaderboard(req, res);
 
     // /api/cards/:cardId
     const cardMatch = path.match(/^\/api\/cards\/([^/]+)$/);
