@@ -47,6 +47,48 @@ async function fetchAndRetry(url, options, nRetries = 3) {
   return response;
 }
 
+async function discordBotFetch(path, init = {}) {
+  const appId = process.env.DISCORD_CLIENT_ID || process.env.VITE_DISCORD_CLIENT_ID;
+  const botToken = process.env.DISCORD_BOT_TOKEN;
+  if (!appId || !botToken) {
+    throw new Error("Missing DISCORD_BOT_TOKEN or DISCORD_CLIENT_ID/VITE_DISCORD_CLIENT_ID");
+  }
+
+  const API = "https://discord.com/api/v10";
+  const res = await fetchAndRetry(`${API}${path}`, {
+    ...init,
+    headers: {
+      Authorization: `Bot ${botToken}`,
+      "Content-Type": "application/json",
+      ...(init.headers || {}),
+    },
+  });
+  const text = await res.text();
+  const json = text ? JSON.parse(text) : null;
+  if (!res.ok) {
+    throw new Error(`Discord API ${res.status} ${res.statusText}: ${text}`);
+  }
+  return json;
+}
+
+async function upsertDiscordCommand(existingCommands, payload, guildId) {
+  const appId = process.env.DISCORD_CLIENT_ID || process.env.VITE_DISCORD_CLIENT_ID;
+  const base = guildId
+    ? `/applications/${appId}/guilds/${guildId}/commands`
+    : `/applications/${appId}/commands`;
+
+  const existing = Array.isArray(existingCommands)
+    ? existingCommands.find((c) => c?.type === payload.type && c?.name === payload.name)
+    : null;
+
+  if (existing?.id) {
+    await discordBotFetch(`${base}/${existing.id}`, { method: "PATCH", body: JSON.stringify(payload) });
+    return { action: "updated", id: existing.id, name: payload.name };
+  }
+  const created = await discordBotFetch(base, { method: "POST", body: JSON.stringify(payload) });
+  return { action: "created", id: created?.id, name: payload.name };
+}
+
 function readRawBody(req) {
   return new Promise((resolve, reject) => {
     const chunks = [];
@@ -1137,4 +1179,87 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, () => {
   console.log(`Lorebound API listening on http://127.0.0.1:${PORT}`);
+});
+
+// ─── Optional: Auto-register Discord commands on boot ───────────────────────────
+
+async function autoRegisterDiscordCommands() {
+  if (String(process.env.AUTO_REGISTER_COMMANDS || "").trim() !== "1") return;
+
+  const appId = process.env.DISCORD_CLIENT_ID || process.env.VITE_DISCORD_CLIENT_ID;
+  const botToken = process.env.DISCORD_BOT_TOKEN;
+  if (!appId || !botToken) {
+    console.warn("[autoRegister] Skipping: missing DISCORD_BOT_TOKEN or DISCORD_CLIENT_ID/VITE_DISCORD_CLIENT_ID");
+    return;
+  }
+
+  const guildId = String(process.env.DISCORD_GUILD_ID || "").trim() || null;
+  const base = guildId
+    ? `/applications/${appId}/guilds/${guildId}/commands`
+    : `/applications/${appId}/commands`;
+
+  console.log(`[autoRegister] Registering commands (${guildId ? `guild ${guildId}` : "global"})…`);
+  const existing = await discordBotFetch(base, { method: "GET" });
+
+  await upsertDiscordCommand(existing, {
+    name: "launch",
+    description: "Launch Mythic Arcana",
+    type: 4, // PRIMARY_ENTRY_POINT
+    handler: 2, // DISCORD_LAUNCH_ACTIVITY
+    integration_types: [0, 1],
+    contexts: [0, 1, 2],
+  }, guildId);
+
+  await upsertDiscordCommand(existing, {
+    name: "play",
+    description: "Open Mythic Arcana",
+    type: 1,
+    integration_types: [0, 1],
+    contexts: [0, 1, 2],
+  }, guildId);
+
+  await upsertDiscordCommand(existing, {
+    name: "mythic",
+    description: "Mythic Arcana commands",
+    type: 1,
+    integration_types: [0, 1],
+    contexts: [0, 1, 2],
+    options: [
+      { name: "profile", description: "View your Mythic Arcana profile", type: 1 },
+      { name: "daily", description: "Claim your daily reward", type: 1 },
+      {
+        name: "duel",
+        description: "Challenge another player to a duel",
+        type: 1,
+        options: [{ name: "opponent", description: "The player to challenge", type: 6, required: true }],
+      },
+      { name: "drop", description: "Trigger a card drop event in this channel (admin only)", type: 1 },
+      {
+        name: "admin",
+        description: "Admin tools (allowlisted only)",
+        type: 1,
+        options: [
+          {
+            name: "action",
+            description: "What to grant",
+            type: 3,
+            required: true,
+            choices: [
+              { name: "gold", value: "gold" },
+              { name: "stardust", value: "stardust" },
+              { name: "pityCounter", value: "pityCounter" },
+              { name: "totalPulls", value: "totalPulls" },
+            ],
+          },
+          { name: "amount", description: "How much to add (can be negative)", type: 4, required: true },
+        ],
+      },
+    ],
+  }, guildId);
+
+  console.log("[autoRegister] Done.");
+}
+
+autoRegisterDiscordCommands().catch((e) => {
+  console.warn("[autoRegister] Failed:", e?.message || e);
 });
