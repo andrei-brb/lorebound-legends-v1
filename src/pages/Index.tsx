@@ -1,12 +1,11 @@
 import { useState } from "react";
-import { BookOpen, Layers, Swords, Coins, Sparkles as SparklesIcon, Grid3X3, Loader2, Eye } from "lucide-react";
+import { BookOpen, Layers, Swords, Coins, Sparkles as SparklesIcon, Grid3X3, Loader2 } from "lucide-react";
 import CollectionView from "@/components/CollectionView";
 import DeckBuilder from "@/components/DeckBuilder";
 import BattleArena from "@/components/BattleArena";
 import PackShop from "@/components/PackShop";
 import CardCatalog from "@/components/CardCatalog";
 import Onboarding from "@/components/Onboarding";
-import CardVisualDemo from "@/components/CardVisualDemo";
 import { cn } from "@/lib/utils";
 import { usePlayerApi } from "@/lib/usePlayerApi";
 
@@ -23,7 +22,6 @@ const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
 export default function Index() {
   const [activeTab, setActiveTab] = useState<Tab>("collection");
   const [battleDeckIds, setBattleDeckIds] = useState<string[]>([]);
-  const [showCardDemo, setShowCardDemo] = useState(false);
   const { playerState, setPlayerState, status, isOnline, pullCards, submitBattleResult, completeOnboarding } = usePlayerApi();
 
   if (status === "loading") {
@@ -49,10 +47,6 @@ export default function Index() {
     );
   }
 
-  if (showCardDemo) {
-    return <CardVisualDemo onBack={() => setShowCardDemo(false)} />;
-  }
-
   const startBattle = (deckIds: string[]) => {
     setBattleDeckIds(deckIds);
     setActiveTab("battle");
@@ -60,14 +54,6 @@ export default function Index() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Card Demo floating button */}
-      <button
-        onClick={() => setShowCardDemo(true)}
-        className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-4 py-2.5 rounded-full bg-primary text-primary-foreground font-heading font-bold text-sm shadow-lg hover:scale-105 transition-transform"
-      >
-        <Eye className="w-4 h-4" />
-        Preview Card Demo
-      </button>
       {/* Ambient particles */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
         {Array.from({ length: 20 }).map((_, i) => (

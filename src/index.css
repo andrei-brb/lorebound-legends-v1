@@ -268,52 +268,87 @@
   border-radius: inherit;
 }
 
-/* ===== Card Visual Demo Styles ===== */
+/* ===== Card Rarity Frames ===== */
 
-/* Legendary frame border */
-.demo-legendary-frame {
+.card-frame-legendary {
   border: 3px solid hsl(40 90% 55%);
   border-radius: inherit;
   box-shadow: inset 0 0 20px hsl(40 90% 55% / 0.15);
 }
+.card-frame-rare {
+  border: 3px solid hsl(220 80% 60%);
+  border-radius: inherit;
+  box-shadow: inset 0 0 15px hsl(220 80% 60% / 0.1);
+}
+.card-frame-common {
+  border: 3px solid hsl(230 10% 35%);
+  border-radius: inherit;
+  box-shadow: inset 0 0 10px hsl(230 10% 50% / 0.05);
+}
 
-/* Corner flourishes */
-.demo-corner-tl,
-.demo-corner-tr,
-.demo-corner-bl,
-.demo-corner-br {
+/* Corner flourishes per rarity */
+.card-corners-legendary .card-corner-tl,
+.card-corners-legendary .card-corner-tr,
+.card-corners-legendary .card-corner-bl,
+.card-corners-legendary .card-corner-br {
   border-color: hsl(40 90% 55% / 0.7);
 }
-.demo-corner-tl {
-  border-top: 2px solid hsl(40 90% 55% / 0.7);
-  border-left: 2px solid hsl(40 90% 55% / 0.7);
+.card-corners-rare .card-corner-tl,
+.card-corners-rare .card-corner-tr,
+.card-corners-rare .card-corner-bl,
+.card-corners-rare .card-corner-br {
+  border-color: hsl(220 80% 60% / 0.5);
+}
+.card-corners-common .card-corner-tl,
+.card-corners-common .card-corner-tr,
+.card-corners-common .card-corner-bl,
+.card-corners-common .card-corner-br {
+  border-color: hsl(230 10% 50% / 0.3);
+}
+.card-corner-tl {
+  border-top: 2px solid;
+  border-left: 2px solid;
+  border-color: inherit;
   border-top-left-radius: 4px;
 }
-.demo-corner-tr {
-  border-top: 2px solid hsl(40 90% 55% / 0.7);
-  border-right: 2px solid hsl(40 90% 55% / 0.7);
+.card-corner-tr {
+  border-top: 2px solid;
+  border-right: 2px solid;
+  border-color: inherit;
   border-top-right-radius: 4px;
 }
-.demo-corner-bl {
-  border-bottom: 2px solid hsl(40 90% 55% / 0.7);
-  border-left: 2px solid hsl(40 90% 55% / 0.7);
+.card-corner-bl {
+  border-bottom: 2px solid;
+  border-left: 2px solid;
+  border-color: inherit;
   border-bottom-left-radius: 4px;
 }
-.demo-corner-br {
-  border-bottom: 2px solid hsl(40 90% 55% / 0.7);
-  border-right: 2px solid hsl(40 90% 55% / 0.7);
+.card-corner-br {
+  border-bottom: 2px solid;
+  border-right: 2px solid;
+  border-color: inherit;
   border-bottom-right-radius: 4px;
 }
 
-/* Legendary glow pulse */
-.demo-legendary-glow {
-  box-shadow: 0 0 20px 4px hsl(40 90% 55% / 0.4), 0 0 40px 8px hsl(40 90% 55% / 0.15);
-  animation: demo-glow-pulse 2.5s ease-in-out infinite;
+/* Rarity glow pulses */
+.card-glow-legendary {
+  animation: card-glow-legendary-pulse 2.5s ease-in-out infinite;
+}
+@keyframes card-glow-legendary-pulse {
+  0%, 100% { box-shadow: 0 0 15px 3px hsl(40 90% 55% / 0.4), 0 0 30px 6px hsl(40 90% 55% / 0.15); }
+  50% { box-shadow: 0 0 25px 6px hsl(40 90% 55% / 0.6), 0 0 50px 12px hsl(40 90% 55% / 0.25); }
 }
 
-@keyframes demo-glow-pulse {
-  0%, 100% { box-shadow: 0 0 20px 4px hsl(40 90% 55% / 0.4), 0 0 40px 8px hsl(40 90% 55% / 0.15); }
-  50% { box-shadow: 0 0 30px 8px hsl(40 90% 55% / 0.6), 0 0 60px 15px hsl(40 90% 55% / 0.25); }
+.card-glow-rare {
+  animation: card-glow-rare-pulse 3s ease-in-out infinite;
+}
+@keyframes card-glow-rare-pulse {
+  0%, 100% { box-shadow: 0 0 10px 2px hsl(220 80% 60% / 0.3), 0 0 20px 4px hsl(220 80% 60% / 0.1); }
+  50% { box-shadow: 0 0 18px 4px hsl(220 80% 60% / 0.5), 0 0 35px 8px hsl(220 80% 60% / 0.2); }
+}
+
+.card-glow-common {
+  box-shadow: 0 0 6px 1px hsl(230 10% 50% / 0.2);
 }
 
 /* Light sweep over art */
@@ -332,19 +367,6 @@
 @keyframes demo-light-sweep {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
-}
-
-/* Floating ember particles (background) */
-.demo-ember {
-  animation: demo-ember-float 5s ease-out infinite;
-  opacity: 0;
-}
-
-@keyframes demo-ember-float {
-  0% { transform: translateY(0) translateX(0); opacity: 0; }
-  10% { opacity: 0.8; }
-  50% { opacity: 0.5; }
-  100% { transform: translateY(-100vh) translateX(20px); opacity: 0; }
 }
 
 /* Card ember particles */
