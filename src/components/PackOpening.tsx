@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { allCards } from "@/data/cards";
+import { allSeasonalCards } from "@/data/seasonalCards";
 import { cn } from "@/lib/utils";
 import type { PlayerState } from "@/lib/playerState";
 
@@ -25,7 +26,7 @@ const rarityGlowBg: Record<string, string> = {
 export default function PackOpening({ cardIds, onComplete, playerState }: PackOpeningProps) {
   const [phase, setPhase] = useState<"intro" | "spread" | "revealing" | "summary">("intro");
   const [revealedIndices, setRevealedIndices] = useState<Set<number>>(new Set());
-  const cards = cardIds.map(id => allCards.find(c => c.id === id)!).filter(Boolean);
+  const cards = cardIds.map(id => allCards.find(c => c.id === id) || allSeasonalCards.find(c => c.id === id)).filter(Boolean) as typeof allCards;
 
   const dupeFlags = useMemo(() => {
     return cardIds.map(id => playerState ? playerState.ownedCardIds.includes(id) : false);

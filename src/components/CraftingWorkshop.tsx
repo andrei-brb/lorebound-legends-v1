@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Coins, Sparkles, ArrowRight, Trash2 } from "lucide-react";
@@ -6,6 +7,7 @@ import { allCards, type Rarity } from "@/data/cards";
 import { FUSION_RECIPES, performFusion, performSacrifice, canFuse, type FusionRecipe } from "@/lib/craftingEngine";
 import type { PlayerState } from "@/lib/playerState";
 import { toast } from "@/hooks/use-toast";
+import CardRevealAnimation from "./CardRevealAnimation";
 
 interface CraftingWorkshopProps {
   playerState: PlayerState;
@@ -22,6 +24,7 @@ export default function CraftingWorkshop({ playerState, onStateChange, isOnline,
   const [selectedRecipe, setSelectedRecipe] = useState<FusionRecipe>(FUSION_RECIPES[0]);
   const [selectedCards, setSelectedCards] = useState<string[]>([]);
   const [resultCard, setResultCard] = useState<string | null>(null);
+  const [revealCardId, setRevealCardId] = useState<string | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
 
   const eligibleCards = playerState.ownedCardIds
@@ -50,8 +53,7 @@ export default function CraftingWorkshop({ playerState, onStateChange, isOnline,
       const result = await craftFuseApi(selectedRecipe.inputRarity, selectedCards);
       if (result) {
         setResultCard(result.resultCardId);
-        const card = allCards.find(c => c.id === result.resultCardId);
-        toast({ title: "🔥 Fusion Complete!", description: `You forged ${card?.name || "a new card"}!` });
+        setRevealCardId(result.resultCardId);
       } else {
         toast({ title: "Fusion failed", description: "Could not complete fusion. Try again.", variant: "destructive" });
       }
@@ -60,8 +62,7 @@ export default function CraftingWorkshop({ playerState, onStateChange, isOnline,
       if (result) {
         onStateChange(result.playerState);
         setResultCard(result.resultCardId);
-        const card = allCards.find(c => c.id === result.resultCardId);
-        toast({ title: "🔥 Fusion Complete!", description: `You forged ${card?.name || "a new card"}!` });
+        setRevealCardId(result.resultCardId);
       }
     }
     setIsAnimating(false);
@@ -244,6 +245,20 @@ export default function CraftingWorkshop({ playerState, onStateChange, isOnline,
           </div>
         )}
       </div>
+
+      {/* Card Reveal Animation */}
+      <AnimatePresence>
+        {revealCardId && (
+          <CardRevealAnimation
+            cardId={revealCardId}
+            onClose={() => {
+              const card = allCards.find(c => c.id === revealCardId);
+              toast({ title: "🔥 Fusion Complete!", description: `You forged ${card?.name || "a new card"}!` });
+              setRevealCardId(null);
+            }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
