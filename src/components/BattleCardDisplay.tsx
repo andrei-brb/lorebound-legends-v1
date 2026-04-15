@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { Sword, Shield, Heart, Zap, Star, Swords as SwordsIcon } from "lucide-react";
 import type { FieldCard } from "@/lib/battleEngine";
 import { cn } from "@/lib/utils";
+import { elementEmoji, elementCssClass, elementBgClass } from "@/lib/elementSystem";
 
 interface BattleCardDisplayProps {
   fieldCard: FieldCard;
@@ -47,6 +48,12 @@ export default function BattleCardDisplay({ fieldCard, side: _side, isActive, on
           <div className="absolute top-0.5 left-0.5 bg-primary/90 text-primary-foreground text-[7px] font-bold px-1 py-0.5 rounded uppercase">
             {card.type}
           </div>
+          {/* Element badge */}
+          {card.element && card.element !== "neutral" && (
+            <div className={cn("absolute top-0.5 right-0.5 text-[8px] font-bold px-1 py-0.5 rounded border", elementBgClass[card.element], elementCssClass[card.element])}>
+              {elementEmoji[card.element]}
+            </div>
+          )}
           {/* Weapon icon */}
           {equippedWeapon && (
             <div className="absolute bottom-0.5 right-0.5 bg-legendary/90 text-primary-foreground rounded p-0.5">

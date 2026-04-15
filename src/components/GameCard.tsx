@@ -7,6 +7,7 @@ import type { CardProgress } from "@/lib/playerState";
 import { getVisualTier, getAbilityEvolutionName, getPassiveAbilities } from "@/lib/progressionEngine";
 import { xpForLevel } from "@/lib/playerState";
 import { getDupesForNextStar, getStarStatBonuses } from "@/lib/starSystem";
+import { elementEmoji, elementCssClass, elementBgClass } from "@/lib/elementSystem";
 
 interface GameCardProps {
   card: GameCardType;
@@ -247,8 +248,13 @@ export default function GameCard({ card, onClick, selected, showSynergy, size = 
                 </span>
               </div>
 
-              {/* Type badge — hidden when flipped */}
-              <div className="absolute top-2 right-2 z-20 transition-opacity duration-300" style={{ opacity: flipped ? 0 : 1 }}>
+              {/* Type + Element badge — hidden when flipped */}
+              <div className="absolute top-2 right-2 z-20 flex items-center gap-1 transition-opacity duration-300" style={{ opacity: flipped ? 0 : 1 }}>
+                {card.element && card.element !== "neutral" && (
+                  <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded-full border", elementBgClass[card.element], elementCssClass[card.element])}>
+                    {elementEmoji[card.element]}
+                  </span>
+                )}
                 <span className="text-[10px] font-medium uppercase px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground">
                   {card.type}
                 </span>

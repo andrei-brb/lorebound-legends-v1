@@ -234,6 +234,8 @@ import flameArcherImg from "@/assets/cards/flame-archer.jpg";
 import crystalGuardianImg from "@/assets/cards/crystal-guardian.jpg";
 
 
+import { inferElementFromTags, type Element } from "@/lib/elementSystem";
+
 export type Rarity = "legendary" | "rare" | "common";
 export type CardType = "hero" | "god" | "weapon" | "spell" | "trap";
 
@@ -295,6 +297,16 @@ export interface GameCard {
   trapEffect?: TrapEffect;
   // Passive ability (always active on field)
   passiveAbility?: { name: string; description: string; stat: "attack" | "defense"; value: number; targetTag?: string };
+  // Element (auto-inferred from tags if not set)
+  element?: Element;
+}
+
+// Helper to add element to card arrays
+function withElements<T extends GameCard[]>(cards: T): T {
+  for (const card of cards) {
+    if (!card.element) card.element = inferElementFromTags(card.tags);
+  }
+  return cards;
 }
 
 // =================== GODS (50) ===================
@@ -2575,7 +2587,7 @@ const trapCards: GameCard[] = [
 
 // =================== EXPORT ===================
 
-export const allCards: GameCard[] = [...godCards, ...heroCards, ...weaponCards, ...spellCards, ...trapCards];
+export const allCards: GameCard[] = withElements([...godCards, ...heroCards, ...weaponCards, ...spellCards, ...trapCards]);
 
 export const loreArcs = [
   { id: "crown-of-storms", name: "The Crown of Storms", cardIds: ["warrior-king", "storm-god", "enchanted-sword", "jin", "thor-axeborn", "storm-witch"] },
