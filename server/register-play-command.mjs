@@ -55,6 +55,10 @@ async function main() {
   const payload = {
     name: "play",
     description: "Open Lorebound Legends",
+    // Clear prior localizations (the default entry point is often localized as "launch")
+    // so the displayed command name matches `/play` across locales.
+    name_localizations: {},
+    description_localizations: {},
     type: 4, // PRIMARY_ENTRY_POINT
     handler: 2, // DISCORD_LAUNCH_ACTIVITY
     integration_types: [0, 1],
