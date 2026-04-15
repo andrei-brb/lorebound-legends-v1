@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 import { usePlayerApi } from "@/lib/usePlayerApi";
 import { loadAchievementState, checkNewAchievements, saveAchievementState, type AchievementState } from "@/lib/achievementEngine";
 import { toast } from "@/hooks/use-toast";
-import NavLink from "@/components/NavLink";
+
 
 type Tab = "collection" | "catalog" | "deck" | "battle" | "summon" | "quests" | "workshop" | "achievements" | "leaderboard" | "trade" | "events" | "tournament" | "boost";
 
