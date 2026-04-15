@@ -267,3 +267,103 @@
   animation: card-shimmer 2s ease-in-out infinite;
   border-radius: inherit;
 }
+
+/* ===== Card Visual Demo Styles ===== */
+
+/* Legendary frame border */
+.demo-legendary-frame {
+  border: 3px solid hsl(40 90% 55%);
+  border-radius: inherit;
+  box-shadow: inset 0 0 20px hsl(40 90% 55% / 0.15);
+}
+
+/* Corner flourishes */
+.demo-corner-tl,
+.demo-corner-tr,
+.demo-corner-bl,
+.demo-corner-br {
+  border-color: hsl(40 90% 55% / 0.7);
+}
+.demo-corner-tl {
+  border-top: 2px solid hsl(40 90% 55% / 0.7);
+  border-left: 2px solid hsl(40 90% 55% / 0.7);
+  border-top-left-radius: 4px;
+}
+.demo-corner-tr {
+  border-top: 2px solid hsl(40 90% 55% / 0.7);
+  border-right: 2px solid hsl(40 90% 55% / 0.7);
+  border-top-right-radius: 4px;
+}
+.demo-corner-bl {
+  border-bottom: 2px solid hsl(40 90% 55% / 0.7);
+  border-left: 2px solid hsl(40 90% 55% / 0.7);
+  border-bottom-left-radius: 4px;
+}
+.demo-corner-br {
+  border-bottom: 2px solid hsl(40 90% 55% / 0.7);
+  border-right: 2px solid hsl(40 90% 55% / 0.7);
+  border-bottom-right-radius: 4px;
+}
+
+/* Legendary glow pulse */
+.demo-legendary-glow {
+  box-shadow: 0 0 20px 4px hsl(40 90% 55% / 0.4), 0 0 40px 8px hsl(40 90% 55% / 0.15);
+  animation: demo-glow-pulse 2.5s ease-in-out infinite;
+}
+
+@keyframes demo-glow-pulse {
+  0%, 100% { box-shadow: 0 0 20px 4px hsl(40 90% 55% / 0.4), 0 0 40px 8px hsl(40 90% 55% / 0.15); }
+  50% { box-shadow: 0 0 30px 8px hsl(40 90% 55% / 0.6), 0 0 60px 15px hsl(40 90% 55% / 0.25); }
+}
+
+/* Light sweep over art */
+.demo-light-sweep {
+  background: linear-gradient(
+    105deg,
+    transparent 30%,
+    hsl(40 90% 70% / 0.2) 45%,
+    hsl(40 90% 80% / 0.15) 50%,
+    transparent 65%
+  );
+  background-size: 250% 100%;
+  animation: demo-light-sweep 3s ease-in-out infinite;
+}
+
+@keyframes demo-light-sweep {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Floating ember particles (background) */
+.demo-ember {
+  animation: demo-ember-float 5s ease-out infinite;
+  opacity: 0;
+}
+
+@keyframes demo-ember-float {
+  0% { transform: translateY(0) translateX(0); opacity: 0; }
+  10% { opacity: 0.8; }
+  50% { opacity: 0.5; }
+  100% { transform: translateY(-100vh) translateX(20px); opacity: 0; }
+}
+
+/* Card ember particles */
+.demo-card-ember {
+  background: hsl(35 90% 60%);
+  animation: demo-card-ember-rise 2.5s ease-out infinite;
+  opacity: 0;
+}
+
+@keyframes demo-card-ember-rise {
+  0% { transform: translateY(0) scale(1); opacity: 0; }
+  15% { opacity: 0.9; }
+  100% { transform: translateY(-120px) scale(0.3); opacity: 0; }
+}
+
+/* Stat gem hover glow */
+.demo-stat-gem {
+  transition: box-shadow 0.2s ease;
+}
+.demo-stat-gem:hover {
+  box-shadow: 0 0 8px 2px currentColor;
+}
