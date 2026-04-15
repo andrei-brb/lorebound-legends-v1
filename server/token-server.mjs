@@ -19,7 +19,11 @@ import {
   processDuplicatePull,
   getBattleGoldReward,
   awardXp,
+  ALL_CARD_IDS,
+  getCardName,
+  getCardElement,
 } from "./lib/gameLogic.mjs";
+import { pickRandomDropCard, buildDropEmbed, processCardClaim } from "./lib/cardDrop.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: join(__dirname, "..", ".env") });
