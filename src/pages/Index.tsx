@@ -22,7 +22,7 @@ const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
 export default function Index() {
   const [activeTab, setActiveTab] = useState<Tab>("collection");
   const [battleDeckIds, setBattleDeckIds] = useState<string[]>([]);
-  const { playerState, setPlayerState, status, isOnline, pullCards, submitBattleResult } = usePlayerApi();
+  const { playerState, setPlayerState, status, isOnline, pullCards, submitBattleResult, completeOnboarding } = usePlayerApi();
 
   if (status === "loading") {
     return (
@@ -41,6 +41,8 @@ export default function Index() {
       <Onboarding
         playerState={playerState}
         onComplete={(newState) => setPlayerState(newState)}
+        isOnline={isOnline}
+        completeOnboardingApi={completeOnboarding}
       />
     );
   }

@@ -9,6 +9,7 @@ interface UsePlayerApiReturn {
   setPlayerState: (state: PlayerState | ((prev: PlayerState) => PlayerState)) => void;
   status: LoadingStatus;
   isOnline: boolean;
+  completeOnboarding: (path: "fire" | "nature" | "shadow") => Promise<PlayerState | null>;
   pullCards: (packId: string) => Promise<{
     pullResults: Array<{
       cardId: string;
@@ -90,6 +91,22 @@ export function usePlayerApi(): UsePlayerApiReturn {
     [],
   );
 
+  const completeOnboarding = useCallback(
+    async (path: "fire" | "nature" | "shadow") => {
+      if (!online) return null;
+      try {
+        const state = (await api.completeOnboarding(path)) as PlayerState;
+        setPlayerStateInternal(state);
+        savePlayerState(state);
+        return state;
+      } catch (err) {
+        console.error("[usePlayerApi] completeOnboarding failed:", err);
+        return null;
+      }
+    },
+    [online],
+  );
+
   const pullCards = useCallback(
     async (packId: string) => {
       if (!online) return null;
@@ -127,6 +144,7 @@ export function usePlayerApi(): UsePlayerApiReturn {
     setPlayerState,
     status,
     isOnline: online,
+    completeOnboarding,
     pullCards,
     submitBattleResult,
   };

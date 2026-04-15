@@ -9,6 +9,21 @@ const STARTER_CARD_IDS = [
 
 export { STARTER_CARD_IDS };
 
+export const FACTION_STARTER_CARDS = {
+  fire: [
+    "pyrothos", "fire-dragon", "inferna", "ignis", "magmus",
+    "draconus", "warrior-king", "ares", "ferros", "bellator",
+  ],
+  nature: [
+    "gaiara", "forest-druid", "verdantia", "sylvana", "vitalis",
+    "arachnia", "serpentia", "fenris", "healer", "aquaris",
+  ],
+  shadow: [
+    "nyx", "shadow-assassin", "thanatos", "nekros", "umbra",
+    "obscura", "corvus", "mortuus", "phantos", "somnia",
+  ],
+};
+
 const PACK_DEFINITIONS = {
   bronze: { cost: 100, cardCount: 5, rates: { common: 80, rare: 18, legendary: 2 } },
   silver: { cost: 300, cardCount: 5, rates: { common: 55, rare: 38, legendary: 7 } },

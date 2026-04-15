@@ -17,6 +17,8 @@ model Player {
   pityCounter      Int            @default(0)
   totalPulls       Int            @default(0)
   lastFreePackTime DateTime?
+  hasCompletedOnboarding Boolean  @default(true)
+  selectedPath      String?
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
   cards            CardProgress[]

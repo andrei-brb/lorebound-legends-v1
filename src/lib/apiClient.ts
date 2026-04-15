@@ -32,6 +32,15 @@ export const api = {
     return handleResponse(res);
   },
 
+  async completeOnboarding(path: "fire" | "nature" | "shadow") {
+    const res = await fetch(`${getApiBase()}/api/onboarding/complete`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({ path }),
+    });
+    return handleResponse(res);
+  },
+
   async patchPlayer(data: Record<string, unknown>) {
     const res = await fetch(`${getApiBase()}/api/player`, {
       method: "PATCH",

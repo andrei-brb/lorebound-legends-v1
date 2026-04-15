@@ -11,6 +11,7 @@ import { PrismaClient } from "@prisma/client";
 import { requireAuth } from "./lib/auth.mjs";
 import {
   STARTER_CARD_IDS,
+  FACTION_STARTER_CARDS,
   PACK_DEFINITIONS,
   canClaimFreePack,
   pullCards,
@@ -172,6 +173,8 @@ function playerToClientState(player, cards) {
     pityCounter: player.pityCounter,
     lastFreePackTime: player.lastFreePackTime ? player.lastFreePackTime.getTime() : null,
     totalPulls: player.totalPulls,
+    hasCompletedOnboarding: player.hasCompletedOnboarding ?? true,
+    selectedPath: player.selectedPath ?? null,
   };
 }
 
@@ -191,6 +194,8 @@ async function findOrCreatePlayer(discordUser) {
         stardust: 0,
         pityCounter: 0,
         totalPulls: 0,
+        hasCompletedOnboarding: false,
+        selectedPath: null,
         cards: {
           create: STARTER_CARD_IDS.map((cardId) => ({
             cardId,
@@ -216,6 +221,60 @@ async function findOrCreatePlayer(discordUser) {
   }
 
   return player;
+}
+
+async function handleOnboardingComplete(req, res) {
+  const user = await requireAuth(req, res);
+  if (!user) return;
+
+  const body = await readJsonBody(req);
+  const path = body.path;
+  if (!path || !FACTION_STARTER_CARDS[path]) {
+    return sendJson(res, 400, { error: "Invalid path" });
+  }
+
+  const player = await prisma.player.findUnique({
+    where: { discordId: user.id },
+    include: { cards: true },
+  });
+  if (!player) return sendJson(res, 404, { error: "Player not found" });
+
+  if (player.hasCompletedOnboarding) {
+    return sendJson(res, 409, { error: "Onboarding already completed" });
+  }
+
+  const starterIds = FACTION_STARTER_CARDS[path];
+
+  await prisma.$transaction(async (tx) => {
+    await tx.player.update({
+      where: { id: player.id },
+      data: { hasCompletedOnboarding: true, selectedPath: path },
+    });
+
+    for (const cardId of starterIds) {
+      await tx.cardProgress.upsert({
+        where: { playerId_cardId: { playerId: player.id, cardId } },
+        create: {
+          playerId: player.id,
+          cardId,
+          level: 1,
+          xp: 0,
+          prestigeLevel: 0,
+          dupeCount: 0,
+          goldStars: 0,
+          redStars: 0,
+        },
+        update: {},
+      });
+    }
+  });
+
+  const updated = await prisma.player.findUnique({
+    where: { id: player.id },
+    include: { cards: true },
+  });
+
+  sendJson(res, 200, playerToClientState(updated, updated.cards));
 }
 
 async function handleGetPlayer(req, res) {
@@ -605,6 +664,7 @@ const server = http.createServer(async (req, res) => {
     // Game API routes
     if (method === "GET" && path === "/api/player") return await handleGetPlayer(req, res);
     if (method === "PATCH" && path === "/api/player") return await handlePatchPlayer(req, res);
+  if (method === "POST" && path === "/api/onboarding/complete") return await handleOnboardingComplete(req, res);
     if (method === "GET" && path === "/api/cards") return await handleGetCards(req, res);
     if (method === "POST" && path === "/api/cards/pull") return await handleCardPull(req, res);
     if (method === "GET" && path === "/api/decks") return await handleGetDecks(req, res);

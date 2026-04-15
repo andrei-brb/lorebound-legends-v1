@@ -8,6 +8,8 @@ import { type FactionPath, type PlayerState, initializeStarterDeck, savePlayerSt
 interface OnboardingProps {
   playerState: PlayerState;
   onComplete: (newState: PlayerState) => void;
+  isOnline?: boolean;
+  completeOnboardingApi?: (path: FactionPath) => Promise<PlayerState | null>;
 }
 
 type Screen = "story1" | "story2" | "path" | "journey";
@@ -23,6 +25,13 @@ export default function Onboarding({ playerState, onComplete }: OnboardingProps)
 
   const handleEnterRealm = () => {
     if (!selectedPath) return;
+    if (isOnline && completeOnboardingApi) {
+      completeOnboardingApi(selectedPath).then((serverState) => {
+        if (serverState) onComplete(serverState);
+      });
+      return;
+    }
+
     const newState = initializeStarterDeck(playerState, selectedPath);
     savePlayerState(newState);
     onComplete(newState);
