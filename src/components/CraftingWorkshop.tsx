@@ -252,6 +252,17 @@ export default function CraftingWorkshop({ playerState, onStateChange, isOnline,
           </div>
         )}
       </div>
+
+      {/* Sacrifice Animation Overlay */}
+      <AnimatePresence>
+        {sacrificeAnim && (
+          <SacrificeAnimation
+            cardIds={sacrificeAnim.cardIds}
+            totalStardust={sacrificeAnim.stardust}
+            onComplete={() => setSacrificeAnim(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
