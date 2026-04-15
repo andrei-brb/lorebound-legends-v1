@@ -199,11 +199,13 @@ export default function CardVisualDemo({ onBack }: { onBack: () => void }) {
                   </div>
                 </div>
 
-                {/* Stat area with Hover Detail Panel (#7) + Stat Bar Redesign (#4) */}
+                {/* Stat area with Hover Detail Panel (#7) + Stat Bar Redesign (#4) — hidden when flipped */}
                 <div
                   className="bg-card/95 backdrop-blur-sm border-t-2 border-primary/30 relative z-20 transition-all duration-300 ease-out overflow-hidden"
                   style={{
-                    padding: isHovered ? "12px 12px 14px" : "10px 12px",
+                    maxHeight: flipped ? "0px" : "200px",
+                    padding: flipped ? "0 12px" : isHovered ? "12px 12px 14px" : "10px 12px",
+                    opacity: flipped ? 0 : 1,
                   }}
                 >
                   {/* Top accent line */}
