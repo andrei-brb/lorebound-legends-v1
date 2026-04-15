@@ -1,15 +1,9 @@
 /**
- * Registers (or renames) the Discord Activity PRIMARY_ENTRY_POINT command to `/play`.
- *
- * Why a script: Entry Point commands live in Discord (global application commands),
- * so this must be done via the Discord HTTP API with a Bot token.
+ * Registers the `/play` slash command (CHAT_INPUT type 1) that launches the Activity,
+ * and keeps the entry point command in sync.
  *
  * Usage:
  *   node server/register-play-command.mjs --app-id YOUR_APP_ID --bot-token YOUR_BOT_TOKEN
- *
- * Notes:
- * - PRIMARY_ENTRY_POINT type = 4
- * - DISCORD_LAUNCH_ACTIVITY handler = 2
  */
 
 const argv = process.argv.slice(2);
@@ -50,13 +44,12 @@ async function discordFetch(path, init = {}) {
 
 async function main() {
   const commands = await discordFetch(`/applications/${appId}/commands`, { method: "GET" });
-  const entry = Array.isArray(commands) ? commands.find((c) => c?.type === 4) : null;
 
-  const payload = {
-    name: "play",
-    description: "Open Lorebound Legends",
-    // Clear prior localizations (the default entry point is often localized as "launch")
-    // so the displayed command name matches `/play` across locales.
+  // 1) Ensure entry point command exists (for App Launcher)
+  const entry = Array.isArray(commands) ? commands.find((c) => c?.type === 4) : null;
+  const entryPayload = {
+    name: "launch",
+    description: "Launch Lorebound Legends",
     name_localizations: {},
     description_localizations: {},
     type: 4, // PRIMARY_ENTRY_POINT
@@ -68,22 +61,49 @@ async function main() {
   if (entry?.id) {
     await discordFetch(`/applications/${appId}/commands/${entry.id}`, {
       method: "PATCH",
-      body: JSON.stringify(payload),
+      body: JSON.stringify(entryPayload),
     });
-    console.log(`Updated entry point command → /play (id: ${entry.id})`);
+    console.log(`Entry point command OK → /launch (id: ${entry.id})`);
   } else {
     const created = await discordFetch(`/applications/${appId}/commands`, {
       method: "POST",
-      body: JSON.stringify(payload),
+      body: JSON.stringify(entryPayload),
     });
-    console.log(`Created entry point command → /play (id: ${created?.id ?? "unknown"})`);
+    console.log(`Created entry point → /launch (id: ${created?.id ?? "unknown"})`);
   }
 
-  console.log("It can take a minute for global commands to appear everywhere.");
+  // 2) Create or update CHAT_INPUT `/play` command (type 1, shows in slash autocomplete)
+  const playCmd = Array.isArray(commands)
+    ? commands.find((c) => c?.type === 1 && c?.name === "play")
+    : null;
+  const playPayload = {
+    name: "play",
+    description: "Open Lorebound Legends",
+    type: 1, // CHAT_INPUT — shows in slash command autocomplete
+    integration_types: [0, 1],
+    contexts: [0, 1, 2],
+  };
+
+  if (playCmd?.id) {
+    await discordFetch(`/applications/${appId}/commands/${playCmd.id}`, {
+      method: "PATCH",
+      body: JSON.stringify(playPayload),
+    });
+    console.log(`Updated /play slash command (id: ${playCmd.id})`);
+  } else {
+    const created = await discordFetch(`/applications/${appId}/commands`, {
+      method: "POST",
+      body: JSON.stringify(playPayload),
+    });
+    console.log(`Created /play slash command (id: ${created?.id ?? "unknown"})`);
+  }
+
+  console.log("\nDone. Global commands can take 1-2 minutes to propagate.");
+  console.log("Make sure your Interactions Endpoint URL is set in the Developer Portal:");
+  console.log("  → https://YOUR_RAILWAY_HOST/interactions");
 }
 
 main().catch((e) => {
   console.error(e);
   process.exit(1);
 });
-

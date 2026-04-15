@@ -5,6 +5,7 @@
  */
 import dotenv from "dotenv";
 import http from "node:http";
+import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
@@ -26,6 +27,15 @@ async function fetchAndRetry(url, options, nRetries = 3) {
   return response;
 }
 
+function readRawBody(req) {
+  return new Promise((resolve, reject) => {
+    const chunks = [];
+    req.on("data", (c) => chunks.push(c));
+    req.on("end", () => resolve(Buffer.concat(chunks)));
+    req.on("error", reject);
+  });
+}
+
 function readJsonBody(req) {
   return new Promise((resolve, reject) => {
     let body = "";
@@ -43,6 +53,34 @@ function readJsonBody(req) {
   });
 }
 
+// Ed25519 signature verification for Discord interactions
+async function verifyDiscordSignature(rawBody, signature, timestamp, publicKey) {
+  try {
+    const key = crypto.createPublicKey({
+      key: Buffer.concat([
+        Buffer.from("302a300506032b6570032100", "hex"),
+        Buffer.from(publicKey, "hex"),
+      ]),
+      format: "der",
+      type: "spki",
+    });
+    return crypto.verify(
+      null,
+      Buffer.concat([Buffer.from(timestamp, "utf8"), rawBody]),
+      key,
+      Buffer.from(signature, "hex"),
+    );
+  } catch {
+    return false;
+  }
+}
+
+function isInteractionsPost(url, method) {
+  if (method !== "POST" || !url) return false;
+  const path = url.split("?")[0];
+  return path === "/interactions" || path === "/.proxy/interactions";
+}
+
 function isTokenPost(url, method) {
   if (method !== "POST" || !url) return false;
   const path = url.split("?")[0];
@@ -53,6 +91,46 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "GET" && (req.url === "/" || req.url === "/health")) {
     res.writeHead(200, { "Content-Type": "application/json" });
     res.end(JSON.stringify({ ok: true, service: "discord-token" }));
+    return;
+  }
+
+  // Discord Interactions endpoint (slash commands)
+  if (isInteractionsPost(req.url, req.method)) {
+    const publicKey = process.env.DISCORD_PUBLIC_KEY;
+    if (!publicKey) {
+      res.writeHead(500, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "DISCORD_PUBLIC_KEY not set" }));
+      return;
+    }
+
+    const signature = req.headers["x-signature-ed25519"];
+    const timestamp = req.headers["x-signature-timestamp"];
+    const rawBody = await readRawBody(req);
+
+    if (!signature || !timestamp || !(await verifyDiscordSignature(rawBody, signature, timestamp, publicKey))) {
+      res.writeHead(401, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ error: "Invalid signature" }));
+      return;
+    }
+
+    const interaction = JSON.parse(rawBody.toString("utf8"));
+
+    // Type 1 = PING (Discord verification handshake)
+    if (interaction.type === 1) {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ type: 1 }));
+      return;
+    }
+
+    // Type 2 = APPLICATION_COMMAND
+    if (interaction.type === 2 && interaction.data?.name === "play") {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ type: 12 })); // LAUNCH_ACTIVITY
+      return;
+    }
+
+    res.writeHead(400, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ error: "Unhandled interaction" }));
     return;
   }
 
