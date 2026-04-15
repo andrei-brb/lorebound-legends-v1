@@ -10,6 +10,7 @@ import { type PlayerState, getCardProgress, savePlayerState } from "@/lib/player
 import { awardXp, type LevelUpResult } from "@/lib/progressionEngine";
 import { getBattleGoldReward } from "@/lib/gachaEngine";
 import { loadDailyQuests, progressQuest, saveDailyQuests } from "@/lib/questEngine";
+import { toast } from "@/hooks/use-toast";
 
 interface BattleArenaProps {
   playerDeckIds: string[];
@@ -191,6 +192,11 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
         setActionMode("none");
         setSelectedHandIndex(null);
       }, 400);
+    } else if (actionMode === "none" && side === "player") {
+      const fc = state.player.field[index];
+      if (!fc) return;
+      // Tap to select your attacker (shows per-card actions).
+      setSelectedFieldIndex(prev => (prev === index ? null : index));
     } else if (actionMode === "select-field-attacker" && side === "player") {
       setSelectedFieldIndex(index);
       setActionMode("select-attack-target");
@@ -203,6 +209,19 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
         setSelectedFieldIndex(null);
       }, 400);
     }
+  };
+
+  const beginAttackFromSelected = () => {
+    if (!state || !isPlayerTurn || animating) return;
+    if (selectedFieldIndex === null) return;
+    const fc = state.player.field[selectedFieldIndex];
+    if (!fc) return;
+    if (fc.stunned) return;
+    if (state.player.ap < 1) {
+      toast({ title: "No AP", description: "You need at least 1 AP to attack.", variant: "destructive" });
+      return;
+    }
+    setActionMode("select-attack-target");
   };
 
   const handleDirectAttack = () => {
@@ -332,15 +351,39 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
             <div key={i} className="min-h-[80px]">
               {fc ? (
                 <div className="space-y-1">
-                  <BattleCardDisplay
-                    fieldCard={fc}
-                    side="player"
-                    isActive={selectedFieldIndex === i}
-                    selectable={actionMode === "select-field-attacker" || (actionMode === "select-equip-target") || (actionMode === "select-spell-target" && state.player.hand[selectedHandIndex!]?.spellEffect?.target === "single_ally")}
-                    onClick={() => handleFieldCardClick("player", i)}
-                  />
+                  <div className="relative group">
+                    <BattleCardDisplay
+                      fieldCard={fc}
+                      side="player"
+                      isActive={selectedFieldIndex === i}
+                      selectable={
+                        actionMode === "select-field-attacker" ||
+                        actionMode === "none" ||
+                        actionMode === "select-equip-target" ||
+                        (actionMode === "select-spell-target" && state.player.hand[selectedHandIndex!]?.spellEffect?.target === "single_ally")
+                      }
+                      onClick={() => handleFieldCardClick("player", i)}
+                    />
+                    {isPlayerTurn && actionMode === "none" && selectedFieldIndex === i && !fc.stunned && state.player.ap >= 1 && (
+                      <div className="pointer-events-none absolute inset-0 hidden md:flex items-start justify-end p-1 opacity-0 transition-opacity group-hover:opacity-100">
+                        <span className="rounded bg-destructive/90 px-1.5 py-0.5 text-[8px] font-bold text-destructive-foreground shadow-sm">
+                          Attack
+                        </span>
+                      </div>
+                    )}
+                  </div>
                   {isPlayerTurn && actionMode === "none" && (
                     <div className="flex gap-1">
+                      {selectedFieldIndex === i && (
+                        <button
+                          onClick={beginAttackFromSelected}
+                          disabled={fc.stunned || state.player.ap < 1}
+                          className="flex-1 text-[8px] py-1 rounded bg-destructive/20 text-destructive font-bold hover:bg-destructive/30 disabled:opacity-40"
+                        >
+                          <Sword className="w-2.5 h-2.5 inline mr-0.5" />
+                          Attack
+                        </button>
+                      )}
                       {!fc.abilityUsed && !fc.stunned && (
                         <button onClick={() => handleUseAbility(i)} className="flex-1 text-[8px] py-1 rounded bg-legendary/20 text-legendary font-bold hover:bg-legendary/30">
                           <Zap className="w-2.5 h-2.5 inline mr-0.5" />Ability
@@ -392,7 +435,7 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
           {actionMode === "none" && (
             <button
               onClick={() => setActionMode("select-field-attacker")}
-              disabled={!playerFieldCards.some(fc => !fc.stunned)}
+              disabled={!playerFieldCards.some(fc => !fc.stunned) || state.player.ap < 1}
               className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-destructive text-destructive-foreground font-heading font-bold text-xs hover:brightness-110 transition-all disabled:opacity-40"
             >
               <Sword className="w-4 h-4" /> Attack
