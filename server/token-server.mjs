@@ -812,6 +812,67 @@ async function handleImport(req, res) {
   sendJson(res, 201, playerToClientState(player, player.cards));
 }
 
+// ─── Leaderboard API ───────────────────────────────────────────────────────────
+
+async function handleLeaderboard(req, res) {
+  const url = new URL(`http://localhost${req.url}`);
+  const tab = url.searchParams.get("tab") || "wins";
+
+  let entries;
+
+  if (tab === "wins") {
+    entries = await prisma.battleStat.findMany({
+      orderBy: { wins: "desc" },
+      take: 20,
+      include: { player: { select: { username: true, avatar: true, discordId: true } } },
+    });
+    entries = entries.map((e, i) => ({
+      rank: i + 1,
+      name: e.player.username,
+      avatar: e.player.avatar,
+      discordId: e.player.discordId,
+      value: e.wins,
+    }));
+  } else if (tab === "collection") {
+    const players = await prisma.player.findMany({
+      include: { _count: { select: { cards: true } } },
+      orderBy: { cards: { _count: "desc" } },
+      take: 20,
+    });
+    const totalCards = ALL_CARD_IDS.length;
+    entries = players.map((p, i) => ({
+      rank: i + 1,
+      name: p.username,
+      avatar: p.avatar,
+      discordId: p.discordId,
+      value: Math.round((p._count.cards / totalCards) * 100),
+    }));
+  } else {
+    // rarest — score by legendary=10, rare=3, common=1
+    const players = await prisma.player.findMany({
+      include: { cards: true },
+      take: 50,
+    });
+    const scored = players.map((p) => {
+      const score = p.cards.reduce((sum, c) => {
+        const r = getCardRarity(c.cardId);
+        return sum + (r === "legendary" ? 10 : r === "rare" ? 3 : 1);
+      }, 0);
+      return { name: p.username, avatar: p.avatar, discordId: p.discordId, score };
+    });
+    scored.sort((a, b) => b.score - a.score);
+    entries = scored.slice(0, 20).map((e, i) => ({
+      rank: i + 1,
+      name: e.name,
+      avatar: e.avatar,
+      discordId: e.discordId,
+      value: e.score,
+    }));
+  }
+
+  sendJson(res, 200, { entries });
+}
+
 // ─── Router ────────────────────────────────────────────────────────────────────
 
 const server = http.createServer(async (req, res) => {
