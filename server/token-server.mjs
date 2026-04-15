@@ -196,17 +196,6 @@ async function findOrCreatePlayer(discordUser) {
         totalPulls: 0,
         hasCompletedOnboarding: false,
         selectedPath: null,
-        cards: {
-          create: STARTER_CARD_IDS.map((cardId) => ({
-            cardId,
-            level: 1,
-            xp: 0,
-            prestigeLevel: 0,
-            dupeCount: 0,
-            goldStars: 0,
-            redStars: 0,
-          })),
-        },
         battleStats: { create: {} },
       },
       include: { cards: true, battleStats: true },
