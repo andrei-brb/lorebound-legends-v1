@@ -48,6 +48,12 @@ export default function Index() {
   }
 
   const startBattle = (deckIds: string[]) => {
+    setBattleDeckIds(deckIds);
+    setActiveTab("battle");
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
       {/* Ambient particles */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
         {Array.from({ length: 20 }).map((_, i) => (
