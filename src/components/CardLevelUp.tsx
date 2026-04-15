@@ -1,7 +1,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Star, ArrowUp, Sparkles } from "lucide-react";
 import type { LevelUpResult } from "@/lib/progressionEngine";
-import { allCards } from "@/data/cards";
+import { allGameCards } from "@/data/cardIndex";
 
 interface CardLevelUpProps {
   levelUps: (LevelUpResult & { cardId: string })[];
@@ -39,7 +39,7 @@ export default function CardLevelUp({ levelUps, onClose }: CardLevelUpProps) {
 
           <div className="space-y-3">
             {levelUps.map((lu, i) => {
-              const card = allCards.find(c => c.id === lu.cardId);
+              const card = allGameCards.find(c => c.id === lu.cardId);
               return (
                 <motion.div
                   key={i}

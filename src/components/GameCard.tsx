@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useMemo } from "react";
 import { Sword, Shield, Sparkles, Zap, Star, ArrowUp, Heart } from "lucide-react";
-import type { GameCard as GameCardType } from "@/data/cards";
-import { allCards } from "@/data/cards";
+import type { GameCard as GameCardType } from "@/data/cardIndex";
+import { allGameCards } from "@/data/cardIndex";
 import { cn } from "@/lib/utils";
 import type { CardProgress } from "@/lib/playerState";
 import { getVisualTier, getAbilityEvolutionName, getPassiveAbilities } from "@/lib/progressionEngine";
@@ -412,7 +412,7 @@ export default function GameCard({ card, onClick, selected, showSynergy, size = 
                   <div className="space-y-0.5">
                     <span className="text-[7px] font-semibold uppercase tracking-wider text-synergy">Synergies</span>
                     {card.synergies.map((syn) => {
-                      const partner = allCards.find((c) => c.id === syn.partnerId);
+                      const partner = allGameCards.find((c) => c.id === syn.partnerId);
                       return (
                         <div key={syn.partnerId} className="synergy-highlight rounded p-0.5">
                           <div className="leading-tight">

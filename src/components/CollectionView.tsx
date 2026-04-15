@@ -1,4 +1,4 @@
-import { allCards, loreArcs, type Rarity } from "@/data/cards";
+import { allGameCards, loreArcs, type Rarity } from "@/data/cardIndex";
 import GameCard from "./GameCard";
 import { Star } from "lucide-react";
 import { type PlayerState, getCardProgress, xpForLevel } from "@/lib/playerState";
@@ -19,7 +19,7 @@ interface CollectionViewProps {
 }
 
 export default function CollectionView({ onAddToDeck, deckCardIds = [], playerState, onStateChange }: CollectionViewProps) {
-  const ownedIds = playerState?.ownedCardIds || allCards.map(c => c.id);
+  const ownedIds = playerState?.ownedCardIds || allGameCards.map(c => c.id);
 
   const handlePrestige = (cardId: string) => {
     if (!playerState || !onStateChange) return;
@@ -46,7 +46,7 @@ export default function CollectionView({ onAddToDeck, deckCardIds = [], playerSt
       </div>
 
       {rarityOrder.map((rarity) => {
-        const cards = allCards.filter((c) => c.rarity === rarity && ownedIds.includes(c.id));
+        const cards = allGameCards.filter((c) => c.rarity === rarity && ownedIds.includes(c.id));
         if (cards.length === 0) return null;
         return (
           <div key={rarity} className="animate-fade-in">
@@ -58,7 +58,7 @@ export default function CollectionView({ onAddToDeck, deckCardIds = [], playerSt
               {cards.map((card) => {
                 const inDeck = deckCardIds.includes(card.id);
                 const hasArcPartner = card.loreArc
-                  ? allCards.some((c) => c.id !== card.id && c.loreArc === card.loreArc)
+                  ? allGameCards.some((c) => c.id !== card.id && c.loreArc === card.loreArc)
                   : false;
                 const progress = playerState ? getCardProgress(playerState, card.id) : undefined;
                 const canPres = progress ? canPrestige(progress) : false;

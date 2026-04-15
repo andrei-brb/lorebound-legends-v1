@@ -4,7 +4,7 @@ import { Gift, Clock, Coins, Sparkles } from "lucide-react";
 import { PACK_DEFINITIONS, FREE_PACK_CARD_COUNT, canAffordPack, pullCards, type PackDefinition } from "@/lib/gachaEngine";
 import { canClaimFreePack, freePackTimeRemaining, addCardToCollection, savePlayerState, type PlayerState } from "@/lib/playerState";
 import PackOpening from "./PackOpening";
-import { allCards } from "@/data/cards";
+import { allGameCards } from "@/data/cardIndex";
 import { loadDailyQuests, progressQuest, saveDailyQuests } from "@/lib/questEngine";
 import bronzePackImg from "@/assets/packs/bronze-pack.jpg";
 import silverPackImg from "@/assets/packs/silver-pack.jpg";
@@ -162,7 +162,7 @@ export default function PackShop({ playerState, onStateChange, isOnline, pullCar
           </div>
         </div>
         <div className="flex items-center gap-2 bg-card border border-border rounded-xl px-4 py-2.5">
-          <span className="text-xs text-muted-foreground">Cards: {playerState.ownedCardIds.length}/{allCards.length}</span>
+          <span className="text-xs text-muted-foreground">Cards: {playerState.ownedCardIds.length}/{allGameCards.length}</span>
         </div>
       </div>
 

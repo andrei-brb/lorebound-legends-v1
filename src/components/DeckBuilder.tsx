@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { allCards } from "@/data/cards";
+import { allGameCards } from "@/data/cardIndex";
 import CollectionView from "./CollectionView";
 import { Sword, Shield, Sparkles, X, Swords } from "lucide-react";
 import type { PlayerState } from "@/lib/playerState";
@@ -27,13 +27,13 @@ export default function DeckBuilder({ onStartBattle, playerState }: DeckBuilderP
     );
   };
 
-  const deckCards = deckIds.map((id) => allCards.find((c) => c.id === id)!).filter(Boolean);
+  const deckCards = deckIds.map((id) => allGameCards.find((c) => c.id === id)!).filter(Boolean);
 
   const activeSynergies: { name: string; description: string; cards: string[] }[] = [];
   for (const card of deckCards) {
     for (const syn of card.synergies) {
       if (deckIds.includes(syn.partnerId) && !activeSynergies.find((s) => s.name === syn.name)) {
-        const partner = allCards.find((c) => c.id === syn.partnerId);
+        const partner = allGameCards.find((c) => c.id === syn.partnerId);
         activeSynergies.push({ name: syn.name, description: syn.description, cards: [card.name, partner?.name || ""] });
       }
     }

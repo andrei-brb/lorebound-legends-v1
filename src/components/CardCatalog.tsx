@@ -1,6 +1,6 @@
 import { useState, useMemo } from "react";
 import { Crown, Sword, Shield, Wand2, AlertTriangle, Grid3X3, Lock, Unlock } from "lucide-react";
-import { allCards, type GameCard as GameCardType, type CardType } from "@/data/cards";
+import { allGameCards, type GameCard as GameCardType, type CardType } from "@/data/cardIndex";
 import GameCard from "@/components/GameCard";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
@@ -34,7 +34,7 @@ export default function CardCatalog({ playerState }: CardCatalogProps) {
   const ownedSet = useMemo(() => new Set(playerState.ownedCardIds), [playerState.ownedCardIds]);
 
   const filteredCards = useMemo(() => {
-    return activeFilter === "all" ? allCards : allCards.filter((c) => c.type === activeFilter);
+    return activeFilter === "all" ? allGameCards : allGameCards.filter((c) => c.type === activeFilter);
   }, [activeFilter]);
 
   const groupedByRarity = useMemo(() => {
@@ -66,12 +66,12 @@ export default function CardCatalog({ playerState }: CardCatalogProps) {
         {typeFilters.map((f) => {
           const count =
             f.id === "all"
-              ? allCards.length
-              : allCards.filter((c) => c.type === f.id).length;
+              ? allGameCards.length
+              : allGameCards.filter((c) => c.type === f.id).length;
           const owned =
             f.id === "all"
               ? playerState.ownedCardIds.length
-              : allCards.filter((c) => c.type === f.id && ownedSet.has(c.id)).length;
+              : allGameCards.filter((c) => c.type === f.id && ownedSet.has(c.id)).length;
           return (
             <button
               key={f.id}
