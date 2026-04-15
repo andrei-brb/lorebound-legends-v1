@@ -37,6 +37,9 @@ export interface PlayerSide {
   traps: (TrapOnField | null)[]; // 2 trap slots
   deck: GameCard[];
   graveyard: GameCard[];
+  ap: number;
+  fatigue: number;
+  hasCastSpellThisTurn: boolean;
 }
 
 export interface BattleLog {
@@ -89,11 +92,14 @@ function createSide(deckIds: string[]): PlayerSide {
     traps: [null, null],
     deck,
     graveyard: [],
+    ap: 0,
+    fatigue: 0,
+    hasCastSpellThisTurn: false,
   };
 }
 
 export function initBattle(playerDeckIds: string[], enemyDeckIds: string[]): BattleState {
-  return {
+  const state: BattleState = {
     player: createSide(playerDeckIds),
     enemy: createSide(enemyDeckIds),
     turn: "player",
@@ -104,6 +110,7 @@ export function initBattle(playerDeckIds: string[], enemyDeckIds: string[]): Bat
     activeSynergies: { player: [], enemy: [] },
     pendingAction: null,
   };
+  return startTurn(state);
 }
 
 // =================== Helpers ===================
@@ -192,6 +199,57 @@ function addLog(state: BattleState, message: string, type: BattleLog["type"]): v
   state.logs.push({ message, type, timestamp: Date.now() });
 }
 
+function getActiveSide(state: BattleState): PlayerSide {
+  return state.turn === "player" ? state.player : state.enemy;
+}
+
+function getOtherSide(state: BattleState): PlayerSide {
+  return state.turn === "player" ? state.enemy : state.player;
+}
+
+function startTurn(state: BattleState): BattleState {
+  if (state.phase === "game-over") return state;
+
+  const side = getActiveSide(state);
+  const sideLabel = state.turn === "player" ? "You" : "Enemy";
+
+  side.ap = 2;
+  side.hasCastSpellThisTurn = false;
+
+  // Draw 1 card at start of turn; apply fatigue only on draw.
+  if (side.deck.length > 0) {
+    side.hand.push(side.deck.shift()!);
+  } else {
+    side.fatigue += 1;
+    side.hp = Math.max(0, side.hp - side.fatigue);
+    addLog(state, `📦 ${sideLabel} fatigues for ${side.fatigue} damage!`, "info");
+  }
+
+  return checkWinCondition(state);
+}
+
+function canSpendAp(state: BattleState, cost: number): boolean {
+  const side = getActiveSide(state);
+  return side.ap >= cost;
+}
+
+function spendAp(state: BattleState, cost: number): void {
+  const side = getActiveSide(state);
+  side.ap = Math.max(0, side.ap - cost);
+}
+
+function maybeAutoEndTurn(state: BattleState): BattleState {
+  const side = getActiveSide(state);
+  if (state.phase === "game-over") return state;
+  if (side.ap > 0) return state;
+  return endTurn(state);
+}
+
+export function endTurnAction(state: BattleState): BattleState {
+  const newState = deepCopy(state);
+  return endTurn(newState);
+}
+
 function checkWinCondition(state: BattleState): BattleState {
   const playerDead = state.player.hp <= 0;
   const enemyDead = state.enemy.hp <= 0;
@@ -230,11 +288,12 @@ function checkWinCondition(state: BattleState): BattleState {
 
 export function playCard(state: BattleState, handIndex: number): BattleState {
   const newState = deepCopy(state);
-  const side = newState.turn === "player" ? newState.player : newState.enemy;
+  const side = getActiveSide(newState);
   const card = side.hand[handIndex];
   if (!card) return state;
 
   if (card.type === "hero" || card.type === "god") {
+    if (!canSpendAp(newState, 1)) return state;
     const slotIndex = side.field.findIndex(s => s === null);
     if (slotIndex === -1) {
       addLog(newState, "❌ Field is full! Max 4 cards.", "info");
@@ -242,7 +301,7 @@ export function playCard(state: BattleState, handIndex: number): BattleState {
     }
 
     // Check for enemy traps that trigger on play
-    const enemySide = newState.turn === "player" ? newState.enemy : newState.player;
+    const enemySide = getOtherSide(newState);
     let trapDamage = 0;
     for (let i = 0; i < enemySide.traps.length; i++) {
       const trap = enemySide.traps[i];
@@ -261,14 +320,16 @@ export function playCard(state: BattleState, handIndex: number): BattleState {
     }
     side.field[slotIndex] = fc;
     side.hand.splice(handIndex, 1);
+    spendAp(newState, 1);
 
     const sideLabel = newState.turn === "player" ? "You" : "Enemy";
     addLog(newState, `🃏 ${sideLabel} played ${card.name} to the field!`, "info");
 
-    return endTurn(recalcFieldStats(newState));
+    return maybeAutoEndTurn(recalcFieldStats(newState));
   }
 
   if (card.type === "trap") {
+    if (!canSpendAp(newState, 1)) return state;
     const trapSlot = side.traps.findIndex(s => s === null);
     if (trapSlot === -1) {
       addLog(newState, "❌ Trap slots full! Max 2 traps.", "info");
@@ -276,9 +337,10 @@ export function playCard(state: BattleState, handIndex: number): BattleState {
     }
     side.traps[trapSlot] = { card, faceDown: true };
     side.hand.splice(handIndex, 1);
+    spendAp(newState, 1);
     const sideLabel = newState.turn === "player" ? "You" : "Enemy";
     addLog(newState, `🪤 ${sideLabel} set a trap face-down!`, "trap");
-    return endTurn(newState);
+    return maybeAutoEndTurn(newState);
   }
 
   return state; // weapons and spells handled separately
@@ -286,11 +348,12 @@ export function playCard(state: BattleState, handIndex: number): BattleState {
 
 export function equipWeapon(state: BattleState, handIndex: number, fieldIndex: number): BattleState {
   const newState = deepCopy(state);
-  const side = newState.turn === "player" ? newState.player : newState.enemy;
+  const side = getActiveSide(newState);
   const card = side.hand[handIndex];
   const target = side.field[fieldIndex];
 
   if (!card || card.type !== "weapon" || !target) return state;
+  if (!canSpendAp(newState, 1)) return state;
   if (target.equippedWeapon) {
     addLog(newState, "❌ This card already has a weapon equipped!", "info");
     return state;
@@ -298,20 +361,32 @@ export function equipWeapon(state: BattleState, handIndex: number, fieldIndex: n
 
   target.equippedWeapon = card;
   side.hand.splice(handIndex, 1);
+  spendAp(newState, 1);
 
   const sideLabel = newState.turn === "player" ? "You" : "Enemy";
   addLog(newState, `⚔️ ${sideLabel} equipped ${card.name} to ${target.card.name}! (+${card.weaponBonus?.attack || 0} ATK, +${card.weaponBonus?.defense || 0} DEF)`, "weapon");
 
-  return endTurn(recalcFieldStats(newState));
+  return maybeAutoEndTurn(recalcFieldStats(newState));
+}
+
+function getSpellApCost(card: GameCard): number {
+  if (card.id === "time-stop") return 2;
+  return 1;
 }
 
 export function castSpell(state: BattleState, handIndex: number, targetFieldIndex?: number): BattleState {
   const newState = deepCopy(state);
-  const side = newState.turn === "player" ? newState.player : newState.enemy;
-  const otherSide = newState.turn === "player" ? newState.enemy : newState.player;
+  const side = getActiveSide(newState);
+  const otherSide = getOtherSide(newState);
   const card = side.hand[handIndex];
 
   if (!card || card.type !== "spell" || !card.spellEffect) return state;
+  const apCost = getSpellApCost(card);
+  if (!canSpendAp(newState, apCost)) return state;
+  if (side.hasCastSpellThisTurn) {
+    addLog(newState, "❌ You can only cast 1 spell per turn.", "info");
+    return state;
+  }
 
   const effect = card.spellEffect;
   const sideLabel = newState.turn === "player" ? "You" : "Enemy";
@@ -392,17 +467,20 @@ export function castSpell(state: BattleState, handIndex: number, targetFieldInde
 
   side.hand.splice(handIndex, 1);
   side.graveyard.push(card);
+  side.hasCastSpellThisTurn = true;
+  spendAp(newState, apCost);
 
-  return endTurn(recalcFieldStats(checkWinCondition(newState)));
+  return maybeAutoEndTurn(recalcFieldStats(checkWinCondition(newState)));
 }
 
 export function attackTarget(state: BattleState, attackerFieldIndex: number, targetFieldIndex: number | "direct"): BattleState {
   const newState = deepCopy(state);
-  const side = newState.turn === "player" ? newState.player : newState.enemy;
-  const otherSide = newState.turn === "player" ? newState.enemy : newState.player;
+  const side = getActiveSide(newState);
+  const otherSide = getOtherSide(newState);
   const attacker = side.field[attackerFieldIndex];
 
   if (!attacker || attacker.stunned) return state;
+  if (!canSpendAp(newState, 1)) return state;
 
   const sideLabel = newState.turn === "player" ? "You" : "Enemy";
 
@@ -437,7 +515,8 @@ export function attackTarget(state: BattleState, attackerFieldIndex: number, tar
           side.graveyard.push(attacker.card);
           if (attacker.equippedWeapon) side.graveyard.push(attacker.equippedWeapon);
           side.field[attackerFieldIndex] = null;
-          return endTurn(recalcFieldStats(checkWinCondition(newState)));
+          spendAp(newState, 1);
+          return maybeAutoEndTurn(recalcFieldStats(checkWinCondition(newState)));
         }
         break;
       }
@@ -456,7 +535,8 @@ export function attackTarget(state: BattleState, attackerFieldIndex: number, tar
       addLog(newState, `💥 ${attacker.card.name} attacks directly for ${dmg} damage!`, "direct");
     }
 
-    return endTurn(recalcFieldStats(checkWinCondition(newState)));
+    spendAp(newState, 1);
+    return maybeAutoEndTurn(recalcFieldStats(checkWinCondition(newState)));
   }
 
   // Attack a field card
@@ -486,7 +566,8 @@ export function attackTarget(state: BattleState, attackerFieldIndex: number, tar
         side.graveyard.push(attacker.card);
         if (attacker.equippedWeapon) side.graveyard.push(attacker.equippedWeapon);
         side.field[attackerFieldIndex] = null;
-        return endTurn(recalcFieldStats(checkWinCondition(newState)));
+        spendAp(newState, 1);
+        return maybeAutoEndTurn(recalcFieldStats(checkWinCondition(newState)));
       }
       break;
     }
@@ -514,16 +595,18 @@ export function attackTarget(state: BattleState, attackerFieldIndex: number, tar
     side.field[attackerFieldIndex] = null;
   }
 
-  return endTurn(recalcFieldStats(checkWinCondition(newState)));
+  spendAp(newState, 1);
+  return maybeAutoEndTurn(recalcFieldStats(checkWinCondition(newState)));
 }
 
 export function useAbility(state: BattleState, fieldIndex: number): BattleState {
   const newState = deepCopy(state);
-  const side = newState.turn === "player" ? newState.player : newState.enemy;
-  const otherSide = newState.turn === "player" ? newState.enemy : newState.player;
+  const side = getActiveSide(newState);
+  const otherSide = getOtherSide(newState);
   const fc = side.field[fieldIndex];
 
   if (!fc || fc.abilityUsed || fc.stunned) return state;
+  if (!canSpendAp(newState, 1)) return state;
 
   fc.abilityUsed = true;
   const ability = fc.card.specialAbility;
@@ -548,7 +631,8 @@ export function useAbility(state: BattleState, fieldIndex: number): BattleState 
     }
   }
 
-  return endTurn(recalcFieldStats(checkWinCondition(newState)));
+  spendAp(newState, 1);
+  return maybeAutoEndTurn(recalcFieldStats(checkWinCondition(newState)));
 }
 
 // =================== Turn Management ===================
@@ -556,7 +640,7 @@ export function useAbility(state: BattleState, fieldIndex: number): BattleState 
 function endTurn(state: BattleState): BattleState {
   if (state.phase === "game-over") return state;
 
-  const side = state.turn === "player" ? state.player : state.enemy;
+  const side = getActiveSide(state);
 
   // Tick down temp buffs
   for (const fc of side.field) {
@@ -567,99 +651,97 @@ function endTurn(state: BattleState): BattleState {
     fc.stunned = false;
   }
 
-  // Draw a card
-  if (side.deck.length > 0) {
-    side.hand.push(side.deck.shift()!);
-  } else {
-    // Empty deck penalty
-    side.hp = Math.max(0, side.hp - 5);
-    const sideLabel = state.turn === "player" ? "You" : "Enemy";
-    addLog(state, `📦 ${sideLabel} drew from an empty deck! -5 HP!`, "info");
-  }
-
   // Switch turn
   state.turn = state.turn === "player" ? "enemy" : "player";
   if (state.turn === "player") state.turnNumber++;
   state.phase = "select-action";
   state.pendingAction = null;
 
-  return checkWinCondition(state);
+  return startTurn(checkWinCondition(state));
 }
 
 // =================== AI ===================
 
 export function performAITurn(state: BattleState): BattleState {
-  const side = state.enemy;
+  // Enemy may take multiple actions per turn based on AP.
+  let s = state;
+  const MAX_ACTIONS = 6; // guard against accidental loops
 
-  // Priority: Play high-value hero/god → equip weapons → cast spells → attack weakest → set traps
+  for (let i = 0; i < MAX_ACTIONS; i++) {
+    if (s.phase === "game-over") return s;
+    if (s.turn !== "enemy") return s;
+    if (s.enemy.ap <= 0) return s;
 
-  // 1. Play a hero/god if field has room
-  const emptySlot = side.field.findIndex(s => s === null);
-  if (emptySlot !== -1) {
-    const unitIdx = side.hand.findIndex(c => c.type === "hero" || c.type === "god");
-    if (unitIdx !== -1) {
-      return playCard(state, unitIdx);
-    }
-  }
+    const side = s.enemy;
 
-  // 2. Equip a weapon if possible
-  const weaponIdx = side.hand.findIndex(c => c.type === "weapon");
-  if (weaponIdx !== -1) {
-    const unequipped = side.field.findIndex(fc => fc !== null && !fc.equippedWeapon);
-    if (unequipped !== -1) {
-      return equipWeapon(state, weaponIdx, unequipped);
-    }
-  }
-
-  // 3. Cast a spell
-  const spellIdx = side.hand.findIndex(c => c.type === "spell");
-  if (spellIdx !== -1) {
-    const spell = side.hand[spellIdx];
-    if (spell.spellEffect) {
-      if (spell.spellEffect.type === "damage") {
-        const targets = state.player.field;
-        const targetIdx = targets.findIndex(fc => fc !== null);
-        if (targetIdx !== -1 || !state.player.field.some(fc => fc !== null)) {
-          return castSpell(state, spellIdx, targetIdx >= 0 ? targetIdx : undefined);
-        }
-      } else {
-        return castSpell(state, spellIdx, side.field.findIndex(fc => fc !== null));
+    // Priority: Play unit → equip weapon → cast spell → ability/attack → set trap
+    const emptySlot = side.field.findIndex((slot) => slot === null);
+    if (emptySlot !== -1) {
+      const unitIdx = side.hand.findIndex((c) => c.type === "hero" || c.type === "god");
+      if (unitIdx !== -1) {
+        const next = playCard(s, unitIdx);
+        if (next !== s) { s = next; continue; }
       }
     }
-  }
 
-  // 4. Attack with field card (target weakest enemy or direct)
-  const attackerIdx = side.field.findIndex(fc => fc !== null && !fc.stunned);
-  if (attackerIdx !== -1) {
-    const playerFieldCards = state.player.field
-      .map((fc, i) => fc ? { fc, i } : null)
-      .filter(Boolean) as { fc: FieldCard; i: number }[];
+    const weaponIdx = side.hand.findIndex((c) => c.type === "weapon");
+    if (weaponIdx !== -1) {
+      const unequipped = side.field.findIndex((fc) => fc !== null && !fc.equippedWeapon);
+      if (unequipped !== -1) {
+        const next = equipWeapon(s, weaponIdx, unequipped);
+        if (next !== s) { s = next; continue; }
+      }
+    }
 
-    if (playerFieldCards.length > 0) {
-      // Attack weakest
-      const weakest = playerFieldCards.sort((a, b) => a.fc.currentHp - b.fc.currentHp)[0];
-      // 30% chance to use ability instead
+    const spellIdx = side.hand.findIndex((c) => c.type === "spell");
+    if (spellIdx !== -1 && !side.hasCastSpellThisTurn) {
+      const spell = side.hand[spellIdx];
+      if (spell.spellEffect) {
+        if (spell.spellEffect.type === "damage") {
+          const targetIdx = s.player.field.findIndex((fc) => fc !== null);
+          const next = castSpell(s, spellIdx, targetIdx >= 0 ? targetIdx : undefined);
+          if (next !== s) { s = next; continue; }
+        } else {
+          const allyIdx = side.field.findIndex((fc) => fc !== null);
+          const next = castSpell(s, spellIdx, allyIdx >= 0 ? allyIdx : undefined);
+          if (next !== s) { s = next; continue; }
+        }
+      }
+    }
+
+    const attackerIdx = side.field.findIndex((fc) => fc !== null && !fc.stunned);
+    if (attackerIdx !== -1) {
       const fc = side.field[attackerIdx]!;
       if (!fc.abilityUsed && Math.random() < 0.3) {
-        return useAbility(state, attackerIdx);
+        const next = useAbility(s, attackerIdx);
+        if (next !== s) { s = next; continue; }
       }
-      return attackTarget(state, attackerIdx, weakest.i);
-    } else {
-      // Direct attack
-      return attackTarget(state, attackerIdx, "direct");
+
+      const playerFieldCards = s.player.field
+        .map((fc2, idx) => (fc2 ? { fc: fc2, idx } : null))
+        .filter(Boolean) as { fc: FieldCard; idx: number }[];
+
+      if (playerFieldCards.length > 0) {
+        const weakest = playerFieldCards.sort((a, b) => a.fc.currentHp - b.fc.currentHp)[0];
+        const next = attackTarget(s, attackerIdx, weakest.idx);
+        if (next !== s) { s = next; continue; }
+      } else {
+        const next = attackTarget(s, attackerIdx, "direct");
+        if (next !== s) { s = next; continue; }
+      }
     }
+
+    const trapIdx = side.hand.findIndex((c) => c.type === "trap");
+    if (trapIdx !== -1) {
+      const next = playCard(s, trapIdx);
+      if (next !== s) { s = next; continue; }
+    }
+
+    // Nothing to do; end turn.
+    return endTurn(deepCopy(s));
   }
 
-  // 5. Set a trap
-  const trapIdx = side.hand.findIndex(c => c.type === "trap");
-  if (trapIdx !== -1) {
-    return playCard(state, trapIdx);
-  }
-
-  // No action possible - skip turn (just end turn)
-  const newState = deepCopy(state);
-  addLog(newState, "⏭️ Enemy has no actions available!", "info");
-  return endTurn(newState);
+  return s;
 }
 
 // =================== Utilities ===================

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Sword, Sparkles, Trophy, Skull, Coins, Shield, Heart, Zap, Target, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { BattleState, FieldCard } from "@/lib/battleEngine";
-import { initBattle, playCard, equipWeapon, castSpell, attackTarget, useAbility, performAITurn, generateEnemyDeck } from "@/lib/battleEngine";
+import { initBattle, playCard, equipWeapon, castSpell, attackTarget, useAbility, performAITurn, generateEnemyDeck, endTurnAction } from "@/lib/battleEngine";
 import BattleCardDisplay from "./BattleCardDisplay";
 import CardLevelUp from "./CardLevelUp";
 import { type PlayerState, getCardProgress, savePlayerState } from "@/lib/playerState";
@@ -65,6 +65,14 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
     }, 600);
     return () => clearTimeout(timer);
   }, [state?.turn, state?.turnNumber, animating]);
+
+  const handleEndTurn = () => {
+    if (!state || state.phase === "game-over" || state.turn !== "player" || animating) return;
+    setState((prev) => (prev ? endTurnAction(prev) : prev));
+    setActionMode("none");
+    setSelectedFieldIndex(null);
+    setSelectedHandIndex(null);
+  };
 
   // Award rewards on game over
   useEffect(() => {
@@ -216,6 +224,17 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
           <span className={cn("text-xs font-bold px-2 py-1 rounded", state.turn === "player" ? "bg-primary/20 text-primary" : "bg-destructive/20 text-destructive")}>
             {state.turn === "player" ? "YOUR TURN" : "ENEMY TURN"}
           </span>
+          <span className="text-xs font-bold px-2 py-1 rounded bg-secondary text-secondary-foreground">
+            AP: {state.turn === "player" ? state.player.ap : state.enemy.ap}/2
+          </span>
+          {isPlayerTurn && (
+            <button
+              onClick={handleEndTurn}
+              className="text-xs px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:brightness-110 transition-colors"
+            >
+              End Turn
+            </button>
+          )}
           <button onClick={onExit} className="text-sm px-3 py-1.5 rounded-lg bg-secondary text-secondary-foreground hover:bg-secondary/80 transition-colors">
             Retreat
           </button>
