@@ -2587,7 +2587,7 @@ const trapCards: GameCard[] = [
 
 // =================== EXPORT ===================
 
-export const allCards: GameCard[] = [...godCards, ...heroCards, ...weaponCards, ...spellCards, ...trapCards];
+export const allCards: GameCard[] = withElements([...godCards, ...heroCards, ...weaponCards, ...spellCards, ...trapCards]);
 
 export const loreArcs = [
   { id: "crown-of-storms", name: "The Crown of Storms", cardIds: ["warrior-king", "storm-god", "enchanted-sword", "jin", "thor-axeborn", "storm-witch"] },
