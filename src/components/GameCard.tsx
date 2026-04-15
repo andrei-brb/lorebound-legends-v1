@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import type { CardProgress } from "@/lib/playerState";
 import { getVisualTier, getAbilityEvolutionName, getPassiveAbilities } from "@/lib/progressionEngine";
 import { xpForLevel } from "@/lib/playerState";
-import { getDupesForNextStar, getStarStatBonuses } from "@/lib/starSystem";
+import { calculateStars, getDupesForNextStar, getStarStatBonuses } from "@/lib/starSystem";
 import { elementEmoji, elementCssClass, elementBgClass } from "@/lib/elementSystem";
 
 interface GameCardProps {
@@ -101,7 +101,12 @@ export default function GameCard({ card, onClick, selected, showSynergy, size = 
   const visualTier = getVisualTier(progress.level);
   const passives = getPassiveAbilities(progress);
   const abilityName = getAbilityEvolutionName(card.specialAbility.name, progress.level);
-  const starBonuses = getStarStatBonuses(card.rarity, progress.starProgress.goldStars, progress.starProgress.redStars);
+  // Back-compat: some older records may have dupeCount but missing computed stars.
+  const computedStars = (progress.starProgress.goldStars > 0 || progress.starProgress.redStars > 0)
+    ? { goldStars: progress.starProgress.goldStars, redStars: progress.starProgress.redStars }
+    : calculateStars(progress.starProgress.dupeCount || 0, card.rarity);
+
+  const starBonuses = getStarStatBonuses(card.rarity, computedStars.goldStars, computedStars.redStars);
 
   const totalAttack = card.attack + (progress.level - 1) + (progress.prestigeLevel * 2) + starBonuses.attack;
   const totalDefense = card.defense + (progress.level - 1) + (progress.prestigeLevel * 2) + starBonuses.defense;
@@ -274,13 +279,13 @@ export default function GameCard({ card, onClick, selected, showSynergy, size = 
                   </div>
                 )}
 
-                {(progress.starProgress.goldStars > 0 || progress.starProgress.redStars > 0) && (
-                  <div className="flex items-center gap-0.5 ml-0.5">
-                    {Array.from({ length: progress.starProgress.goldStars }).map((_, i) => (
-                      <Star key={`g${i}`} className="w-3 h-3 text-yellow-400 fill-yellow-400 drop-shadow-sm" />
+                {(computedStars.goldStars > 0 || computedStars.redStars > 0) && (
+                  <div className="flex items-center gap-0.5 ml-0.5 px-1 py-0.5 rounded bg-black/45 border border-white/10">
+                    {Array.from({ length: computedStars.goldStars }).map((_, i) => (
+                      <Star key={`g${i}`} className="w-3.5 h-3.5 text-yellow-300 fill-yellow-300 drop-shadow-sm" />
                     ))}
-                    {Array.from({ length: progress.starProgress.redStars }).map((_, i) => (
-                      <Star key={`r${i}`} className="w-3 h-3 text-red-500 fill-red-500 drop-shadow-sm" />
+                    {Array.from({ length: computedStars.redStars }).map((_, i) => (
+                      <Star key={`r${i}`} className="w-3.5 h-3.5 text-red-500 fill-red-500 drop-shadow-sm" />
                     ))}
                   </div>
                 )}

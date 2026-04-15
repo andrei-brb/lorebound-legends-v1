@@ -43,7 +43,7 @@ export default function Index() {
   const [battleDeckIds, setBattleDeckIds] = useState<string[]>([]);
   const { playerState, setPlayerState, status, isOnline, pullCards, submitBattleResult, completeOnboarding, syncEconomy, craftFuse, craftSacrifice, pullSeasonalPack } = usePlayerApi();
   const isDiscordActivityHost = typeof window !== "undefined" && window.location.hostname.endsWith("discordsays.com");
-  const headerTop = isDiscordActivityHost ? "calc(64px + env(safe-area-inset-top))" : "env(safe-area-inset-top)";
+  const discordOverlayInset = "calc(64px + env(safe-area-inset-top))";
 
   // Achievement checking on state changes
   useEffect(() => {
@@ -87,7 +87,10 @@ export default function Index() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div
+      className="min-h-screen bg-background"
+      style={{ paddingTop: isDiscordActivityHost ? discordOverlayInset : "env(safe-area-inset-top)" }}
+    >
       {/* Ambient particles */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
         {Array.from({ length: 20 }).map((_, i) => (
@@ -107,7 +110,7 @@ export default function Index() {
       {/* Header */}
       <header
         className="border-b border-border bg-card/50 backdrop-blur-sm sticky z-50"
-        style={{ top: headerTop }}
+        style={{ top: 0 }}
       >
         <div className="container flex items-center justify-between h-14">
           <div className="flex items-center gap-2">
