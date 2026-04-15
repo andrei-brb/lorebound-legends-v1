@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { allCards } from "@/data/cards";
+import { allSeasonalCards } from "@/data/seasonalCards";
 import { cn } from "@/lib/utils";
 import type { PlayerState } from "@/lib/playerState";
 
