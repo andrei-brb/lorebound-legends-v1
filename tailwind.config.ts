@@ -58,6 +58,13 @@ export default {
         common: "hsl(var(--common))",
         synergy: "hsl(var(--synergy))",
         "synergy-glow": "hsl(var(--synergy-glow))",
+        element: {
+          fire: "hsl(var(--element-fire))",
+          water: "hsl(var(--element-water))",
+          nature: "hsl(var(--element-nature))",
+          shadow: "hsl(var(--element-shadow))",
+          light: "hsl(var(--element-light))",
+        },
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",

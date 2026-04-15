@@ -45,6 +45,12 @@
     --synergy: 50 100% 55%;
     --synergy-glow: 50 100% 70%;
 
+    --element-fire: 15 90% 55%;
+    --element-water: 210 80% 55%;
+    --element-nature: 130 60% 45%;
+    --element-shadow: 270 50% 45%;
+    --element-light: 45 90% 60%;
+
     --sidebar-background: 230 20% 10%;
     --sidebar-foreground: 40 20% 85%;
     --sidebar-primary: 40 80% 55%;

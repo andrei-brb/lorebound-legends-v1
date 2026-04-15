@@ -234,6 +234,8 @@ import flameArcherImg from "@/assets/cards/flame-archer.jpg";
 import crystalGuardianImg from "@/assets/cards/crystal-guardian.jpg";
 
 
+import { inferElementFromTags, type Element } from "@/lib/elementSystem";
+
 export type Rarity = "legendary" | "rare" | "common";
 export type CardType = "hero" | "god" | "weapon" | "spell" | "trap";
 
@@ -295,6 +297,8 @@ export interface GameCard {
   trapEffect?: TrapEffect;
   // Passive ability (always active on field)
   passiveAbility?: { name: string; description: string; stat: "attack" | "defense"; value: number; targetTag?: string };
+  // Element (auto-inferred from tags if not set)
+  element: Element;
 }
 
 // =================== GODS (50) ===================
