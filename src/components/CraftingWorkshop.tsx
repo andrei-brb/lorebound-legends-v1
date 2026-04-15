@@ -245,6 +245,20 @@ export default function CraftingWorkshop({ playerState, onStateChange, isOnline,
           </div>
         )}
       </div>
+
+      {/* Card Reveal Animation */}
+      <AnimatePresence>
+        {revealCardId && (
+          <CardRevealAnimation
+            cardId={revealCardId}
+            onClose={() => {
+              const card = allCards.find(c => c.id === revealCardId);
+              toast({ title: "🔥 Fusion Complete!", description: `You forged ${card?.name || "a new card"}!` });
+              setRevealCardId(null);
+            }}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
