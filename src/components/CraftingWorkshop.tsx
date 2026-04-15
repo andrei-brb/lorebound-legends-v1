@@ -76,13 +76,13 @@ export default function CraftingWorkshop({ playerState, onStateChange, isOnline,
 
   const handleSacrifice = async () => {
     if (selectedCards.length === 0) return;
+    const sacrificedIds = [...selectedCards];
     setIsAnimating(true);
-    await new Promise(r => setTimeout(r, 800));
 
     if (isOnline && craftSacrificeApi) {
       const result = await craftSacrificeApi(selectedCards);
       if (result) {
-        toast({ title: "💎 Sacrifice Complete!", description: `Gained ${result.totalStardust} stardust!` });
+        setSacrificeAnim({ cardIds: sacrificedIds, stardust: result.totalStardust });
         const qs = progressQuest(loadDailyQuests(), "craft_card"); saveDailyQuests(qs);
       } else {
         toast({ title: "Sacrifice failed", description: "Could not complete sacrifice. Try again.", variant: "destructive" });
@@ -91,7 +91,7 @@ export default function CraftingWorkshop({ playerState, onStateChange, isOnline,
       const result = performSacrifice(playerState, selectedCards);
       if (result) {
         onStateChange(result.playerState);
-        toast({ title: "💎 Sacrifice Complete!", description: `Gained ${result.totalStardust} stardust!` });
+        setSacrificeAnim({ cardIds: sacrificedIds, stardust: result.totalStardust });
         const qs = progressQuest(loadDailyQuests(), "craft_card"); saveDailyQuests(qs);
       }
     }
