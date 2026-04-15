@@ -923,6 +923,7 @@ async function handleLeaderboard(req, res) {
 
   if (tab === "wins") {
     entries = await prisma.battleStat.findMany({
+      where: { OR: [{ wins: { gt: 0 } }, { losses: { gt: 0 } }, { draws: { gt: 0 } }] },
       orderBy: { wins: "desc" },
       take: 20,
       include: { player: { select: { username: true, avatar: true, discordId: true } } },
@@ -938,16 +939,19 @@ async function handleLeaderboard(req, res) {
     const players = await prisma.player.findMany({
       include: { _count: { select: { cards: true } } },
       orderBy: { cards: { _count: "desc" } },
-      take: 20,
+      take: 50,
     });
     const totalCards = ALL_CARD_IDS.length;
-    entries = players.map((p, i) => ({
-      rank: i + 1,
-      name: p.username,
-      avatar: p.avatar,
-      discordId: p.discordId,
-      value: Math.round((p._count.cards / totalCards) * 100),
-    }));
+    entries = players
+      .filter((p) => p._count.cards > 0)
+      .slice(0, 20)
+      .map((p, i) => ({
+        rank: i + 1,
+        name: p.username,
+        avatar: p.avatar,
+        discordId: p.discordId,
+        value: Math.round((p._count.cards / totalCards) * 100),
+      }));
   } else {
     // rarest — score by legendary=10, rare=3, common=1
     const players = await prisma.player.findMany({
@@ -962,7 +966,10 @@ async function handleLeaderboard(req, res) {
       return { name: p.username, avatar: p.avatar, discordId: p.discordId, score };
     });
     scored.sort((a, b) => b.score - a.score);
-    entries = scored.slice(0, 20).map((e, i) => ({
+    entries = scored
+      .filter((e) => e.score > 0)
+      .slice(0, 20)
+      .map((e, i) => ({
       rank: i + 1,
       name: e.name,
       avatar: e.avatar,

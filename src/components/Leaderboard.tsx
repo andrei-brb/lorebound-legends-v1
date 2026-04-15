@@ -1,8 +1,9 @@
-import { useState, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Trophy, Swords, BookOpen, Star, Crown, Medal, Award } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { allCards } from "@/data/cards";
 import type { PlayerState } from "@/lib/playerState";
+import { api } from "@/lib/apiClient";
 
 interface LeaderboardEntry {
   rank: number;
@@ -100,13 +101,43 @@ const rankIcons = [
 
 interface LeaderboardProps {
   playerState: PlayerState;
+  isOnline?: boolean;
 }
 
-export default function Leaderboard({ playerState }: LeaderboardProps) {
+export default function Leaderboard({ playerState, isOnline }: LeaderboardProps) {
   const [tab, setTab] = useState<LeaderboardTab>("wins");
+  const [serverEntries, setServerEntries] = useState<LeaderboardEntry[] | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  // Memoize per tab so it doesn't re-randomize on every render
-  const entries = useMemo(() => generateMockLeaderboard(playerState, tab), [tab, playerState.ownedCardIds.length]);
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      if (!isOnline) { setServerEntries(null); return; }
+      setLoading(true);
+      try {
+        const res = await api.getLeaderboard(tab);
+        const mapped: LeaderboardEntry[] = res.entries.map((e) => ({
+          rank: e.rank,
+          name: e.discordId ? e.name : e.name,
+          avatar: e.avatar ?? "👤",
+          value: e.value,
+          label: tab === "collection" ? "%" : tab === "rarest" ? "pts" : "wins",
+        }));
+        if (!cancelled) setServerEntries(mapped);
+      } catch (err) {
+        console.error("[Leaderboard] Failed to load server leaderboard:", err);
+        if (!cancelled) setServerEntries(null);
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [tab, isOnline]);
+
+  // Memoize per tab so it doesn't re-randomize on every render (offline fallback)
+  const mockEntries = useMemo(() => generateMockLeaderboard(playerState, tab), [tab, playerState.ownedCardIds.length]);
+  const entries = serverEntries ?? mockEntries;
 
   return (
     <div className="space-y-6">
@@ -137,6 +168,9 @@ export default function Leaderboard({ playerState }: LeaderboardProps) {
       </div>
 
       <p className="text-xs text-muted-foreground">{tabConfig.find(t => t.id === tab)?.desc}</p>
+      {loading && (
+        <p className="text-xs text-muted-foreground">Loading leaderboard…</p>
+      )}
 
       {/* Table */}
       <div className="bg-card border border-border rounded-xl overflow-hidden">

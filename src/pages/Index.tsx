@@ -173,7 +173,7 @@ export default function Index() {
           <AchievementPanel playerState={playerState} />
         )}
         {activeTab === "leaderboard" && (
-          <Leaderboard playerState={playerState} />
+          <Leaderboard playerState={playerState} isOnline={isOnline} />
         )}
         {activeTab === "trade" && (
           <TradeUI playerState={playerState} onStateChange={setPlayerState} />
