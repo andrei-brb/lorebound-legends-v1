@@ -15,6 +15,7 @@ export interface FieldCard {
   baseDefense: number;
   equippedWeapon: GameCard | null;
   abilityUsed: boolean;
+  attackedThisTurn: boolean;
   stunned: boolean; // can't act this turn
   tempBuffs: TempBuff[];
 }
@@ -191,6 +192,7 @@ function createFieldCard(card: GameCard): FieldCard {
     baseDefense: card.defense,
     equippedWeapon: null,
     abilityUsed: false,
+    attackedThisTurn: false,
     stunned: false,
     tempBuffs: [],
   };
@@ -216,6 +218,10 @@ function startTurn(state: BattleState): BattleState {
 
   side.ap = 2;
   side.hasCastSpellThisTurn = false;
+  for (const fc of side.field) {
+    if (!fc) continue;
+    fc.attackedThisTurn = false;
+  }
 
   // Draw 1 card at start of turn; apply fatigue only on draw.
   if (side.deck.length > 0) {
@@ -480,7 +486,7 @@ export function attackTarget(state: BattleState, attackerFieldIndex: number, tar
   const otherSide = getOtherSide(newState);
   const attacker = side.field[attackerFieldIndex];
 
-  if (!attacker || attacker.stunned) return state;
+  if (!attacker || attacker.stunned || attacker.attackedThisTurn) return state;
   if (!canSpendAp(newState, 1)) return state;
 
   const sideLabel = newState.turn === "player" ? "You" : "Enemy";
@@ -537,6 +543,7 @@ export function attackTarget(state: BattleState, attackerFieldIndex: number, tar
     }
 
     spendAp(newState, 1);
+    attacker.attackedThisTurn = true;
     return maybeAutoEndTurn(recalcFieldStats(checkWinCondition(newState)));
   }
 
@@ -607,6 +614,7 @@ export function attackTarget(state: BattleState, attackerFieldIndex: number, tar
   }
 
   spendAp(newState, 1);
+  attacker.attackedThisTurn = true;
   return maybeAutoEndTurn(recalcFieldStats(checkWinCondition(newState)));
 }
 
@@ -727,7 +735,7 @@ export function performAITurn(state: BattleState): BattleState {
       }
     }
 
-    const attackerIdx = side.field.findIndex((fc) => fc !== null && !fc.stunned);
+    const attackerIdx = side.field.findIndex((fc) => fc !== null && !fc.stunned && !fc.attackedThisTurn);
     if (attackerIdx !== -1) {
       const fc = side.field[attackerIdx]!;
       if (!fc.abilityUsed && Math.random() < 0.3) {

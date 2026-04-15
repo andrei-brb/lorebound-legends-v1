@@ -216,7 +216,7 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
     if (selectedFieldIndex === null) return;
     const fc = state.player.field[selectedFieldIndex];
     if (!fc) return;
-    if (fc.stunned) return;
+    if (fc.stunned || fc.attackedThisTurn) return;
     if (state.player.ap < 1) {
       toast({ title: "No AP", description: "You need at least 1 AP to attack.", variant: "destructive" });
       return;
@@ -364,7 +364,7 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
                       }
                       onClick={() => handleFieldCardClick("player", i)}
                     />
-                    {isPlayerTurn && actionMode === "none" && selectedFieldIndex === i && !fc.stunned && state.player.ap >= 1 && (
+                    {isPlayerTurn && actionMode === "none" && selectedFieldIndex === i && !fc.stunned && !fc.attackedThisTurn && state.player.ap >= 1 && (
                       <div className="pointer-events-none absolute inset-0 hidden md:flex items-start justify-end p-1 opacity-0 transition-opacity group-hover:opacity-100">
                         <span className="rounded bg-destructive/90 px-1.5 py-0.5 text-[8px] font-bold text-destructive-foreground shadow-sm">
                           Attack
@@ -377,7 +377,7 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
                       {selectedFieldIndex === i && (
                         <button
                           onClick={beginAttackFromSelected}
-                          disabled={fc.stunned || state.player.ap < 1}
+                          disabled={fc.stunned || fc.attackedThisTurn || state.player.ap < 1}
                           className="flex-1 text-[8px] py-1 rounded bg-destructive/20 text-destructive font-bold hover:bg-destructive/30 disabled:opacity-40"
                         >
                           <Sword className="w-2.5 h-2.5 inline mr-0.5" />
