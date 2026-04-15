@@ -11,6 +11,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "discord:token-server": "node server/token-server.mjs",
+    "discord:register-play": "node server/register-play-command.mjs",
     "test": "vitest run",
     "test:watch": "vitest"
   },

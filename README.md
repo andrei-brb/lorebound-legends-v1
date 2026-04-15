@@ -15,6 +15,19 @@ Open the URL Vite prints (default port `8080`).
 
 The [Embedded App SDK](https://discord.com/developers/docs/developer-tools/embedded-app-sdk) runs Mythic Arcana inside Discord. The app code already does: `ready` → OAuth `authorize` → `POST /api/token` (or `/.proxy/api/token` behind Discord’s proxy) → `authenticate` (`src/lib/discordEmbedded.ts`, `vite.config.ts`).
 
+### Add a `/play` command (Entry Point)
+
+If you want a command named **`/play`** that opens the Activity, run:
+
+```bash
+npm run discord:register-play -- --app-id YOUR_APP_ID --bot-token YOUR_BOT_TOKEN
+```
+
+- `YOUR_APP_ID` is your Discord **Application ID** (same as `VITE_DISCORD_CLIENT_ID`).
+- `YOUR_BOT_TOKEN` is from Developer Portal → **Bot** → **Reset Token**.
+
+This updates (or creates) the app’s **PRIMARY_ENTRY_POINT** command so Discord launches the Activity automatically. Global commands can take a minute to appear.
+
 ### Integrate in Discord (portal checklist)
 
 Complete these in [Discord Developer Portal](https://discord.com/developers/applications). IDs and secrets must match your project `.env`.
