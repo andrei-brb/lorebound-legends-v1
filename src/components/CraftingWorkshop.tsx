@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Coins, Sparkles, ArrowRight, Trash2 } from "lucide-react";
@@ -7,6 +8,7 @@ import { FUSION_RECIPES, performFusion, performSacrifice, canFuse, type FusionRe
 import type { PlayerState } from "@/lib/playerState";
 import { toast } from "@/hooks/use-toast";
 import { loadDailyQuests, progressQuest, saveDailyQuests } from "@/lib/questEngine";
+import SacrificeAnimation from "./SacrificeAnimation";
 
 interface CraftingWorkshopProps {
   playerState: PlayerState;
