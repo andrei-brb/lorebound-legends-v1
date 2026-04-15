@@ -18,27 +18,9 @@ interface TradeOffer {
   createdAt: number;
 }
 
-// Mock incoming trade offers
-const mockIncoming: TradeOffer[] = [
-  {
-    id: "t1",
-    fromPlayer: "DragonSlayer99",
-    toPlayer: "You",
-    offeredCardIds: ["pyrothos"],
-    requestedCardIds: ["moon-goddess"],
-    status: "pending",
-    createdAt: Date.now() - 3600000,
-  },
-  {
-    id: "t2",
-    fromPlayer: "MythicQueen",
-    toPlayer: "You",
-    offeredCardIds: ["glacius", "verdantia"],
-    requestedCardIds: ["nyx"],
-    status: "pending",
-    createdAt: Date.now() - 7200000,
-  },
-];
+// NOTE: Trading is not yet backed by a real multiplayer backend.
+// We intentionally keep this empty to avoid showing fake/random players.
+const mockIncoming: TradeOffer[] = [];
 
 interface TradeUIProps {
   playerState: PlayerState;
@@ -122,7 +104,7 @@ export default function TradeUI({ playerState, onStateChange }: TradeUIProps) {
         <h2 className="font-heading text-2xl font-bold text-foreground flex items-center gap-2">
           <ArrowLeftRight className="w-6 h-6 text-primary" /> Trading Post
         </h2>
-        <p className="text-sm text-muted-foreground mt-1">Trade cards with other players in your server</p>
+        <p className="text-sm text-muted-foreground mt-1">Trading will unlock when multiplayer is enabled</p>
       </div>
 
       {/* Phase tabs */}
@@ -153,8 +135,8 @@ export default function TradeUI({ playerState, onStateChange }: TradeUIProps) {
           {pendingIncoming.length === 0 && (
             <div className="text-center py-12 text-muted-foreground">
               <ArrowLeftRight className="w-12 h-12 mx-auto mb-3 opacity-30" />
-              <p className="font-heading font-bold">No incoming trades</p>
-              <p className="text-xs mt-1">Create a new trade offer to get started!</p>
+              <p className="font-heading font-bold">No trades yet</p>
+              <p className="text-xs mt-1">Multiplayer trading is coming soon.</p>
             </div>
           )}
           {pendingIncoming.map(trade => (

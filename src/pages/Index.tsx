@@ -42,6 +42,7 @@ export default function Index() {
   const [activeTab, setActiveTab] = useState<Tab>("collection");
   const [battleDeckIds, setBattleDeckIds] = useState<string[]>([]);
   const { playerState, setPlayerState, status, isOnline, pullCards, submitBattleResult, completeOnboarding, syncEconomy, craftFuse, craftSacrifice } = usePlayerApi();
+  const isDiscordActivityHost = typeof window !== "undefined" && window.location.hostname.endsWith("discordsays.com");
 
   // Achievement checking on state changes
   useEffect(() => {
@@ -103,7 +104,10 @@ export default function Index() {
       </div>
 
       {/* Header */}
-      <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
+      <header
+        className="border-b border-border bg-card/50 backdrop-blur-sm sticky z-50"
+        style={{ top: isDiscordActivityHost ? 56 : 0 }}
+      >
         <div className="container flex items-center justify-between h-14">
           <div className="flex items-center gap-2">
             <Swords className="w-6 h-6 text-primary" />
