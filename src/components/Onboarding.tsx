@@ -14,27 +14,41 @@ interface OnboardingProps {
 
 type Screen = "story1" | "story2" | "path" | "journey";
 
-export default function Onboarding({ playerState, onComplete }: OnboardingProps) {
+export default function Onboarding({
+  playerState,
+  onComplete,
+  isOnline,
+  completeOnboardingApi,
+}: OnboardingProps) {
   const [screen, setScreen] = useState<Screen>("story1");
   const [selectedPath, setSelectedPath] = useState<FactionPath | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   const handlePathSelect = (path: FactionPath) => {
     setSelectedPath(path);
     setScreen("journey");
   };
 
-  const handleEnterRealm = () => {
+  const handleEnterRealm = async () => {
     if (!selectedPath) return;
-    if (isOnline && completeOnboardingApi) {
-      completeOnboardingApi(selectedPath).then((serverState) => {
-        if (serverState) onComplete(serverState);
-      });
-      return;
-    }
+    if (submitting) return;
+    setSubmitting(true);
+    try {
+      if (isOnline && completeOnboardingApi) {
+        const serverState = await completeOnboardingApi(selectedPath);
+        if (serverState) {
+          onComplete(serverState);
+          return;
+        }
+        // If server call failed (network/vars), allow local fallback so player isn't stuck.
+      }
 
-    const newState = initializeStarterDeck(playerState, selectedPath);
-    savePlayerState(newState);
-    onComplete(newState);
+      const newState = initializeStarterDeck(playerState, selectedPath);
+      savePlayerState(newState);
+      onComplete(newState);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
