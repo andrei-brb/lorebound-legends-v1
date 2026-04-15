@@ -627,11 +627,18 @@ export function useAbility(state: BattleState, fieldIndex: number): BattleState 
   const targets = otherSide.field.filter(Boolean) as FieldCard[];
   if (targets.length > 0) {
     const target = targets.sort((a, b) => b.currentHp - a.currentHp)[0];
+    const attackerElement = fc.card.element || "neutral";
+    const defenderElement = target.card.element || "neutral";
+    const elemMult = getElementMultiplier(attackerElement, defenderElement);
+    const elemLabel = getElementAdvantageLabel(attackerElement, defenderElement);
+    
     const abilityDmg = Math.max(2, Math.round(fc.attack * 1.2 + (ability.cost || 3)));
-    const dmg = Math.max(1, abilityDmg - Math.floor(target.defense * 0.25));
+    const dmg = Math.max(1, Math.round((abilityDmg - Math.floor(target.defense * 0.25)) * elemMult));
     target.currentHp = Math.max(0, target.currentHp - dmg);
 
-    addLog(newState, `✨ ${fc.card.name} uses ${ability.name}! Deals ${dmg} damage to ${target.card.name}!`, "ability");
+    let abilityMsg = `✨ ${fc.card.name} uses ${ability.name}! Deals ${dmg} damage to ${target.card.name}!`;
+    if (elemLabel) abilityMsg += ` ${elementEmoji[attackerElement]} ${elemLabel}`;
+    addLog(newState, abilityMsg, "ability");
 
     if (target.currentHp <= 0) {
       const targetIdx = otherSide.field.indexOf(target);
