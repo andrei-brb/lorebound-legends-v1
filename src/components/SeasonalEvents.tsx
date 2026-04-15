@@ -6,6 +6,7 @@ import { allSeasonalCards } from "@/data/seasonalCards";
 import { allCards } from "@/data/cards";
 import { addCardToCollection, savePlayerState, type PlayerState } from "@/lib/playerState";
 import GameCard from "./GameCard";
+import PackOpening from "./PackOpening";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { elementEmoji } from "@/lib/elementSystem";
