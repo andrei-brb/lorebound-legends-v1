@@ -299,6 +299,8 @@ export interface GameCard {
   passiveAbility?: { name: string; description: string; stat: "attack" | "defense"; value: number; targetTag?: string };
   // Element (auto-inferred from tags if not set)
   element?: Element;
+  // Seasonal flag
+  seasonal?: boolean;
 }
 
 // Helper to add element to card arrays
