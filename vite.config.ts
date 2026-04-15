@@ -18,7 +18,7 @@ function readBody(req: IncomingMessage): Promise<string> {
 }
 
 async function fetchDiscordTokenWithRetry(
-  input: RequestInfo | URL,
+  input: string | URL,
   init?: RequestInit,
   nRetries = 3,
 ): Promise<Response> {
