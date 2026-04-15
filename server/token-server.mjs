@@ -1194,23 +1194,27 @@ async function autoRegisterDiscordCommands() {
   }
 
   const guildId = String(process.env.DISCORD_GUILD_ID || "").trim() || null;
-  const base = guildId
-    ? `/applications/${appId}/guilds/${guildId}/commands`
-    : `/applications/${appId}/commands`;
-
-  console.log(`[autoRegister] Registering commands (${guildId ? `guild ${guildId}` : "global"})…`);
-  const existing = await discordBotFetch(base, { method: "GET" });
-
-  await upsertDiscordCommand(existing, {
+  // IMPORTANT: PRIMARY_ENTRY_POINT commands must be registered globally (Discord constraint).
+  const globalBase = `/applications/${appId}/commands`;
+  console.log("[autoRegister] Registering /launch globally…");
+  const existingGlobal = await discordBotFetch(globalBase, { method: "GET" });
+  await upsertDiscordCommand(existingGlobal, {
     name: "launch",
     description: "Launch Mythic Arcana",
     type: 4, // PRIMARY_ENTRY_POINT
     handler: 2, // DISCORD_LAUNCH_ACTIVITY
     integration_types: [0, 1],
     contexts: [0, 1, 2],
-  }, guildId);
+  }, null);
 
-  await upsertDiscordCommand(existing, {
+  // Register chat commands either to a guild (instant) or globally (slower propagation)
+  const chatBase = guildId
+    ? `/applications/${appId}/guilds/${guildId}/commands`
+    : globalBase;
+  console.log(`[autoRegister] Registering chat commands (${guildId ? `guild ${guildId}` : "global"})…`);
+  const existingChat = await discordBotFetch(chatBase, { method: "GET" });
+
+  await upsertDiscordCommand(existingChat, {
     name: "play",
     description: "Open Mythic Arcana",
     type: 1,
@@ -1218,7 +1222,7 @@ async function autoRegisterDiscordCommands() {
     contexts: [0, 1, 2],
   }, guildId);
 
-  await upsertDiscordCommand(existing, {
+  await upsertDiscordCommand(existingChat, {
     name: "mythic",
     description: "Mythic Arcana commands",
     type: 1,
