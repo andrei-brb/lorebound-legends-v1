@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { BookOpen, Layers, Swords, Coins, Sparkles as SparklesIcon, Grid3X3, Loader2, ScrollText, Hammer, Trophy } from "lucide-react";
+import { BookOpen, Layers, Swords, Coins, Sparkles as SparklesIcon, Grid3X3, Loader2, ScrollText, Hammer, Trophy, ArrowLeftRight, BarChart3 } from "lucide-react";
 import CollectionView from "@/components/CollectionView";
 import DeckBuilder from "@/components/DeckBuilder";
 import BattleArena from "@/components/BattleArena";
@@ -8,13 +8,15 @@ import CardCatalog from "@/components/CardCatalog";
 import DailyQuests from "@/components/DailyQuests";
 import CraftingWorkshop from "@/components/CraftingWorkshop";
 import AchievementPanel from "@/components/AchievementPanel";
+import Leaderboard from "@/components/Leaderboard";
+import TradeUI from "@/components/TradeUI";
 import Onboarding from "@/components/Onboarding";
 import { cn } from "@/lib/utils";
 import { usePlayerApi } from "@/lib/usePlayerApi";
 import { loadAchievementState, checkNewAchievements, saveAchievementState, type AchievementState } from "@/lib/achievementEngine";
 import { toast } from "@/hooks/use-toast";
 
-type Tab = "collection" | "catalog" | "deck" | "battle" | "summon" | "quests" | "workshop" | "achievements";
+type Tab = "collection" | "catalog" | "deck" | "battle" | "summon" | "quests" | "workshop" | "achievements" | "leaderboard" | "trade";
 
 const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "collection", label: "Collection", icon: <BookOpen className="w-4 h-4" /> },
@@ -25,6 +27,8 @@ const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "quests", label: "Quests", icon: <ScrollText className="w-4 h-4" /> },
   { id: "workshop", label: "Workshop", icon: <Hammer className="w-4 h-4" /> },
   { id: "achievements", label: "Badges", icon: <Trophy className="w-4 h-4" /> },
+  { id: "leaderboard", label: "Ranks", icon: <BarChart3 className="w-4 h-4" /> },
+  { id: "trade", label: "Trade", icon: <ArrowLeftRight className="w-4 h-4" /> },
 ];
 
 export default function Index() {
@@ -159,6 +163,12 @@ export default function Index() {
         )}
         {activeTab === "achievements" && (
           <AchievementPanel playerState={playerState} />
+        )}
+        {activeTab === "leaderboard" && (
+          <Leaderboard playerState={playerState} />
+        )}
+        {activeTab === "trade" && (
+          <TradeUI playerState={playerState} onStateChange={setPlayerState} />
         )}
         {activeTab === "battle" && battleDeckIds.length === 0 && (
           <div className="text-center py-20">
