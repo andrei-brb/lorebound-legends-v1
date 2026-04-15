@@ -26,6 +26,7 @@ export default function CraftingWorkshop({ playerState, onStateChange, isOnline,
   const [selectedCards, setSelectedCards] = useState<string[]>([]);
   const [resultCard, setResultCard] = useState<string | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [sacrificeAnim, setSacrificeAnim] = useState<{ cardIds: string[]; stardust: number } | null>(null);
 
   const eligibleCards = playerState.ownedCardIds
     .filter(id => {
