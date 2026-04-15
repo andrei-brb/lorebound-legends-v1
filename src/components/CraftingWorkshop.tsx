@@ -53,8 +53,7 @@ export default function CraftingWorkshop({ playerState, onStateChange, isOnline,
       const result = await craftFuseApi(selectedRecipe.inputRarity, selectedCards);
       if (result) {
         setResultCard(result.resultCardId);
-        const card = allCards.find(c => c.id === result.resultCardId);
-        toast({ title: "🔥 Fusion Complete!", description: `You forged ${card?.name || "a new card"}!` });
+        setRevealCardId(result.resultCardId);
       } else {
         toast({ title: "Fusion failed", description: "Could not complete fusion. Try again.", variant: "destructive" });
       }
@@ -63,8 +62,7 @@ export default function CraftingWorkshop({ playerState, onStateChange, isOnline,
       if (result) {
         onStateChange(result.playerState);
         setResultCard(result.resultCardId);
-        const card = allCards.find(c => c.id === result.resultCardId);
-        toast({ title: "🔥 Fusion Complete!", description: `You forged ${card?.name || "a new card"}!` });
+        setRevealCardId(result.resultCardId);
       }
     }
     setIsAnimating(false);
