@@ -203,6 +203,35 @@ import sandTrapImg from "@/assets/cards/sand-trap.jpg";
 import chainTrapImg from "@/assets/cards/chain-trap.jpg";
 import crystalTrapImg from "@/assets/cards/crystal-trap.jpg";
 import dreamTrapImg from "@/assets/cards/dream-trap.jpg";
+import thorAxebornImg from "@/assets/cards/thor-axeborn.jpg";
+import irisLightbringerImg from "@/assets/cards/iris-lightbringer.jpg";
+import fenrirHowlerImg from "@/assets/cards/fenrir-howler.jpg";
+import oracleSybilImg from "@/assets/cards/oracle-sybil.jpg";
+import drakeFirebornImg from "@/assets/cards/drake-fireborn.jpg";
+import freyaShieldmaidenImg from "@/assets/cards/freya-shieldmaiden.jpg";
+import zionMonkImg from "@/assets/cards/zion-monk.jpg";
+import nagaSeaImg from "@/assets/cards/naga-sea.jpg";
+import ashNecromancerImg from "@/assets/cards/ash-necromancer.jpg";
+import ivyThornkeeperImg from "@/assets/cards/ivy-thornkeeper.jpg";
+import rookIronwallImg from "@/assets/cards/rook-ironwall.jpg";
+import stormWitchImg from "@/assets/cards/storm-witch.jpg";
+import voidHunterImg from "@/assets/cards/void-hunter.jpg";
+import graniteGolemImg from "@/assets/cards/granite-golem.jpg";
+import roseEnchantressImg from "@/assets/cards/rose-enchantress.jpg";
+import blitzSpeedsterImg from "@/assets/cards/blitz-speedster.jpg";
+import thornDruidImg from "@/assets/cards/thorn-druid.jpg";
+import plagueDoctorImg from "@/assets/cards/plague-doctor.jpg";
+import sandGuardianImg from "@/assets/cards/sand-guardian.jpg";
+import frostweaverImg from "@/assets/cards/frostweaver.jpg";
+import shadowDancerImg from "@/assets/cards/shadow-dancer.jpg";
+import forgeMasterImg from "@/assets/cards/forge-master.jpg";
+import tideCallerImg from "@/assets/cards/tide-caller.jpg";
+import chaosJesterImg from "@/assets/cards/chaos-jester.jpg";
+import sunPaladinImg from "@/assets/cards/sun-paladin.jpg";
+import boneKnightImg from "@/assets/cards/bone-knight.jpg";
+import mysticSageImg from "@/assets/cards/mystic-sage.jpg";
+import flameArcherImg from "@/assets/cards/flame-archer.jpg";
+import crystalGuardianImg from "@/assets/cards/crystal-guardian.jpg";
 
 
 export type Rarity = "legendary" | "rare" | "common";
@@ -1453,7 +1482,7 @@ const heroCards: GameCard[] = [
   },
   // ===== NEW HEROES (30) =====
   {
-    id: "thor-axeborn", name: "Thor, Axeborn", type: "hero", rarity: "rare", image: warriorKing,
+    id: "thor-axeborn", name: "Thor, Axeborn", type: "hero", rarity: "rare", image: thorAxebornImg,
     attack: 10, defense: 7, hp: 26, tags: ["storm", "warrior"],
     specialAbility: { name: "Mjolnir Toss", description: "Throws axe dealing 8 damage and returning for a second hit.", cost: 4 },
     lore: "Thor channels the storm's fury through his enchanted axe, each throw a thunderclap.",
@@ -1461,7 +1490,7 @@ const heroCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 80, loreArc: "The Crown of Storms",
   },
   {
-    id: "iris-lightbringer", name: "Iris, Lightbringer", type: "hero", rarity: "rare", image: healer,
+    id: "iris-lightbringer", name: "Iris, Lightbringer", type: "hero", rarity: "rare", image: irisLightbringerImg,
     attack: 7, defense: 8, hp: 24, tags: ["light", "healer"],
     specialAbility: { name: "Purifying Flame", description: "Deals 5 holy damage and heals self for 5 HP.", cost: 3 },
     lore: "Iris carries the sacred lantern of Solarius, purifying corruption wherever she walks.",
@@ -1469,7 +1498,7 @@ const heroCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 80, loreArc: "The Radiant Order",
   },
   {
-    id: "fenrir-howler", name: "Fenrir, Howler", type: "hero", rarity: "common", image: tormund,
+    id: "fenrir-howler", name: "Fenrir, Howler", type: "hero", rarity: "common", image: fenrirHowlerImg,
     attack: 9, defense: 5, hp: 20, tags: ["beast", "warrior"],
     specialAbility: { name: "Savage Howl", description: "Reduces all enemy attack by 2 and deals 4 damage to each.", cost: 3 },
     lore: "Half-man, half-wolf, Fenrir fights with primal ferocity inherited from Fenris.",
@@ -1477,7 +1506,7 @@ const heroCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "oracle-sybil", name: "Sybil, Oracle", type: "hero", rarity: "rare", image: felara,
+    id: "oracle-sybil", name: "Sybil, Oracle", type: "hero", rarity: "rare", image: oracleSybilImg,
     attack: 5, defense: 7, hp: 20, tags: ["arcane", "divine"],
     specialAbility: { name: "Foresight", description: "Reveals enemy hand and grants +2 DEF to all allies.", cost: 3 },
     lore: "Sybil reads the threads of fate, her prophecies guiding allies to victory.",
@@ -1485,7 +1514,7 @@ const heroCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 80,
   },
   {
-    id: "drake-fireborn", name: "Drake, Fireborn", type: "hero", rarity: "common", image: ember,
+    id: "drake-fireborn", name: "Drake, Fireborn", type: "hero", rarity: "common", image: drakeFirebornImg,
     attack: 8, defense: 5, hp: 20, tags: ["fire", "dragon"],
     specialAbility: { name: "Dragon Claw", description: "Deals 6 fire damage that ignores shields.", cost: 3 },
     lore: "Born with dragon blood in his veins, Drake can conjure fire from his bare hands.",
@@ -1493,7 +1522,7 @@ const heroCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60, loreArc: "The Infernal Pact",
   },
   {
-    id: "freya-shieldmaiden", name: "Freya, Shieldmaiden", type: "hero", rarity: "common", image: hilda,
+    id: "freya-shieldmaiden", name: "Freya, Shieldmaiden", type: "hero", rarity: "common", image: freyaShieldmaidenImg,
     attack: 6, defense: 9, hp: 26, tags: ["warrior", "ice"],
     specialAbility: { name: "Valkyrie Guard", description: "Absorbs all damage for one ally for 2 turns.", cost: 3 },
     lore: "Freya's shield has never been broken. She stands between death and her allies.",
@@ -1501,7 +1530,7 @@ const heroCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60, loreArc: "The Frozen North",
   },
   {
-    id: "zion-monk", name: "Zion, Templar Monk", type: "hero", rarity: "common", image: jin,
+    id: "zion-monk", name: "Zion, Templar Monk", type: "hero", rarity: "common", image: zionMonkImg,
     attack: 7, defense: 6, hp: 20, tags: ["light", "warrior"],
     specialAbility: { name: "Palm Strike", description: "Deals 5 damage and stuns for 1 turn.", cost: 2 },
     lore: "Zion trained in the Solar Temple, his fists glowing with holy light.",
@@ -1509,7 +1538,7 @@ const heroCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "naga-sea", name: "Naga, Sea Serpent", type: "hero", rarity: "common", image: coral,
+    id: "naga-sea", name: "Naga, Sea Serpent", type: "hero", rarity: "common", image: nagaSeaImg,
     attack: 7, defense: 7, hp: 22, tags: ["water", "beast"],
     specialAbility: { name: "Coiling Strike", description: "Constricts enemy dealing 5 damage and reducing DEF by 2.", cost: 3 },
     lore: "A serpentine warrior from the deep who fights with ancient ocean fury.",
@@ -1517,7 +1546,7 @@ const heroCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60, loreArc: "The Drowned Kingdom",
   },
   {
-    id: "ash-necromancer", name: "Ash, Necromancer", type: "hero", rarity: "rare", image: mara,
+    id: "ash-necromancer", name: "Ash, Necromancer", type: "hero", rarity: "rare", image: ashNecromancerImg,
     attack: 8, defense: 5, hp: 18, tags: ["death", "arcane"],
     specialAbility: { name: "Corpse Explosion", description: "Detonates a fallen card dealing 7 damage to all enemies.", cost: 4 },
     lore: "Ash sees death not as an end but as raw material for terrible weapons.",
@@ -1525,7 +1554,7 @@ const heroCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 80, loreArc: "The Deathless Court",
   },
   {
-    id: "ivy-thornkeeper", name: "Ivy, Thornkeeper", type: "hero", rarity: "common", image: elara,
+    id: "ivy-thornkeeper", name: "Ivy, Thornkeeper", type: "hero", rarity: "common", image: ivyThornkeeperImg,
     attack: 5, defense: 7, hp: 20, tags: ["nature", "healer"],
     specialAbility: { name: "Bloom Barrier", description: "Creates a thorny barrier granting +4 DEF to all allies.", cost: 3 },
     lore: "Ivy's garden grows wherever she walks, her thorns protecting the innocent.",
@@ -1533,7 +1562,7 @@ const heroCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60, loreArc: "The Verdant Cycle",
   },
   {
-    id: "rook-ironwall", name: "Rook, Ironwall", type: "hero", rarity: "common", image: marcus,
+    id: "rook-ironwall", name: "Rook, Ironwall", type: "hero", rarity: "common", image: rookIronwallImg,
     attack: 5, defense: 10, hp: 28, tags: ["forge", "warrior"],
     specialAbility: { name: "Fortify", description: "Gains +5 DEF for 2 turns and taunts all enemies.", cost: 3 },
     lore: "Rook is a living fortress. Behind his massive tower shield, nothing gets through.",
@@ -1541,7 +1570,7 @@ const heroCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60, loreArc: "The Eternal Forge",
   },
   {
-    id: "storm-witch", name: "Electra, Storm Witch", type: "hero", rarity: "rare", image: lyra,
+    id: "storm-witch", name: "Electra, Storm Witch", type: "hero", rarity: "rare", image: stormWitchImg,
     attack: 9, defense: 4, hp: 18, tags: ["storm", "arcane"],
     specialAbility: { name: "Chain Lightning", description: "Deals 4 damage to all enemies, bouncing between them.", cost: 4 },
     lore: "Electra dances in thunderstorms, her staff channeling raw electricity.",
@@ -1549,7 +1578,7 @@ const heroCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 80, loreArc: "The Sky Dominion",
   },
   {
-    id: "void-hunter", name: "Xar, Void Hunter", type: "hero", rarity: "rare", image: neth,
+    id: "void-hunter", name: "Xar, Void Hunter", type: "hero", rarity: "rare", image: voidHunterImg,
     attack: 9, defense: 5, hp: 20, tags: ["void", "rogue"],
     specialAbility: { name: "Dimensional Cut", description: "Attacks from the void dealing 7 damage, bypassing all defenses.", cost: 4 },
     lore: "Xar hunts between dimensions, his prey never seeing the blade until it's too late.",
@@ -1557,7 +1586,7 @@ const heroCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 80, loreArc: "The Void Between",
   },
   {
-    id: "granite-golem", name: "Granite, Living Golem", type: "hero", rarity: "common", image: gorim,
+    id: "granite-golem", name: "Granite, Living Golem", type: "hero", rarity: "common", image: graniteGolemImg,
     attack: 6, defense: 10, hp: 30, tags: ["stone", "earth"],
     specialAbility: { name: "Stone Slam", description: "Deals 5 damage and stuns for 1 turn.", cost: 3 },
     lore: "Animated by ancient magic, Granite is a sentinel of stone that never tires.",
@@ -1565,7 +1594,7 @@ const heroCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60, loreArc: "The Stone Circle",
   },
   {
-    id: "rose-enchantress", name: "Rose, Enchantress", type: "hero", rarity: "common", image: vesper,
+    id: "rose-enchantress", name: "Rose, Enchantress", type: "hero", rarity: "common", image: roseEnchantressImg,
     attack: 6, defense: 6, hp: 18, tags: ["arcane", "nature"],
     specialAbility: { name: "Charm", description: "Forces one enemy to skip their turn.", cost: 3 },
     lore: "Rose's beauty is her weapon. One glance and enemies forget why they fight.",
@@ -1573,7 +1602,7 @@ const heroCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "blitz-speedster", name: "Blitz, Speedster", type: "hero", rarity: "common", image: kael,
+    id: "blitz-speedster", name: "Blitz, Speedster", type: "hero", rarity: "common", image: blitzSpeedsterImg,
     attack: 7, defense: 4, hp: 16, tags: ["wind", "rogue"],
     specialAbility: { name: "Rapid Strike", description: "Attacks 4 times for 2 damage each.", cost: 3 },
     lore: "Blitz moves so fast he leaves afterimages. Four strikes before you blink.",
@@ -1581,7 +1610,7 @@ const heroCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60, loreArc: "The Sky Dominion",
   },
   {
-    id: "thorn-druid", name: "Briar, Thorn Druid", type: "hero", rarity: "common", image: moss,
+    id: "thorn-druid", name: "Briar, Thorn Druid", type: "hero", rarity: "common", image: thornDruidImg,
     attack: 5, defense: 8, hp: 22, tags: ["nature", "earth"],
     specialAbility: { name: "Thorn Wall", description: "Creates a barrier dealing 3 damage to all attackers.", cost: 3 },
     lore: "Briar is covered in living thorns. Anyone who touches her regrets it immediately.",
@@ -1589,7 +1618,7 @@ const heroCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60, loreArc: "The Verdant Cycle",
   },
   {
-    id: "plague-doctor", name: "Corvid, Plague Doctor", type: "hero", rarity: "rare", image: corvus,
+    id: "plague-doctor", name: "Corvid, Plague Doctor", type: "hero", rarity: "rare", image: plagueDoctorImg,
     attack: 7, defense: 5, hp: 18, tags: ["death", "shadow"],
     specialAbility: { name: "Plague Cloud", description: "Poisons all enemies for 3 damage/turn for 2 turns.", cost: 4 },
     lore: "Behind the beaked mask, Corvid brews poisons that kill slowly and painfully.",
@@ -1597,7 +1626,7 @@ const heroCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 80, loreArc: "The Deathless Court",
   },
   {
-    id: "sand-guardian", name: "Sphinx, Sand Guardian", type: "hero", rarity: "common", image: dune,
+    id: "sand-guardian", name: "Sphinx, Sand Guardian", type: "hero", rarity: "common", image: sandGuardianImg,
     attack: 6, defense: 8, hp: 24, tags: ["earth", "arcane"],
     specialAbility: { name: "Riddle", description: "Confuses target, making them attack their own allies.", cost: 3 },
     lore: "The Sphinx guards ancient desert ruins, posing riddles that kill the wrong answer.",
@@ -1605,7 +1634,7 @@ const heroCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "frostweaver", name: "Elise, Frostweaver", type: "hero", rarity: "common", image: iceMage,
+    id: "frostweaver", name: "Elise, Frostweaver", type: "hero", rarity: "common", image: frostweaverImg,
     attack: 6, defense: 6, hp: 18, tags: ["ice", "arcane"],
     specialAbility: { name: "Ice Lance", description: "Deals 7 cold damage that pierces through shields.", cost: 3 },
     lore: "Elise weaves ice into lethal weapons, her frozen lances shattering armor.",
@@ -1613,7 +1642,7 @@ const heroCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60, loreArc: "The Frozen North",
   },
   {
-    id: "shadow-dancer", name: "Sable, Shadow Dancer", type: "hero", rarity: "common", image: shade,
+    id: "shadow-dancer", name: "Sable, Shadow Dancer", type: "hero", rarity: "common", image: shadowDancerImg,
     attack: 8, defense: 4, hp: 16, tags: ["shadow", "rogue"],
     specialAbility: { name: "Shadow Step", description: "Teleports behind enemies, striking for 6 and returning.", cost: 2 },
     lore: "Sable dances through shadows, each step a killing stroke.",
@@ -1621,7 +1650,7 @@ const heroCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60, loreArc: "The Void Between",
   },
   {
-    id: "forge-master", name: "Vulcan, Forge Master", type: "hero", rarity: "common", image: darin,
+    id: "forge-master", name: "Vulcan, Forge Master", type: "hero", rarity: "common", image: forgeMasterImg,
     attack: 6, defense: 8, hp: 24, tags: ["forge", "fire"],
     specialAbility: { name: "Weapon Forge", description: "Grants equipped weapon +3 ATK permanently.", cost: 3 },
     lore: "Vulcan hammers weapons at his enchanted anvil, each strike imbuing divine power.",
@@ -1629,7 +1658,7 @@ const heroCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60, loreArc: "The Eternal Forge",
   },
   {
-    id: "tide-caller", name: "Marina, Tidecaller", type: "hero", rarity: "common", image: nereus,
+    id: "tide-caller", name: "Marina, Tidecaller", type: "hero", rarity: "common", image: tideCallerImg,
     attack: 6, defense: 7, hp: 20, tags: ["water", "healer"],
     specialAbility: { name: "Healing Tide", description: "Heals all allies for 4 HP using ocean magic.", cost: 3 },
     lore: "Marina calls upon the healing waters of the deep to restore her allies.",
@@ -1637,7 +1666,7 @@ const heroCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60, loreArc: "The Drowned Kingdom",
   },
   {
-    id: "chaos-jester", name: "Jinx, Chaos Jester", type: "hero", rarity: "rare", image: blaze,
+    id: "chaos-jester", name: "Jinx, Chaos Jester", type: "hero", rarity: "rare", image: chaosJesterImg,
     attack: 8, defense: 4, hp: 16, tags: ["chaos", "arcane"],
     specialAbility: { name: "Wild Card", description: "Random effect: deal 12 damage, heal 12 HP, or swap stats.", cost: 3 },
     lore: "Jinx treats battle as a game. His tricks are unpredictable but always devastating.",
@@ -1645,7 +1674,7 @@ const heroCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 80,
   },
   {
-    id: "sun-paladin", name: "Auric, Sun Paladin", type: "hero", rarity: "common", image: helios,
+    id: "sun-paladin", name: "Auric, Sun Paladin", type: "hero", rarity: "common", image: sunPaladinImg,
     attack: 7, defense: 8, hp: 24, tags: ["light", "warrior"],
     specialAbility: { name: "Holy Smite", description: "Deals 6 holy damage and heals self 3 HP.", cost: 3 },
     lore: "Auric carries the dawn on his golden blade, a paladin sworn to Solarius.",
@@ -1653,7 +1682,7 @@ const heroCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60, loreArc: "The Radiant Order",
   },
   {
-    id: "bone-knight", name: "Osseus, Bone Knight", type: "hero", rarity: "common", image: skoll,
+    id: "bone-knight", name: "Osseus, Bone Knight", type: "hero", rarity: "common", image: boneKnightImg,
     attack: 7, defense: 7, hp: 22, tags: ["death", "warrior"],
     specialAbility: { name: "Bone Armor", description: "Gains +5 DEF for 2 turns from skeletal reinforcement.", cost: 3 },
     lore: "An undead knight clad in bone armor, fighting with grim determination.",
@@ -1661,7 +1690,7 @@ const heroCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60, loreArc: "The Deathless Court",
   },
   {
-    id: "mystic-sage", name: "Arion, Mystic Sage", type: "hero", rarity: "common", image: psion,
+    id: "mystic-sage", name: "Arion, Mystic Sage", type: "hero", rarity: "common", image: mysticSageImg,
     attack: 6, defense: 6, hp: 18, tags: ["arcane"],
     specialAbility: { name: "Mana Surge", description: "Resets cooldown on one ally's ability.", cost: 3 },
     lore: "Arion has studied magic for centuries, his knowledge spanning every school of power.",
@@ -1669,7 +1698,7 @@ const heroCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60,
   },
   {
-    id: "flame-archer", name: "Pyra, Flame Archer", type: "hero", rarity: "common", image: pyrra,
+    id: "flame-archer", name: "Pyra, Flame Archer", type: "hero", rarity: "common", image: flameArcherImg,
     attack: 8, defense: 4, hp: 18, tags: ["fire", "wind"],
     specialAbility: { name: "Fire Arrow", description: "Fires a flaming arrow dealing 6 damage and burning for 2/turn.", cost: 3 },
     lore: "Pyra dips her arrows in alchemical fire, each shot a streak of flame.",
@@ -1677,7 +1706,7 @@ const heroCards: GameCard[] = [
     level: 1, xp: 0, xpToNext: 60, loreArc: "The Infernal Pact",
   },
   {
-    id: "crystal-guardian", name: "Quartz, Crystal Guardian", type: "hero", rarity: "common", image: prism,
+    id: "crystal-guardian", name: "Quartz, Crystal Guardian", type: "hero", rarity: "common", image: crystalGuardianImg,
     attack: 5, defense: 9, hp: 26, tags: ["arcane", "earth"],
     specialAbility: { name: "Crystal Shell", description: "Creates crystal armor granting +6 DEF for 2 turns.", cost: 3 },
     lore: "Quartz is a guardian made of living crystal, refracting attacks into harmless light.",
