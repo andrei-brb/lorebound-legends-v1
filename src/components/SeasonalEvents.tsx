@@ -229,6 +229,17 @@ export default function SeasonalEvents({ playerState, onStateChange }: SeasonalE
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Pack Opening Animation */}
+      <AnimatePresence>
+        {packCardIds && (
+          <PackOpening
+            cardIds={packCardIds}
+            onComplete={handlePackComplete}
+            playerState={playerState}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
