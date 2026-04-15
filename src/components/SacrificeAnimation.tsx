@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { allCards } from "@/data/cards";
 import { cn } from "@/lib/utils";
+import { playWhoosh, playShatter, playCollect } from "@/lib/sfx";
 
 interface SacrificeAnimationProps {
   cardIds: string[];
@@ -17,9 +18,9 @@ export default function SacrificeAnimation({ cardIds, totalStardust, onComplete 
   const cards = cardIds.map(id => allCards.find(c => c.id === id)!).filter(Boolean);
 
   useEffect(() => {
-    const t1 = setTimeout(() => setPhase("shatter"), 1200);
-    const t2 = setTimeout(() => setPhase("collect"), 2400);
-    const t3 = setTimeout(() => setPhase("done"), 4200);
+    const t1 = setTimeout(() => { setPhase("shatter"); playShatter(); }, 1200);
+    const t2 = setTimeout(() => { setPhase("collect"); playWhoosh(); }, 2400);
+    const t3 = setTimeout(() => { setPhase("done"); playCollect(); }, 4200);
     const t4 = setTimeout(onComplete, 4600);
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); };
   }, [onComplete]);

@@ -1,8 +1,9 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { allCards } from "@/data/cards";
 import { allSeasonalCards } from "@/data/seasonalCards";
 import { cn } from "@/lib/utils";
+import { playWhoosh, playChime, playFanfare } from "@/lib/sfx";
 import type { PlayerState } from "@/lib/playerState";
 
 interface PackOpeningProps {
@@ -41,24 +42,36 @@ export default function PackOpening({ cardIds, onComplete, playerState }: PackOp
     return () => clearTimeout(timer);
   }, []);
 
-  const revealCard = (index: number) => {
+  const revealCard = useCallback((index: number) => {
     if (phase !== "spread" && phase !== "revealing") return;
     if (revealedIndices.has(index)) return;
     setPhase("revealing");
     const next = new Set(revealedIndices);
     next.add(index);
     setRevealedIndices(next);
+
+    // SFX based on rarity
+    const card = cards[index];
+    if (card?.rarity === "legendary") {
+      playFanfare();
+    } else {
+      playChime();
+    }
+
     if (next.size === cards.length) {
       setTimeout(() => setPhase("summary"), 1200);
     }
-  };
+  }, [phase, revealedIndices, cards]);
 
-  const revealAll = () => {
+  const revealAll = useCallback(() => {
     const all = new Set<number>();
     cards.forEach((_, i) => all.add(i));
     setRevealedIndices(all);
+    playWhoosh();
+    const hasLegendary = cards.some(c => c.rarity === "legendary");
+    if (hasLegendary) setTimeout(() => playFanfare(), 200);
     setTimeout(() => setPhase("summary"), 800);
-  };
+  }, [cards]);
 
   return (
     <motion.div
