@@ -29,6 +29,7 @@ interface PackShopProps {
       newRedStar: boolean;
       rarity: string;
     }>;
+    state: PlayerState;
   } | null>;
 }
 
@@ -63,6 +64,7 @@ export default function PackShop({ playerState, onStateChange, isOnline, pullCar
     if (isOnline && pullCardsApi) {
       const result = await pullCardsApi(pack.id);
       if (result) {
+        onStateChange(result.state);
         setOpeningPack({ cardIds: result.pullResults.map((r) => r.cardId) });
         trackPackQuests(false);
       }
@@ -87,6 +89,7 @@ export default function PackShop({ playerState, onStateChange, isOnline, pullCar
     if (isOnline && pullCardsApi) {
       const result = await pullCardsApi("free");
       if (result) {
+        onStateChange(result.state);
         setOpeningPack({ cardIds: result.pullResults.map((r) => r.cardId) });
         trackPackQuests(true);
       }

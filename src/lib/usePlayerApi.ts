@@ -19,6 +19,7 @@ interface UsePlayerApiReturn {
       newRedStar: boolean;
       rarity: string;
     }>;
+    state: PlayerState;
   } | null>;
   submitBattleResult: (data: {
     won: boolean;
@@ -117,7 +118,7 @@ export function usePlayerApi(): UsePlayerApiReturn {
         const result = await api.pullCards(packId);
         setPlayerStateInternal(result.state);
         savePlayerState(result.state);
-        return { pullResults: result.pullResults };
+        return { pullResults: result.pullResults, state: result.state };
       } catch (err) {
         console.error("[usePlayerApi] pullCards failed:", err);
         return null;
