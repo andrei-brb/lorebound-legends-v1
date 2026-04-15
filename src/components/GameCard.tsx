@@ -189,32 +189,37 @@ export default function GameCard({ card, onClick, selected, showSynergy, size = 
           <div className="absolute inset-0 z-10 pointer-events-none rounded-[10px] border-[6px] border-card/60" />
           <div className="absolute inset-[5px] z-10 pointer-events-none rounded-lg border border-foreground/10" />
           <div className="p-2 flex flex-col h-full relative z-20 overflow-hidden">
-            <h3 className="font-heading text-[10px] font-bold text-foreground mb-0.5 truncate shrink-0">{card.name}</h3>
-            <p className="text-[8px] text-muted-foreground leading-tight flex-1 min-h-0 overflow-y-auto">{card.lore}</p>
+            <h3 className="font-heading text-[10px] font-bold leading-tight text-foreground mb-1 truncate shrink-0">{card.name}</h3>
 
-            <div className="mt-1 p-1 rounded-lg bg-secondary shrink-0">
-              <div className="flex items-center gap-1 mb-0.5">
-                <Zap className="w-2.5 h-2.5 text-legendary shrink-0" />
-                <span className="text-[8px] font-bold text-foreground truncate">{abilityName}</span>
+            <div className="flex-1 min-h-0 space-y-1 overflow-y-auto pr-1">
+              <p className="text-[8px] text-muted-foreground leading-tight">{card.lore}</p>
+
+              <div className="rounded-lg bg-secondary p-1">
+                <div className="flex items-center gap-1 mb-0.5">
+                  <Zap className="w-2.5 h-2.5 text-legendary shrink-0" />
+                  <span className="text-[8px] font-bold text-foreground truncate">{abilityName}</span>
+                </div>
+                <p className="text-[7px] text-muted-foreground leading-tight">{card.specialAbility.description}</p>
               </div>
-              <p className="text-[7px] text-muted-foreground leading-tight">{card.specialAbility.description}</p>
+
+              {card.synergies.length > 0 && (
+                <div className="space-y-0.5">
+                  <span className="text-[7px] font-semibold uppercase tracking-wider text-synergy">Synergies</span>
+                  {card.synergies.map((syn) => {
+                    const partner = allCards.find((c) => c.id === syn.partnerId);
+                    return (
+                      <div key={syn.partnerId} className="synergy-highlight rounded p-0.5">
+                        <div className="leading-tight">
+                          <span className="text-[7px] font-bold text-synergy">{syn.name}</span>
+                          <span className="text-[7px] text-muted-foreground"> — {partner?.name}</span>
+                        </div>
+                        <p className="text-[7px] text-synergy-glow leading-tight">{syn.description}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
-
-            {card.synergies.length > 0 && (
-              <div className="mt-1 space-y-0.5 shrink-0 max-h-[40%] overflow-y-auto">
-                <span className="text-[7px] font-semibold uppercase tracking-wider text-synergy">Synergies</span>
-                {card.synergies.map((syn) => {
-                  const partner = allCards.find((c) => c.id === syn.partnerId);
-                  return (
-                    <div key={syn.partnerId} className="synergy-highlight rounded p-0.5">
-                      <span className="text-[7px] font-bold text-synergy">{syn.name}</span>
-                      <span className="text-[7px] text-muted-foreground"> — {partner?.name}</span>
-                      <p className="text-[7px] text-synergy-glow leading-tight">{syn.description}</p>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
           </div>
         </div>
       </div>
