@@ -114,11 +114,198 @@ async function handleInteractions(req, res) {
   }
 
   const interaction = JSON.parse(rawBody.toString("utf8"));
+
+  // Ping
   if (interaction.type === 1) return sendJson(res, 200, { type: 1 });
+
+  // Slash command: /play → launch activity
   if (interaction.type === 2 && interaction.data?.name === "play") {
     return sendJson(res, 200, { type: 12 });
   }
+
+  // Slash command: /mythic <subcommand>
+  if (interaction.type === 2 && interaction.data?.name === "mythic") {
+    const sub = interaction.data.options?.[0];
+    if (!sub) return sendJson(res, 200, { type: 4, data: { content: "Unknown subcommand.", flags: 64 } });
+
+    const userId = interaction.member?.user?.id || interaction.user?.id;
+    const username = interaction.member?.user?.username || interaction.user?.username || "Unknown";
+    const avatar = interaction.member?.user?.avatar || interaction.user?.avatar || null;
+
+    if (sub.name === "profile") {
+      return await handleMythicProfile(res, userId, username);
+    }
+    if (sub.name === "daily") {
+      return await handleMythicDaily(res, userId, username, avatar);
+    }
+    if (sub.name === "duel") {
+      const opponentId = sub.options?.find((o) => o.name === "opponent")?.value;
+      return sendJson(res, 200, {
+        type: 4,
+        data: {
+          content: `⚔️ **${username}** challenges <@${opponentId}> to a duel!\n\nOpen Mythic Arcana with \`/play\` to accept!`,
+          allowed_mentions: { users: [opponentId] },
+        },
+      });
+    }
+    if (sub.name === "drop") {
+      return await handleMythicDrop(res, interaction);
+    }
+
+    return sendJson(res, 200, { type: 4, data: { content: "Unknown subcommand.", flags: 64 } });
+  }
+
+  // Button interaction: claim_drop_<cardId>
+  if (interaction.type === 3 && interaction.data?.custom_id?.startsWith("claim_drop_")) {
+    const cardId = interaction.data.custom_id.replace("claim_drop_", "");
+    const userId = interaction.member?.user?.id || interaction.user?.id;
+    const username = interaction.member?.user?.username || interaction.user?.username || "Unknown";
+    const avatar = interaction.member?.user?.avatar || interaction.user?.avatar || null;
+
+    try {
+      const result = await processCardClaim(prisma, userId, username, avatar, cardId);
+      const cardName = getCardName(cardId);
+      const msg = result.isDuplicate
+        ? `📦 **${username}** claimed **${cardName}** (duplicate — +50 XP & star progress)!`
+        : `🎉 **${username}** claimed **${cardName}**! Added to their collection!`;
+
+      return sendJson(res, 200, {
+        type: 7, // UPDATE_MESSAGE
+        data: {
+          content: msg,
+          embeds: [],
+          components: [], // Remove the claim button
+        },
+      });
+    } catch (err) {
+      console.error("Claim error:", err);
+      return sendJson(res, 200, {
+        type: 4,
+        data: { content: "❌ Failed to claim card. Try again!", flags: 64 },
+      });
+    }
+  }
+
   return sendJson(res, 400, { error: "Unhandled interaction" });
+}
+
+// ─── /mythic profile ───────────────────────────────────────────────────────────
+
+async function handleMythicProfile(res, userId, username) {
+  const player = await prisma.player.findUnique({
+    where: { discordId: userId },
+    include: { cards: true, battleStats: true },
+  });
+
+  if (!player) {
+    return sendJson(res, 200, {
+      type: 4,
+      data: { content: `❌ **${username}** hasn't started Mythic Arcana yet! Use \`/play\` to begin.`, flags: 64 },
+    });
+  }
+
+  const stats = player.battleStats;
+  const totalCards = player.cards.length;
+  const legendaryCount = player.cards.filter((c) => getCardRarity(c.cardId) === "legendary").length;
+  const winRate = stats && (stats.wins + stats.losses) > 0
+    ? Math.round((stats.wins / (stats.wins + stats.losses)) * 100)
+    : 0;
+
+  return sendJson(res, 200, {
+    type: 4,
+    data: {
+      embeds: [
+        {
+          title: `⚔️ ${username}'s Profile`,
+          color: 0xD4A020,
+          fields: [
+            { name: "💰 Gold", value: `${player.gold}`, inline: true },
+            { name: "💎 Stardust", value: `${player.stardust}`, inline: true },
+            { name: "🃏 Cards", value: `${totalCards}`, inline: true },
+            { name: "⭐ Legendaries", value: `${legendaryCount}`, inline: true },
+            { name: "🏆 Wins", value: `${stats?.wins || 0}`, inline: true },
+            { name: "📊 Win Rate", value: `${winRate}%`, inline: true },
+            { name: "🎯 Total Pulls", value: `${player.totalPulls}`, inline: true },
+            { name: "🛤️ Path", value: player.selectedPath ? player.selectedPath.charAt(0).toUpperCase() + player.selectedPath.slice(1) : "None", inline: true },
+          ],
+          footer: { text: "Use /play to open the full game!" },
+        },
+      ],
+    },
+  });
+}
+
+// ─── /mythic daily ─────────────────────────────────────────────────────────────
+
+async function handleMythicDaily(res, userId, username, avatar) {
+  let player = await prisma.player.findUnique({ where: { discordId: userId } });
+
+  if (!player) {
+    player = await prisma.player.create({
+      data: {
+        discordId: userId,
+        username,
+        avatar: avatar || null,
+        gold: 500,
+        stardust: 0,
+        pityCounter: 0,
+        totalPulls: 0,
+        hasCompletedOnboarding: false,
+        selectedPath: null,
+        battleStats: { create: {} },
+      },
+    });
+  }
+
+  if (player.lastFreePackTime && !canClaimFreePack(player.lastFreePackTime)) {
+    const remaining = 24 * 60 * 60 * 1000 - (Date.now() - player.lastFreePackTime.getTime());
+    const hours = Math.floor(remaining / 3600000);
+    const mins = Math.floor((remaining % 3600000) / 60000);
+    return sendJson(res, 200, {
+      type: 4,
+      data: { content: `⏰ **${username}**, your daily reward refreshes in **${hours}h ${mins}m**!`, flags: 64 },
+    });
+  }
+
+  // Grant daily reward: 100 gold + 10 stardust
+  await prisma.player.update({
+    where: { id: player.id },
+    data: {
+      gold: player.gold + 100,
+      stardust: player.stardust + 10,
+      lastFreePackTime: new Date(),
+    },
+  });
+
+  return sendJson(res, 200, {
+    type: 4,
+    data: {
+      content: `🎁 **${username}** claimed their daily reward!\n\n💰 **+100 Gold**\n💎 **+10 Stardust**\n\nCome back tomorrow for more!`,
+    },
+  });
+}
+
+// ─── /mythic drop ──────────────────────────────────────────────────────────────
+
+async function handleMythicDrop(res, interaction) {
+  // Only allow in guilds (not DMs)
+  if (!interaction.guild_id) {
+    return sendJson(res, 200, {
+      type: 4,
+      data: { content: "❌ Card drops only work in servers!", flags: 64 },
+    });
+  }
+
+  const cardId = pickRandomDropCard(ALL_CARD_IDS, getCardRarity);
+  const cardName = getCardName(cardId);
+  const rarity = getCardRarity(cardId);
+  const element = getCardElement(cardId);
+  const embed = buildDropEmbed(cardId, cardName, rarity, element);
+
+  return sendJson(res, 200, {
+    type: 4,
+    data: embed,
+  });
 }
 
 // ─── Token Exchange ────────────────────────────────────────────────────────────
