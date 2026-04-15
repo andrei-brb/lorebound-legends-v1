@@ -6,6 +6,7 @@ import { allSeasonalCards } from "@/data/seasonalCards";
 import { allCards } from "@/data/cards";
 import { addCardToCollection, savePlayerState, type PlayerState } from "@/lib/playerState";
 import GameCard from "./GameCard";
+import PackOpening from "./PackOpening";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { elementEmoji } from "@/lib/elementSystem";
@@ -17,6 +18,8 @@ interface SeasonalEventsProps {
 
 export default function SeasonalEvents({ playerState, onStateChange }: SeasonalEventsProps) {
   const [selectedEvent, setSelectedEvent] = useState<SeasonalEvent | null>(null);
+  const [packCardIds, setPackCardIds] = useState<string[] | null>(null);
+  const [pendingState, setPendingState] = useState<PlayerState | null>(null);
   const activeEvents = getActiveEvents();
   const upcomingEvents = getUpcomingEvents();
   const pastEvents = getPastEvents();
@@ -29,21 +32,26 @@ export default function SeasonalEvents({ playerState, onStateChange }: SeasonalE
 
     let newState = { ...playerState, gold: playerState.gold - event.packCost };
     const pool = allSeasonalCards.filter(c => event.seasonalCardIds.includes(c.id));
-    const pulled: string[] = [];
+    const pulledIds: string[] = [];
 
     for (let i = 0; i < 3; i++) {
       const card = pool[Math.floor(Math.random() * pool.length)];
       const result = addCardToCollection(newState, card.id);
       newState = result.state;
-      pulled.push(card.name);
+      pulledIds.push(card.id);
     }
 
-    savePlayerState(newState);
-    onStateChange(newState);
-    toast({
-      title: `${event.icon} ${event.packName} Opened!`,
-      description: `You got: ${pulled.join(", ")}`,
-    });
+    setPendingState(newState);
+    setPackCardIds(pulledIds);
+  };
+
+  const handlePackComplete = (cardIds: string[]) => {
+    if (pendingState) {
+      savePlayerState(pendingState);
+      onStateChange(pendingState);
+    }
+    setPackCardIds(null);
+    setPendingState(null);
   };
 
   const renderEventCard = (event: SeasonalEvent, status: "active" | "upcoming" | "past") => {
@@ -218,6 +226,17 @@ export default function SeasonalEvents({ playerState, onStateChange }: SeasonalE
               </button>
             </motion.div>
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Pack Opening Overlay */}
+      <AnimatePresence>
+        {packCardIds && (
+          <PackOpening
+            cardIds={packCardIds}
+            onComplete={handlePackComplete}
+            playerState={playerState}
+          />
         )}
       </AnimatePresence>
     </div>
