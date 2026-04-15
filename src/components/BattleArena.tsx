@@ -15,11 +15,21 @@ interface BattleArenaProps {
   onExit: () => void;
   playerState: PlayerState;
   onStateChange: (state: PlayerState) => void;
+  isOnline?: boolean;
+  submitBattleResultApi?: (data: {
+    won: boolean;
+    draw?: boolean;
+    turnCount: number;
+    deckCardIds: string[];
+  }) => Promise<{
+    goldReward: number;
+    levelUps: Array<{ cardId: string; oldLevel: number; newLevel: number }>;
+  } | null>;
 }
 
 type ActionMode = "none" | "select-field-attacker" | "select-attack-target" | "select-equip-target" | "select-spell-target";
 
-export default function BattleArena({ playerDeckIds, onExit, playerState, onStateChange }: BattleArenaProps) {
+export default function BattleArena({ playerDeckIds, onExit, playerState, onStateChange, isOnline, submitBattleResultApi }: BattleArenaProps) {
   const [state, setState] = useState<BattleState | null>(null);
   const [animating, setAnimating] = useState(false);
   const [rewardsGiven, setRewardsGiven] = useState(false);
@@ -61,11 +71,33 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
     if (!state || state.phase !== "game-over" || rewardsGiven) return;
     setRewardsGiven(true);
     const won = state.winner === "player";
+    const isDraw = state.winner === "draw";
+
+    if (isOnline && submitBattleResultApi) {
+      submitBattleResultApi({
+        won,
+        draw: isDraw,
+        turnCount: state.turnNumber,
+        deckCardIds: playerDeckIds,
+      }).then((result) => {
+        if (result) {
+          setGoldEarned(result.goldReward);
+          const mapped = result.levelUps.map((lu) => ({
+            ...lu,
+            milestone: null as string | null,
+          }));
+          setLevelUps(mapped);
+          if (mapped.length > 0) setShowLevelUps(true);
+        }
+      });
+      return;
+    }
+
     const gold = getBattleGoldReward(won, state.turnNumber);
     setGoldEarned(gold);
     let newState = { ...playerState, cardProgress: { ...playerState.cardProgress }, gold: playerState.gold + gold };
     const allLevelUps: (LevelUpResult & { cardId: string })[] = [];
-    const xpAmount = won ? 50 : state.winner === "draw" ? 35 : 20;
+    const xpAmount = won ? 50 : isDraw ? 35 : 20;
     for (const id of playerDeckIds) {
       const progress = getCardProgress(newState, id);
       const result = awardXp(progress, xpAmount);

@@ -1,12 +1,12 @@
-import { useState, useEffect } from "react";
-import { BookOpen, Layers, Swords, Coins, Sparkles as SparklesIcon, Grid3X3 } from "lucide-react";
+import { useState } from "react";
+import { BookOpen, Layers, Swords, Coins, Sparkles as SparklesIcon, Grid3X3, Loader2 } from "lucide-react";
 import CollectionView from "@/components/CollectionView";
 import DeckBuilder from "@/components/DeckBuilder";
 import BattleArena from "@/components/BattleArena";
 import PackShop from "@/components/PackShop";
 import CardCatalog from "@/components/CardCatalog";
 import { cn } from "@/lib/utils";
-import { loadPlayerState, savePlayerState, type PlayerState } from "@/lib/playerState";
+import { usePlayerApi } from "@/lib/usePlayerApi";
 
 type Tab = "collection" | "catalog" | "deck" | "battle" | "summon";
 
@@ -21,11 +21,18 @@ const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
 export default function Index() {
   const [activeTab, setActiveTab] = useState<Tab>("collection");
   const [battleDeckIds, setBattleDeckIds] = useState<string[]>([]);
-  const [playerState, setPlayerState] = useState<PlayerState>(loadPlayerState);
+  const { playerState, setPlayerState, status, isOnline, pullCards, submitBattleResult } = usePlayerApi();
 
-  useEffect(() => {
-    savePlayerState(playerState);
-  }, [playerState]);
+  if (status === "loading") {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 text-primary animate-spin" />
+          <p className="text-muted-foreground text-sm">Loading your adventure...</p>
+        </div>
+      </div>
+    );
+  }
 
   const startBattle = (deckIds: string[]) => {
     setBattleDeckIds(deckIds);
@@ -104,11 +111,11 @@ export default function Index() {
           <CardCatalog playerState={playerState} />
         )}
         {activeTab === "summon" && (
-          <PackShop playerState={playerState} onStateChange={setPlayerState} />
+          <PackShop playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} pullCardsApi={pullCards} />
         )}
         {activeTab === "deck" && <DeckBuilder onStartBattle={startBattle} playerState={playerState} />}
         {activeTab === "battle" && battleDeckIds.length > 0 && (
-          <BattleArena playerDeckIds={battleDeckIds} onExit={() => setActiveTab("deck")} playerState={playerState} onStateChange={setPlayerState} />
+          <BattleArena playerDeckIds={battleDeckIds} onExit={() => setActiveTab("deck")} playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} submitBattleResultApi={submitBattleResult} />
         )}
         {activeTab === "battle" && battleDeckIds.length === 0 && (
           <div className="text-center py-20">

@@ -18,6 +18,17 @@ const packImages: Record<string, string> = {
 interface PackShopProps {
   playerState: PlayerState;
   onStateChange: (state: PlayerState) => void;
+  isOnline?: boolean;
+  pullCardsApi?: (packId: string) => Promise<{
+    pullResults: Array<{
+      cardId: string;
+      isDuplicate: boolean;
+      stardustEarned: number;
+      newGoldStar: boolean;
+      newRedStar: boolean;
+      rarity: string;
+    }>;
+  } | null>;
 }
 
 function formatTime(ms: number): string {
@@ -27,7 +38,7 @@ function formatTime(ms: number): string {
   return `${hours}h ${minutes}m ${seconds}s`;
 }
 
-export default function PackShop({ playerState, onStateChange }: PackShopProps) {
+export default function PackShop({ playerState, onStateChange, isOnline, pullCardsApi }: PackShopProps) {
   const [openingPack, setOpeningPack] = useState<{ cardIds: string[] } | null>(null);
   const [freeTimer, setFreeTimer] = useState(freePackTimeRemaining(playerState));
 
@@ -38,8 +49,17 @@ export default function PackShop({ playerState, onStateChange }: PackShopProps) 
     return () => clearInterval(interval);
   }, [playerState.lastFreePackTime]);
 
-  const buyPack = (pack: PackDefinition) => {
+  const buyPack = async (pack: PackDefinition) => {
     if (!canAffordPack(playerState.gold, pack)) return;
+
+    if (isOnline && pullCardsApi) {
+      const result = await pullCardsApi(pack.id);
+      if (result) {
+        setOpeningPack({ cardIds: result.pullResults.map((r) => r.cardId) });
+      }
+      return;
+    }
+
     const { cardIds, newPityCounter } = pullCards(pack, playerState);
     const newState = {
       ...playerState,
@@ -51,8 +71,17 @@ export default function PackShop({ playerState, onStateChange }: PackShopProps) 
     setOpeningPack({ cardIds });
   };
 
-  const claimFreePack = () => {
+  const claimFreePack = async () => {
     if (!canClaimFreePack(playerState)) return;
+
+    if (isOnline && pullCardsApi) {
+      const result = await pullCardsApi("free");
+      if (result) {
+        setOpeningPack({ cardIds: result.pullResults.map((r) => r.cardId) });
+      }
+      return;
+    }
+
     const freePack: PackDefinition = { ...PACK_DEFINITIONS[0], cardCount: FREE_PACK_CARD_COUNT };
     const { cardIds, newPityCounter } = pullCards(freePack, playerState);
     const newState = {
@@ -66,12 +95,14 @@ export default function PackShop({ playerState, onStateChange }: PackShopProps) 
   };
 
   const handlePackOpeningComplete = (cardIds: string[]) => {
+    if (isOnline) {
+      setOpeningPack(null);
+      return;
+    }
     let state = { ...playerState, cardProgress: { ...playerState.cardProgress }, ownedCardIds: [...playerState.ownedCardIds] };
-    let totalStardust = 0;
     for (const id of cardIds) {
       const result = addCardToCollection(state, id);
       state = result.state;
-      totalStardust += result.stardustEarned;
     }
     onStateChange(state);
     savePlayerState(state);

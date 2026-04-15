@@ -2,12 +2,12 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "rewrites": [
     {
-      "source": "/api/token",
-      "destination": "https://lorebound-legends-v1-production.up.railway.app/api/token"
+      "source": "/api/:path*",
+      "destination": "https://lorebound-legends-v1-production.up.railway.app/api/:path*"
     },
     {
-      "source": "/.proxy/api/token",
-      "destination": "https://lorebound-legends-v1-production.up.railway.app/api/token"
+      "source": "/.proxy/api/:path*",
+      "destination": "https://lorebound-legends-v1-production.up.railway.app/api/:path*"
     },
     {
       "source": "/interactions",

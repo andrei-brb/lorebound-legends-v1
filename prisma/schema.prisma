@@ -1,0 +1,62 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Player {
+  id               Int            @id @default(autoincrement())
+  discordId        String         @unique
+  username         String
+  avatar           String?
+  gold             Int            @default(500)
+  stardust         Int            @default(0)
+  pityCounter      Int            @default(0)
+  totalPulls       Int            @default(0)
+  lastFreePackTime DateTime?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  cards            CardProgress[]
+  decks            Deck[]
+  battleStats      BattleStat?
+}
+
+model CardProgress {
+  id            Int    @id @default(autoincrement())
+  playerId      Int
+  cardId        String
+  level         Int    @default(1)
+  xp            Int    @default(0)
+  prestigeLevel Int    @default(0)
+  dupeCount     Int    @default(0)
+  goldStars     Int    @default(0)
+  redStars      Int    @default(0)
+  player        Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, cardId])
+  @@index([playerId])
+}
+
+model Deck {
+  id       Int    @id @default(autoincrement())
+  playerId Int
+  name     String
+  cardIds  Json
+  player   Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@index([playerId])
+}
+
+model BattleStat {
+  id           Int      @id @default(autoincrement())
+  playerId     Int      @unique
+  wins         Int      @default(0)
+  losses       Int      @default(0)
+  draws        Int      @default(0)
+  goldEarned   Int      @default(0)
+  lastBattleAt DateTime?
+  player       Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+}
