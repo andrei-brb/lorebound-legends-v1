@@ -10,7 +10,7 @@ type NotificationRow = {
   data?: any; createdAt: number; readAt?: number | null;
 };
 
-type Props = { onNavigate?: (tab: "trade" | "pvp") => void };
+type Props = { onNavigate?: (tab: "trade" | "pvp" | "battle") => void };
 
 function formatWhen(ts: number) {
   try { return new Date(ts).toLocaleString(); } catch { return ""; }
@@ -76,7 +76,7 @@ export default function InboxPanel({ onNavigate }: Props) {
       await api.pvpLiveJoin(matchId); await api.markNotificationsRead([n.id]);
       setRows((prev) => prev.map((r) => (r.id === n.id ? { ...r, readAt: Date.now() } : r)));
       sessionStorage.setItem("pvp.live.matchId", String(matchId));
-      onNavigate?.("pvp");
+      onNavigate?.("battle");
       toast({ title: "Invite accepted", description: `Joining match #${matchId}` });
     } catch (e: any) { toast({ title: "Accept failed", description: e?.message || "Could not accept invite" }); }
   }

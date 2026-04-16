@@ -17,6 +17,7 @@ import BattlePass from "@/components/BattlePass";
 import Onboarding from "@/components/Onboarding";
 import PvPPanel from "@/components/PvPPanel";
 import InboxPanel from "@/components/InboxPanel";
+import LivePvPBattleground from "@/components/LivePvPBattleground";
 import { cn } from "@/lib/utils";
 import { usePlayerApi } from "@/lib/usePlayerApi";
 import { loadAchievementState, checkNewAchievements, saveAchievementState } from "@/lib/achievementEngine";
@@ -151,6 +152,8 @@ export default function Index() {
   };
 
   const activeCat = categories.find((c) => c.id === activeCategory);
+  const liveMatchIdFromInbox = typeof window !== "undefined" ? Number(sessionStorage.getItem("pvp.live.matchId") || "") : NaN;
+  const hasLiveMatchFromInbox = Number.isFinite(liveMatchIdFromInbox) && liveMatchIdFromInbox > 0;
 
   return (
     <TooltipProvider>
@@ -252,13 +255,26 @@ export default function Index() {
             {activeTab === "achievements" && <AchievementPanel playerState={playerState} />}
             {activeTab === "leaderboard" && <Leaderboard playerState={playerState} isOnline={isOnline} />}
             {activeTab === "trade" && <TradeUI playerState={playerState} onStateChange={setPlayerState} />}
-            {activeTab === "mail" && <InboxPanel onNavigate={(tab) => { setActiveCategory("social"); setActiveTab(tab); }} />}
+            {activeTab === "mail" && <InboxPanel onNavigate={(tab) => {
+              if (tab === "trade" || tab === "pvp") { setActiveCategory("social"); setActiveTab(tab); return; }
+              if (tab === "battle") { setActiveCategory("combat"); setActiveTab("battle"); return; }
+            }} />}
             {activeTab === "pvp" && <PvPPanel playerState={playerState} />}
             {activeTab === "events" && <SeasonalEvents playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} pullSeasonalPackApi={pullSeasonalPack} />}
             {activeTab === "tournament" && <Tournament playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} syncEconomyApi={syncEconomy} />}
             {activeTab === "boost" && <BoostRewards />}
             {activeTab === "pass" && <BattlePass playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} />}
-            {activeTab === "battle" && battleDeckIds.length === 0 && (
+            {activeTab === "battle" && battleDeckIds.length === 0 && hasLiveMatchFromInbox && (
+              <LivePvPBattleground
+                matchId={liveMatchIdFromInbox}
+                onExit={() => {
+                  sessionStorage.removeItem("pvp.live.matchId");
+                  setActiveCategory("social");
+                  setActiveTab("pvp");
+                }}
+              />
+            )}
+            {activeTab === "battle" && battleDeckIds.length === 0 && !hasLiveMatchFromInbox && (
               <div className="text-center py-20">
                 <Swords className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
                 <h2 className="font-heading text-xl font-bold text-foreground mb-2">No Deck Selected</h2>
