@@ -491,6 +491,10 @@ function playerToClientState(player, cards) {
     totalPulls: player.totalPulls,
     hasCompletedOnboarding: player.hasCompletedOnboarding ?? true,
     selectedPath: player.selectedPath ?? null,
+    battlePass: player.battlePass ?? undefined,
+    cosmeticsOwned: player.cosmeticsOwned ?? undefined,
+    cosmeticsEquipped: player.cosmeticsEquipped ?? undefined,
+    battlePassXpBoostExpiresAt: player.battlePassXpBoostExpiresAt ? player.battlePassXpBoostExpiresAt.getTime() : null,
   };
 }
 
@@ -512,6 +516,10 @@ async function findOrCreatePlayer(discordUser) {
         totalPulls: 0,
         hasCompletedOnboarding: false,
         selectedPath: null,
+        battlePass: null,
+        cosmeticsOwned: [],
+        cosmeticsEquipped: {},
+        battlePassXpBoostExpiresAt: null,
         battleStats: { create: {} },
       },
       include: { cards: true, battleStats: true },
@@ -596,16 +604,19 @@ async function handlePatchPlayer(req, res) {
   if (!user) return;
 
   const body = await readJsonBody(req);
-  const allowed = ["gold", "stardust", "pityCounter", "totalPulls", "lastFreePackTime"];
   const data = {};
-  for (const key of allowed) {
-    if (body[key] !== undefined) {
-      if (key === "lastFreePackTime") {
-        data[key] = body[key] ? new Date(body[key]) : null;
-      } else {
-        data[key] = Number(body[key]);
-      }
-    }
+  if (body.gold !== undefined) data.gold = Number(body.gold);
+  if (body.stardust !== undefined) data.stardust = Number(body.stardust);
+  if (body.pityCounter !== undefined) data.pityCounter = Number(body.pityCounter);
+  if (body.totalPulls !== undefined) data.totalPulls = Number(body.totalPulls);
+  if (body.lastFreePackTime !== undefined) data.lastFreePackTime = body.lastFreePackTime ? new Date(body.lastFreePackTime) : null;
+
+  // Battle pass + cosmetics
+  if (body.battlePass !== undefined) data.battlePass = body.battlePass;
+  if (body.cosmeticsOwned !== undefined) data.cosmeticsOwned = body.cosmeticsOwned;
+  if (body.cosmeticsEquipped !== undefined) data.cosmeticsEquipped = body.cosmeticsEquipped;
+  if (body.battlePassXpBoostExpiresAt !== undefined) {
+    data.battlePassXpBoostExpiresAt = body.battlePassXpBoostExpiresAt ? new Date(body.battlePassXpBoostExpiresAt) : null;
   }
 
   const player = await prisma.player.update({
@@ -902,7 +913,19 @@ async function handleImport(req, res) {
     return sendJson(res, 409, { error: "Player already exists — import skipped" });
   }
 
-  const { gold, stardust, ownedCardIds, cardProgress, pityCounter, lastFreePackTime, totalPulls } = body;
+  const {
+    gold,
+    stardust,
+    ownedCardIds,
+    cardProgress,
+    pityCounter,
+    lastFreePackTime,
+    totalPulls,
+    battlePass,
+    cosmeticsOwned,
+    cosmeticsEquipped,
+    battlePassXpBoostExpiresAt,
+  } = body;
 
   const cardsToCreate = (ownedCardIds || []).map((cardId) => {
     const cp = cardProgress?.[cardId] || {};
@@ -928,6 +951,10 @@ async function handleImport(req, res) {
       pityCounter: pityCounter || 0,
       totalPulls: totalPulls || 0,
       lastFreePackTime: lastFreePackTime ? new Date(lastFreePackTime) : null,
+      battlePass: battlePass || null,
+      cosmeticsOwned: Array.isArray(cosmeticsOwned) ? cosmeticsOwned : [],
+      cosmeticsEquipped: cosmeticsEquipped || {},
+      battlePassXpBoostExpiresAt: battlePassXpBoostExpiresAt ? new Date(battlePassXpBoostExpiresAt) : null,
       cards: { create: cardsToCreate },
       battleStats: { create: {} },
     },

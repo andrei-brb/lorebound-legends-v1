@@ -43,6 +43,7 @@ export function usePlayerApi(): UsePlayerApiReturn {
   const [status, setStatus] = useState<LoadingStatus>(online ? "loading" : "ready");
   const [playerState, setPlayerStateInternal] = useState<PlayerState>(loadPlayerState);
   const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const bpSyncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!online) return;
@@ -90,10 +91,24 @@ export function usePlayerApi(): UsePlayerApiReturn {
       setPlayerStateInternal((prev) => {
         const next = typeof update === "function" ? update(prev) : update;
         savePlayerState(next);
+
+        // Online: persist battle pass + cosmetics (debounced).
+        if (online) {
+          if (bpSyncTimer.current) clearTimeout(bpSyncTimer.current);
+          bpSyncTimer.current = setTimeout(() => {
+            api.patchPlayer({
+              battlePass: next.battlePass,
+              cosmeticsOwned: next.cosmeticsOwned,
+              cosmeticsEquipped: next.cosmeticsEquipped,
+              battlePassXpBoostExpiresAt: next.battlePassXpBoostExpiresAt,
+            }).catch(() => {});
+          }, 600);
+        }
+
         return next;
       });
     },
-    [],
+    [online],
   );
 
   const completeOnboarding = useCallback(
