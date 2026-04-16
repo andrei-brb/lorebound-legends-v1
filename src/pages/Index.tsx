@@ -110,8 +110,20 @@ export default function Index() {
     );
   }
 
+  const handleCategoryClick = (catId: Category) => {
+    setActiveCategory(catId);
+    const remembered = lastTabPerCategory[catId];
+    setActiveTab(remembered);
+  };
+
+  const handleTabClick = (tabId: Tab) => {
+    setActiveTab(tabId);
+    setLastTabPerCategory((prev) => ({ ...prev, [activeCategory]: tabId }));
+  };
+
   const startBattle = (deckIds: string[]) => {
     setBattleDeckIds(deckIds);
+    setActiveCategory("combat");
     setActiveTab("battle");
   };
 
