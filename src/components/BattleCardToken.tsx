@@ -52,7 +52,7 @@ export default function BattleCardToken({
       onMouseEnter={onHover}
       onMouseLeave={onHoverEnd}
       className={cn(
-        "relative w-16 h-20 sm:w-[72px] sm:h-[88px] rounded-lg border-2 overflow-hidden cursor-default transition-all flex-shrink-0",
+        "relative w-[72px] h-[92px] sm:w-20 sm:h-[104px] rounded-lg border-2 overflow-hidden cursor-default transition-all flex-shrink-0",
         rarityGlow[card.rarity] || rarityGlow.common,
         isSelected && "ring-2 ring-primary ring-offset-1 ring-offset-background scale-110 z-10",
         selectable && "cursor-pointer hover:brightness-125 hover:scale-105",

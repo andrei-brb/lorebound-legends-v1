@@ -3,7 +3,7 @@ import battleBg from "@/assets/battle-bg.jpg";
 import { motion, AnimatePresence } from "framer-motion";
 import { Trophy, Skull, Coins, Sparkles, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { BattleState, FieldCard } from "@/lib/battleEngine";
+import type { BattleState } from "@/lib/battleEngine";
 import { initBattle, playCard, equipWeapon, castSpell, attackTarget, useAbility, performAITurn, generateEnemyDeck, endTurnAction } from "@/lib/battleEngine";
 import BattleCardToken from "./BattleCardToken";
 import BattleRadialMenu from "./BattleRadialMenu";
@@ -48,8 +48,6 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
   const [actionMode, setActionMode] = useState<ActionMode>("none");
   const [selectedHandIndex, setSelectedHandIndex] = useState<number | null>(null);
   const [selectedFieldIndex, setSelectedFieldIndex] = useState<number | null>(null);
-  const [hoveredCard, setHoveredCard] = useState<FieldCard | null>(null);
-  const [mobileInfoOpen, setMobileInfoOpen] = useState(false);
   const cardsPlayedRef = useRef(0);
   const isMobile = useIsMobile();
 
@@ -211,16 +209,8 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
       const fc = state.player.field[index];
       if (!fc) return;
       setSelectedFieldIndex(prev => (prev === index ? null : index));
-      if (isMobile) {
-        setHoveredCard(fc);
-        setMobileInfoOpen(true);
-      }
     } else if (actionMode === "none" && side === "enemy") {
-      const fc = state.enemy.field[index];
-      if (fc) {
-        setHoveredCard(fc);
-        if (isMobile) setMobileInfoOpen(true);
-      }
+      // tooltip shows on hover, no action needed
     }
   };
 
@@ -262,8 +252,6 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
   const isPlayerTurn = state.turn === "player" && !animating && state.phase !== "game-over";
   const boardSkinId = playerState.cosmeticsEquipped?.boardSkinId || null;
   const boardSkinImage = boardSkinId ? (getCosmeticById(boardSkinId)?.image || null) : null;
-  const selectedPlayerCard = selectedFieldIndex !== null ? state.player.field[selectedFieldIndex] : null;
-  const infoCard = hoveredCard || selectedPlayerCard;
   const noEnemyField = !state.enemy.field.some(fc => fc !== null);
 
   return (
@@ -310,20 +298,24 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
 
             {/* ===== Enemy Field ===== */}
             <div className="space-y-1.5">
-              <div className="flex justify-center gap-2 sm:gap-3 min-h-[88px]">
+              <div className="flex justify-center gap-2 sm:gap-3 min-h-[104px]">
                 {state.enemy.field.map((fc, i) => (
-                  <div key={i} className="relative">
+                  <div key={i} className="relative group">
                     {fc ? (
-                      <BattleCardToken
-                        fieldCard={fc}
-                        side="enemy"
-                        selectable={actionMode === "select-attack-target" || (actionMode === "select-spell-target" && state.player.hand[selectedHandIndex!]?.spellEffect?.target === "single_enemy")}
-                        onClick={() => handleFieldCardClick("enemy", i)}
-                        onHover={() => setHoveredCard(fc)}
-                        onHoverEnd={() => { if (hoveredCard === fc) setHoveredCard(null); }}
-                      />
+                      <>
+                        <BattleCardToken
+                          fieldCard={fc}
+                          side="enemy"
+                          selectable={actionMode === "select-attack-target" || (actionMode === "select-spell-target" && state.player.hand[selectedHandIndex!]?.spellEffect?.target === "single_enemy")}
+                          onClick={() => handleFieldCardClick("enemy", i)}
+                        />
+                        {/* Hover tooltip */}
+                        <div className="hidden group-hover:block absolute z-50 top-full mt-1 left-1/2 -translate-x-1/2">
+                          <BattleInfoPanel fieldCard={fc} side="enemy" />
+                        </div>
+                      </>
                     ) : (
-                      <div className="w-16 h-20 sm:w-[72px] sm:h-[88px] rounded-lg border border-dashed border-border/20 flex items-center justify-center">
+                      <div className="w-[72px] h-[92px] sm:w-20 sm:h-[104px] rounded-lg border border-dashed border-border/20 flex items-center justify-center">
                         <span className="text-muted-foreground/15 text-[9px]">—</span>
                       </div>
                     )}
@@ -377,9 +369,9 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
                 ))}
               </div>
 
-              <div className="flex justify-center gap-2 sm:gap-3 min-h-[88px]">
+              <div className="flex justify-center gap-2 sm:gap-3 min-h-[104px]">
                 {state.player.field.map((fc, i) => (
-                  <div key={i} className="relative">
+                  <div key={i} className="relative group">
                     {fc ? (
                       <>
                         <BattleCardToken
@@ -392,9 +384,12 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
                             (actionMode === "select-spell-target" && state.player.hand[selectedHandIndex!]?.spellEffect?.target === "single_ally")
                           }
                           onClick={() => handleFieldCardClick("player", i)}
-                          onHover={() => setHoveredCard(fc)}
-                          onHoverEnd={() => { if (hoveredCard === fc) setHoveredCard(null); }}
                         />
+
+                        {/* Hover tooltip */}
+                        <div className="hidden group-hover:block absolute z-50 bottom-full mb-1 left-1/2 -translate-x-1/2">
+                          <BattleInfoPanel fieldCard={fc} side="player" />
+                        </div>
 
                         {/* Radial menu on selected card */}
                         {isPlayerTurn && selectedFieldIndex === i && actionMode === "none" && (
@@ -413,7 +408,7 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
                         )}
                       </>
                     ) : (
-                      <div className="w-16 h-20 sm:w-[72px] sm:h-[88px] rounded-lg border border-dashed border-border/20 flex items-center justify-center">
+                      <div className="w-[72px] h-[92px] sm:w-20 sm:h-[104px] rounded-lg border border-dashed border-border/20 flex items-center justify-center">
                         <span className="text-muted-foreground/15 text-[9px]">—</span>
                       </div>
                     )}
@@ -488,7 +483,7 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
                     }}
                     whileHover={isPlayerTurn ? { y: -6, scale: 1.05 } : undefined}
                     className={cn(
-                      "flex-shrink-0 w-[60px] sm:w-[72px] rounded-lg border-2 overflow-hidden cursor-pointer transition-shadow",
+                      "flex-shrink-0 w-[68px] sm:w-20 rounded-lg border-2 overflow-hidden cursor-pointer transition-shadow",
                       selectedHandIndex === i
                         ? "ring-2 ring-legendary border-legendary shadow-[0_0_12px_hsl(var(--legendary)/0.4)]"
                         : "border-border hover:border-primary/50",
@@ -496,7 +491,7 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
                     )}
                     onClick={() => isPlayerTurn && handleHandCardClick(i)}
                   >
-                    <div className="w-full h-14 sm:h-16 overflow-hidden">
+                    <div className="w-full h-16 sm:h-20 overflow-hidden">
                       <img src={card.image} alt={card.name} className="w-full h-full object-cover" />
                     </div>
                     <div className="p-1 bg-card/90 space-y-0.5">
@@ -529,28 +524,7 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
           </div>
         </div>
 
-        {/* ===== Side Info Panel (desktop) ===== */}
-        {!isMobile && (
-          <div className="hidden md:flex border-l border-border">
-            <BattleInfoPanel
-              selectedCard={infoCard}
-              synergies={state.activeSynergies.player}
-              logs={state.logs}
-            />
-          </div>
-        )}
       </div>
-
-      {/* ===== Mobile Info Panel (bottom sheet) ===== */}
-      {isMobile && (
-        <BattleInfoPanel
-          selectedCard={infoCard}
-          synergies={state.activeSynergies.player}
-          logs={state.logs}
-          isMobile
-          onClose={() => { setMobileInfoOpen(false); setHoveredCard(null); }}
-        />
-      )}
 
       {/* ===== Game Over Overlay ===== */}
       <AnimatePresence>
