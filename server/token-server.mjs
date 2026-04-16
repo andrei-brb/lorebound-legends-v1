@@ -1024,6 +1024,36 @@ async function handleCreateTrade(req, res) {
 
   for (const id of [...offeredCardIds, ...requestedCardIds]) assertTradeable(id);
 
+  // Validate both sides actually own the cards being traded.
+  // Note: a single owned copy is enough (dupes are preferred during transfer).
+  const uniqueOffered = [...new Set(offeredCardIds)];
+  const uniqueRequested = [...new Set(requestedCardIds)];
+
+  const [meOwnedRows, otherOwnedRows] = await Promise.all([
+    uniqueOffered.length
+      ? prisma.cardProgress.findMany({
+          where: { playerId: me.id, cardId: { in: uniqueOffered } },
+          select: { cardId: true },
+        })
+      : Promise.resolve([]),
+    uniqueRequested.length
+      ? prisma.cardProgress.findMany({
+          where: { playerId: other.id, cardId: { in: uniqueRequested } },
+          select: { cardId: true },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  const meOwned = new Set(meOwnedRows.map((r) => r.cardId));
+  const otherOwned = new Set(otherOwnedRows.map((r) => r.cardId));
+
+  for (const cardId of uniqueOffered) {
+    if (!meOwned.has(cardId)) return sendJson(res, 400, { error: `Sender does not own: ${cardId}` });
+  }
+  for (const cardId of uniqueRequested) {
+    if (!otherOwned.has(cardId)) return sendJson(res, 400, { error: `Recipient does not own: ${cardId}` });
+  }
+
   const trade = await prisma.$transaction(async (tx) => {
     const created = await tx.trade.create({
       data: {
@@ -2164,8 +2194,22 @@ async function handlePostDeck(req, res) {
   const player = await prisma.player.findUnique({ where: { discordId: user.id } });
   if (!player) return sendJson(res, 404, { error: "Player not found" });
 
+  const requested = body.cardIds.map(String).slice(0, 60);
+  const unique = [...new Set(requested)];
+  const ownedRows = unique.length
+    ? await prisma.cardProgress.findMany({
+        where: { playerId: player.id, cardId: { in: unique } },
+        select: { cardId: true },
+      })
+    : [];
+  const owned = new Set(ownedRows.map((r) => r.cardId));
+  const missing = unique.filter((id) => !owned.has(id));
+  if (missing.length > 0) {
+    return sendJson(res, 400, { error: `Deck contains unowned cards: ${missing.slice(0, 10).join(", ")}${missing.length > 10 ? ", ..." : ""}` });
+  }
+
   const deck = await prisma.deck.create({
-    data: { playerId: player.id, name: body.name, cardIds: body.cardIds },
+    data: { playerId: player.id, name: body.name, cardIds: requested },
   });
   sendJson(res, 201, { deck });
 }
