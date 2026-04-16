@@ -495,6 +495,7 @@ function playerToClientState(player, cards) {
     cosmeticsOwned: player.cosmeticsOwned ?? undefined,
     cosmeticsEquipped: player.cosmeticsEquipped ?? undefined,
     battlePassXpBoostExpiresAt: player.battlePassXpBoostExpiresAt ? player.battlePassXpBoostExpiresAt.getTime() : null,
+    deckPresets: player.deckPresets ?? undefined,
   };
 }
 
@@ -520,6 +521,7 @@ async function findOrCreatePlayer(discordUser) {
         cosmeticsOwned: [],
         cosmeticsEquipped: {},
         battlePassXpBoostExpiresAt: null,
+        deckPresets: [],
         battleStats: { create: {} },
       },
       include: { cards: true, battleStats: true },
@@ -618,6 +620,7 @@ async function handlePatchPlayer(req, res) {
   if (body.battlePassXpBoostExpiresAt !== undefined) {
     data.battlePassXpBoostExpiresAt = body.battlePassXpBoostExpiresAt ? new Date(body.battlePassXpBoostExpiresAt) : null;
   }
+  if (body.deckPresets !== undefined) data.deckPresets = body.deckPresets;
 
   const player = await prisma.player.update({
     where: { discordId: user.id },
@@ -925,6 +928,7 @@ async function handleImport(req, res) {
     cosmeticsOwned,
     cosmeticsEquipped,
     battlePassXpBoostExpiresAt,
+    deckPresets,
   } = body;
 
   const cardsToCreate = (ownedCardIds || []).map((cardId) => {
@@ -955,6 +959,7 @@ async function handleImport(req, res) {
       cosmeticsOwned: Array.isArray(cosmeticsOwned) ? cosmeticsOwned : [],
       cosmeticsEquipped: cosmeticsEquipped || {},
       battlePassXpBoostExpiresAt: battlePassXpBoostExpiresAt ? new Date(battlePassXpBoostExpiresAt) : null,
+      deckPresets: Array.isArray(deckPresets) ? deckPresets : [],
       cards: { create: cardsToCreate },
       battleStats: { create: {} },
     },

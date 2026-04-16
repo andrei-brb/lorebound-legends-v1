@@ -8,12 +8,15 @@ import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { toast } from "@/hooks/use-toast";
+import type { DeckPreset } from "@/lib/playerState";
 
 const MAX_DECK_SIZE = 10;
 
 interface DeckBuilderProps {
   onStartBattle?: (deckIds: string[]) => void;
   playerState: PlayerState;
+  onStateChange: (state: PlayerState) => void;
 }
 
 type SortBy =
@@ -26,9 +29,12 @@ type SortBy =
   | "hp_desc"
   | "level_desc";
 
-export default function DeckBuilder({ onStartBattle, playerState }: DeckBuilderProps) {
+export default function DeckBuilder({ onStartBattle, playerState, onStateChange }: DeckBuilderProps) {
   const [deckIds, setDeckIds] = useState<string[]>([]);
   const [deckOpen, setDeckOpen] = useState(false);
+  const [newPresetName, setNewPresetName] = useState("");
+  const [renamePresetId, setRenamePresetId] = useState<string | null>(null);
+  const [renamePresetName, setRenamePresetName] = useState("");
 
   // Collection discovery (power-user)
   const [search, setSearch] = useState("");
@@ -89,6 +95,115 @@ export default function DeckBuilder({ onStartBattle, playerState }: DeckBuilderP
         ? [...prev, cardId]
         : prev
     );
+  };
+
+  const buildPresetDeck = (preset: Pick<DeckPreset, "cardIds">): { deckIds: string[]; missingIds: string[] } => {
+    const owned = new Set(playerState.ownedCardIds);
+    const chosen: string[] = [];
+    const missing: string[] = [];
+
+    for (const id of preset.cardIds) {
+      if (chosen.length >= MAX_DECK_SIZE) break;
+      if (!owned.has(id)) {
+        missing.push(id);
+        continue;
+      }
+      if (!chosen.includes(id)) chosen.push(id);
+    }
+
+    if (chosen.length < MAX_DECK_SIZE) {
+      const pool = allGameCards
+        .filter((c) => owned.has(c.id))
+        .filter((c) => !chosen.includes(c.id))
+        .sort((a, b) => {
+          // Prefer units first, then higher rarity, then higher level
+          const aUnit = a.type === "hero" || a.type === "god";
+          const bUnit = b.type === "hero" || b.type === "god";
+          if (aUnit !== bUnit) return aUnit ? -1 : 1;
+          const rarityRank = { common: 1, rare: 2, legendary: 3 } as const;
+          const r = (rarityRank[b.rarity] - rarityRank[a.rarity]);
+          if (r !== 0) return r;
+          const aLvl = getCardProgress(playerState, a.id).level;
+          const bLvl = getCardProgress(playerState, b.id).level;
+          return bLvl - aLvl;
+        })
+        .map((c) => c.id);
+
+      for (const id of pool) {
+        if (chosen.length >= MAX_DECK_SIZE) break;
+        chosen.push(id);
+      }
+    }
+
+    return { deckIds: chosen.slice(0, MAX_DECK_SIZE), missingIds: missing };
+  };
+
+  const applyPreset = (preset: Pick<DeckPreset, "name" | "cardIds">) => {
+    const { deckIds: nextIds, missingIds } = buildPresetDeck(preset);
+    setDeckIds(nextIds);
+    if (missingIds.length > 0) {
+      toast({
+        title: "Preset loaded (with substitutions)",
+        description: `You were missing ${missingIds.length} cards, so we filled the remaining slots with cards you own.`,
+      });
+    } else {
+      toast({ title: "Preset loaded", description: `${preset.name} applied.` });
+    }
+  };
+
+  const savePreset = () => {
+    const name = newPresetName.trim();
+    if (!name) {
+      toast({ title: "Name required", description: "Give your preset a name.", variant: "destructive" });
+      return;
+    }
+    if (deckIds.length === 0) {
+      toast({ title: "Empty deck", description: "Add some cards first.", variant: "destructive" });
+      return;
+    }
+    const existing = playerState.deckPresets || [];
+    if (existing.length >= 5) {
+      toast({ title: "Preset limit reached", description: "You can have up to 5 presets.", variant: "destructive" });
+      return;
+    }
+    const preset: DeckPreset = {
+      id: `preset_${Date.now()}`,
+      name,
+      cardIds: [...deckIds],
+      updatedAt: Date.now(),
+    };
+    onStateChange({ ...playerState, deckPresets: [...existing, preset] });
+    toast({ title: "Saved preset", description: `${name} saved.` });
+    setNewPresetName("");
+  };
+
+  const deletePreset = (presetId: string) => {
+    const existing = playerState.deckPresets || [];
+    onStateChange({ ...playerState, deckPresets: existing.filter((p) => p.id !== presetId) });
+    toast({ title: "Preset deleted" });
+  };
+
+  const startRenamePreset = (preset: DeckPreset) => {
+    setRenamePresetId(preset.id);
+    setRenamePresetName(preset.name);
+  };
+
+  const confirmRenamePreset = () => {
+    const id = renamePresetId;
+    if (!id) return;
+    const name = renamePresetName.trim();
+    if (!name) {
+      toast({ title: "Name required", description: "Preset name cannot be empty.", variant: "destructive" });
+      return;
+    }
+    const existing = playerState.deckPresets || [];
+    onStateChange({
+      ...playerState,
+      deckPresets: existing.map((p) => p.id === id ? { ...p, name, updatedAt: Date.now() } : p),
+    });
+    setRenamePresetId(null);
+    setRenamePresetName("");
+    toast({ title: "Preset renamed" });
   };
 
   const deckCards = deckIds.map((id) => allGameCards.find((c) => c.id === id)!).filter(Boolean);
@@ -195,6 +310,80 @@ export default function DeckBuilder({ onStartBattle, playerState }: DeckBuilderP
             Choose Cards <span className="text-muted-foreground font-body text-sm">({deckIds.length}/{MAX_DECK_SIZE})</span>
           </h2>
           <div className="hidden xl:block text-xs text-muted-foreground">Tip: click cards to add/remove</div>
+        </div>
+
+        {/* My Presets */}
+        <div className="mb-4 space-y-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">My Presets</span>
+            {(playerState.deckPresets || []).map((p) => (
+              <div key={p.id} className="flex items-center rounded-md border border-input overflow-hidden">
+                <button
+                  type="button"
+                  onClick={() => applyPreset(p)}
+                  className="h-9 px-3 bg-card text-sm font-heading font-bold text-foreground hover:bg-secondary transition-colors"
+                  title="Load preset"
+                >
+                  {p.name}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => startRenamePreset(p)}
+                  className="h-9 px-2 bg-background text-xs text-muted-foreground hover:text-foreground border-l border-input"
+                  title="Rename"
+                >
+                  ✎
+                </button>
+                <button
+                  type="button"
+                  onClick={() => deletePreset(p.id)}
+                  className="h-9 px-2 bg-background text-xs text-muted-foreground hover:text-destructive border-l border-input"
+                  title="Delete"
+                >
+                  ✕
+                </button>
+              </div>
+            ))}
+            {deckIds.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setDeckIds([])}
+                className="h-9 px-3 rounded-md border border-input bg-background text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Clear deck
+              </button>
+            )}
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2">
+            <Input value={newPresetName} onChange={(e) => setNewPresetName(e.target.value)} placeholder="Preset name (max 5)" />
+            <button
+              type="button"
+              onClick={savePreset}
+              className="h-10 px-4 rounded-md bg-primary text-primary-foreground font-heading font-bold text-sm hover:brightness-110 transition-colors"
+            >
+              Save preset
+            </button>
+          </div>
+          {renamePresetId && (
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Input value={renamePresetName} onChange={(e) => setRenamePresetName(e.target.value)} placeholder="New preset name" />
+              <button
+                type="button"
+                onClick={confirmRenamePreset}
+                className="h-10 px-4 rounded-md bg-secondary text-secondary-foreground font-heading font-bold text-sm"
+              >
+                Rename
+              </button>
+              <button
+                type="button"
+                onClick={() => { setRenamePresetId(null); setRenamePresetName(""); }}
+                className="h-10 px-4 rounded-md border border-input text-sm text-muted-foreground hover:text-foreground"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+          <p className="text-xs text-muted-foreground">Save your current deck as a reusable preset. You can store up to 5.</p>
         </div>
 
         {/* Discovery controls */}

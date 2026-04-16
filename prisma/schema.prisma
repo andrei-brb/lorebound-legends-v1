@@ -23,6 +23,7 @@ model Player {
   cosmeticsOwned   Json?
   cosmeticsEquipped Json?
   battlePassXpBoostExpiresAt DateTime?
+  deckPresets      Json?
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
   cards            CardProgress[]

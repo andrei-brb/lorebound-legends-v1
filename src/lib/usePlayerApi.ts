@@ -101,6 +101,7 @@ export function usePlayerApi(): UsePlayerApiReturn {
               cosmeticsOwned: next.cosmeticsOwned,
               cosmeticsEquipped: next.cosmeticsEquipped,
               battlePassXpBoostExpiresAt: next.battlePassXpBoostExpiresAt,
+              deckPresets: next.deckPresets,
             }).catch(() => {});
           }, 600);
         }

@@ -224,7 +224,7 @@ export default function Index() {
         {activeTab === "summon" && (
           <PackShop playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} pullCardsApi={pullCards} />
         )}
-        {activeTab === "deck" && <DeckBuilder onStartBattle={startBattle} playerState={playerState} />}
+        {activeTab === "deck" && <DeckBuilder onStartBattle={startBattle} playerState={playerState} onStateChange={setPlayerState} />}
         {activeTab === "battle" && battleDeckIds.length > 0 && (
           <BattleArena playerDeckIds={battleDeckIds} onExit={() => setActiveTab("deck")} playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} submitBattleResultApi={submitBattleResult} />
         )}

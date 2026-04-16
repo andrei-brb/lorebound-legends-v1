@@ -25,6 +25,14 @@ export interface PlayerState {
   cosmeticsOwned?: string[];
   cosmeticsEquipped?: CosmeticsEquipped;
   battlePassXpBoostExpiresAt?: number | null; // epoch ms; doubles BP XP while active
+  deckPresets?: DeckPreset[];
+}
+
+export interface DeckPreset {
+  id: string;
+  name: string;
+  cardIds: string[]; // up to 10
+  updatedAt: number; // epoch ms
 }
 
 export type BattlePassSeasonId = "season-01" | "season-02" | "season-03";
@@ -121,6 +129,7 @@ function createDefaultState(): PlayerState {
     cosmeticsOwned: [],
     cosmeticsEquipped: normalizeCosmeticsEquipped(undefined),
     battlePassXpBoostExpiresAt: null,
+    deckPresets: [],
   };
 }
 
@@ -154,6 +163,7 @@ export function loadPlayerState(): PlayerState {
       if (!Array.isArray(state.cosmeticsOwned)) state.cosmeticsOwned = [];
       state.cosmeticsEquipped = normalizeCosmeticsEquipped(state.cosmeticsEquipped);
       if (state.battlePassXpBoostExpiresAt === undefined) state.battlePassXpBoostExpiresAt = null;
+      if (!Array.isArray(state.deckPresets)) state.deckPresets = [];
       // Migration: add starProgress to existing cards
       for (const id of Object.keys(state.cardProgress)) {
         if (!state.cardProgress[id].starProgress) {
