@@ -15,12 +15,13 @@ import Tournament from "@/components/Tournament";
 import BoostRewards from "@/components/BoostRewards";
 import BattlePass from "@/components/BattlePass";
 import Onboarding from "@/components/Onboarding";
+import PvPPanel from "@/components/PvPPanel";
 import { cn } from "@/lib/utils";
 import { usePlayerApi } from "@/lib/usePlayerApi";
 import { loadAchievementState, checkNewAchievements, saveAchievementState } from "@/lib/achievementEngine";
 import { toast } from "@/hooks/use-toast";
 
-type Tab = "collection" | "catalog" | "deck" | "battle" | "summon" | "quests" | "workshop" | "achievements" | "leaderboard" | "trade" | "events" | "tournament" | "boost" | "pass";
+type Tab = "collection" | "catalog" | "deck" | "battle" | "pvp" | "summon" | "quests" | "workshop" | "achievements" | "leaderboard" | "trade" | "events" | "tournament" | "boost" | "pass";
 type Category = "cards" | "combat" | "progress" | "social";
 
 const categories: { id: Category; label: string; icon: React.ReactNode; tabs: { id: Tab; label: string; icon: React.ReactNode }[] }[] = [
@@ -37,6 +38,7 @@ const categories: { id: Category; label: string; icon: React.ReactNode; tabs: { 
     id: "combat", label: "Combat", icon: <Swords className="w-4 h-4" />,
     tabs: [
       { id: "battle", label: "Battle", icon: <Swords className="w-4 h-4" /> },
+      { id: "pvp", label: "PvP", icon: <Crown className="w-4 h-4" /> },
       { id: "tournament", label: "Tourney", icon: <Crown className="w-4 h-4" /> },
     ],
   },
@@ -252,6 +254,9 @@ export default function Index() {
         )}
         {activeTab === "trade" && (
           <TradeUI playerState={playerState} onStateChange={setPlayerState} />
+        )}
+        {activeTab === "pvp" && (
+          <PvPPanel playerState={playerState} />
         )}
         {activeTab === "events" && (
           <SeasonalEvents playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} pullSeasonalPackApi={pullSeasonalPack} />

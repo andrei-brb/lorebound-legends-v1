@@ -5,6 +5,20 @@ import { getElementMultiplier, getElementAdvantageLabel, elementEmoji } from "./
 
 // =================== Types ===================
 
+export type RNG = () => number;
+
+export function createSeededRng(seed: number): RNG {
+  // Mulberry32: fast, deterministic, good enough for game RNG.
+  let t = seed >>> 0;
+  return () => {
+    t += 0x6D2B79F5;
+    let x = t;
+    x = Math.imul(x ^ (x >>> 15), x | 1);
+    x ^= x + Math.imul(x ^ (x >>> 7), x | 61);
+    return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 export interface FieldCard {
   card: GameCard;
   currentHp: number;
@@ -60,6 +74,8 @@ export interface BattleState {
   turnNumber: number;
   activeSynergies: { player: ActiveSynergy[]; enemy: ActiveSynergy[] };
   pendingAction: PendingAction | null;
+  rng: RNG;
+  rngSeed?: number;
 }
 
 export type PendingAction =
@@ -71,18 +87,18 @@ export type PendingAction =
 
 // =================== Init ===================
 
-function shuffleDeck(cards: GameCard[]): GameCard[] {
+function shuffleDeck(cards: GameCard[], rng: RNG): GameCard[] {
   const arr = [...cards];
   for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(rng() * (i + 1));
     [arr[i], arr[j]] = [arr[j], arr[i]];
   }
   return arr;
 }
 
-function createSide(deckIds: string[]): PlayerSide {
+function createSide(deckIds: string[], rng: RNG): PlayerSide {
   const deckCards = deckIds.map(id => allCards.find(c => c.id === id)).filter(Boolean) as GameCard[];
-  const shuffled = shuffleDeck(deckCards);
+  const shuffled = shuffleDeck(deckCards, rng);
   const hand = shuffled.slice(0, 5);
   const deck = shuffled.slice(5);
 
@@ -100,10 +116,15 @@ function createSide(deckIds: string[]): PlayerSide {
   };
 }
 
-export function initBattle(playerDeckIds: string[], enemyDeckIds: string[]): BattleState {
+export function initBattle(
+  playerDeckIds: string[],
+  enemyDeckIds: string[],
+  opts?: { seed?: number; rng?: RNG }
+): BattleState {
+  const rng = opts?.rng ?? (opts?.seed !== undefined ? createSeededRng(opts.seed) : Math.random);
   const state: BattleState = {
-    player: createSide(playerDeckIds),
-    enemy: createSide(enemyDeckIds),
+    player: createSide(playerDeckIds, rng),
+    enemy: createSide(enemyDeckIds, rng),
     turn: "player",
     phase: "select-action",
     logs: [{ message: "⚔️ Battle begins! Draw your weapons!", type: "info", timestamp: Date.now() }],
@@ -111,6 +132,8 @@ export function initBattle(playerDeckIds: string[], enemyDeckIds: string[]): Bat
     turnNumber: 1,
     activeSynergies: { player: [], enemy: [] },
     pendingAction: null,
+    rng,
+    rngSeed: opts?.seed,
   };
   return startTurn(state);
 }
@@ -588,7 +611,7 @@ export function attackTarget(state: BattleState, attackerFieldIndex: number, tar
   const elemLabel = getElementAdvantageLabel(attackerElement, defenderElement);
 
   const rawDmg = Math.max(1, attacker.attack - Math.floor(target.defense * 0.4));
-  const variance = 0.9 + Math.random() * 0.2;
+  const variance = 0.9 + state.rng() * 0.2;
   const dmg = Math.max(1, Math.round(rawDmg * variance * elemMult));
 
   target.currentHp = Math.max(0, target.currentHp - dmg);
@@ -738,7 +761,7 @@ export function performAITurn(state: BattleState): BattleState {
     const attackerIdx = side.field.findIndex((fc) => fc !== null && !fc.stunned && !fc.attackedThisTurn);
     if (attackerIdx !== -1) {
       const fc = side.field[attackerIdx]!;
-      if (!fc.abilityUsed && Math.random() < 0.3) {
+      if (!fc.abilityUsed && s.rng() < 0.3) {
         const next = useAbility(s, attackerIdx);
         if (next !== s) { s = next; continue; }
       }
@@ -776,7 +799,106 @@ function deepCopy<T>(obj: T): T {
   return JSON.parse(JSON.stringify(obj));
 }
 
-export function generateEnemyDeck(size: number = 10): string[] {
+export function simulateBattle(params: {
+  playerDeckIds: string[];
+  enemyDeckIds: string[];
+  seed?: number;
+  maxTurns?: number;
+}): { winner: BattleState["winner"]; turnCount: number; finalState: BattleState } {
+  const seed = params.seed ?? 12345;
+  const maxTurns = params.maxTurns ?? 60;
+  let s = initBattle(params.playerDeckIds, params.enemyDeckIds, { seed });
+
+  const performAutoPlayerTurn = (state: BattleState): BattleState => {
+    let st = state;
+    const MAX_ACTIONS = 6;
+    for (let i = 0; i < MAX_ACTIONS; i++) {
+      if (st.phase === "game-over") return st;
+      if (st.turn !== "player") return st;
+      if (st.player.ap <= 0) return endTurn(deepCopy(st));
+
+      const side = st.player;
+      const emptySlot = side.field.findIndex((slot) => slot === null);
+      if (emptySlot !== -1) {
+        const unitIdx = side.hand.findIndex((c) => c.type === "hero" || c.type === "god");
+        if (unitIdx !== -1) {
+          const next = playCard(st, unitIdx);
+          if (next !== st) { st = next; continue; }
+        }
+      }
+
+      const weaponIdx = side.hand.findIndex((c) => c.type === "weapon");
+      if (weaponIdx !== -1) {
+        const unequipped = side.field.findIndex((fc) => fc !== null && !fc.equippedWeapon);
+        if (unequipped !== -1) {
+          const next = equipWeapon(st, weaponIdx, unequipped);
+          if (next !== st) { st = next; continue; }
+        }
+      }
+
+      const spellIdx = side.hand.findIndex((c) => c.type === "spell");
+      if (spellIdx !== -1 && !side.hasCastSpellThisTurn) {
+        // Target: prefer damaging spells on enemy unit, otherwise buff an ally.
+        const spell = side.hand[spellIdx];
+        if (spell.spellEffect) {
+          if (spell.spellEffect.type === "damage") {
+            const targetIdx = st.enemy.field.findIndex((fc) => fc !== null);
+            const next = castSpell(st, spellIdx, targetIdx >= 0 ? targetIdx : undefined);
+            if (next !== st) { st = next; continue; }
+          } else {
+            const allyIdx = side.field.findIndex((fc) => fc !== null);
+            const next = castSpell(st, spellIdx, allyIdx >= 0 ? allyIdx : undefined);
+            if (next !== st) { st = next; continue; }
+          }
+        }
+      }
+
+      const attackerIdx = side.field.findIndex((fc) => fc !== null && !fc.stunned && !fc.attackedThisTurn);
+      if (attackerIdx !== -1) {
+        const fc = side.field[attackerIdx]!;
+        if (!fc.abilityUsed && st.rng() < 0.3) {
+          const next = useAbility(st, attackerIdx);
+          if (next !== st) { st = next; continue; }
+        }
+
+        const enemyFieldCards = st.enemy.field
+          .map((fc2, idx) => (fc2 ? { fc: fc2, idx } : null))
+          .filter(Boolean) as { fc: FieldCard; idx: number }[];
+
+        if (enemyFieldCards.length > 0) {
+          const weakest = enemyFieldCards.sort((a, b) => a.fc.currentHp - b.fc.currentHp)[0];
+          const next = attackTarget(st, attackerIdx, weakest.idx);
+          if (next !== st) { st = next; continue; }
+        } else {
+          const next = attackTarget(st, attackerIdx, "direct");
+          if (next !== st) { st = next; continue; }
+        }
+      }
+
+      const trapIdx = side.hand.findIndex((c) => c.type === "trap");
+      if (trapIdx !== -1) {
+        const next = playCard(st, trapIdx);
+        if (next !== st) { st = next; continue; }
+      }
+
+      return endTurn(deepCopy(st));
+    }
+    return endTurn(deepCopy(st));
+  };
+
+  while (s.phase !== "game-over" && !s.winner && s.turnNumber <= maxTurns) {
+    if (s.turn === "enemy") {
+      const next = performAITurn(deepCopy(s));
+      s = next.turn === "enemy" && next.phase !== "game-over" ? endTurn(deepCopy(next)) : next;
+    } else {
+      s = performAutoPlayerTurn(deepCopy(s));
+    }
+  }
+
+  return { winner: s.winner, turnCount: s.turnNumber, finalState: s };
+}
+
+export function generateEnemyDeck(size: number = 10, rng: RNG = Math.random): string[] {
   // Build a balanced deck: mix of heroes, gods, weapons, spells, traps
   const heroes = allCards.filter(c => c.type === "hero");
   const gods = allCards.filter(c => c.type === "god");
@@ -784,7 +906,7 @@ export function generateEnemyDeck(size: number = 10): string[] {
   const spells = allCards.filter(c => c.type === "spell");
   const traps = allCards.filter(c => c.type === "trap");
 
-  const shuffled = (arr: GameCard[]) => [...arr].sort(() => Math.random() - 0.5);
+  const shuffled = (arr: GameCard[]) => shuffleDeck(arr, rng);
 
   const picked: string[] = [];
   // 4 heroes, 2 gods, 2 weapons, 1 spell, 1 trap
@@ -804,7 +926,7 @@ export function generateEnemyDeck(size: number = 10): string[] {
   while (picked.length < size) {
     const pool = [...heroes, ...gods].filter(c => !picked.includes(c.id));
     if (pool.length === 0) break;
-    picked.push(pool[Math.floor(Math.random() * pool.length)].id);
+    picked.push(pool[Math.floor(rng() * pool.length)].id);
   }
 
   return picked.slice(0, size);

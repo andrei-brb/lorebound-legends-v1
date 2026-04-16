@@ -1,26 +1,14 @@
-import { useState, useMemo } from "react";
-import { ArrowLeftRight, Check, X, Search, ArrowRight, UserCircle2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ArrowLeftRight, Check, X, Search, ArrowRight, UserCircle2, RefreshCw, Store, Users } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { allCards } from "@/data/cards";
 import type { PlayerState } from "@/lib/playerState";
 import GameCard from "./GameCard";
 import { getCardProgress } from "@/lib/playerState";
+import { api } from "@/lib/apiClient";
+import { toast } from "@/hooks/use-toast";
 
-type TradePhase = "browse" | "create" | "confirm" | "history";
-
-interface TradeOffer {
-  id: string;
-  fromPlayer: string;
-  toPlayer: string;
-  offeredCardIds: string[];
-  requestedCardIds: string[];
-  status: "pending" | "accepted" | "rejected" | "countered";
-  createdAt: number;
-}
-
-// NOTE: Trading is not yet backed by a real multiplayer backend.
-// We intentionally keep this empty to avoid showing fake/random players.
-const mockIncoming: TradeOffer[] = [];
+type TradePhase = "incoming" | "create" | "outgoing" | "friends" | "market";
 
 interface TradeUIProps {
   playerState: PlayerState;
@@ -28,13 +16,47 @@ interface TradeUIProps {
 }
 
 export default function TradeUI({ playerState, onStateChange }: TradeUIProps) {
-  const [phase, setPhase] = useState<TradePhase>("browse");
+  const [phase, setPhase] = useState<TradePhase>("incoming");
   const [offeredCards, setOfferedCards] = useState<string[]>([]);
   const [requestedCards, setRequestedCards] = useState<string[]>([]);
   const [searchOwned, setSearchOwned] = useState("");
   const [searchCatalog, setSearchCatalog] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
-  const [trades, setTrades] = useState<TradeOffer[]>(mockIncoming);
+  const [selectedFriendId, setSelectedFriendId] = useState<number | null>(null);
+  const [taxGold, setTaxGold] = useState<number>(0);
+  const [taxStardust, setTaxStardust] = useState<number>(0);
+  const [friendSearch, setFriendSearch] = useState("");
+  const [me, setMe] = useState<{ id: number; discordId: string; username: string; avatar?: string | null } | null>(null);
+  const [friends, setFriends] = useState<Awaited<ReturnType<typeof api.getFriends>> | null>(null);
+  const [trades, setTrades] = useState<Awaited<ReturnType<typeof api.getTrades>>["trades"]>([]);
+  const [listings, setListings] = useState<Awaited<ReturnType<typeof api.getMarket>>["listings"]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const refreshAll = async () => {
+    setLoading(true);
+    try {
+      const [meRes, fRes, tRes, mRes] = await Promise.all([
+        api.getMe(),
+        api.getFriends(),
+        api.getTrades(),
+        api.getMarket("open"),
+      ]);
+      setMe(meRes.me);
+      setFriends(fRes);
+      setTrades(tRes.trades);
+      setListings(mRes.listings);
+    } catch (e) {
+      console.error("[TradeUI] refresh failed", e);
+      toast({ title: "Failed to load multiplayer data", description: e instanceof Error ? e.message : String(e) });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    refreshAll();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const ownedCards = useMemo(() => {
     return playerState.ownedCardIds
@@ -57,46 +79,8 @@ export default function TradeUI({ playerState, onStateChange }: TradeUIProps) {
     setRequestedCards(prev => prev.includes(id) ? prev.filter(x => x !== id) : prev.length < 3 ? [...prev, id] : prev);
   };
 
-  const handleAcceptTrade = (tradeId: string) => {
-    const trade = trades.find(t => t.id === tradeId);
-    if (!trade) return;
-
-    // Add offered cards, remove requested cards
-    const newOwned = [...playerState.ownedCardIds.filter(id => !trade.requestedCardIds.includes(id)), ...trade.offeredCardIds];
-    const newProgress = { ...playerState.cardProgress };
-    for (const id of trade.offeredCardIds) {
-      if (!newProgress[id]) newProgress[id] = { level: 1, xp: 0, prestigeLevel: 0, starProgress: { dupeCount: 0, goldStars: 0, redStars: 0 } };
-    }
-    for (const id of trade.requestedCardIds) {
-      delete newProgress[id];
-    }
-
-    onStateChange({ ...playerState, ownedCardIds: newOwned, cardProgress: newProgress });
-    setTrades(prev => prev.map(t => t.id === tradeId ? { ...t, status: "accepted" } : t));
-  };
-
-  const handleRejectTrade = (tradeId: string) => {
-    setTrades(prev => prev.map(t => t.id === tradeId ? { ...t, status: "rejected" } : t));
-  };
-
-  const handleSendOffer = () => {
-    if (offeredCards.length === 0 || requestedCards.length === 0) return;
-    setTrades(prev => [...prev, {
-      id: `t-${Date.now()}`,
-      fromPlayer: "You",
-      toPlayer: "Someone",
-      offeredCardIds: offeredCards,
-      requestedCardIds: requestedCards,
-      status: "pending",
-      createdAt: Date.now(),
-    }]);
-    setOfferedCards([]);
-    setRequestedCards([]);
-    setPhase("browse");
-    setShowConfirm(false);
-  };
-
-  const pendingIncoming = trades.filter(t => t.status === "pending" && t.toPlayer === "You");
+  const pendingIncoming = me ? trades.filter(t => t.status === "open" && t.to.id === me.id) : [];
+  const pendingOutgoing = me ? trades.filter(t => t.status === "open" && t.from.id === me.id) : [];
 
   return (
     <div className="space-y-6">
@@ -104,39 +88,59 @@ export default function TradeUI({ playerState, onStateChange }: TradeUIProps) {
         <h2 className="font-heading text-2xl font-bold text-foreground flex items-center gap-2">
           <ArrowLeftRight className="w-6 h-6 text-primary" /> Trading Post
         </h2>
-        <p className="text-sm text-muted-foreground mt-1">Trading will unlock when multiplayer is enabled</p>
+        <p className="text-sm text-muted-foreground mt-1">Trade cards with friends, or post offers on the market.</p>
       </div>
 
       {/* Phase tabs */}
-      <div className="flex gap-2">
+      <div className="flex flex-wrap gap-2 items-center">
         <button
-          onClick={() => setPhase("browse")}
-          className={cn("px-4 py-2 rounded-lg text-sm font-medium transition-colors", phase === "browse" ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-secondary/80")}
+          onClick={() => setPhase("incoming")}
+          className={cn("px-4 py-2 rounded-lg text-sm font-medium transition-colors", phase === "incoming" ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-secondary/80")}
         >
           Incoming ({pendingIncoming.length})
         </button>
         <button
-          onClick={() => { setPhase("create"); setOfferedCards([]); setRequestedCards([]); }}
+          onClick={() => { setPhase("outgoing"); }}
+          className={cn("px-4 py-2 rounded-lg text-sm font-medium transition-colors", phase === "outgoing" ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-secondary/80")}
+        >
+          Outgoing ({pendingOutgoing.length})
+        </button>
+        <button
+          onClick={() => { setPhase("create"); setOfferedCards([]); setRequestedCards([]); setShowConfirm(false); }}
           className={cn("px-4 py-2 rounded-lg text-sm font-medium transition-colors", phase === "create" ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-secondary/80")}
         >
           New Trade
         </button>
         <button
-          onClick={() => setPhase("history")}
-          className={cn("px-4 py-2 rounded-lg text-sm font-medium transition-colors", phase === "history" ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-secondary/80")}
+          onClick={() => setPhase("friends")}
+          className={cn("px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2", phase === "friends" ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-secondary/80")}
         >
-          History
+          <Users className="w-4 h-4" /> Friends
+        </button>
+        <button
+          onClick={() => setPhase("market")}
+          className={cn("px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2", phase === "market" ? "bg-primary text-primary-foreground" : "bg-secondary text-secondary-foreground hover:bg-secondary/80")}
+        >
+          <Store className="w-4 h-4" /> Market
+        </button>
+
+        <button
+          onClick={refreshAll}
+          disabled={loading}
+          className={cn("ml-auto px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2", "bg-secondary text-secondary-foreground hover:bg-secondary/80", loading && "opacity-50 cursor-not-allowed")}
+        >
+          <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} /> Refresh
         </button>
       </div>
 
       {/* Incoming trades */}
-      {phase === "browse" && (
+      {phase === "incoming" && (
         <div className="space-y-3">
           {pendingIncoming.length === 0 && (
             <div className="text-center py-12 text-muted-foreground">
               <ArrowLeftRight className="w-12 h-12 mx-auto mb-3 opacity-30" />
               <p className="font-heading font-bold">No trades yet</p>
-              <p className="text-xs mt-1">Multiplayer trading is coming soon.</p>
+              <p className="text-xs mt-1">Ask a friend to send you an offer.</p>
             </div>
           )}
           {pendingIncoming.map(trade => (
@@ -144,7 +148,7 @@ export default function TradeUI({ playerState, onStateChange }: TradeUIProps) {
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <UserCircle2 className="w-5 h-5 text-muted-foreground" />
-                  <span className="font-heading font-bold text-sm text-foreground">{trade.fromPlayer}</span>
+                  <span className="font-heading font-bold text-sm text-foreground">{trade.from.username}</span>
                   <span className="text-[10px] text-muted-foreground">wants to trade</span>
                 </div>
                 <span className="text-[10px] text-muted-foreground">{new Date(trade.createdAt).toLocaleString()}</span>
@@ -155,7 +159,7 @@ export default function TradeUI({ playerState, onStateChange }: TradeUIProps) {
                 <div>
                   <span className="text-[10px] text-muted-foreground uppercase font-bold mb-1 block">They offer</span>
                   <div className="flex gap-1 flex-wrap">
-                    {trade.offeredCardIds.map(id => {
+                    {trade.offered.map(({ cardId: id }) => {
                       const card = allCards.find(c => c.id === id);
                       return card ? (
                         <div key={id} className="w-28">
@@ -172,7 +176,7 @@ export default function TradeUI({ playerState, onStateChange }: TradeUIProps) {
                 <div>
                   <span className="text-[10px] text-muted-foreground uppercase font-bold mb-1 block">They want</span>
                   <div className="flex gap-1 flex-wrap">
-                    {trade.requestedCardIds.map(id => {
+                    {trade.requested.map(({ cardId: id }) => {
                       const card = allCards.find(c => c.id === id);
                       return card ? (
                         <div key={id} className="w-28">
@@ -186,13 +190,16 @@ export default function TradeUI({ playerState, onStateChange }: TradeUIProps) {
 
               <div className="flex gap-2 justify-end">
                 <button
-                  onClick={() => handleRejectTrade(trade.id)}
-                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-destructive/20 text-destructive text-xs font-bold hover:bg-destructive/30"
-                >
-                  <X className="w-3 h-3" /> Decline
-                </button>
-                <button
-                  onClick={() => handleAcceptTrade(trade.id)}
+                  onClick={async () => {
+                    try {
+                      const res = await api.acceptTrade(trade.id);
+                      onStateChange(res.state);
+                      toast({ title: "Trade accepted" });
+                      await refreshAll();
+                    } catch (e) {
+                      toast({ title: "Trade failed", description: e instanceof Error ? e.message : String(e) });
+                    }
+                  }}
                   className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:brightness-110"
                 >
                   <Check className="w-3 h-3" /> Accept
@@ -203,9 +210,231 @@ export default function TradeUI({ playerState, onStateChange }: TradeUIProps) {
         </div>
       )}
 
+      {/* Outgoing trades */}
+      {phase === "outgoing" && (
+        <div className="space-y-3">
+          {pendingOutgoing.length === 0 && (
+            <p className="text-center text-muted-foreground py-8 text-sm">No outgoing trades.</p>
+          )}
+          {pendingOutgoing.map(trade => (
+            <div key={trade.id} className="bg-card border border-border rounded-xl p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <UserCircle2 className="w-5 h-5 text-muted-foreground" />
+                  <span className="font-heading font-bold text-sm text-foreground">To {trade.to.username}</span>
+                </div>
+                <span className="text-[10px] text-muted-foreground">{new Date(trade.createdAt).toLocaleString()}</span>
+              </div>
+              <div className="flex justify-end">
+                <button
+                  onClick={async () => {
+                    try {
+                      await api.cancelTrade(trade.id);
+                      toast({ title: "Trade cancelled" });
+                      await refreshAll();
+                    } catch (e) {
+                      toast({ title: "Cancel failed", description: e instanceof Error ? e.message : String(e) });
+                    }
+                  }}
+                  className="flex items-center gap-1 px-3 py-1.5 rounded-lg bg-destructive/20 text-destructive text-xs font-bold hover:bg-destructive/30"
+                >
+                  <X className="w-3 h-3" /> Cancel
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Friends */}
+      {phase === "friends" && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+              <h3 className="font-heading font-bold text-foreground text-sm">Add Friend</h3>
+              <input
+                value={friendSearch}
+                onChange={(e) => setFriendSearch(e.target.value)}
+                placeholder="Search by username or Discord ID..."
+                className="w-full px-3 py-2 text-xs rounded-lg bg-secondary border border-border text-foreground placeholder:text-muted-foreground"
+              />
+              <button
+                onClick={async () => {
+                  try {
+                    await api.friendRequest(friendSearch);
+                    toast({ title: "Friend request sent" });
+                    setFriendSearch("");
+                    await refreshAll();
+                  } catch (e) {
+                    toast({ title: "Friend request failed", description: e instanceof Error ? e.message : String(e) });
+                  }
+                }}
+                disabled={!friendSearch.trim()}
+                className="px-4 py-2 rounded-lg bg-primary text-primary-foreground font-heading font-bold text-sm disabled:opacity-40"
+              >
+                Send request
+              </button>
+            </div>
+
+            <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+              <h3 className="font-heading font-bold text-foreground text-sm">Incoming Requests</h3>
+              {(friends?.incoming || []).length === 0 ? (
+                <p className="text-xs text-muted-foreground">No incoming requests.</p>
+              ) : (
+                <div className="space-y-2">
+                  {friends!.incoming.map((req) => (
+                    <div key={req.id} className="flex items-center justify-between gap-2">
+                      <span className="text-sm text-foreground font-heading font-bold">{req.from.username}</span>
+                      <div className="flex gap-2">
+                        <button
+                          className="px-3 py-1.5 rounded-lg bg-secondary text-secondary-foreground text-xs font-bold"
+                          onClick={async () => { await api.friendRespond(req.id, false); await refreshAll(); }}
+                        >
+                          Decline
+                        </button>
+                        <button
+                          className="px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-bold"
+                          onClick={async () => { await api.friendRespond(req.id, true); await refreshAll(); }}
+                        >
+                          Accept
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+            <h3 className="font-heading font-bold text-foreground text-sm">Your Friends</h3>
+            {(friends?.accepted || []).length === 0 ? (
+              <p className="text-xs text-muted-foreground">No friends yet.</p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {friends!.accepted.map((f) => (
+                  <button
+                    key={f.friend.id}
+                    className={cn(
+                      "px-3 py-2 rounded-lg border text-sm font-heading font-bold transition-colors",
+                      selectedFriendId === f.friend.id ? "bg-primary text-primary-foreground border-primary" : "bg-secondary text-secondary-foreground border-border hover:bg-secondary/80"
+                    )}
+                    onClick={() => setSelectedFriendId(f.friend.id)}
+                    title={`Trade with ${f.friend.username}`}
+                  >
+                    {f.friend.username}
+                  </button>
+                ))}
+              </div>
+            )}
+            {selectedFriendId && (
+              <button
+                className="text-xs text-destructive font-bold"
+                onClick={async () => { await api.friendRemove(selectedFriendId); setSelectedFriendId(null); await refreshAll(); }}
+              >
+                Remove selected friend
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Market */}
+      {phase === "market" && (
+        <div className="space-y-3">
+          {listings.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8 text-sm">No listings yet.</p>
+          ) : (
+            listings.map((l) => (
+              <div key={l.id} className="bg-card border border-border rounded-xl p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-heading font-bold text-foreground text-sm">{l.seller.username}</span>
+                  <span className="text-[10px] text-muted-foreground">{new Date(l.createdAt).toLocaleString()}</span>
+                </div>
+                <div className="grid grid-cols-[1fr_40px_1fr] items-center gap-2">
+                  <div>
+                    <span className="text-[10px] text-muted-foreground uppercase font-bold mb-1 block">Offer</span>
+                    <div className="flex gap-1 flex-wrap">
+                      {l.offered.map(({ cardId }) => {
+                        const card = allCards.find(c => c.id === cardId);
+                        return card ? <div key={cardId} className="w-28"><GameCard card={card} size="sm" /></div> : null;
+                      })}
+                    </div>
+                  </div>
+                  <ArrowRight className="w-5 h-5 text-primary mx-auto" />
+                  <div>
+                    <span className="text-[10px] text-muted-foreground uppercase font-bold mb-1 block">Ask</span>
+                    <div className="flex gap-1 flex-wrap">
+                      {l.requested.map(({ cardId }) => {
+                        const card = allCards.find(c => c.id === cardId);
+                        return card ? <div key={cardId} className="w-28"><GameCard card={card} size="sm" /></div> : null;
+                      })}
+                    </div>
+                  </div>
+                </div>
+                <div className="flex justify-end">
+                  <button
+                    onClick={async () => {
+                      try {
+                        const res = await api.buyListing(l.id);
+                        onStateChange(res.state);
+                        toast({ title: "Purchase complete" });
+                        await refreshAll();
+                      } catch (e) {
+                        toast({ title: "Buy failed", description: e instanceof Error ? e.message : String(e) });
+                      }
+                    }}
+                    className="px-4 py-2 rounded-lg bg-primary text-primary-foreground font-heading font-bold text-sm"
+                  >
+                    Buy
+                  </button>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
       {/* Create new trade */}
       {phase === "create" && !showConfirm && (
         <div className="space-y-4">
+          <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+            <h3 className="font-heading text-sm font-bold text-foreground">Choose Friend</h3>
+            <select
+              value={selectedFriendId ?? ""}
+              onChange={(e) => setSelectedFriendId(e.target.value ? Number(e.target.value) : null)}
+              className="w-full px-3 py-2 text-xs rounded-lg bg-secondary border border-border text-foreground"
+            >
+              <option value="">Select a friend...</option>
+              {(friends?.accepted || []).map((f) => (
+                <option key={f.friend.id} value={f.friend.id}>{f.friend.username}</option>
+              ))}
+            </select>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-[10px] text-muted-foreground font-bold uppercase">Tax Gold</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={taxGold}
+                  onChange={(e) => setTaxGold(Math.max(0, Number(e.target.value) || 0))}
+                  className="w-full px-3 py-2 text-xs rounded-lg bg-secondary border border-border text-foreground"
+                />
+              </div>
+              <div>
+                <label className="text-[10px] text-muted-foreground font-bold uppercase">Tax Stardust</label>
+                <input
+                  type="number"
+                  min={0}
+                  value={taxStardust}
+                  onChange={(e) => setTaxStardust(Math.max(0, Number(e.target.value) || 0))}
+                  className="w-full px-3 py-2 text-xs rounded-lg bg-secondary border border-border text-foreground"
+                />
+              </div>
+            </div>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             {/* Your cards to offer */}
             <div className="space-y-2">
@@ -263,7 +492,7 @@ export default function TradeUI({ playerState, onStateChange }: TradeUIProps) {
           <div className="flex justify-center">
             <button
               onClick={() => setShowConfirm(true)}
-              disabled={offeredCards.length === 0 || requestedCards.length === 0}
+              disabled={!selectedFriendId || offeredCards.length === 0 || requestedCards.length === 0}
               className="px-6 py-2.5 rounded-xl bg-primary text-primary-foreground font-heading font-bold text-sm hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Review Trade →
@@ -308,41 +537,31 @@ export default function TradeUI({ playerState, onStateChange }: TradeUIProps) {
               ← Back
             </button>
             <button
-              onClick={handleSendOffer}
+              onClick={async () => {
+                if (!selectedFriendId) return;
+                try {
+                  await api.createTrade({
+                    toPlayerId: selectedFriendId,
+                    offeredCardIds: offeredCards,
+                    requestedCardIds: requestedCards,
+                    taxGold,
+                    taxStardust,
+                  });
+                  toast({ title: "Offer sent" });
+                  setOfferedCards([]);
+                  setRequestedCards([]);
+                  setShowConfirm(false);
+                  setPhase("outgoing");
+                  await refreshAll();
+                } catch (e) {
+                  toast({ title: "Failed to send offer", description: e instanceof Error ? e.message : String(e) });
+                }
+              }}
               className="px-5 py-2 rounded-xl bg-primary text-primary-foreground font-heading font-bold text-sm hover:brightness-110"
             >
               ✅ Send Offer
             </button>
           </div>
-        </div>
-      )}
-
-      {/* Trade history */}
-      {phase === "history" && (
-        <div className="space-y-2">
-          {trades.filter(t => t.status !== "pending").length === 0 && (
-            <p className="text-center text-muted-foreground py-8 text-sm">No trade history yet</p>
-          )}
-          {trades.filter(t => t.status !== "pending").map(trade => (
-            <div key={trade.id} className="bg-card border border-border rounded-lg p-3 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-heading font-bold text-foreground">
-                  {trade.fromPlayer} → {trade.toPlayer}
-                </span>
-                <span className="text-[10px] text-muted-foreground">
-                  {trade.offeredCardIds.length} card(s) ↔ {trade.requestedCardIds.length} card(s)
-                </span>
-              </div>
-              <span className={cn(
-                "text-[10px] font-bold px-2 py-0.5 rounded-full uppercase",
-                trade.status === "accepted" ? "bg-green-500/20 text-green-400" :
-                trade.status === "rejected" ? "bg-destructive/20 text-destructive" :
-                "bg-secondary text-muted-foreground"
-              )}>
-                {trade.status}
-              </span>
-            </div>
-          ))}
         </div>
       )}
     </div>

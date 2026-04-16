@@ -27,6 +27,11 @@ async function handleResponse<T>(res: Response): Promise<T> {
 }
 
 export const api = {
+  async getMe() {
+    const res = await fetch(`${getApiBase()}/api/me`, { headers: getHeaders() });
+    return handleResponse<{ me: { id: number; discordId: string; username: string; avatar?: string | null } }>(res);
+  },
+
   async getPlayer() {
     const res = await fetch(`${getApiBase()}/api/player`, { headers: getHeaders() });
     return handleResponse(res);
@@ -163,6 +168,185 @@ export const api = {
   async getLeaderboard(tab: "wins" | "collection" | "rarest") {
     const res = await fetch(`${getApiBase()}/api/leaderboard?tab=${encodeURIComponent(tab)}`, { headers: getHeaders() });
     return handleResponse<{ entries: Array<{ rank: number; name: string; avatar?: string | null; discordId: string; value: number }> }>(res);
+  },
+
+  async getFriends() {
+    const res = await fetch(`${getApiBase()}/api/friends`, { headers: getHeaders() });
+    return handleResponse<{
+      accepted: Array<{ id: number; friend: { id: number; discordId: string; username: string; avatar?: string | null }; createdAt: number }>;
+      incoming: Array<{ id: number; from: { id: number; discordId: string; username: string; avatar?: string | null }; createdAt: number }>;
+      outgoing: Array<{ id: number; to: { id: number; discordId: string; username: string; avatar?: string | null }; createdAt: number }>;
+    }>(res);
+  },
+
+  async friendRequest(usernameOrDiscordId: string) {
+    const res = await fetch(`${getApiBase()}/api/friends/request`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({ usernameOrDiscordId }),
+    });
+    return handleResponse(res);
+  },
+
+  async friendRespond(requestId: number, accept: boolean) {
+    const res = await fetch(`${getApiBase()}/api/friends/respond`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({ requestId, accept }),
+    });
+    return handleResponse(res);
+  },
+
+  async friendRemove(friendId: number) {
+    const res = await fetch(`${getApiBase()}/api/friends/remove`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({ friendId }),
+    });
+    return handleResponse(res);
+  },
+
+  async getTrades() {
+    const res = await fetch(`${getApiBase()}/api/trades`, { headers: getHeaders() });
+    return handleResponse<{ trades: Array<{
+      id: number;
+      status: string;
+      createdAt: number;
+      from: { id: number; discordId: string; username: string; avatar?: string | null };
+      to: { id: number; discordId: string; username: string; avatar?: string | null };
+      taxGold: number;
+      taxStardust: number;
+      message?: string | null;
+      offered: Array<{ cardId: string; quantity: number }>;
+      requested: Array<{ cardId: string; quantity: number }>;
+    }> }>(res);
+  },
+
+  async createTrade(data: { toPlayerId: number; offeredCardIds: string[]; requestedCardIds: string[]; taxGold?: number; taxStardust?: number; message?: string | null }) {
+    const res = await fetch(`${getApiBase()}/api/trades`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(res);
+  },
+
+  async cancelTrade(tradeId: number) {
+    const res = await fetch(`${getApiBase()}/api/trades/${tradeId}/cancel`, {
+      method: "POST",
+      headers: getHeaders(),
+    });
+    return handleResponse(res);
+  },
+
+  async acceptTrade(tradeId: number) {
+    const res = await fetch(`${getApiBase()}/api/trades/${tradeId}/accept`, {
+      method: "POST",
+      headers: getHeaders(),
+    });
+    return handleResponse<{ ok: true; state: import("./playerState").PlayerState }>(res);
+  },
+
+  async getMarket(status: string = "open") {
+    const res = await fetch(`${getApiBase()}/api/market?status=${encodeURIComponent(status)}`, { headers: getHeaders() });
+    return handleResponse<{ listings: Array<{
+      id: number;
+      status: string;
+      createdAt: number;
+      seller: { id: number; discordId: string; username: string; avatar?: string | null };
+      taxGold: number;
+      taxStardust: number;
+      note?: string | null;
+      offered: Array<{ cardId: string; quantity: number }>;
+      requested: Array<{ cardId: string; quantity: number }>;
+    }> }>(res);
+  },
+
+  async createListing(data: { offeredCardIds: string[]; requestedCardIds: string[]; taxGold?: number; taxStardust?: number; note?: string | null }) {
+    const res = await fetch(`${getApiBase()}/api/market`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify(data),
+    });
+    return handleResponse(res);
+  },
+
+  async cancelListing(listingId: number) {
+    const res = await fetch(`${getApiBase()}/api/market/${listingId}/cancel`, {
+      method: "POST",
+      headers: getHeaders(),
+    });
+    return handleResponse(res);
+  },
+
+  async buyListing(listingId: number) {
+    const res = await fetch(`${getApiBase()}/api/market/${listingId}/buy`, {
+      method: "POST",
+      headers: getHeaders(),
+    });
+    return handleResponse<{ ok: true; state: import("./playerState").PlayerState }>(res);
+  },
+
+  async pvpSetRankedDeck(deckCardIds: string[], seasonId?: string) {
+    const res = await fetch(`${getApiBase()}/api/pvp/deck`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({ deckCardIds, seasonId }),
+    });
+    return handleResponse(res);
+  },
+
+  async pvpQueue(seasonId?: string) {
+    const res = await fetch(`${getApiBase()}/api/pvp/queue`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({ seasonId }),
+    });
+    return handleResponse<{ ok: true; matchId: number; opponent: { id: number; discordId: string; username: string; avatar?: string | null } }>(res);
+  },
+
+  async pvpResolveAsync(matchId: number) {
+    const res = await fetch(`${getApiBase()}/api/pvp/async/${matchId}/resolve`, {
+      method: "POST",
+      headers: getHeaders(),
+    });
+    return handleResponse<{ ok: true; result: any }>(res);
+  },
+
+  async pvpHistory() {
+    const res = await fetch(`${getApiBase()}/api/pvp/history`, { headers: getHeaders() });
+    return handleResponse<{ matches: Array<{ id: number; createdAt: number; opponent: { id: number; discordId: string; username: string; avatar?: string | null }; result: any }> }>(res);
+  },
+
+  async pvpLiveCreate(opponentPlayerId: number, deckCardIds?: string[], seasonId?: string) {
+    const res = await fetch(`${getApiBase()}/api/pvp/live/create`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({ opponentPlayerId, deckCardIds, seasonId }),
+    });
+    return handleResponse<{ ok: true; matchId: number }>(res);
+  },
+
+  async pvpLiveJoin(matchId: number) {
+    const res = await fetch(`${getApiBase()}/api/pvp/live/${matchId}/join`, {
+      method: "POST",
+      headers: getHeaders(),
+    });
+    return handleResponse<{ ok: true; status: string }>(res);
+  },
+
+  async pvpLiveGet(matchId: number) {
+    const res = await fetch(`${getApiBase()}/api/pvp/live/${matchId}`, { headers: getHeaders() });
+    return handleResponse<{ ok: true; match: any }>(res);
+  },
+
+  async pvpLiveAction(matchId: number, action: { type: "play" | "end"; cardId?: string | null }) {
+    const res = await fetch(`${getApiBase()}/api/pvp/live/${matchId}/action`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify(action),
+    });
+    return handleResponse<{ ok: true; status: string; state: any; result: any; turnPlayerId: number }>(res);
   },
 
   async adminGrant(delta: { gold?: number; stardust?: number; pityCounter?: number; totalPulls?: number }) {
