@@ -796,7 +796,15 @@ export function performAITurn(state: BattleState): BattleState {
 // =================== Utilities ===================
 
 function deepCopy<T>(obj: T): T {
-  return JSON.parse(JSON.stringify(obj));
+  const copy = JSON.parse(JSON.stringify(obj)) as T;
+  // Preserve non-serializable function refs (RNG) for deterministic simulation.
+  if (obj && typeof obj === "object" && copy && typeof copy === "object") {
+    const src = obj as any;
+    const dst = copy as any;
+    if (typeof src.rng === "function") dst.rng = src.rng;
+    if (src.rngSeed !== undefined) dst.rngSeed = src.rngSeed;
+  }
+  return copy;
 }
 
 export function simulateBattle(params: {
