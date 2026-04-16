@@ -308,20 +308,24 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
 
             {/* ===== Enemy Field ===== */}
             <div className="space-y-1.5">
-              <div className="flex justify-center gap-2 sm:gap-3 min-h-[88px]">
+              <div className="flex justify-center gap-2 sm:gap-3 min-h-[104px]">
                 {state.enemy.field.map((fc, i) => (
-                  <div key={i} className="relative">
+                  <div key={i} className="relative group">
                     {fc ? (
-                      <BattleCardToken
-                        fieldCard={fc}
-                        side="enemy"
-                        selectable={actionMode === "select-attack-target" || (actionMode === "select-spell-target" && state.player.hand[selectedHandIndex!]?.spellEffect?.target === "single_enemy")}
-                        onClick={() => handleFieldCardClick("enemy", i)}
-                        onHover={() => setHoveredCard(fc)}
-                        onHoverEnd={() => { if (hoveredCard === fc) setHoveredCard(null); }}
-                      />
+                      <>
+                        <BattleCardToken
+                          fieldCard={fc}
+                          side="enemy"
+                          selectable={actionMode === "select-attack-target" || (actionMode === "select-spell-target" && state.player.hand[selectedHandIndex!]?.spellEffect?.target === "single_enemy")}
+                          onClick={() => handleFieldCardClick("enemy", i)}
+                        />
+                        {/* Hover tooltip */}
+                        <div className="hidden group-hover:block absolute z-50 top-full mt-1 left-1/2 -translate-x-1/2">
+                          <BattleInfoPanel fieldCard={fc} side="enemy" />
+                        </div>
+                      </>
                     ) : (
-                      <div className="w-16 h-20 sm:w-[72px] sm:h-[88px] rounded-lg border border-dashed border-border/20 flex items-center justify-center">
+                      <div className="w-[72px] h-[92px] sm:w-20 sm:h-[104px] rounded-lg border border-dashed border-border/20 flex items-center justify-center">
                         <span className="text-muted-foreground/15 text-[9px]">—</span>
                       </div>
                     )}
