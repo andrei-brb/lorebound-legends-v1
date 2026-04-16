@@ -209,16 +209,8 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
       const fc = state.player.field[index];
       if (!fc) return;
       setSelectedFieldIndex(prev => (prev === index ? null : index));
-      if (isMobile) {
-        setHoveredCard(fc);
-        setMobileInfoOpen(true);
-      }
     } else if (actionMode === "none" && side === "enemy") {
-      const fc = state.enemy.field[index];
-      if (fc) {
-        setHoveredCard(fc);
-        if (isMobile) setMobileInfoOpen(true);
-      }
+      // tooltip shows on hover, no action needed
     }
   };
 
