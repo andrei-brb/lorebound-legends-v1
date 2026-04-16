@@ -23,6 +23,8 @@ export default function TradeUI({ playerState, onStateChange }: TradeUIProps) {
   const [searchCatalog, setSearchCatalog] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
   const [selectedFriendId, setSelectedFriendId] = useState<number | null>(null);
+  const [friendQuery, setFriendQuery] = useState("");
+  const [friendDropdownOpen, setFriendDropdownOpen] = useState(false);
   const [taxGold, setTaxGold] = useState<number>(0);
   const [taxStardust, setTaxStardust] = useState<number>(0);
   const [friendSearch, setFriendSearch] = useState("");
@@ -81,6 +83,10 @@ export default function TradeUI({ playerState, onStateChange }: TradeUIProps) {
 
   const pendingIncoming = me ? trades.filter(t => t.status === "open" && t.to.id === me.id) : [];
   const pendingOutgoing = me ? trades.filter(t => t.status === "open" && t.from.id === me.id) : [];
+  const acceptedFriends = friends?.accepted || [];
+  const filteredFriends = friendQuery.trim()
+    ? acceptedFriends.filter((f) => f.friend.username.toLowerCase().includes(friendQuery.trim().toLowerCase()))
+    : acceptedFriends;
 
   return (
     <div className="space-y-6">
@@ -400,16 +406,44 @@ export default function TradeUI({ playerState, onStateChange }: TradeUIProps) {
         <div className="space-y-4">
           <div className="bg-card border border-border rounded-xl p-4 space-y-3">
             <h3 className="font-heading text-sm font-bold text-foreground">Choose Friend</h3>
-            <select
-              value={selectedFriendId ?? ""}
-              onChange={(e) => setSelectedFriendId(e.target.value ? Number(e.target.value) : null)}
-              className="w-full px-3 py-2 text-xs rounded-lg bg-secondary border border-border text-foreground"
-            >
-              <option value="">Select a friend...</option>
-              {(friends?.accepted || []).map((f) => (
-                <option key={f.friend.id} value={f.friend.id}>{f.friend.username}</option>
-              ))}
-            </select>
+            <div className="relative">
+              <input
+                value={friendQuery}
+                onChange={(e) => {
+                  setFriendQuery(e.target.value);
+                  setFriendDropdownOpen(true);
+                  // If the user starts typing again, clear the previous selection.
+                  setSelectedFriendId(null);
+                }}
+                onFocus={() => setFriendDropdownOpen(true)}
+                onBlur={() => setTimeout(() => setFriendDropdownOpen(false), 120)}
+                placeholder={acceptedFriends.length === 0 ? "No friends yet (add in Friends tab)" : "Type a friend's name..."}
+                className="w-full px-3 py-2 text-xs rounded-lg bg-secondary border border-border text-foreground placeholder:text-muted-foreground"
+              />
+
+              {friendDropdownOpen && filteredFriends.length > 0 && (
+                <div className="absolute z-50 mt-1 w-full rounded-lg border border-border bg-card shadow-lg overflow-hidden">
+                  <div className="max-h-56 overflow-y-auto">
+                    {filteredFriends.slice(0, 20).map((f) => (
+                      <button
+                        key={f.friend.id}
+                        type="button"
+                        className="w-full text-left px-3 py-2 text-xs hover:bg-secondary/80 text-foreground"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          setSelectedFriendId(f.friend.id);
+                          setFriendQuery(f.friend.username);
+                          setFriendDropdownOpen(false);
+                        }}
+                      >
+                        <span className="font-heading font-bold">{f.friend.username}</span>
+                        <span className="ml-2 text-[10px] text-muted-foreground">#{f.friend.id}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>

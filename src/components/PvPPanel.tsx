@@ -21,6 +21,8 @@ export default function PvPPanel({ playerState }: Props) {
   const [queuedMatch, setQueuedMatch] = useState<{ matchId: number; opponentName: string } | null>(null);
 
   const [liveOpponentId, setLiveOpponentId] = useState<number | null>(null);
+  const [liveOpponentQuery, setLiveOpponentQuery] = useState("");
+  const [liveOpponentOpen, setLiveOpponentOpen] = useState(false);
   const [liveMatchId, setLiveMatchId] = useState<number | null>(null);
   const [liveMatch, setLiveMatch] = useState<any | null>(null);
 
@@ -61,6 +63,10 @@ export default function PvPPanel({ playerState }: Props) {
   }, [liveMatch, me]);
 
   const isMyTurn = !!(me && liveMatch?.turnPlayerId === me.id && liveMatch?.status === "active");
+  const acceptedFriends = friends?.accepted || [];
+  const filteredLiveFriends = liveOpponentQuery.trim()
+    ? acceptedFriends.filter((f) => f.friend.username.toLowerCase().includes(liveOpponentQuery.trim().toLowerCase()))
+    : acceptedFriends;
 
   return (
     <div className="space-y-6">
@@ -183,16 +189,42 @@ export default function PvPPanel({ playerState }: Props) {
         <div className="grid md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <p className="text-xs text-muted-foreground">Challenge a friend.</p>
-            <select
-              className="w-full px-3 py-2 text-xs rounded-lg bg-secondary border border-border text-foreground"
-              value={liveOpponentId ?? ""}
-              onChange={(e) => setLiveOpponentId(e.target.value ? Number(e.target.value) : null)}
-            >
-              <option value="">Select friend...</option>
-              {(friends?.accepted || []).map((f) => (
-                <option key={f.friend.id} value={f.friend.id}>{f.friend.username}</option>
-              ))}
-            </select>
+            <div className="relative">
+              <input
+                value={liveOpponentQuery}
+                onChange={(e) => {
+                  setLiveOpponentQuery(e.target.value);
+                  setLiveOpponentOpen(true);
+                  setLiveOpponentId(null);
+                }}
+                onFocus={() => setLiveOpponentOpen(true)}
+                onBlur={() => setTimeout(() => setLiveOpponentOpen(false), 120)}
+                placeholder={acceptedFriends.length === 0 ? "No friends yet" : "Type a friend's name..."}
+                className="w-full px-3 py-2 text-xs rounded-lg bg-secondary border border-border text-foreground placeholder:text-muted-foreground"
+              />
+              {liveOpponentOpen && filteredLiveFriends.length > 0 && (
+                <div className="absolute z-50 mt-1 w-full rounded-lg border border-border bg-card shadow-lg overflow-hidden">
+                  <div className="max-h-56 overflow-y-auto">
+                    {filteredLiveFriends.slice(0, 20).map((f) => (
+                      <button
+                        key={f.friend.id}
+                        type="button"
+                        className="w-full text-left px-3 py-2 text-xs hover:bg-secondary/80 text-foreground"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                          setLiveOpponentId(f.friend.id);
+                          setLiveOpponentQuery(f.friend.username);
+                          setLiveOpponentOpen(false);
+                        }}
+                      >
+                        <span className="font-heading font-bold">{f.friend.username}</span>
+                        <span className="ml-2 text-[10px] text-muted-foreground">#{f.friend.id}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
             <button
               disabled={!liveOpponentId}
               onClick={async () => {
