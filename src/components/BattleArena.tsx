@@ -48,8 +48,6 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
   const [actionMode, setActionMode] = useState<ActionMode>("none");
   const [selectedHandIndex, setSelectedHandIndex] = useState<number | null>(null);
   const [selectedFieldIndex, setSelectedFieldIndex] = useState<number | null>(null);
-  const [hoveredCard, setHoveredCard] = useState<FieldCard | null>(null);
-  const [mobileInfoOpen, setMobileInfoOpen] = useState(false);
   const cardsPlayedRef = useRef(0);
   const isMobile = useIsMobile();
 
