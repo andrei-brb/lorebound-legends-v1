@@ -11,6 +11,8 @@ interface LeaderboardEntry {
   avatar?: string;
   value: number;
   label: string;
+  /** Internal player id (server); omit in mock data */
+  playerId?: number;
 }
 
 type LeaderboardTab = "wins" | "collection" | "rarest";
@@ -108,6 +110,25 @@ export default function Leaderboard({ playerState, isOnline }: LeaderboardProps)
   const [tab, setTab] = useState<LeaderboardTab>("wins");
   const [serverEntries, setServerEntries] = useState<LeaderboardEntry[] | null>(null);
   const [loading, setLoading] = useState(false);
+  const [myPlayerId, setMyPlayerId] = useState<number | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadMe() {
+      if (!isOnline) {
+        setMyPlayerId(null);
+        return;
+      }
+      try {
+        const { me } = await api.getMe();
+        if (!cancelled) setMyPlayerId(me.id);
+      } catch {
+        if (!cancelled) setMyPlayerId(null);
+      }
+    }
+    loadMe();
+    return () => { cancelled = true; };
+  }, [isOnline]);
 
   useEffect(() => {
     let cancelled = false;
@@ -118,9 +139,10 @@ export default function Leaderboard({ playerState, isOnline }: LeaderboardProps)
         const res = await api.getLeaderboard(tab);
         const mapped: LeaderboardEntry[] = res.entries.map((e) => ({
           rank: e.rank,
-          name: e.discordId ? e.name : e.name,
+          name: e.name,
           avatar: e.avatar ?? "👤",
           value: e.value,
+          playerId: e.playerId,
           label: tab === "collection" ? "%" : tab === "rarest" ? "pts" : "wins",
         }));
         if (!cancelled) setServerEntries(mapped);
@@ -181,10 +203,12 @@ export default function Leaderboard({ playerState, isOnline }: LeaderboardProps)
         </div>
 
         {entries.map((entry) => {
-          const isPlayer = entry.name === "You";
+          const isPlayer =
+            entry.name === "You" ||
+            (myPlayerId != null && entry.playerId != null && entry.playerId === myPlayerId);
           return (
             <div
-              key={`${entry.rank}-${entry.name}`}
+              key={entry.playerId != null ? `p-${entry.playerId}-${tab}` : `${entry.rank}-${entry.name}`}
               className={cn(
                 "grid grid-cols-[60px_1fr_100px] items-center px-4 py-3 border-b border-border/50 transition-colors",
                 isPlayer && "bg-primary/10 border-primary/20",

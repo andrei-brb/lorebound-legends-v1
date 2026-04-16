@@ -167,7 +167,7 @@ export const api = {
 
   async getLeaderboard(tab: "wins" | "collection" | "rarest") {
     const res = await fetch(`${getApiBase()}/api/leaderboard?tab=${encodeURIComponent(tab)}`, { headers: getHeaders() });
-    return handleResponse<{ entries: Array<{ rank: number; name: string; avatar?: string | null; discordId: string; value: number }> }>(res);
+    return handleResponse<{ entries: Array<{ rank: number; name: string; avatar?: string | null; playerId: number; value: number }> }>(res);
   },
 
   async getFriends() {

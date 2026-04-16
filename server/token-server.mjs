@@ -40,6 +40,16 @@ const prisma = new PrismaClient();
 const PORT = Number(process.env.PORT || process.env.DISCORD_TOKEN_PORT) || 3001;
 const DIST_DIR = join(__dirname, "..", "dist");
 
+/** Tunable via env (defaults reduce shared-NAT pain on /api/*). */
+const RATE_LIMIT = {
+  interactions: { max: Math.max(1, Number(process.env.RATE_LIMIT_INTERACTIONS_PER_MIN) || 400), windowMs: 60_000 },
+  token: {
+    max: Math.max(1, Number(process.env.RATE_LIMIT_TOKEN_MAX) || 25),
+    windowMs: Math.max(60_000, Number(process.env.RATE_LIMIT_TOKEN_WINDOW_MS) || 15 * 60_000),
+  },
+  api: { max: Math.max(1, Number(process.env.RATE_LIMIT_API_PER_MIN) || 900), windowMs: 60_000 },
+};
+
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
 async function fetchAndRetry(url, options, nRetries = 3) {
@@ -2747,13 +2757,13 @@ async function handleLeaderboard(req, res) {
       where: { OR: [{ wins: { gt: 0 } }, { losses: { gt: 0 } }, { draws: { gt: 0 } }] },
       orderBy: { wins: "desc" },
       take: 20,
-      include: { player: { select: { username: true, avatar: true, discordId: true } } },
+      include: { player: { select: { id: true, username: true, avatar: true } } },
     });
     entries = entries.map((e, i) => ({
       rank: i + 1,
       name: e.player.username,
       avatar: e.player.avatar,
-      discordId: e.player.discordId,
+      playerId: e.player.id,
       value: e.wins,
     }));
   } else if (tab === "collection") {
@@ -2770,7 +2780,7 @@ async function handleLeaderboard(req, res) {
         rank: i + 1,
         name: p.username,
         avatar: p.avatar,
-        discordId: p.discordId,
+        playerId: p.id,
         value: Math.round((p._count.cards / totalCards) * 100),
       }));
   } else {
@@ -2784,19 +2794,19 @@ async function handleLeaderboard(req, res) {
         const r = getCardRarity(c.cardId);
         return sum + (r === "legendary" ? 10 : r === "rare" ? 3 : 1);
       }, 0);
-      return { name: p.username, avatar: p.avatar, discordId: p.discordId, score };
+      return { id: p.id, name: p.username, avatar: p.avatar, score };
     });
     scored.sort((a, b) => b.score - a.score);
     entries = scored
       .filter((e) => e.score > 0)
       .slice(0, 20)
       .map((e, i) => ({
-      rank: i + 1,
-      name: e.name,
-      avatar: e.avatar,
-      discordId: e.discordId,
-      value: e.score,
-    }));
+        rank: i + 1,
+        name: e.name,
+        avatar: e.avatar,
+        playerId: e.id,
+        value: e.score,
+      }));
   }
 
   sendJson(res, 200, { entries });
@@ -2917,7 +2927,7 @@ const server = http.createServer(async (req, res) => {
     // Rate limits (per IP; trust X-Forwarded-For when behind Railway/nginx)
     if (method !== "OPTIONS") {
       if (method === "POST" && path === "/interactions") {
-        const rl = rateLimit(`interactions:${clientIp}`, { max: 400, windowMs: 60_000 });
+        const rl = rateLimit(`interactions:${clientIp}`, RATE_LIMIT.interactions);
         if (!rl.ok) {
           res.writeHead(429, { "Content-Type": "application/json", "Retry-After": String(rl.retryAfterSec ?? 60) });
           res.end(JSON.stringify({ error: "Too many requests" }));
@@ -2925,14 +2935,14 @@ const server = http.createServer(async (req, res) => {
         }
       }
       if (method === "POST" && path === "/api/token") {
-        const rl = rateLimit(`token:${clientIp}`, { max: 25, windowMs: 15 * 60_000 });
+        const rl = rateLimit(`token:${clientIp}`, RATE_LIMIT.token);
         if (!rl.ok) {
           res.writeHead(429, { "Content-Type": "application/json", "Retry-After": String(rl.retryAfterSec ?? 60) });
           res.end(JSON.stringify({ error: "Too many token requests. Try again later." }));
           return;
         }
       } else if (path.startsWith("/api/")) {
-        const rl = rateLimit(`api:${clientIp}`, { max: 450, windowMs: 60_000 });
+        const rl = rateLimit(`api:${clientIp}`, RATE_LIMIT.api);
         if (!rl.ok) {
           res.writeHead(429, { "Content-Type": "application/json", "Retry-After": String(rl.retryAfterSec ?? 60) });
           res.end(JSON.stringify({ error: "Too many requests" }));
