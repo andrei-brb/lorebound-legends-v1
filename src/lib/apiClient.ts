@@ -362,6 +362,14 @@ export const api = {
     return handleResponse<{ ok: true; status: string }>(res);
   },
 
+  async pvpLiveDecline(matchId: number) {
+    const res = await fetch(`${getApiBase()}/api/pvp/live/${matchId}/decline`, {
+      method: "POST",
+      headers: getHeaders(),
+    });
+    return handleResponse<{ ok: true; status: string }>(res);
+  },
+
   async pvpLiveGet(matchId: number) {
     const res = await fetch(`${getApiBase()}/api/pvp/live/${matchId}`, { headers: getHeaders() });
     return handleResponse<{ ok: true; match: any }>(res);

@@ -45,6 +45,25 @@ export default function PvPPanel({ playerState }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    const raw = sessionStorage.getItem("pvp.live.matchId");
+    const id = raw ? Number(raw) : NaN;
+    if (!Number.isFinite(id)) return;
+    sessionStorage.removeItem("pvp.live.matchId");
+    setLiveMatchId(id);
+    refreshLive(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!liveMatchId) return;
+    if (!liveMatch || liveMatch.id !== liveMatchId) return;
+    if (liveMatch.status !== "pending" && liveMatch.status !== "active") return;
+    const id = window.setInterval(() => refreshLive(liveMatchId), 2500);
+    return () => window.clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveMatchId, liveMatch?.status, liveMatch?.id]);
+
   const refreshLive = async (id: number) => {
     try {
       const res = await api.pvpLiveGet(id);
@@ -240,7 +259,7 @@ export default function PvPPanel({ playerState }: Props) {
               }}
               className="px-4 py-2 rounded-lg bg-primary text-primary-foreground font-heading font-bold text-sm disabled:opacity-40"
             >
-              Create match
+              Send invite
             </button>
           </div>
 

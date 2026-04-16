@@ -1704,6 +1704,7 @@ async function handleLiveJoin(req, res, matchId) {
   if (!match) return sendJson(res, 404, { error: "Match not found" });
   if (match.type !== "live") return sendJson(res, 400, { error: "Not a live match" });
   if (me.id !== match.playerAId && me.id !== match.playerBId) return sendJson(res, 403, { error: "Not your match" });
+  if (match.status === "cancelled") return sendJson(res, 400, { error: "Match was declined/cancelled" });
   if (match.status === "completed") return sendJson(res, 200, { ok: true, status: match.status });
 
   // If playerB is joining and their deck isn't set, use their ranked deck.
@@ -1728,6 +1729,62 @@ async function handleLiveJoin(req, res, matchId) {
     },
   });
   return sendJson(res, 200, { ok: true, status: updated.status });
+}
+
+async function handleLiveDecline(req, res, matchId) {
+  const user = await requireAuth(req, res);
+  if (!user) return;
+
+  const me = await prisma.player.findUnique({ where: { discordId: user.id } });
+  if (!me) return sendJson(res, 404, { error: "Player not found" });
+
+  try {
+    const out = await prisma.$transaction(async (tx) => {
+      const match = await tx.pvPMatch.findUnique({ where: { id: matchId } });
+      if (!match) {
+        const err = new Error("Match not found");
+        err.statusCode = 404;
+        throw err;
+      }
+      if (match.type !== "live") {
+        const err = new Error("Not a live match");
+        err.statusCode = 400;
+        throw err;
+      }
+      if (match.status !== "pending") {
+        const err = new Error("Match is not pending");
+        err.statusCode = 400;
+        throw err;
+      }
+      // Only the invitee can decline.
+      if (me.id !== match.playerBId) {
+        const err = new Error("Only the invited player can decline");
+        err.statusCode = 403;
+        throw err;
+      }
+
+      const updated = await tx.pvPMatch.update({
+        where: { id: match.id },
+        data: { status: "cancelled", lastActionAt: new Date(), turnPlayerId: null },
+      });
+
+      await createNotification(
+        tx,
+        match.playerAId,
+        "pvp_live_result",
+        `${me.username} declined your Live PvP challenge`,
+        null,
+        { matchId: match.id, declined: true, seasonId: match.seasonId || DEFAULT_PVP_SEASON_ID }
+      );
+
+      return updated;
+    });
+
+    return sendJson(res, 200, { ok: true, status: out.status });
+  } catch (e) {
+    const code = e?.statusCode || 500;
+    return sendJson(res, code, { error: e?.message || "Decline failed" });
+  }
 }
 
 async function handleLiveGet(req, res, matchId) {
@@ -2603,6 +2660,13 @@ const server = http.createServer(async (req, res) => {
       const matchId = Number(pvpLiveJoin[1]);
       if (!Number.isFinite(matchId)) return sendJson(res, 400, { error: "Invalid match id" });
       return await handleLiveJoin(req, res, matchId);
+    }
+
+    const pvpLiveDecline = path.match(/^\/api\/pvp\/live\/(\d+)\/decline$/);
+    if (pvpLiveDecline && method === "POST") {
+      const matchId = Number(pvpLiveDecline[1]);
+      if (!Number.isFinite(matchId)) return sendJson(res, 400, { error: "Invalid match id" });
+      return await handleLiveDecline(req, res, matchId);
     }
 
     const pvpLiveGet = path.match(/^\/api\/pvp\/live\/(\d+)$/);

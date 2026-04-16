@@ -68,6 +68,34 @@ export default function InboxPanel({ onNavigate }: Props) {
     }
   }
 
+  async function acceptLiveInvite(n: NotificationRow) {
+    const matchId = Number(n.data?.matchId);
+    if (!Number.isFinite(matchId)) return toast({ title: "Invalid invite", description: "Missing match id" });
+    try {
+      await api.pvpLiveJoin(matchId);
+      await api.markNotificationsRead([n.id]);
+      setRows((prev) => prev.map((r) => (r.id === n.id ? { ...r, readAt: Date.now() } : r)));
+      sessionStorage.setItem("pvp.live.matchId", String(matchId));
+      onNavigate?.("pvp");
+      toast({ title: "Invite accepted", description: `Joining match #${matchId}` });
+    } catch (e: any) {
+      toast({ title: "Accept failed", description: e?.message || "Could not accept invite" });
+    }
+  }
+
+  async function declineLiveInvite(n: NotificationRow) {
+    const matchId = Number(n.data?.matchId);
+    if (!Number.isFinite(matchId)) return toast({ title: "Invalid invite", description: "Missing match id" });
+    try {
+      await api.pvpLiveDecline(matchId);
+      await api.markNotificationsRead([n.id]);
+      setRows((prev) => prev.map((r) => (r.id === n.id ? { ...r, readAt: Date.now() } : r)));
+      toast({ title: "Invite declined" });
+    } catch (e: any) {
+      toast({ title: "Decline failed", description: e?.message || "Could not decline invite" });
+    }
+  }
+
   useEffect(() => {
     refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -112,6 +140,7 @@ export default function InboxPanel({ onNavigate }: Props) {
           rows.map((n) => {
             const unread = !n.readAt;
             const goTab = targetTab(n.type);
+            const isLiveInvite = n.type === "pvp_live_invite";
             return (
               <div
                 key={n.id}
@@ -129,6 +158,22 @@ export default function InboxPanel({ onNavigate }: Props) {
                   <div className="text-xs text-muted-foreground mt-2">{formatWhen(n.createdAt)}</div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
+                  {isLiveInvite ? (
+                    <>
+                      <button
+                        onClick={() => acceptLiveInvite(n)}
+                        className="px-3 py-2 rounded-md text-sm bg-primary text-primary-foreground hover:bg-primary/90"
+                      >
+                        Accept
+                      </button>
+                      <button
+                        onClick={() => declineLiveInvite(n)}
+                        className="px-3 py-2 rounded-md text-sm bg-secondary hover:bg-secondary/80"
+                      >
+                        Decline
+                      </button>
+                    </>
+                  ) : null}
                   {goTab && onNavigate ? (
                     <button
                       onClick={() => onNavigate(goTab)}

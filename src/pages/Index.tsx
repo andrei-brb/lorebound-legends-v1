@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { BookOpen, Layers, Swords, Coins, Sparkles as SparklesIcon, Grid3X3, Loader2, ScrollText, Hammer, Trophy, ArrowLeftRight, BarChart3, Calendar, Zap, Crown, Shield, Mail } from "lucide-react";
 import CollectionView from "@/components/CollectionView";
 import DeckBuilder from "@/components/DeckBuilder";
@@ -76,6 +76,7 @@ export default function Index() {
   });
   const [battleDeckIds, setBattleDeckIds] = useState<string[]>([]);
   const [unreadMail, setUnreadMail] = useState(0);
+  const lastUnreadMailRef = useRef<number | null>(null);
   const { playerState, setPlayerState, status, isOnline, pullCards, submitBattleResult, completeOnboarding, syncEconomy, craftFuse, craftSacrifice, pullSeasonalPack } = usePlayerApi();
   const isDiscordActivityHost = typeof window !== "undefined" && window.location.hostname.endsWith("discordsays.com");
   const discordOverlayInset = "calc(64px + env(safe-area-inset-top))";
@@ -109,7 +110,26 @@ export default function Index() {
     const tick = async () => {
       try {
         const data = await api.getNotificationUnreadCount();
-        if (alive) setUnreadMail(Number(data.unread) || 0);
+        const next = Number(data.unread) || 0;
+
+        // Only toast when unread count increases (and not on first poll).
+        const prev = lastUnreadMailRef.current;
+        lastUnreadMailRef.current = next;
+
+        if (alive) setUnreadMail(next);
+
+        if (prev !== null && next > prev) {
+          try {
+            const latest = await api.getNotifications(1);
+            const n = latest.notifications?.[0];
+            toast({
+              title: n?.title || "New mail",
+              description: n?.body || `You have ${next} unread message${next === 1 ? "" : "s"}.`,
+            });
+          } catch {
+            toast({ title: "New mail", description: `You have ${next} unread message${next === 1 ? "" : "s"}.` });
+          }
+        }
       } catch {
         // ignore polling errors
       }
