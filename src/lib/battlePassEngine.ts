@@ -104,6 +104,8 @@ function equipCosmetic(state: PlayerState, cosmeticId: string): PlayerState {
       return { ...state, cosmeticsEquipped: { ...eq, borderId: cosmeticId } };
     case "title":
       return { ...state, cosmeticsEquipped: { ...eq, titleId: cosmeticId } };
+    case "emote":
+      return { ...state, cosmeticsEquipped: { ...eq, emoteId: cosmeticId } };
     default:
       return state;
   }

@@ -58,6 +58,7 @@ export interface CosmeticsEquipped {
   cardBackId?: string | null;
   borderId?: string | null;
   titleId?: string | null;
+  emoteId?: string | null;
 }
 
 export const FACTION_STARTER_CARDS: Record<FactionPath, string[]> = {
@@ -112,6 +113,7 @@ function normalizeCosmeticsEquipped(eq: CosmeticsEquipped | undefined): Cosmetic
     cardBackId: eq?.cardBackId ?? null,
     borderId: eq?.borderId ?? null,
     titleId: eq?.titleId ?? null,
+    emoteId: eq?.emoteId ?? null,
   };
 }
 

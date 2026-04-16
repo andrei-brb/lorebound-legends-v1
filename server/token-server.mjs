@@ -672,7 +672,23 @@ async function handleGetMe(req, res) {
   if (!user) return;
 
   const player = await findOrCreatePlayer(user);
-  return sendJson(res, 200, { me: toPublicPlayer(player) });
+  const rating = await prisma.pvPRating.findUnique({
+    where: { playerId_seasonId: { playerId: player.id, seasonId: DEFAULT_PVP_SEASON_ID } },
+  });
+  const pvp = rating
+    ? {
+        mmr: rating.mmr,
+        rankTier: rating.rankTier,
+        gamesPlayed: rating.gamesPlayed,
+        seasonId: rating.seasonId,
+      }
+    : {
+        mmr: 1000,
+        rankTier: "Bronze",
+        gamesPlayed: 0,
+        seasonId: DEFAULT_PVP_SEASON_ID,
+      };
+  return sendJson(res, 200, { me: { ...toPublicPlayer(player), pvp } });
 }
 
 async function handlePatchPlayer(req, res) {

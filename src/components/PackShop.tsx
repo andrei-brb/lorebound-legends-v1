@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import { Gift, Clock, Coins, Sparkles } from "lucide-react";
 import { PACK_DEFINITIONS, FREE_PACK_CARD_COUNT, canAffordPack, pullCards, type PackDefinition } from "@/lib/gachaEngine";
@@ -43,9 +43,13 @@ export default function PackShop({ playerState, onStateChange, isOnline, pullCar
   const [openingPack, setOpeningPack] = useState<{ cardIds: string[] } | null>(null);
   const [freeTimer, setFreeTimer] = useState(freePackTimeRemaining(playerState));
   const [confirmPack, setConfirmPack] = useState<PackDefinition | null>(null);
+  const playerStateRef = useRef(playerState);
+  playerStateRef.current = playerState;
 
   useEffect(() => {
-    const interval = setInterval(() => { setFreeTimer(freePackTimeRemaining(playerState)); }, 1000);
+    const tick = () => setFreeTimer(freePackTimeRemaining(playerStateRef.current));
+    tick();
+    const interval = setInterval(tick, 1000);
     return () => clearInterval(interval);
   }, [playerState.lastFreePackTime]);
 

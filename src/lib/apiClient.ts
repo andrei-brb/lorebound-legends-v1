@@ -29,7 +29,15 @@ async function handleResponse<T>(res: Response): Promise<T> {
 export const api = {
   async getMe() {
     const res = await fetch(`${getApiBase()}/api/me`, { headers: getHeaders() });
-    return handleResponse<{ me: { id: number; discordId: string; username: string; avatar?: string | null } }>(res);
+    return handleResponse<{
+      me: {
+        id: number;
+        discordId: string;
+        username: string;
+        avatar?: string | null;
+        pvp: { mmr: number; rankTier: string; gamesPlayed: number; seasonId: string };
+      };
+    }>(res);
   },
 
   async getPlayer() {

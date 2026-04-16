@@ -7426,6 +7426,12 @@ function attackTarget(state, attackerFieldIndex, targetFieldIndex) {
         break;
       }
     }
+    if (attacker.stunned) {
+      addLog(newState, `\u{1F635} ${attacker.card.name} is stunned \u2014 attack interrupted!`, "info");
+      spendAp(newState, 1);
+      attacker.attackedThisTurn = true;
+      return maybeAutoEndTurn(recalcFieldStats(checkWinCondition(newState)));
+    }
     const dmg2 = attacker.attack;
     if (otherSide.shield > 0) {
       const absorbed = Math.min(otherSide.shield, dmg2);
@@ -7469,6 +7475,12 @@ function attackTarget(state, attackerFieldIndex, targetFieldIndex) {
       }
       break;
     }
+  }
+  if (attacker.stunned) {
+    addLog(newState, `\u{1F635} ${attacker.card.name} is stunned \u2014 attack interrupted!`, "info");
+    spendAp(newState, 1);
+    attacker.attackedThisTurn = true;
+    return maybeAutoEndTurn(recalcFieldStats(checkWinCondition(newState)));
   }
   const attackerElement = attacker.card.element || "neutral";
   const defenderElement = target.card.element || "neutral";

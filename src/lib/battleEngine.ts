@@ -553,6 +553,13 @@ export function attackTarget(state: BattleState, attackerFieldIndex: number, tar
       }
     }
 
+    if (attacker.stunned) {
+      addLog(newState, `😵 ${attacker.card.name} is stunned — attack interrupted!`, "info");
+      spendAp(newState, 1);
+      attacker.attackedThisTurn = true;
+      return maybeAutoEndTurn(recalcFieldStats(checkWinCondition(newState)));
+    }
+
     const dmg = attacker.attack;
     // Shield absorbs first
     if (otherSide.shield > 0) {
@@ -603,6 +610,13 @@ export function attackTarget(state: BattleState, attackerFieldIndex: number, tar
       }
       break;
     }
+  }
+
+  if (attacker.stunned) {
+    addLog(newState, `😵 ${attacker.card.name} is stunned — attack interrupted!`, "info");
+    spendAp(newState, 1);
+    attacker.attackedThisTurn = true;
+    return maybeAutoEndTurn(recalcFieldStats(checkWinCondition(newState)));
   }
 
   // Calculate damage with elemental modifier

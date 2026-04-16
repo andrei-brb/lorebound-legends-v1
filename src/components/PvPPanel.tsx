@@ -29,6 +29,7 @@ export default function PvPPanel({ playerState, onNavigateBattle, onStartRankedB
   const [liveOpponentQuery, setLiveOpponentQuery] = useState("");
   const [liveOpponentOpen, setLiveOpponentOpen] = useState(false);
   const [liveMatchId, setLiveMatchId] = useState<number | null>(null);
+  const [pvpRating, setPvpRating] = useState<{ mmr: number; rankTier: string; gamesPlayed: number } | null>(null);
 
   const refresh = async () => {
     setLoading(true);
@@ -36,6 +37,12 @@ export default function PvPPanel({ playerState, onNavigateBattle, onStartRankedB
       const [friendsRes, histRes] = await Promise.all([api.getFriends(), api.pvpHistory()]);
       setFriends(friendsRes);
       setHistory(histRes.matches);
+      try {
+        const meRes = await api.getMe();
+        setPvpRating(meRes.me.pvp);
+      } catch {
+        setPvpRating(null);
+      }
     } catch (e) {
       toast({ title: "Failed to load PvP", description: e instanceof Error ? e.message : String(e) });
     } finally {
@@ -59,6 +66,15 @@ export default function PvPPanel({ playerState, onNavigateBattle, onStartRankedB
           <h2 className="font-heading text-2xl font-bold text-foreground flex items-center gap-2">
             <Swords className="w-6 h-6 text-primary" /> PvP Arena
           </h2>
+          {pvpRating && (
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+              <Badge variant="secondary" className="font-heading gap-1.5">
+                <Trophy className="w-3.5 h-3.5 text-[hsl(var(--legendary))]" />
+                {pvpRating.rankTier} · MMR {pvpRating.mmr}
+              </Badge>
+              <span className="text-muted-foreground">{pvpRating.gamesPlayed} ranked games</span>
+            </div>
+          )}
           <p className="text-sm text-muted-foreground mt-1">
             <span className="font-heading text-foreground/90">Ranked</span> — fight another player&apos;s deck with the AI piloting them.{" "}
             <span className="font-heading text-foreground/90">Duel</span> — invite a friend; you both play live.

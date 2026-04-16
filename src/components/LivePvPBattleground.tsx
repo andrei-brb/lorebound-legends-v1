@@ -40,6 +40,18 @@ export default function LivePvPBattleground({ matchId, onExit, playerState, onSt
   }, [refresh]);
 
   useEffect(() => {
+    const onResume = () => {
+      if (document.visibilityState === "visible") void refresh();
+    };
+    window.addEventListener("pageshow", onResume);
+    document.addEventListener("visibilitychange", onResume);
+    return () => {
+      window.removeEventListener("pageshow", onResume);
+      document.removeEventListener("visibilitychange", onResume);
+    };
+  }, [refresh]);
+
+  useEffect(() => {
     if (!liveMatch) return;
     if (liveMatch.status !== "pending" && liveMatch.status !== "active") return;
     const id = window.setInterval(() => refresh(), 1200);

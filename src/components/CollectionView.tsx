@@ -82,6 +82,8 @@ function CardGridItem({ card, onAddToDeck, deckCardIds, playerState, onStateChan
   const canPres = progress ? canPrestige(progress) : false;
   const equippedFrameId = playerState?.cosmeticsEquipped?.cardFrameId || null;
   const equippedFrameImage = equippedFrameId ? (getCosmeticById(equippedFrameId)?.image || null) : null;
+  const equippedCardBackId = playerState?.cosmeticsEquipped?.cardBackId || null;
+  const equippedCardBackImage = equippedCardBackId ? (getCosmeticById(equippedCardBackId)?.image || null) : null;
 
   const handlePrestige = () => {
     if (!playerState || !onStateChange || !progress) return;
@@ -99,6 +101,7 @@ function CardGridItem({ card, onAddToDeck, deckCardIds, playerState, onStateChan
         showSynergy={hasArcPartner}
         cardProgress={progress}
         equippedFrameImage={equippedFrameImage}
+        equippedCardBackImage={equippedCardBackImage}
       />
       {inDeck && (
         <div className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">✓</div>

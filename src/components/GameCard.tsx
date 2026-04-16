@@ -17,6 +17,8 @@ interface GameCardProps {
   size?: "sm" | "md" | "lg";
   cardProgress?: CardProgress;
   equippedFrameImage?: string | null;
+  /** Shown on the flipped (lore) side when a card back cosmetic is equipped. */
+  equippedCardBackImage?: string | null;
 }
 
 const rarityBadge: Record<string, string> = {
@@ -91,7 +93,7 @@ const visualTierClasses: Record<string, string> = {
   awakened: "card-awakened",
 };
 
-export default function GameCard({ card, onClick, selected, showSynergy, size = "md", cardProgress, equippedFrameImage }: GameCardProps) {
+export default function GameCard({ card, onClick, selected, showSynergy, size = "md", cardProgress, equippedFrameImage, equippedCardBackImage }: GameCardProps) {
   const [flipped, setFlipped] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -451,6 +453,11 @@ export default function GameCard({ card, onClick, selected, showSynergy, size = 
               transform: "rotateY(180deg)",
             }}
           >
+            {equippedCardBackImage && (
+              <div className="absolute inset-0 z-0 pointer-events-none">
+                <img src={equippedCardBackImage} alt="" className="w-full h-full object-cover opacity-35" loading="lazy" />
+              </div>
+            )}
             <div className="p-2 flex flex-col h-full relative z-20 overflow-hidden">
               <h3 className="font-heading text-[10px] font-bold leading-tight text-foreground mb-1 truncate shrink-0">{card.name}</h3>
 
