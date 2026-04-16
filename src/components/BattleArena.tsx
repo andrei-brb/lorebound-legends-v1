@@ -483,7 +483,7 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
                     }}
                     whileHover={isPlayerTurn ? { y: -6, scale: 1.05 } : undefined}
                     className={cn(
-                      "flex-shrink-0 w-[60px] sm:w-[72px] rounded-lg border-2 overflow-hidden cursor-pointer transition-shadow",
+                      "flex-shrink-0 w-[68px] sm:w-20 rounded-lg border-2 overflow-hidden cursor-pointer transition-shadow",
                       selectedHandIndex === i
                         ? "ring-2 ring-legendary border-legendary shadow-[0_0_12px_hsl(var(--legendary)/0.4)]"
                         : "border-border hover:border-primary/50",
