@@ -30,7 +30,6 @@ export default function TradeUI({ playerState, onStateChange }: TradeUIProps) {
   const [friendTradeableCardIds, setFriendTradeableCardIds] = useState<string[]>([]);
   const [friendCardsLoading, setFriendCardsLoading] = useState(false);
   const [friendCardsError, setFriendCardsError] = useState<string | null>(null);
-  const [shareLoading, setShareLoading] = useState(false);
   const [friendQuery, setFriendQuery] = useState("");
   const [friendDropdownOpen, setFriendDropdownOpen] = useState(false);
   const [taxGold, setTaxGold] = useState<number>(0);
@@ -280,40 +279,6 @@ export default function TradeUI({ playerState, onStateChange }: TradeUIProps) {
       {/* Friends */}
       {phase === "friends" && (
         <div className="space-y-4">
-          <Card className="bg-card/60 border-border">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm">Privacy</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <p className="text-xs text-muted-foreground">
-                  Opt-in: let friends see your tradeable card collection when they create a trade.
-                </p>
-                <label className={cn("inline-flex items-center gap-2 text-xs font-bold select-none", shareLoading && "opacity-70")}>
-                  <input
-                    type="checkbox"
-                    checked={!!playerState.shareCollectionWithFriends}
-                    disabled={shareLoading}
-                    onChange={async (e) => {
-                      const next = e.target.checked;
-                      try {
-                        setShareLoading(true);
-                        const updated = await api.patchPlayer({ shareCollectionWithFriends: next }) as PlayerState;
-                        onStateChange(updated);
-                        toast({ title: next ? "Collection sharing enabled" : "Collection sharing disabled" });
-                      } catch (err) {
-                        toast({ title: "Update failed", description: err instanceof Error ? err.message : String(err) });
-                      } finally {
-                        setShareLoading(false);
-                      }
-                    }}
-                  />
-                  Share collection with friends
-                </label>
-              </div>
-            </CardContent>
-          </Card>
-
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Card className="bg-card/60 border-border">
               <CardHeader className="pb-3"><CardTitle className="text-sm">Add Friend</CardTitle></CardHeader>
@@ -353,7 +318,14 @@ export default function TradeUI({ playerState, onStateChange }: TradeUIProps) {
                 </div>
                 <button
                   onClick={async () => {
-                    try { await api.friendRequest(friendSearch); toast({ title: "Friend request sent" }); setFriendSearch(""); await refreshAll(); }
+                    try {
+                      await api.friendRequest(friendSearch);
+                      toast({ title: "Friend request sent" });
+                      setFriendSearch("");
+                      setFriendSearchResults([]);
+                      setFriendSearchOpen(false);
+                      await refreshAll();
+                    }
                     catch (e) { toast({ title: "Friend request failed", description: e instanceof Error ? e.message : String(e) }); }
                   }}
                   disabled={!friendSearch.trim()}
