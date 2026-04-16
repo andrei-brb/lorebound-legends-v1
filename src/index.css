@@ -423,3 +423,62 @@
 .demo-stat-gem:hover {
   box-shadow: 0 0 8px 2px currentColor;
 }
+
+/* ===== Pack shimmer on hover ===== */
+@keyframes pack-shimmer {
+  0% { transform: translateX(-100%) rotate(25deg); }
+  100% { transform: translateX(200%) rotate(25deg); }
+}
+
+.pack-shimmer-hover {
+  position: relative;
+  overflow: hidden;
+}
+
+.pack-shimmer-hover::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    hsl(40 90% 70% / 0.25) 45%,
+    hsl(40 90% 80% / 0.2) 50%,
+    transparent 55%
+  );
+  transform: translateX(-100%) rotate(25deg);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.pack-shimmer-hover:hover::after {
+  opacity: 1;
+  animation: pack-shimmer 0.8s ease-in-out;
+}
+
+/* ===== Glow pulse for CTA buttons ===== */
+@keyframes glow-pulse {
+  0%, 100% { box-shadow: 0 0 8px 2px hsl(40 80% 55% / 0.3); }
+  50% { box-shadow: 0 0 20px 6px hsl(40 80% 55% / 0.5); }
+}
+
+.animate-glow-pulse {
+  animation: glow-pulse 2s ease-in-out infinite;
+}
+
+/* ===== Tab content fade ===== */
+.tab-content-enter {
+  animation: fade-in 0.25s ease-out;
+}
+
+/* ===== Notification slide in ===== */
+@keyframes slide-in-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-slide-in-up {
+  animation: slide-in-up 0.3s ease-out both;
+}

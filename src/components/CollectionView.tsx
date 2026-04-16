@@ -1,9 +1,13 @@
+import { useState } from "react";
 import { allGameCards, loreArcs, type Rarity, type CardType, type GameCard as GameCardType } from "@/data/cardIndex";
 import GameCardComponent from "./GameCard";
-import { Star } from "lucide-react";
+import { Star, SparklesIcon, BookOpen } from "lucide-react";
 import { type PlayerState, getCardProgress, xpForLevel } from "@/lib/playerState";
 import { canPrestige, prestige } from "@/lib/progressionEngine";
 import { getCosmeticById } from "@/data/cosmetics";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 
 const rarityOrder: Rarity[] = ["legendary", "rare", "common"];
 const rarityLabels: Record<Rarity, string> = {
@@ -12,12 +16,17 @@ const rarityLabels: Record<Rarity, string> = {
   common: "🗡️ Common",
 };
 
+const rarityColors: Record<Rarity, string> = {
+  legendary: "text-[hsl(var(--legendary))]",
+  rare: "text-[hsl(var(--rare))]",
+  common: "text-muted-foreground",
+};
+
 interface CollectionViewProps {
   onAddToDeck?: (cardId: string) => void;
   deckCardIds?: string[];
   playerState?: PlayerState;
   onStateChange?: (state: PlayerState) => void;
-  // Discovery controls
   searchQuery?: string;
   typeFilter?: "all" | CardType;
   rarityFilter?: "all" | Rarity;
@@ -29,30 +38,14 @@ interface CollectionViewProps {
 const rarityRank: Record<Rarity, number> = { common: 1, rare: 2, legendary: 3 };
 
 function applyDiscovery({
-  cards,
-  ownedIds,
-  deckCardIds,
-  playerState,
-  searchQuery,
-  typeFilter,
-  rarityFilter,
-  elementFilter,
-  inDeckOnly,
-  sortBy,
+  cards, ownedIds, deckCardIds, playerState, searchQuery, typeFilter, rarityFilter, elementFilter, inDeckOnly, sortBy,
 }: {
-  cards: GameCardType[];
-  ownedIds: string[];
-  deckCardIds: string[];
-  playerState?: PlayerState;
-  searchQuery?: string;
-  typeFilter?: "all" | CardType;
-  rarityFilter?: "all" | Rarity;
+  cards: GameCardType[]; ownedIds: string[]; deckCardIds: string[]; playerState?: PlayerState;
+  searchQuery?: string; typeFilter?: "all" | CardType; rarityFilter?: "all" | Rarity;
   elementFilter?: "all" | "fire" | "water" | "earth" | "air" | "shadow" | "light" | "neutral";
-  inDeckOnly?: boolean;
-  sortBy?: CollectionViewProps["sortBy"];
+  inDeckOnly?: boolean; sortBy?: CollectionViewProps["sortBy"];
 }): GameCardType[] {
   const q = (searchQuery || "").trim().toLowerCase();
-
   let out = cards.filter((c) => ownedIds.includes(c.id));
   if (q) out = out.filter((c) => c.name.toLowerCase().includes(q));
   if (typeFilter && typeFilter !== "all") out = out.filter((c) => c.type === typeFilter);
@@ -61,91 +54,131 @@ function applyDiscovery({
   if (inDeckOnly) out = out.filter((c) => deckCardIds.includes(c.id));
 
   const levelFor = (cardId: string) => (playerState ? getCardProgress(playerState, cardId).level : 1);
-
   const s = sortBy || "rarity_desc";
   out = [...out].sort((a, b) => {
     switch (s) {
-      case "rarity_asc":
-        return rarityRank[a.rarity] - rarityRank[b.rarity] || a.name.localeCompare(b.name);
-      case "rarity_desc":
-        return rarityRank[b.rarity] - rarityRank[a.rarity] || a.name.localeCompare(b.name);
-      case "name_desc":
-        return b.name.localeCompare(a.name);
-      case "name_asc":
-        return a.name.localeCompare(b.name);
-      case "level_desc":
-        return levelFor(b.id) - levelFor(a.id) || (rarityRank[b.rarity] - rarityRank[a.rarity]) || a.name.localeCompare(b.name);
-      case "attack_desc":
-        return b.attack - a.attack || (rarityRank[b.rarity] - rarityRank[a.rarity]) || a.name.localeCompare(b.name);
-      case "defense_desc":
-        return b.defense - a.defense || (rarityRank[b.rarity] - rarityRank[a.rarity]) || a.name.localeCompare(b.name);
-      case "hp_desc":
-        return b.hp - a.hp || (rarityRank[b.rarity] - rarityRank[a.rarity]) || a.name.localeCompare(b.name);
-      default:
-        return 0;
+      case "rarity_asc": return rarityRank[a.rarity] - rarityRank[b.rarity] || a.name.localeCompare(b.name);
+      case "rarity_desc": return rarityRank[b.rarity] - rarityRank[a.rarity] || a.name.localeCompare(b.name);
+      case "name_desc": return b.name.localeCompare(a.name);
+      case "name_asc": return a.name.localeCompare(b.name);
+      case "level_desc": return levelFor(b.id) - levelFor(a.id) || (rarityRank[b.rarity] - rarityRank[a.rarity]) || a.name.localeCompare(b.name);
+      case "attack_desc": return b.attack - a.attack || (rarityRank[b.rarity] - rarityRank[a.rarity]) || a.name.localeCompare(b.name);
+      case "defense_desc": return b.defense - a.defense || (rarityRank[b.rarity] - rarityRank[a.rarity]) || a.name.localeCompare(b.name);
+      case "hp_desc": return b.hp - a.hp || (rarityRank[b.rarity] - rarityRank[a.rarity]) || a.name.localeCompare(b.name);
+      default: return 0;
     }
   });
-
   return out;
 }
 
-export default function CollectionView({
-  onAddToDeck,
-  deckCardIds = [],
-  playerState,
-  onStateChange,
-  searchQuery,
-  typeFilter = "all",
-  rarityFilter = "all",
-  elementFilter = "all",
-  inDeckOnly = false,
-  sortBy = "rarity_desc",
-}: CollectionViewProps) {
-  const ownedIds = playerState?.ownedCardIds || allGameCards.map(c => c.id);
+function CardGridItem({ card, onAddToDeck, deckCardIds, playerState, onStateChange }: {
+  card: GameCardType; onAddToDeck?: (id: string) => void; deckCardIds: string[];
+  playerState?: PlayerState; onStateChange?: (state: PlayerState) => void;
+}) {
+  const inDeck = deckCardIds.includes(card.id);
+  const hasArcPartner = card.loreArc ? allGameCards.some((c) => c.id !== card.id && c.loreArc === card.loreArc) : false;
+  const progress = playerState ? getCardProgress(playerState, card.id) : undefined;
+  const canPres = progress ? canPrestige(progress) : false;
   const equippedFrameId = playerState?.cosmeticsEquipped?.cardFrameId || null;
   const equippedFrameImage = equippedFrameId ? (getCosmeticById(equippedFrameId)?.image || null) : null;
-  const q = (searchQuery || "").trim();
-  const discoveryActive = q.length > 0 || typeFilter !== "all" || rarityFilter !== "all" || elementFilter !== "all" || inDeckOnly || sortBy !== "rarity_desc";
-  const discoveredCards = discoveryActive
-    ? applyDiscovery({
-        cards: allGameCards,
-        ownedIds,
-        deckCardIds,
-        playerState,
-        searchQuery,
-        typeFilter,
-        rarityFilter,
-        elementFilter,
-        inDeckOnly,
-        sortBy,
-      })
-    : [];
 
-  const handlePrestige = (cardId: string) => {
-    if (!playerState || !onStateChange) return;
-    const progress = getCardProgress(playerState, cardId);
+  const handlePrestige = () => {
+    if (!playerState || !onStateChange || !progress) return;
     if (!canPrestige(progress)) return;
     const newProgress = prestige(progress);
-    const newState = {
-      ...playerState,
-      cardProgress: { ...playerState.cardProgress, [cardId]: newProgress },
-    };
-    onStateChange(newState);
+    onStateChange({ ...playerState, cardProgress: { ...playerState.cardProgress, [card.id]: newProgress } });
   };
 
   return (
-    <div className="space-y-10">
-      {/* Lore Arcs */}
-      {!discoveryActive && (
-        <div className="flex flex-wrap gap-3 mb-4">
-          {loreArcs.map((arc) => (
-            <div key={arc.id} className="px-3 py-1.5 rounded-full bg-secondary border border-border text-xs text-secondary-foreground font-heading">
-              {arc.name}
-              <span className="ml-1.5 text-muted-foreground">({arc.cardIds.length} cards)</span>
-            </div>
-          ))}
+    <div className="relative">
+      <GameCardComponent
+        card={card}
+        onClick={onAddToDeck ? () => onAddToDeck(card.id) : undefined}
+        selected={inDeck}
+        showSynergy={hasArcPartner}
+        cardProgress={progress}
+        equippedFrameImage={equippedFrameImage}
+      />
+      {inDeck && (
+        <div className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">✓</div>
+      )}
+      {canPres && onStateChange && (
+        <button
+          onClick={(e) => { e.stopPropagation(); handlePrestige(); }}
+          className="absolute -bottom-2 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1 px-2 py-1 rounded-full bg-legendary text-primary-foreground text-[9px] font-bold hover:scale-110 transition-transform"
+        >
+          <Star className="w-3 h-3 fill-current" /> Prestige
+        </button>
+      )}
+      {progress && progress.level < 20 && (
+        <div className="mt-1 px-2">
+          <div className="h-1 bg-secondary rounded-full overflow-hidden">
+            <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${(progress.xp / xpForLevel(progress.level)) * 100}%` }} />
+          </div>
+          <p className="text-[9px] text-muted-foreground text-center mt-0.5">{progress.xp}/{xpForLevel(progress.level)} XP</p>
         </div>
       )}
+      {progress && progress.level >= 20 && (
+        <p className="text-[9px] text-[hsl(var(--legendary))] text-center mt-1 font-bold">MAX LEVEL</p>
+      )}
+    </div>
+  );
+}
+
+export default function CollectionView({
+  onAddToDeck, deckCardIds = [], playerState, onStateChange,
+  searchQuery, typeFilter = "all", rarityFilter = "all", elementFilter = "all", inDeckOnly = false, sortBy = "rarity_desc",
+}: CollectionViewProps) {
+  const ownedIds = playerState?.ownedCardIds || allGameCards.map(c => c.id);
+  const [arcFilter, setArcFilter] = useState<string | null>(null);
+
+  const q = (searchQuery || "").trim();
+  const discoveryActive = q.length > 0 || typeFilter !== "all" || rarityFilter !== "all" || elementFilter !== "all" || inDeckOnly || sortBy !== "rarity_desc" || arcFilter !== null;
+  
+  const discoveredCards = discoveryActive
+    ? applyDiscovery({
+        cards: arcFilter ? allGameCards.filter(c => c.loreArc === arcFilter) : allGameCards,
+        ownedIds, deckCardIds, playerState, searchQuery, typeFilter, rarityFilter, elementFilter, inDeckOnly, sortBy,
+      })
+    : [];
+
+  // Empty state: no cards owned at all
+  const totalOwned = ownedIds.length;
+  if (totalOwned === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center animate-fade-in">
+        <BookOpen className="w-16 h-16 text-muted-foreground/30 mb-4" />
+        <h2 className="font-heading text-xl font-bold text-foreground mb-2">No Cards Yet</h2>
+        <p className="text-sm text-muted-foreground mb-4">Visit the Summon tab to open packs and build your collection!</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      {/* Lore Arcs - clickable */}
+      <div className="flex flex-wrap gap-2">
+        {loreArcs.map((arc) => (
+          <button
+            key={arc.id}
+            onClick={() => setArcFilter(arcFilter === arc.id ? null : arc.id)}
+            className={cn(
+              "px-3 py-1.5 rounded-full border text-xs font-heading transition-colors",
+              arcFilter === arc.id
+                ? "bg-primary text-primary-foreground border-primary"
+                : "bg-secondary border-border text-secondary-foreground hover:bg-secondary/80"
+            )}
+          >
+            {arc.name}
+            <span className="ml-1.5 text-muted-foreground">({arc.cardIds.length})</span>
+          </button>
+        ))}
+        {arcFilter && (
+          <button onClick={() => setArcFilter(null)} className="px-3 py-1.5 rounded-full border border-input text-xs text-muted-foreground hover:text-foreground">
+            Clear arc
+          </button>
+        )}
+      </div>
 
       {discoveryActive ? (
         <div className="animate-fade-in">
@@ -156,123 +189,41 @@ export default function CollectionView({
           {discoveredCards.length === 0 ? (
             <p className="text-sm text-muted-foreground">No cards match your filters.</p>
           ) : (
-            <div className="flex flex-wrap gap-5">
-              {discoveredCards.map((card) => {
-                const inDeck = deckCardIds.includes(card.id);
-                const hasArcPartner = card.loreArc
-                  ? allGameCards.some((c) => c.id !== card.id && c.loreArc === card.loreArc)
-                  : false;
-                const progress = playerState ? getCardProgress(playerState, card.id) : undefined;
-                const canPres = progress ? canPrestige(progress) : false;
-
-                return (
-                  <div key={card.id} className="relative">
-                    <GameCardComponent
-                      card={card}
-                      onClick={onAddToDeck ? () => onAddToDeck(card.id) : undefined}
-                      selected={inDeck}
-                      showSynergy={hasArcPartner}
-                      cardProgress={progress}
-                      equippedFrameImage={equippedFrameImage}
-                    />
-                    {inDeck && (
-                      <div className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">
-                        ✓
-                      </div>
-                    )}
-                    {/* Prestige button */}
-                    {canPres && onStateChange && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handlePrestige(card.id); }}
-                        className="absolute -bottom-2 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1 px-2 py-1 rounded-full bg-legendary text-primary-foreground text-[9px] font-bold hover:scale-110 transition-transform"
-                      >
-                        <Star className="w-3 h-3 fill-current" /> Prestige
-                      </button>
-                    )}
-                    {/* XP Progress under card */}
-                    {progress && progress.level < 20 && (
-                      <div className="mt-1 px-2">
-                        <div className="h-1 bg-secondary rounded-full overflow-hidden">
-                          <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${(progress.xp / xpForLevel(progress.level)) * 100}%` }} />
-                        </div>
-                        <p className="text-[9px] text-muted-foreground text-center mt-0.5">
-                          {progress.xp}/{xpForLevel(progress.level)} XP
-                        </p>
-                      </div>
-                    )}
-                    {progress && progress.level >= 20 && (
-                      <p className="text-[9px] text-legendary text-center mt-1 font-bold">MAX LEVEL</p>
-                    )}
-                  </div>
-                );
-              })}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-4 gap-4">
+              {discoveredCards.map((card) => (
+                <CardGridItem key={card.id} card={card} onAddToDeck={onAddToDeck} deckCardIds={deckCardIds} playerState={playerState} onStateChange={onStateChange} />
+              ))}
             </div>
           )}
         </div>
       ) : (
         <>
-
           {rarityOrder.map((rarity) => {
             const cards = allGameCards.filter((c) => c.rarity === rarity && ownedIds.includes(c.id));
+            const totalOfRarity = allGameCards.filter((c) => c.rarity === rarity).length;
             if (cards.length === 0) return null;
+            const pct = Math.round((cards.length / totalOfRarity) * 100);
             return (
-              <div key={rarity} className="animate-fade-in">
-                <h2 className="font-heading text-xl font-bold mb-4 text-foreground">
-                  {rarityLabels[rarity]}
-                  <span className="ml-2 text-sm text-muted-foreground font-body">({cards.length})</span>
-                </h2>
-                <div className="flex flex-wrap gap-5">
-                  {cards.map((card) => {
-                    const inDeck = deckCardIds.includes(card.id);
-                    const hasArcPartner = card.loreArc
-                      ? allGameCards.some((c) => c.id !== card.id && c.loreArc === card.loreArc)
-                      : false;
-                    const progress = playerState ? getCardProgress(playerState, card.id) : undefined;
-                    const canPres = progress ? canPrestige(progress) : false;
-
-                    return (
-                      <div key={card.id} className="relative">
-                        <GameCardComponent
-                          card={card}
-                          onClick={onAddToDeck ? () => onAddToDeck(card.id) : undefined}
-                          selected={inDeck}
-                          showSynergy={hasArcPartner}
-                          cardProgress={progress}
-                          equippedFrameImage={equippedFrameImage}
-                        />
-                        {inDeck && (
-                          <div className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">
-                            ✓
-                          </div>
-                        )}
-                        {/* Prestige button */}
-                        {canPres && onStateChange && (
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handlePrestige(card.id); }}
-                            className="absolute -bottom-2 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1 px-2 py-1 rounded-full bg-legendary text-primary-foreground text-[9px] font-bold hover:scale-110 transition-transform"
-                          >
-                            <Star className="w-3 h-3 fill-current" /> Prestige
-                          </button>
-                        )}
-                        {/* XP Progress under card */}
-                        {progress && progress.level < 20 && (
-                          <div className="mt-1 px-2">
-                            <div className="h-1 bg-secondary rounded-full overflow-hidden">
-                              <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${(progress.xp / xpForLevel(progress.level)) * 100}%` }} />
-                            </div>
-                            <p className="text-[9px] text-muted-foreground text-center mt-0.5">
-                              {progress.xp}/{xpForLevel(progress.level)} XP
-                            </p>
-                          </div>
-                        )}
-                        {progress && progress.level >= 20 && (
-                          <p className="text-[9px] text-legendary text-center mt-1 font-bold">MAX LEVEL</p>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+              <Card key={rarity} className="animate-fade-in bg-card/50 border-border">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className={cn("text-lg flex items-center gap-2", rarityColors[rarity])}>
+                      {rarityLabels[rarity]}
+                      <span className="text-sm text-muted-foreground font-body">({cards.length})</span>
+                    </CardTitle>
+                    <Badge variant="outline" className={cn("text-[10px]", rarityColors[rarity])}>
+                      {pct}% complete
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-4 gap-4">
+                    {cards.map((card) => (
+                      <CardGridItem key={card.id} card={card} onAddToDeck={onAddToDeck} deckCardIds={deckCardIds} playerState={playerState} onStateChange={onStateChange} />
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
             );
           })}
         </>
