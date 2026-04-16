@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import battleBg from "@/assets/battle-bg.jpg";
 import { motion, AnimatePresence } from "framer-motion";
 import { Trophy, Skull, Coins, Sparkles, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -268,9 +269,9 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
   return (
     <div
       className="relative rounded-2xl border border-border/40 overflow-hidden"
-      style={boardSkinImage ? { backgroundImage: `url(${boardSkinImage})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
+      style={{ backgroundImage: `url(${boardSkinImage || battleBg})`, backgroundSize: "cover", backgroundPosition: "center" }}
     >
-      {boardSkinImage && <div className="absolute inset-0 pointer-events-none rounded-2xl bg-background/70" />}
+      <div className="absolute inset-0 pointer-events-none rounded-2xl bg-background/60" />
       {showLevelUps && <CardLevelUp levelUps={levelUps} onClose={() => setShowLevelUps(false)} />}
 
       <div className="relative flex">
