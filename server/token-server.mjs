@@ -5,6 +5,7 @@
 import dotenv from "dotenv";
 import http from "node:http";
 import crypto from "node:crypto";
+import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { PrismaClient } from "@prisma/client";
@@ -35,6 +36,7 @@ dotenv.config({ path: join(__dirname, "..", ".env") });
 
 const prisma = new PrismaClient();
 const PORT = Number(process.env.PORT || process.env.DISCORD_TOKEN_PORT) || 3001;
+const DIST_DIR = join(__dirname, "..", "dist");
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -125,6 +127,55 @@ function sendJson(res, status, data) {
 
 function parsePath(url) {
   return (url || "").split("?")[0].replace(/^\/.proxy/, "");
+}
+
+function contentTypeForPath(p) {
+  if (p.endsWith(".html")) return "text/html; charset=utf-8";
+  if (p.endsWith(".js")) return "application/javascript; charset=utf-8";
+  if (p.endsWith(".css")) return "text/css; charset=utf-8";
+  if (p.endsWith(".json")) return "application/json; charset=utf-8";
+  if (p.endsWith(".svg")) return "image/svg+xml";
+  if (p.endsWith(".png")) return "image/png";
+  if (p.endsWith(".jpg") || p.endsWith(".jpeg")) return "image/jpeg";
+  if (p.endsWith(".gif")) return "image/gif";
+  if (p.endsWith(".webp")) return "image/webp";
+  if (p.endsWith(".ico")) return "image/x-icon";
+  if (p.endsWith(".txt")) return "text/plain; charset=utf-8";
+  return "application/octet-stream";
+}
+
+function serveStaticFile(res, absPath, { cache = "public, max-age=31536000, immutable" } = {}) {
+  try {
+    const st = fs.statSync(absPath);
+    if (!st.isFile()) return false;
+    const body = fs.readFileSync(absPath);
+    res.writeHead(200, {
+      "Content-Type": contentTypeForPath(absPath),
+      "Cache-Control": cache,
+      "Access-Control-Allow-Origin": "*",
+    });
+    res.end(body);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function tryServeFrontend(req, res, path) {
+  if (req.method !== "GET" && req.method !== "HEAD") return false;
+
+  // Never treat API/Discord endpoints as frontend routes.
+  if (path.startsWith("/api/") || path === "/api" || path.startsWith("/interactions")) return false;
+
+  // Static asset requests.
+  if (path.startsWith("/assets/") || path === "/favicon.ico" || path === "/robots.txt" || path === "/placeholder.svg") {
+    const abs = join(DIST_DIR, path);
+    return serveStaticFile(res, abs);
+  }
+
+  // SPA fallback.
+  const indexPath = join(DIST_DIR, "index.html");
+  return serveStaticFile(res, indexPath, { cache: "no-cache" });
 }
 
 function getAdminDiscordIds() {
@@ -2680,6 +2731,9 @@ const server = http.createServer(async (req, res) => {
   const method = req.method;
 
   try {
+    // Frontend (SPA) + static assets
+    if (tryServeFrontend(req, res, path)) return;
+
     if (method === "GET" && (path === "/" || path === "/health")) {
       return sendJson(res, 200, { ok: true, service: "lorebound-api" });
     }
