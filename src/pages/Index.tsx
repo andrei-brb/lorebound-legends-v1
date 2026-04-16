@@ -61,7 +61,14 @@ const categories: { id: Category; label: string; icon: React.ReactNode; tabs: { 
 ];
 
 export default function Index() {
+  const [activeCategory, setActiveCategory] = useState<Category>("cards");
   const [activeTab, setActiveTab] = useState<Tab>("collection");
+  const [lastTabPerCategory, setLastTabPerCategory] = useState<Record<Category, Tab>>({
+    cards: "collection",
+    combat: "battle",
+    progress: "quests",
+    social: "trade",
+  });
   const [battleDeckIds, setBattleDeckIds] = useState<string[]>([]);
   const { playerState, setPlayerState, status, isOnline, pullCards, submitBattleResult, completeOnboarding, syncEconomy, craftFuse, craftSacrifice, pullSeasonalPack } = usePlayerApi();
   const isDiscordActivityHost = typeof window !== "undefined" && window.location.hostname.endsWith("discordsays.com");
