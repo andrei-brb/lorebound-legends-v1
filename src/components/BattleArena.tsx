@@ -3,7 +3,7 @@ import battleBg from "@/assets/battle-bg.jpg";
 import { motion, AnimatePresence } from "framer-motion";
 import { Trophy, Skull, Coins, Sparkles, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { BattleState, FieldCard } from "@/lib/battleEngine";
+import type { BattleState } from "@/lib/battleEngine";
 import { initBattle, playCard, equipWeapon, castSpell, attackTarget, useAbility, performAITurn, generateEnemyDeck, endTurnAction } from "@/lib/battleEngine";
 import BattleCardToken from "./BattleCardToken";
 import BattleRadialMenu from "./BattleRadialMenu";
