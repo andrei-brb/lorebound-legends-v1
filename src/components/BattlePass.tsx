@@ -4,6 +4,18 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 
+/* ─── Asset imports ─── */
+import heroVerdantSprout from "@/assets/battlepass/hero-verdant-sprout.jpg";
+import heroThornweaver from "@/assets/battlepass/hero-thornweaver.jpg";
+import heroPyralis from "@/assets/battlepass/hero-pyralis.jpg";
+import heroSolara from "@/assets/battlepass/hero-solara.jpg";
+import heroCelestialSolara from "@/assets/battlepass/hero-celestial-solara.jpg";
+import cardbackBloomCrest from "@/assets/battlepass/cardback-bloom-crest.jpg";
+import cardbackBloomInferno from "@/assets/battlepass/cardback-bloom-inferno.jpg";
+import boardRunedGarden from "@/assets/battlepass/board-runed-garden.jpg";
+import frameBloomAura from "@/assets/battlepass/frame-bloom-aura.jpg";
+import borderEternalBloom from "@/assets/battlepass/border-eternal-bloom.jpg";
+
 /* ─── Reward type definitions ─── */
 type RewardKind = "gold" | "dust" | "xp_boost" | "bronze_pack" | "silver_pack" | "gold_pack" | "hero" | "card_back" | "title" | "emote" | "board_skin" | "border" | "card_frame" | "hero_variant" | "crafting_mats";
 
