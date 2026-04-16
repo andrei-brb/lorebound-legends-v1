@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Shield, Lock, Check, Coins, Star, Sparkles, Crown, Zap, Package, Award, Palette, Frame, SmilePlus, X, Eye } from "lucide-react";
+import { Shield, Lock, Check, Coins, Star, Sparkles, Crown, Zap, Package, Award, Palette, Frame, SmilePlus, X, Eye, RotateCcw } from "lucide-react";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
@@ -13,6 +13,8 @@ import type { PlayerState, BattlePassSeasonId } from "@/lib/playerState";
 import { awardBattlePassXp, claimBattlePassLevelReward, getBattlePassLevelFromXp, getBattlePassSeasonProgress, getBattlePassXpToNextLevel, normalizeBattlePassDaily, setBattlePassActiveSeason, setCosmeticEquipped } from "@/lib/battlePassEngine";
 import { toast } from "@/hooks/use-toast";
 import { getCosmeticById } from "@/data/cosmetics";
+import { getCardById } from "@/data/cardIndex";
+import GameCard from "@/components/GameCard";
 
 const MILESTONES = new Set([5, 10, 15, 20, 25, 30]);
 
