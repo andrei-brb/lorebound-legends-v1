@@ -1,0 +1,17 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://lorebound-legends-v1-production.up.railway.app/api/:path*"
+    },
+    {
+      "source": "/.proxy/api/:path*",
+      "destination": "https://lorebound-legends-v1-production.up.railway.app/api/:path*"
+    },
+    {
+      "source": "/interactions",
+      "destination": "https://lorebound-legends-v1-production.up.railway.app/interactions"
+    }
+  ]
+}

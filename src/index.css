@@ -1,0 +1,425 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700;900&family=Inter:wght@300;400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 230 25% 7%;
+    --foreground: 40 20% 90%;
+
+    --card: 230 20% 12%;
+    --card-foreground: 40 20% 90%;
+
+    --popover: 230 20% 12%;
+    --popover-foreground: 40 20% 90%;
+
+    --primary: 40 80% 55%;
+    --primary-foreground: 230 25% 7%;
+
+    --secondary: 230 15% 18%;
+    --secondary-foreground: 40 20% 85%;
+
+    --muted: 230 15% 15%;
+    --muted-foreground: 230 10% 55%;
+
+    --accent: 40 60% 45%;
+    --accent-foreground: 40 20% 95%;
+
+    --destructive: 0 70% 50%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 230 15% 20%;
+    --input: 230 15% 20%;
+    --ring: 40 80% 55%;
+
+    --radius: 0.5rem;
+
+    --legendary: 40 90% 55%;
+    --legendary-glow: 40 100% 65%;
+    --rare: 220 80% 60%;
+    --rare-glow: 220 90% 70%;
+    --common: 230 10% 50%;
+
+    --synergy: 50 100% 55%;
+    --synergy-glow: 50 100% 70%;
+
+    --element-fire: 15 90% 55%;
+    --element-water: 210 80% 55%;
+    --element-nature: 130 60% 45%;
+    --element-shadow: 270 50% 45%;
+    --element-light: 45 90% 60%;
+
+    --sidebar-background: 230 20% 10%;
+    --sidebar-foreground: 40 20% 85%;
+    --sidebar-primary: 40 80% 55%;
+    --sidebar-primary-foreground: 230 25% 7%;
+    --sidebar-accent: 230 15% 18%;
+    --sidebar-accent-foreground: 40 20% 85%;
+    --sidebar-border: 230 15% 20%;
+    --sidebar-ring: 40 80% 55%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-body;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Cinzel', serif;
+  }
+}
+
+@layer utilities {
+  .font-heading {
+    font-family: 'Cinzel', serif;
+  }
+  .font-body {
+    font-family: 'Inter', sans-serif;
+  }
+}
+
+/* Card flip animation */
+.card-flip-container {
+  perspective: 1000px;
+}
+
+.card-flip-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-style: preserve-3d;
+}
+
+.card-flip-inner.flipped {
+  transform: rotateY(180deg);
+}
+
+.card-flip-front,
+.card-flip-back {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.card-flip-back {
+  transform: rotateY(180deg);
+}
+
+/* Rarity glow animations */
+@keyframes rarity-glow-pulse {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50% { opacity: 0.95; transform: scale(1.06); }
+}
+
+.glow-legendary,
+.glow-rare {
+  position: relative;
+}
+
+.glow-legendary::after,
+.glow-rare::after {
+  content: "";
+  position: absolute;
+  inset: -10px;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
+  filter: blur(14px);
+  transform-origin: center;
+  will-change: transform, opacity;
+  animation: rarity-glow-pulse 2s ease-in-out infinite;
+}
+
+.glow-legendary::after {
+  background: radial-gradient(circle at 50% 50%, hsl(40 90% 55% / 0.55), transparent 65%);
+}
+
+.glow-rare::after {
+  background: radial-gradient(circle at 50% 50%, hsl(220 80% 60% / 0.45), transparent 65%);
+  animation-duration: 2.5s;
+}
+
+.glow-common {
+  box-shadow: 0 0 8px 1px hsl(230 10% 50% / 0.3);
+}
+
+/* Card corner ornaments */
+.card-flip-front::before,
+.card-flip-front::after,
+.card-flip-back::before,
+.card-flip-back::after {
+  content: '';
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border-color: hsl(40 80% 55% / 0.4);
+  z-index: 20;
+  pointer-events: none;
+}
+
+.card-flip-front::before,
+.card-flip-back::before {
+  top: 8px;
+  left: 8px;
+  border-top: 2px solid;
+  border-left: 2px solid;
+  border-color: inherit;
+}
+
+.card-flip-front::after,
+.card-flip-back::after {
+  bottom: 8px;
+  right: 8px;
+  border-bottom: 2px solid;
+  border-right: 2px solid;
+  border-color: inherit;
+}
+
+.border-legendary .card-flip-front,
+.border-legendary .card-flip-back,
+.card-flip-front.border-legendary,
+.card-flip-back.border-legendary {
+  border-color: hsl(40 90% 55%);
+}
+
+.card-flip-front.border-legendary::before,
+.card-flip-front.border-legendary::after,
+.card-flip-back.border-legendary::before,
+.card-flip-back.border-legendary::after {
+  border-color: hsl(40 90% 55% / 0.5);
+}
+
+.card-flip-front.border-rare::before,
+.card-flip-front.border-rare::after,
+.card-flip-back.border-rare::before,
+.card-flip-back.border-rare::after {
+  border-color: hsl(220 80% 60% / 0.5);
+}
+
+.card-flip-front.border-common::before,
+.card-flip-front.border-common::after,
+.card-flip-back.border-common::before,
+.card-flip-back.border-common::after {
+  border-color: hsl(230 10% 50% / 0.4);
+}
+
+/* Synergy connection line */
+@keyframes synergy-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.synergy-highlight {
+  background: linear-gradient(90deg, transparent, hsl(50 100% 55% / 0.3), transparent);
+  background-size: 200% 100%;
+  animation: synergy-shimmer 3s ease-in-out infinite;
+}
+
+/* Floating ambient particles */
+@keyframes float {
+  0%, 100% { transform: translateY(0) translateX(0); opacity: 0.2; }
+  25% { transform: translateY(-30px) translateX(10px); opacity: 0.5; }
+  50% { transform: translateY(-60px) translateX(-5px); opacity: 0.3; }
+  75% { transform: translateY(-30px) translateX(15px); opacity: 0.4; }
+}
+
+.animate-float {
+  animation: float 8s ease-in-out infinite;
+}
+
+/* Card visual evolution tiers */
+@keyframes card-shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.card-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 25;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent 30%, hsl(40 90% 55% / 0.15) 50%, transparent 70%);
+  background-size: 200% 100%;
+  animation: card-shimmer 3s ease-in-out infinite;
+  border-radius: inherit;
+}
+
+.card-premium {
+  border-color: hsl(40 90% 55%) !important;
+  box-shadow: 0 0 20px 4px hsl(40 90% 55% / 0.4), inset 0 0 20px hsl(40 90% 55% / 0.1);
+}
+
+.card-premium::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 25;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent 30%, hsl(40 90% 55% / 0.2) 50%, transparent 70%);
+  background-size: 200% 100%;
+  animation: card-shimmer 2s ease-in-out infinite;
+  border-radius: inherit;
+}
+
+.card-awakened {
+  border-color: hsl(40 100% 65%) !important;
+  box-shadow: 0 0 30px 8px hsl(40 90% 55% / 0.5), 0 0 60px 12px hsl(40 90% 55% / 0.2), inset 0 0 30px hsl(40 90% 55% / 0.15);
+}
+
+.card-awakened::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 25;
+  pointer-events: none;
+  background: linear-gradient(135deg, transparent 20%, hsl(40 90% 55% / 0.25) 45%, hsl(40 100% 65% / 0.3) 55%, transparent 80%);
+  background-size: 200% 200%;
+  animation: card-shimmer 2s ease-in-out infinite;
+  border-radius: inherit;
+}
+
+/* ===== Card Rarity Frames ===== */
+
+.card-frame-legendary {
+  border: 3px solid hsl(40 90% 55%);
+  border-radius: inherit;
+  box-shadow: inset 0 0 20px hsl(40 90% 55% / 0.15);
+}
+.card-frame-rare {
+  border: 3px solid hsl(220 80% 60%);
+  border-radius: inherit;
+  box-shadow: inset 0 0 15px hsl(220 80% 60% / 0.1);
+}
+.card-frame-common {
+  border: 3px solid hsl(230 10% 35%);
+  border-radius: inherit;
+  box-shadow: inset 0 0 10px hsl(230 10% 50% / 0.05);
+}
+
+/* Corner flourishes per rarity */
+.card-corners-legendary .card-corner-tl,
+.card-corners-legendary .card-corner-tr,
+.card-corners-legendary .card-corner-bl,
+.card-corners-legendary .card-corner-br {
+  border-color: hsl(40 90% 55% / 0.7);
+}
+.card-corners-rare .card-corner-tl,
+.card-corners-rare .card-corner-tr,
+.card-corners-rare .card-corner-bl,
+.card-corners-rare .card-corner-br {
+  border-color: hsl(220 80% 60% / 0.5);
+}
+.card-corners-common .card-corner-tl,
+.card-corners-common .card-corner-tr,
+.card-corners-common .card-corner-bl,
+.card-corners-common .card-corner-br {
+  border-color: hsl(230 10% 50% / 0.3);
+}
+.card-corner-tl {
+  border-top: 2px solid;
+  border-left: 2px solid;
+  border-color: inherit;
+  border-top-left-radius: 4px;
+}
+.card-corner-tr {
+  border-top: 2px solid;
+  border-right: 2px solid;
+  border-color: inherit;
+  border-top-right-radius: 4px;
+}
+.card-corner-bl {
+  border-bottom: 2px solid;
+  border-left: 2px solid;
+  border-color: inherit;
+  border-bottom-left-radius: 4px;
+}
+.card-corner-br {
+  border-bottom: 2px solid;
+  border-right: 2px solid;
+  border-color: inherit;
+  border-bottom-right-radius: 4px;
+}
+
+/* Rarity glow pulses */
+.card-glow-legendary,
+.card-glow-rare {
+  position: relative;
+}
+
+.card-glow-legendary::before,
+.card-glow-rare::before {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: -1;
+  filter: blur(12px);
+  transform-origin: center;
+  will-change: transform, opacity;
+  opacity: 0.65;
+  animation: rarity-glow-pulse 2.5s ease-in-out infinite;
+}
+
+.card-glow-legendary::before {
+  background: radial-gradient(circle at 50% 50%, hsl(40 90% 55% / 0.5), transparent 70%);
+}
+
+.card-glow-rare::before {
+  background: radial-gradient(circle at 50% 50%, hsl(220 80% 60% / 0.4), transparent 70%);
+  animation-duration: 3s;
+}
+
+.card-glow-common {
+  box-shadow: 0 0 6px 1px hsl(230 10% 50% / 0.2);
+}
+
+/* Light sweep over art */
+.demo-light-sweep {
+  background: linear-gradient(
+    105deg,
+    transparent 30%,
+    hsl(40 90% 70% / 0.2) 45%,
+    hsl(40 90% 80% / 0.15) 50%,
+    transparent 65%
+  );
+  background-size: 250% 100%;
+  animation: demo-light-sweep 3s ease-in-out infinite;
+}
+
+@keyframes demo-light-sweep {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Card ember particles */
+.demo-card-ember {
+  background: hsl(35 90% 60%);
+  animation: demo-card-ember-rise 2.5s ease-out infinite;
+  opacity: 0;
+}
+
+@keyframes demo-card-ember-rise {
+  0% { transform: translateY(0) scale(1); opacity: 0; }
+  15% { opacity: 0.9; }
+  100% { transform: translateY(-120px) scale(0.3); opacity: 0; }
+}
+
+/* Stat gem hover glow */
+.demo-stat-gem {
+  transition: box-shadow 0.2s ease;
+}
+.demo-stat-gem:hover {
+  box-shadow: 0 0 8px 2px currentColor;
+}
