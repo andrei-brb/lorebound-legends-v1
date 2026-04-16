@@ -4,7 +4,7 @@
 // Light > Shadow > Light (mutual weakness)
 // Neutral has no advantages or disadvantages
 
-export type Element = "fire" | "water" | "nature" | "shadow" | "light" | "neutral";
+export type Element = "fire" | "water" | "nature" | "shadow" | "light" | "neutral" | "air";
 
 // Returns damage multiplier: 1.3 = advantage, 0.7 = disadvantage, 1.0 = neutral
 const advantageMap: Record<Element, Element[]> = {

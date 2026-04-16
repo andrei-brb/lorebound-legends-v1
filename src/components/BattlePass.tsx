@@ -72,7 +72,7 @@ export default function BattlePass({ playerState, onStateChange }: BattlePassPro
   const handleClaim = (level: number, track: "free" | "elite") => {
     const res = claimBattlePassLevelReward(normalizedState, seasonId, level, track);
     if (!res.ok) {
-      toast({ title: "Cannot claim", description: res.error, variant: "destructive" });
+      toast({ title: "Cannot claim", description: (res as { error: string }).error, variant: "destructive" });
       return;
     }
     onStateChange(res.state);
