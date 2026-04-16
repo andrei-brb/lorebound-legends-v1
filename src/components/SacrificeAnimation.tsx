@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { allCards } from "@/data/cards";
 import { cn } from "@/lib/utils";
@@ -25,47 +25,67 @@ export default function SacrificeAnimation({ cardIds, totalStardust, onComplete 
     return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); clearTimeout(t4); };
   }, [onComplete]);
 
-  // Pre-generate shard directions
-  const shards = Array.from({ length: SHARD_COUNT }, (_, i) => {
-    const angle = (i / SHARD_COUNT) * Math.PI * 2;
-    return {
-      x: Math.cos(angle) * (120 + Math.random() * 80),
-      y: Math.sin(angle) * (120 + Math.random() * 80),
-      rotate: Math.random() * 720 - 360,
-      scale: 0.3 + Math.random() * 0.7,
-      delay: Math.random() * 0.3,
-    };
-  });
+  const ambientParticles = useMemo(
+    () =>
+      Array.from({ length: 20 }).map(() => ({
+        x: `${Math.random() * 100}vw`,
+        y: `${Math.random() * 100}vh`,
+        duration: 2 + Math.random() * 2,
+        delay: Math.random(),
+      })),
+    []
+  );
 
-  const dustParticles = Array.from({ length: DUST_COUNT }, (_, i) => ({
-    startX: (Math.random() - 0.5) * 200,
-    startY: (Math.random() - 0.5) * 200,
-    delay: 0.1 + Math.random() * 0.5,
-  }));
+  // Pre-generate shard + dust particle seeds once per mount (keeps animation stable and cheaper)
+  const shards = useMemo(() => {
+    return Array.from({ length: SHARD_COUNT }, (_, i) => {
+      const angle = (i / SHARD_COUNT) * Math.PI * 2;
+      return {
+        x: Math.cos(angle) * (120 + Math.random() * 80),
+        y: Math.sin(angle) * (120 + Math.random() * 80),
+        rotate: Math.random() * 720 - 360,
+        scale: 0.3 + Math.random() * 0.7,
+        delay: Math.random() * 0.3,
+        w: 6 + Math.random() * 10,
+        h: 8 + Math.random() * 14,
+      };
+    });
+  }, [cardIds.join("|")]);
+
+  const dustParticles = useMemo(
+    () =>
+      Array.from({ length: DUST_COUNT }).map(() => ({
+        startX: (Math.random() - 0.5) * 200,
+        startY: (Math.random() - 0.5) * 200,
+        delay: 0.1 + Math.random() * 0.5,
+      })),
+    [cardIds.join("|")]
+  );
 
   return (
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-background/95 backdrop-blur-md"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-background/95"
     >
       {/* Ambient dark particles */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {Array.from({ length: 20 }).map((_, i) => (
+        {ambientParticles.map((p, i) => (
           <motion.div
             key={i}
             className="absolute w-1 h-1 rounded-full bg-destructive/30"
             initial={{ x: "50vw", y: "50vh", scale: 0 }}
             animate={{
-              x: `${Math.random() * 100}vw`,
-              y: `${Math.random() * 100}vh`,
+              x: p.x,
+              y: p.y,
               scale: [0, 1, 0],
             }}
-            transition={{ duration: 2 + Math.random() * 2, delay: Math.random(), repeat: Infinity }}
+            transition={{ duration: p.duration, delay: p.delay, repeat: Infinity }}
           />
         ))}
       </div>
+      <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-background/70 via-transparent to-background/80" />
 
       {/* Phase: Gather — cards converge to center */}
       <AnimatePresence>
@@ -133,8 +153,8 @@ export default function SacrificeAnimation({ cardIds, totalStardust, onComplete 
                 <div
                   className="bg-gradient-to-br from-primary via-accent to-primary/50"
                   style={{
-                    width: `${6 + Math.random() * 10}px`,
-                    height: `${8 + Math.random() * 14}px`,
+                    width: `${shard.w}px`,
+                    height: `${shard.h}px`,
                     clipPath: "polygon(50% 0%, 100% 40%, 80% 100%, 20% 100%, 0% 40%)",
                   }}
                 />

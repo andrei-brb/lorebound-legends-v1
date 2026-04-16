@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Swords } from "lucide-react";
 import { type FactionPath, FACTION_STARTER_CARDS } from "@/lib/playerState";
@@ -13,6 +13,19 @@ export default function JourneyBegins({ path, onEnter }: JourneyBeginsProps) {
   const [phase, setPhase] = useState<"assembling" | "reveal" | "ready">("assembling");
   const starterIds = FACTION_STARTER_CARDS[path];
   const cards = starterIds.map((id) => allCards.find((c) => c.id === id)).filter(Boolean);
+
+  const burstParticles = useMemo(
+    () =>
+      Array.from({ length: 40 }).map(() => {
+        const left = `${50 + (Math.random() - 0.5) * 60}%`;
+        const top = `${50 + (Math.random() - 0.5) * 60}%`;
+        const x = (Math.random() - 0.5) * 200;
+        const y = (Math.random() - 0.5) * 200;
+        const delay = 1.5 + Math.random() * 1.5;
+        return { left, top, x, y, delay };
+      }),
+    [path]
+  );
 
   useEffect(() => {
     const t1 = setTimeout(() => setPhase("reveal"), 2000);
@@ -30,23 +43,23 @@ export default function JourneyBegins({ path, onEnter }: JourneyBeginsProps) {
     >
       {/* Particle burst */}
       <div className="absolute inset-0 pointer-events-none">
-        {Array.from({ length: 40 }).map((_, i) => (
+        {burstParticles.map((p, i) => (
           <motion.div
             key={i}
             className="absolute w-1 h-1 rounded-full bg-primary/40"
             style={{
-              left: `${50 + (Math.random() - 0.5) * 60}%`,
-              top: `${50 + (Math.random() - 0.5) * 60}%`,
+              left: p.left,
+              top: p.top,
             }}
             animate={{
               scale: [0, 1.5, 0],
               opacity: [0, 0.6, 0],
-              x: [(Math.random() - 0.5) * 200],
-              y: [(Math.random() - 0.5) * 200],
+              x: [p.x],
+              y: [p.y],
             }}
             transition={{
               duration: 3,
-              delay: 1.5 + Math.random() * 1.5,
+              delay: p.delay,
               ease: "easeOut",
             }}
           />

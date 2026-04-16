@@ -37,6 +37,28 @@ export default function PackOpening({ cardIds, onComplete, playerState }: PackOp
     return cardIds.map(id => playerState ? playerState.ownedCardIds.includes(id) : false);
   }, [cardIds, playerState]);
 
+  const ambientParticles = useMemo(
+    () =>
+      Array.from({ length: 30 }).map(() => ({
+        x: `${Math.random() * 100}vw`,
+        y: `${Math.random() * 100}vh`,
+        duration: 2 + Math.random() * 3,
+        delay: Math.random() * 1.5,
+        repeatDelay: Math.random() * 2,
+      })),
+    []
+  );
+
+  const legendaryBurstSeeds = useMemo(() => {
+    return cards.map((c) => {
+      if (c.rarity !== "legendary") return null;
+      return Array.from({ length: 8 }).map(() => ({
+        x: (Math.random() - 0.5) * 40,
+        left: `${20 + Math.random() * 60}%`,
+      }));
+    });
+  }, [cards]);
+
   useEffect(() => {
     const timer = setTimeout(() => setPhase("spread"), 1500);
     return () => clearTimeout(timer);
@@ -78,24 +100,25 @@ export default function PackOpening({ cardIds, onComplete, playerState }: PackOp
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[100] flex items-center justify-center bg-background/95 backdrop-blur-md"
+      className="fixed inset-0 z-[100] flex items-center justify-center bg-background/95"
     >
       {/* Ambient particles */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {Array.from({ length: 30 }).map((_, i) => (
+        {ambientParticles.map((p, i) => (
           <motion.div
             key={i}
             className="absolute w-1 h-1 rounded-full bg-primary/40"
             initial={{ x: "50vw", y: "50vh", scale: 0 }}
             animate={{
-              x: `${Math.random() * 100}vw`,
-              y: `${Math.random() * 100}vh`,
+              x: p.x,
+              y: p.y,
               scale: [0, 1, 0],
             }}
-            transition={{ duration: 2 + Math.random() * 3, delay: Math.random() * 1.5, repeat: Infinity, repeatDelay: Math.random() * 2 }}
+            transition={{ duration: p.duration, delay: p.delay, repeat: Infinity, repeatDelay: p.repeatDelay }}
           />
         ))}
       </div>
+      <div className="absolute inset-0 pointer-events-none bg-gradient-to-b from-background/70 via-transparent to-background/80" />
 
       {/* Intro */}
       <AnimatePresence>
@@ -160,17 +183,17 @@ export default function PackOpening({ cardIds, onComplete, playerState }: PackOp
                       {/* Rarity particles */}
                       {card.rarity === "legendary" && (
                         <div className="absolute inset-0 pointer-events-none">
-                          {Array.from({ length: 8 }).map((_, j) => (
+                          {(legendaryBurstSeeds[i] || []).map((seed, j) => (
                             <motion.div
                               key={j}
                               className="absolute w-1.5 h-1.5 rounded-full bg-legendary"
                               animate={{
                                 y: [0, -60, -120],
-                                x: [0, (Math.random() - 0.5) * 40],
+                                x: [0, seed.x],
                                 opacity: [1, 0.5, 0],
                               }}
                               transition={{ duration: 1.5, delay: j * 0.15, repeat: Infinity }}
-                              style={{ left: `${20 + Math.random() * 60}%`, bottom: 0 }}
+                              style={{ left: seed.left, bottom: 0 }}
                             />
                           ))}
                         </div>

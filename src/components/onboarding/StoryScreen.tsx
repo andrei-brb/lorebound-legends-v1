@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface StoryScreenProps {
@@ -11,6 +11,19 @@ interface StoryScreenProps {
 export default function StoryScreen({ title, lines, onContinue }: StoryScreenProps) {
   const [revealedLines, setRevealedLines] = useState(0);
   const [showButton, setShowButton] = useState(false);
+
+  const runes = useMemo(
+    () =>
+      Array.from({ length: 30 }).map((_, i) => ({
+        key: i,
+        left: `${Math.random() * 100}%`,
+        top: `${Math.random() * 100}%`,
+        duration: 8 + Math.random() * 6,
+        delay: Math.random() * 5,
+        glyph: ["✦", "⚔", "◆", "☽", "⚡", "🜲", "⛧"][i % 7],
+      })),
+    []
+  );
 
   useEffect(() => {
     if (revealedLines < lines.length) {
@@ -32,13 +45,13 @@ export default function StoryScreen({ title, lines, onContinue }: StoryScreenPro
     >
       {/* Floating runes */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {Array.from({ length: 30 }).map((_, i) => (
+        {runes.map((r) => (
           <motion.div
-            key={i}
+            key={r.key}
             className="absolute text-primary/10 font-heading text-xl select-none"
             style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
+              left: r.left,
+              top: r.top,
             }}
             animate={{
               y: [0, -40, 0],
@@ -46,12 +59,12 @@ export default function StoryScreen({ title, lines, onContinue }: StoryScreenPro
               rotate: [0, 360],
             }}
             transition={{
-              duration: 8 + Math.random() * 6,
+              duration: r.duration,
               repeat: Infinity,
-              delay: Math.random() * 5,
+              delay: r.delay,
             }}
           >
-            {["✦", "⚔", "◆", "☽", "⚡", "🜲", "⛧"][i % 7]}
+            {r.glyph}
           </motion.div>
         ))}
       </div>

@@ -94,9 +94,10 @@ const visualTierClasses: Record<string, string> = {
 export default function GameCard({ card, onClick, selected, showSynergy, size = "md", cardProgress, equippedFrameImage }: GameCardProps) {
   const [flipped, setFlipped] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
-  const [tilt, setTilt] = useState({ x: 0, y: 0 });
-  const [holoPos, setHoloPos] = useState({ x: 50, y: 50 });
   const cardRef = useRef<HTMLDivElement>(null);
+  const rectRef = useRef<DOMRect | null>(null);
+  const rafRef = useRef<number | null>(null);
+  const pendingRef = useRef<{ x: number; y: number } | null>(null);
 
   const progress = cardProgress || { level: 1, xp: 0, prestigeLevel: 0, starProgress: { dupeCount: 0, goldStars: 0, redStars: 0 } };
   const visualTier = getVisualTier(progress.level);
@@ -125,18 +126,51 @@ export default function GameCard({ card, onClick, selected, showSynergy, size = 
     [card.rarity]
   );
 
-  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
-    if (!cardRef.current) return;
-    const rect = cardRef.current.getBoundingClientRect();
-    const x = (e.clientX - rect.left) / rect.width;
-    const y = (e.clientY - rect.top) / rect.height;
-    setTilt({ x: (y - 0.5) * -intensity, y: (x - 0.5) * intensity });
-    setHoloPos({ x: x * 100, y: y * 100 });
+  const flushPointerUpdate = useCallback(() => {
+    rafRef.current = null;
+    const el = cardRef.current;
+    const rect = rectRef.current;
+    const pending = pendingRef.current;
+    if (!el || !rect || !pending) return;
+    pendingRef.current = null;
+
+    const x = (pending.x - rect.left) / rect.width;
+    const y = (pending.y - rect.top) / rect.height;
+    const tiltX = (y - 0.5) * -intensity;
+    const tiltY = (x - 0.5) * intensity;
+    el.style.setProperty("--tilt-x", `${tiltX.toFixed(2)}deg`);
+    el.style.setProperty("--tilt-y", `${tiltY.toFixed(2)}deg`);
+    el.style.setProperty("--holo-x", `${Math.max(0, Math.min(100, x * 100)).toFixed(2)}%`);
+    el.style.setProperty("--holo-y", `${Math.max(0, Math.min(100, y * 100)).toFixed(2)}%`);
   }, [intensity]);
 
-  const handleMouseLeave = useCallback(() => {
-    setTilt({ x: 0, y: 0 });
-    setHoloPos({ x: 50, y: 50 });
+  const schedulePointerUpdate = useCallback(() => {
+    if (rafRef.current !== null) return;
+    rafRef.current = requestAnimationFrame(flushPointerUpdate);
+  }, [flushPointerUpdate]);
+
+  const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    pendingRef.current = { x: e.clientX, y: e.clientY };
+    schedulePointerUpdate();
+  }, [schedulePointerUpdate]);
+
+  const handlePointerEnter = useCallback(() => {
+    if (!cardRef.current) return;
+    rectRef.current = cardRef.current.getBoundingClientRect();
+    setIsHovered(true);
+  }, []);
+
+  const handlePointerLeave = useCallback(() => {
+    if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
+    rafRef.current = null;
+    pendingRef.current = null;
+    rectRef.current = null;
+    if (cardRef.current) {
+      cardRef.current.style.setProperty("--tilt-x", `0deg`);
+      cardRef.current.style.setProperty("--tilt-y", `0deg`);
+      cardRef.current.style.setProperty("--holo-x", `50%`);
+      cardRef.current.style.setProperty("--holo-y", `50%`);
+    }
     setIsHovered(false);
   }, []);
 
@@ -153,17 +187,24 @@ export default function GameCard({ card, onClick, selected, showSynergy, size = 
         sizeClasses[size],
         selected && "ring-2 ring-primary scale-105"
       )}
-      onMouseMove={handleMouseMove}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={handleMouseLeave}
+      onPointerMove={handlePointerMove}
+      onPointerEnter={handlePointerEnter}
+      onPointerLeave={handlePointerLeave}
       onClick={handleClick}
-      style={{ perspective: "800px" }}
+      style={{
+        perspective: "800px",
+        // CSS vars for smooth tilt/holo without React rerenders
+        ["--tilt-x" as any]: "0deg",
+        ["--tilt-y" as any]: "0deg",
+        ["--holo-x" as any]: "50%",
+        ["--holo-y" as any]: "50%",
+      }}
     >
       {/* 3D tilt wrapper */}
       <div
-        className="w-full h-full transition-transform duration-150 ease-out"
+        className="w-full h-full transition-transform duration-150 ease-out will-change-transform"
         style={{
-          transform: `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg)`,
+          transform: `rotateX(var(--tilt-x)) rotateY(var(--tilt-y))`,
           transformStyle: "preserve-3d",
         }}
       >
@@ -246,7 +287,7 @@ export default function GameCard({ card, onClick, selected, showSynergy, size = 
                 className="absolute inset-0 pointer-events-none transition-opacity duration-300"
                 style={{
                   opacity: isHovered ? (holoOpacity[card.rarity] || 0.1) : 0,
-                  background: `radial-gradient(circle at ${holoPos.x}% ${holoPos.y}%, 
+                  background: `radial-gradient(circle at var(--holo-x) var(--holo-y), 
                     hsl(0 80% 65% / 0.3),
                     hsl(60 80% 65% / 0.2) 25%,
                     hsl(120 80% 65% / 0.2) 40%,

@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { BookOpen, Layers, Swords, Coins, Sparkles as SparklesIcon, Grid3X3, Loader2, ScrollText, Hammer, Trophy, ArrowLeftRight, BarChart3, Calendar, Zap, Crown, Shield } from "lucide-react";
 import CollectionView from "@/components/CollectionView";
 import DeckBuilder from "@/components/DeckBuilder";
@@ -127,6 +127,17 @@ export default function Index() {
     setActiveTab("battle");
   };
 
+  const ambientParticles = useMemo(
+    () =>
+      Array.from({ length: 20 }).map(() => ({
+        left: `${Math.random() * 100}%`,
+        top: `${Math.random() * 100}%`,
+        animationDelay: `${Math.random() * 8}s`,
+        animationDuration: `${6 + Math.random() * 8}s`,
+      })),
+    []
+  );
+
   return (
     <div
       className="min-h-screen bg-background"
@@ -134,15 +145,15 @@ export default function Index() {
     >
       {/* Ambient particles */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-        {Array.from({ length: 20 }).map((_, i) => (
+        {ambientParticles.map((p, i) => (
           <div
             key={i}
             className="absolute w-1 h-1 rounded-full bg-primary/20 animate-float"
             style={{
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 8}s`,
-              animationDuration: `${6 + Math.random() * 8}s`,
+              left: p.left,
+              top: p.top,
+              animationDelay: p.animationDelay,
+              animationDuration: p.animationDuration,
             }}
           />
         ))}
