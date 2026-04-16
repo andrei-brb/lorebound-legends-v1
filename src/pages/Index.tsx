@@ -17,27 +17,47 @@ import BattlePass from "@/components/BattlePass";
 import Onboarding from "@/components/Onboarding";
 import { cn } from "@/lib/utils";
 import { usePlayerApi } from "@/lib/usePlayerApi";
-import { loadAchievementState, checkNewAchievements, saveAchievementState, type AchievementState } from "@/lib/achievementEngine";
+import { loadAchievementState, checkNewAchievements, saveAchievementState } from "@/lib/achievementEngine";
 import { toast } from "@/hooks/use-toast";
 
-
 type Tab = "collection" | "catalog" | "deck" | "battle" | "summon" | "quests" | "workshop" | "achievements" | "leaderboard" | "trade" | "events" | "tournament" | "boost" | "pass";
+type Category = "cards" | "combat" | "progress" | "social";
 
-const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-  { id: "collection", label: "Collection", icon: <BookOpen className="w-4 h-4" /> },
-  { id: "catalog", label: "Catalog", icon: <Grid3X3 className="w-4 h-4" /> },
-  { id: "summon", label: "Summon", icon: <SparklesIcon className="w-4 h-4" /> },
-  { id: "deck", label: "Deck", icon: <Layers className="w-4 h-4" /> },
-  { id: "battle", label: "Battle", icon: <Swords className="w-4 h-4" /> },
-  { id: "quests", label: "Quests", icon: <ScrollText className="w-4 h-4" /> },
-  { id: "workshop", label: "Workshop", icon: <Hammer className="w-4 h-4" /> },
-  { id: "achievements", label: "Badges", icon: <Trophy className="w-4 h-4" /> },
-  { id: "leaderboard", label: "Ranks", icon: <BarChart3 className="w-4 h-4" /> },
-  { id: "trade", label: "Trade", icon: <ArrowLeftRight className="w-4 h-4" /> },
-  { id: "events", label: "Events", icon: <Calendar className="w-4 h-4" /> },
-  { id: "tournament", label: "Tourney", icon: <Crown className="w-4 h-4" /> },
-  { id: "boost", label: "Boost", icon: <Zap className="w-4 h-4" /> },
-  { id: "pass", label: "Pass", icon: <Shield className="w-4 h-4" /> },
+const categories: { id: Category; label: string; icon: React.ReactNode; tabs: { id: Tab; label: string; icon: React.ReactNode }[] }[] = [
+  {
+    id: "cards", label: "Cards", icon: <BookOpen className="w-4 h-4" />,
+    tabs: [
+      { id: "collection", label: "Collection", icon: <BookOpen className="w-4 h-4" /> },
+      { id: "catalog", label: "Catalog", icon: <Grid3X3 className="w-4 h-4" /> },
+      { id: "summon", label: "Summon", icon: <SparklesIcon className="w-4 h-4" /> },
+      { id: "deck", label: "Deck", icon: <Layers className="w-4 h-4" /> },
+    ],
+  },
+  {
+    id: "combat", label: "Combat", icon: <Swords className="w-4 h-4" />,
+    tabs: [
+      { id: "battle", label: "Battle", icon: <Swords className="w-4 h-4" /> },
+      { id: "tournament", label: "Tourney", icon: <Crown className="w-4 h-4" /> },
+    ],
+  },
+  {
+    id: "progress", label: "Progress", icon: <Trophy className="w-4 h-4" />,
+    tabs: [
+      { id: "quests", label: "Quests", icon: <ScrollText className="w-4 h-4" /> },
+      { id: "workshop", label: "Workshop", icon: <Hammer className="w-4 h-4" /> },
+      { id: "achievements", label: "Badges", icon: <Trophy className="w-4 h-4" /> },
+      { id: "pass", label: "Pass", icon: <Shield className="w-4 h-4" /> },
+      { id: "boost", label: "Boost", icon: <Zap className="w-4 h-4" /> },
+      { id: "events", label: "Events", icon: <Calendar className="w-4 h-4" /> },
+    ],
+  },
+  {
+    id: "social", label: "Social", icon: <ArrowLeftRight className="w-4 h-4" />,
+    tabs: [
+      { id: "trade", label: "Trade", icon: <ArrowLeftRight className="w-4 h-4" /> },
+      { id: "leaderboard", label: "Ranks", icon: <BarChart3 className="w-4 h-4" /> },
+    ],
+  },
 ];
 
 export default function Index() {
