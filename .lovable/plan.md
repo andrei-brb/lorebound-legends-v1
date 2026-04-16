@@ -1,64 +1,38 @@
 
 
-## Battle Pass — Reward Structure & Implementation Plan
+## Grouped Category Navigation
 
-### Reward Layout (30 Levels, Dual Track)
+Reorganize the 14 flat tabs into 4 logical category groups displayed as a two-tier header: category bar on top, sub-tabs below.
 
-**FREE Track** — Moderate value, keeps F2P players progressing:
+### Category Groups
 
-| Levels | Reward Type | Examples |
-|--------|------------|---------|
-| 1, 2, 3, 4 | Gold + Stardust | 200g, 50 dust, 300g, 75 dust |
-| **5** | **Legendary milestone** | Seasonal card back "Bloom Crest" (season exclusive) |
-| 6, 7, 8, 9 | XP Boost + Gold + Bronze Pack | 2x XP (1hr), 400g, Bronze Pack, 100 dust |
-| **10** | **Legendary milestone** | Free Common hero "Verdant Sprout" (seasonal) |
-| 11–14 | Gold, Dust, XP Boosts | Mixed currency rewards |
-| **15** | **Legendary milestone** | Seasonal title "Bloomwalker" |
-| 16–19 | Silver Pack, Gold, Dust | Escalating currency |
-| **20** | **Legendary milestone** | Free Rare hero "Thornweaver" (seasonal) |
-| 21–24 | Gold, Dust, Bronze Packs | Mixed |
-| **25** | **Legendary milestone** | Seasonal emote "Petal Storm" |
-| 26–29 | Silver Pack, Gold, Dust | Final push rewards |
-| **30** | **Legendary milestone** | Exclusive cosmetic: "Bloom Aura" card frame |
+| Category | Icon | Tabs |
+|----------|------|------|
+| **Cards** | BookOpen | Collection, Catalog, Summon, Deck |
+| **Combat** | Swords | Battle, Tournament |
+| **Progress** | Trophy | Quests, Workshop, Badges, Pass, Boost, Events |
+| **Social** | ArrowLeftRight | Trade, Ranks |
 
-**ELITE Track** — Premium flex, exclusive heroes & cosmetics:
+### Layout
 
-| Levels | Reward Type | Examples |
-|--------|------------|---------|
-| 1–4 | 2x Gold + Stardust (doubled) | 400g, 100 dust, 600g, 150 dust |
-| **5** | **Legendary milestone** | Animated card back "Bloom Inferno" (season exclusive) |
-| 6–9 | Gold Packs + bonus currency | Gold Pack, 500g, 200 dust, 2x XP (2hr) |
-| **10** | **Legendary milestone** | Elite Rare hero "Pyralis, the Bloom Knight" (seasonal) |
-| 11–14 | Gold Packs, bonus Dust, crafting mats | Premium currency flow |
-| **15** | **Legendary milestone** | Seasonal board skin "Runed Garden" |
-| 16–19 | 2x Gold, Gold Packs, Dust | Escalating |
-| **20** | **Legendary milestone** | Elite Legendary hero "Solara, Bloom Empress" (seasonal) |
-| 21–24 | Gold Packs, bonus currency | Premium flow |
-| **25** | **Legendary milestone** | Animated border "Eternal Bloom" |
-| 26–29 | Gold Packs, 2x currency | Final stretch |
-| **30** | **Legendary milestone** | Seasonal animated hero variant "Celestial Solara" (alternate art, never returns) |
+```text
+┌─────────────────────────────────────────────────────┐
+│ ⚔ Mythic Arcana          💰 1200  💎 50            │
+├─────────────────────────────────────────────────────┤
+│  [📖 Cards]  [⚔ Combat]  [🏆 Progress]  [↔ Social]│  ← category bar
+├─────────────────────────────────────────────────────┤
+│  Collection · Catalog · Summon · Deck               │  ← sub-tabs for active category
+└─────────────────────────────────────────────────────┘
+```
 
-### Implementation
+- Clicking a category shows its sub-tabs below
+- Active category highlighted with `bg-primary`, sub-tabs use existing pill style
+- Default: Cards → Collection
+- Remembers last visited sub-tab per category
 
-**Files to create/edit:**
+### Files Changed
 
-1. **Create `src/components/BattlePass.tsx`**
-   - Horizontal scrollable 30-level grid, FREE row on top, ELITE row below
-   - Hardcoded reward data arrays matching the tables above
-   - Milestone cells (5/10/15/20/25/30): golden glow border + "Season Exclusive" badge
-   - Hero reward cells show card art thumbnail; currency cells show icon + amount
-   - Current level pulsing highlight, claimed = checkmark, locked = dimmed + lock
-   - "Upgrade to Elite" CTA button, XP progress bar in header
-   - Dark-gold mythic styling consistent with existing theme
+1. **`src/pages/Index.tsx`** — Replace flat `tabs` array with grouped structure. Render two rows: category selector + sub-tab selector. Add `activeCategory` state alongside `activeTab`. Fix the existing "Rendered more hooks" runtime error (likely conditional hook call).
 
-2. **Fix `src/components/CollectionView.tsx`** — resolve `GameCard` naming collision (already partially done)
-
-3. **Edit `src/pages/Index.tsx`** — add "Pass" tab with Shield icon, render `<BattlePass />`
-
-### Visual Style
-- Dark card cells (`bg-card`), gold accents on milestones
-- Elite row: purple-gold gradient border accent
-- Milestone legendary cells: animated golden shimmer border
-- "Season Exclusive — Limited Time" label on all milestone rewards
-- Hero thumbnails use existing card art from the card data
+No new components needed — just restructuring the existing header nav in Index.tsx.
 
