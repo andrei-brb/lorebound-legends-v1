@@ -220,8 +220,11 @@ export default function PvPPanel({ playerState, onNavigateBattle }: Props) {
                 disabled={!liveOpponentId}
                 onClick={async () => {
                   if (!liveOpponentId) return;
-                  try { const res = await api.pvpLiveCreate(liveOpponentId); setLiveMatchId(res.matchId); toast({ title: "Live match created", description: `Match #${res.matchId}` }); await refreshLive(res.matchId); }
-                  catch (e) { toast({ title: "Create failed", description: e instanceof Error ? e.message : String(e) }); }
+                  try {
+                    const res = await api.pvpLiveCreate(liveOpponentId);
+                    toast({ title: "⚔ Match created!", description: `Invite sent. Match #${res.matchId}` });
+                    onNavigateBattle?.(res.matchId);
+                  } catch (e) { toast({ title: "Create failed", description: e instanceof Error ? e.message : String(e) }); }
                 }}
                 className="px-4 py-2 rounded-lg bg-primary text-primary-foreground font-heading font-bold text-sm disabled:opacity-40 transition-all"
               >

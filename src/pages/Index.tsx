@@ -76,6 +76,10 @@ export default function Index() {
   const [battleDeckIds, setBattleDeckIds] = useState<string[]>([]);
   const [unreadMail, setUnreadMail] = useState(0);
   const lastUnreadMailRef = useRef<number | null>(null);
+  const shownInviteIdsRef = useRef<Set<number>>(new Set());
+  const [pvpInvitePopup, setPvpInvitePopup] = useState<{
+    notifId: number; matchId: number; title: string; body?: string | null;
+  } | null>(null);
   const { playerState, setPlayerState, status, isOnline, pullCards, submitBattleResult, completeOnboarding, syncEconomy, craftFuse, craftSacrifice, pullSeasonalPack } = usePlayerApi();
   const isDiscordActivityHost = typeof window !== "undefined" && window.location.hostname.endsWith("discordsays.com");
   const discordOverlayInset = "calc(64px + env(safe-area-inset-top))";
@@ -106,12 +110,28 @@ export default function Index() {
         const prev = lastUnreadMailRef.current;
         lastUnreadMailRef.current = next;
         if (alive) setUnreadMail(next);
-        if (prev !== null && next > prev) {
+        if (next > 0 && (prev === null || next > prev)) {
           try {
-            const latest = await api.getNotifications(1);
-            const n = latest.notifications?.[0];
-            toast({ title: n?.title || "New mail", description: n?.body || `You have ${next} unread message${next === 1 ? "" : "s"}.` });
-          } catch { toast({ title: "New mail", description: `You have ${next} unread message${next === 1 ? "" : "s"}.` }); }
+            const latest = await api.getNotifications(5);
+            const notifs: any[] = latest.notifications || [];
+            const liveInvite = notifs.find(
+              (n: any) => n.type === "pvp_live_invite" && !n.readAt && !shownInviteIdsRef.current.has(n.id)
+            );
+            if (liveInvite) {
+              const matchId = Number(liveInvite.data?.matchId);
+              if (Number.isFinite(matchId) && matchId > 0) {
+                shownInviteIdsRef.current.add(liveInvite.id);
+                if (alive) setPvpInvitePopup({ notifId: liveInvite.id, matchId, title: liveInvite.title, body: liveInvite.body });
+                return;
+              }
+            }
+            if (prev !== null && next > prev) {
+              const n = notifs[0];
+              toast({ title: n?.title || "New mail", description: n?.body || `You have ${next} unread message${next === 1 ? "" : "s"}.` });
+            }
+          } catch {
+            if (prev !== null && next > prev) toast({ title: "New mail", description: `You have ${next} unread message${next === 1 ? "" : "s"}.` });
+          }
         }
       } catch { /* ignore */ }
     };
@@ -151,12 +171,70 @@ export default function Index() {
     setActiveTab("battle");
   };
 
+  const acceptInvitePopup = async () => {
+    if (!pvpInvitePopup) return;
+    const { notifId, matchId } = pvpInvitePopup;
+    try {
+      await api.pvpLiveJoin(matchId);
+      await api.markNotificationsRead([notifId]);
+      sessionStorage.setItem("pvp.live.matchId", String(matchId));
+      setPvpInvitePopup(null);
+      setActiveCategory("combat");
+      setActiveTab("battle");
+      toast({ title: "⚔ Match accepted!", description: `Joining match #${matchId}` });
+    } catch (e: any) {
+      toast({ title: "Accept failed", description: e?.message || "Could not accept invite" });
+    }
+  };
+
+  const declineInvitePopup = async () => {
+    if (!pvpInvitePopup) return;
+    const { notifId, matchId } = pvpInvitePopup;
+    try {
+      await api.pvpLiveDecline(matchId);
+      await api.markNotificationsRead([notifId]);
+      setPvpInvitePopup(null);
+      toast({ title: "Invite declined" });
+    } catch (e: any) {
+      toast({ title: "Decline failed", description: e?.message || "Could not decline invite" });
+    }
+  };
+
   const activeCat = categories.find((c) => c.id === activeCategory);
   const liveMatchIdFromInbox = typeof window !== "undefined" ? Number(sessionStorage.getItem("pvp.live.matchId") || "") : NaN;
   const hasLiveMatchFromInbox = Number.isFinite(liveMatchIdFromInbox) && liveMatchIdFromInbox > 0;
 
   return (
     <TooltipProvider>
+      {pvpInvitePopup && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 animate-fade-in">
+          <div className="bg-card border border-border rounded-2xl p-6 mx-4 max-w-sm w-full shadow-2xl space-y-5 animate-slide-in-up">
+            <div className="flex items-center gap-3">
+              <div className="rounded-full bg-destructive/20 p-3">
+                <Swords className="w-6 h-6 text-destructive" />
+              </div>
+              <div>
+                <h3 className="font-heading font-bold text-foreground text-lg">{pvpInvitePopup.title}</h3>
+                {pvpInvitePopup.body && <p className="text-sm text-muted-foreground mt-0.5">{pvpInvitePopup.body}</p>}
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={acceptInvitePopup}
+                className="flex-1 px-4 py-3 rounded-xl bg-emerald-600 text-white font-heading font-bold hover:bg-emerald-700 transition-colors text-sm"
+              >
+                ⚔ Accept
+              </button>
+              <button
+                onClick={declineInvitePopup}
+                className="flex-1 px-4 py-3 rounded-xl bg-secondary text-secondary-foreground font-heading font-bold hover:bg-secondary/80 transition-colors text-sm"
+              >
+                Decline
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="min-h-screen bg-background" style={{ paddingTop: isDiscordActivityHost ? discordOverlayInset : "env(safe-area-inset-top)" }}>
         {/* Ambient particles */}
         <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
