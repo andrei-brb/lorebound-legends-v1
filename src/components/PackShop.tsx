@@ -146,17 +146,17 @@ export default function PackShop({ playerState, onStateChange, isOnline, pullCar
       <div className="flex flex-wrap gap-4">
         <div className="flex items-center gap-2 bg-card border border-border rounded-xl px-4 py-2.5">
           <Coins className="w-4 h-4 text-legendary" />
-          <span className="font-heading font-bold text-foreground">{playerState.gold}</span>
+          <span className="font-heading font-bold text-foreground">{Number(playerState.gold) || 0}</span>
           <span className="text-xs text-muted-foreground">Gold</span>
         </div>
         <div className="flex items-center gap-2 bg-card border border-border rounded-xl px-4 py-2.5">
           <span className="text-sm">💎</span>
-          <span className="font-heading font-bold text-foreground">{playerState.stardust || 0}</span>
+          <span className="font-heading font-bold text-foreground">{Number(playerState.stardust) || 0}</span>
           <span className="text-xs text-muted-foreground">Stardust</span>
         </div>
         <div className="flex items-center gap-2 bg-card border border-border rounded-xl px-4 py-2.5">
           <Sparkles className="w-4 h-4 text-primary" />
-          <span className="text-xs text-muted-foreground">Pity: {playerState.pityCounter}/30</span>
+          <span className="text-xs text-muted-foreground">Pity: {Number(playerState.pityCounter) || 0}/30</span>
           <div className="w-16 h-1.5 bg-secondary rounded-full overflow-hidden">
             <div className="h-full bg-legendary rounded-full transition-all" style={{ width: `${pityProgress}%` }} />
           </div>

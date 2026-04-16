@@ -173,11 +173,11 @@ export default function Index() {
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-1.5 bg-secondary/80 rounded-lg px-3 py-1.5">
               <Coins className="w-4 h-4 text-legendary" />
-              <span className="font-heading font-bold text-sm text-foreground">{playerState.gold}</span>
+              <span className="font-heading font-bold text-sm text-foreground">{Number(playerState.gold) || 0}</span>
             </div>
             <div className="flex items-center gap-1.5 bg-secondary/80 rounded-lg px-3 py-1.5">
               <span className="text-sm">💎</span>
-              <span className="font-heading font-bold text-sm text-foreground">{playerState.stardust || 0}</span>
+              <span className="font-heading font-bold text-sm text-foreground">{Number(playerState.stardust) || 0}</span>
             </div>
             <nav className="flex gap-1">
               {categories.map((cat) => (

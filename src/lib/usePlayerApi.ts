@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { type PlayerState, loadPlayerState, savePlayerState } from "./playerState";
+import { type PlayerState, loadPlayerState, savePlayerState, normalizePlayerState } from "./playerState";
 import { api, isAuthenticated } from "./apiClient";
 
 type LoadingStatus = "loading" | "ready" | "error";
@@ -57,7 +57,7 @@ export function usePlayerApi(): UsePlayerApiReturn {
 
         if (!migrated && localState.totalPulls > 0) {
           try {
-            const imported = await api.importLocalState(localState) as PlayerState;
+            const imported = normalizePlayerState(await api.importLocalState(localState) as PlayerState);
             localStorage.setItem(MIGRATION_KEY, "1");
             if (!cancelled) {
               setPlayerStateInternal(imported);
@@ -70,7 +70,7 @@ export function usePlayerApi(): UsePlayerApiReturn {
         }
 
         localStorage.setItem(MIGRATION_KEY, "1");
-        const serverState = await api.getPlayer() as PlayerState;
+        const serverState = normalizePlayerState(await api.getPlayer() as PlayerState);
         if (!cancelled) {
           setPlayerStateInternal(serverState);
           savePlayerState(serverState);
@@ -116,7 +116,7 @@ export function usePlayerApi(): UsePlayerApiReturn {
     async (path: "fire" | "nature" | "shadow") => {
       if (!online) return null;
       try {
-        const state = (await api.completeOnboarding(path)) as PlayerState;
+        const state = normalizePlayerState((await api.completeOnboarding(path)) as PlayerState);
         setPlayerStateInternal(state);
         savePlayerState(state);
         return state;
@@ -133,6 +133,7 @@ export function usePlayerApi(): UsePlayerApiReturn {
       if (!online) return null;
       try {
         const result = await api.pullCards(packId);
+        result.state = normalizePlayerState(result.state);
         setPlayerStateInternal(result.state);
         savePlayerState(result.state);
         return { pullResults: result.pullResults, state: result.state };
@@ -149,6 +150,7 @@ export function usePlayerApi(): UsePlayerApiReturn {
       if (!online) return null;
       try {
         const result = await api.submitBattleResult(data);
+        result.state = normalizePlayerState(result.state);
         setPlayerStateInternal(result.state);
         savePlayerState(result.state);
         return { goldReward: result.goldReward, levelUps: result.levelUps };

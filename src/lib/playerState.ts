@@ -153,27 +153,56 @@ export function loadPlayerState(): PlayerState {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const state = JSON.parse(raw) as PlayerState;
-      // Migration: add stardust if missing
-      if (state.stardust === undefined) state.stardust = 0;
-      // Migration: add onboarding fields
-      if (state.hasCompletedOnboarding === undefined) state.hasCompletedOnboarding = true; // existing players already onboarded
-      if (state.selectedPath === undefined) state.selectedPath = null;
-      // Migration: add battle pass + cosmetics
-      state.battlePass = normalizeBattlePassState(state.battlePass);
-      if (!Array.isArray(state.cosmeticsOwned)) state.cosmeticsOwned = [];
-      state.cosmeticsEquipped = normalizeCosmeticsEquipped(state.cosmeticsEquipped);
-      if (state.battlePassXpBoostExpiresAt === undefined) state.battlePassXpBoostExpiresAt = null;
-      if (!Array.isArray(state.deckPresets)) state.deckPresets = [];
-      // Migration: add starProgress to existing cards
-      for (const id of Object.keys(state.cardProgress)) {
-        if (!state.cardProgress[id].starProgress) {
-          state.cardProgress[id].starProgress = getDefaultStarProgress();
-        }
-      }
-      return state;
+      if (state.hasCompletedOnboarding === undefined) state.hasCompletedOnboarding = true;
+      return normalizePlayerState(state);
     }
   } catch { /* ignore */ }
   return createDefaultState();
+}
+
+function normalizeCardProgress(raw: unknown): CardProgress {
+  if (!raw || typeof raw !== "object") return { level: 1, xp: 0, prestigeLevel: 0, starProgress: getDefaultStarProgress() };
+  const r = raw as Record<string, unknown>;
+  const sp = (r.starProgress && typeof r.starProgress === "object") ? r.starProgress as Record<string, unknown> : {};
+  return {
+    level: Number(r.level) || 1,
+    xp: Number(r.xp) || 0,
+    prestigeLevel: Number(r.prestigeLevel) || 0,
+    starProgress: {
+      dupeCount: Number(sp.dupeCount) || 0,
+      goldStars: Number(sp.goldStars) || 0,
+      redStars: Number(sp.redStars) || 0,
+    },
+  };
+}
+
+export function normalizePlayerState(state: PlayerState): PlayerState {
+  const rawCp = (state.cardProgress && typeof state.cardProgress === "object" && !Array.isArray(state.cardProgress))
+    ? state.cardProgress
+    : {};
+  const safeCardProgress: Record<string, CardProgress> = {};
+  for (const [id, entry] of Object.entries(rawCp)) {
+    safeCardProgress[id] = normalizeCardProgress(entry);
+  }
+
+  const lfpt = state.lastFreePackTime;
+  return {
+    ...state,
+    gold: Number(state.gold) || 0,
+    stardust: Number(state.stardust) || 0,
+    pityCounter: Number(state.pityCounter) || 0,
+    totalPulls: Number(state.totalPulls) || 0,
+    ownedCardIds: Array.isArray(state.ownedCardIds) ? state.ownedCardIds : [],
+    cardProgress: safeCardProgress,
+    lastFreePackTime: (typeof lfpt === "number") ? lfpt : (typeof lfpt === "string" ? new Date(lfpt).getTime() : null),
+    hasCompletedOnboarding: !!state.hasCompletedOnboarding,
+    selectedPath: state.selectedPath ?? null,
+    battlePass: normalizeBattlePassState(state.battlePass),
+    cosmeticsOwned: Array.isArray(state.cosmeticsOwned) ? state.cosmeticsOwned : [],
+    cosmeticsEquipped: normalizeCosmeticsEquipped(state.cosmeticsEquipped),
+    battlePassXpBoostExpiresAt: state.battlePassXpBoostExpiresAt ?? null,
+    deckPresets: Array.isArray(state.deckPresets) ? state.deckPresets : [],
+  };
 }
 
 export function savePlayerState(state: PlayerState): void {
