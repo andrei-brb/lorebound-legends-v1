@@ -212,6 +212,10 @@ export default function Index() {
   const liveMatchIdFromInbox = typeof window !== "undefined" ? Number(sessionStorage.getItem("pvp.live.matchId") || "") : NaN;
   const hasLiveMatchFromInbox = Number.isFinite(liveMatchIdFromInbox) && liveMatchIdFromInbox > 0;
 
+  /** Hide top nav (logo, currency, category + sub-tabs) while an active battle UI is shown */
+  const hideAppChromeDuringBattle =
+    activeTab === "battle" && (battleDeckIds.length > 0 || hasLiveMatchFromInbox);
+
   return (
     <TooltipProvider>
       {pvpInvitePopup && (
@@ -251,75 +255,76 @@ export default function Index() {
           ))}
         </div>
 
-        {/* Header */}
-        <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky z-50" style={{ top: 0 }}>
-          <div className="container flex items-center justify-between h-14 gap-2">
-            <div className="flex items-center gap-2 shrink-0">
-              <Swords className="w-6 h-6 text-primary" />
-              <h1 className="font-heading text-lg font-bold text-foreground tracking-wide hidden sm:block">Mythic Arcana</h1>
-            </div>
-            <div className="flex items-center gap-2 sm:gap-4">
-              <div className="flex items-center gap-1.5 bg-secondary/80 rounded-lg px-2.5 py-1.5">
-                <Coins className="w-4 h-4 text-[hsl(var(--legendary))]" />
-                <span className="font-heading font-bold text-sm text-foreground">{Number(playerState.gold) || 0}</span>
+        {!hideAppChromeDuringBattle && (
+          <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky z-50" style={{ top: 0 }}>
+            <div className="container flex items-center justify-between h-14 gap-2">
+              <div className="flex items-center gap-2 shrink-0">
+                <Swords className="w-6 h-6 text-primary" />
+                <h1 className="font-heading text-lg font-bold text-foreground tracking-wide hidden sm:block">Mythic Arcana</h1>
               </div>
-              <div className="flex items-center gap-1.5 bg-secondary/80 rounded-lg px-2.5 py-1.5">
-                <span className="text-sm">💎</span>
-                <span className="font-heading font-bold text-sm text-foreground">{Number(playerState.stardust) || 0}</span>
+              <div className="flex items-center gap-2 sm:gap-4">
+                <div className="flex items-center gap-1.5 bg-secondary/80 rounded-lg px-2.5 py-1.5">
+                  <Coins className="w-4 h-4 text-[hsl(var(--legendary))]" />
+                  <span className="font-heading font-bold text-sm text-foreground">{Number(playerState.gold) || 0}</span>
+                </div>
+                <div className="flex items-center gap-1.5 bg-secondary/80 rounded-lg px-2.5 py-1.5">
+                  <span className="text-sm">💎</span>
+                  <span className="font-heading font-bold text-sm text-foreground">{Number(playerState.stardust) || 0}</span>
+                </div>
+                <nav className="flex gap-0.5">
+                  {categories.map((cat) => (
+                    <Tooltip key={cat.id}>
+                      <TooltipTrigger asChild>
+                        <button
+                          onClick={() => handleCategoryClick(cat.id)}
+                          className={cn(
+                            "flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap",
+                            activeCategory === cat.id
+                              ? "bg-primary text-primary-foreground"
+                              : "text-muted-foreground hover:bg-secondary hover:text-secondary-foreground"
+                          )}
+                        >
+                          {cat.icon}
+                          <span className="hidden md:inline">{cat.label}</span>
+                        </button>
+                      </TooltipTrigger>
+                      <TooltipContent className="md:hidden"><p>{cat.label}</p></TooltipContent>
+                    </Tooltip>
+                  ))}
+                </nav>
               </div>
-              <nav className="flex gap-0.5">
-                {categories.map((cat) => (
-                  <Tooltip key={cat.id}>
-                    <TooltipTrigger asChild>
-                      <button
-                        onClick={() => handleCategoryClick(cat.id)}
-                        className={cn(
-                          "flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap",
-                          activeCategory === cat.id
-                            ? "bg-primary text-primary-foreground"
-                            : "text-muted-foreground hover:bg-secondary hover:text-secondary-foreground"
-                        )}
-                      >
-                        {cat.icon}
-                        <span className="hidden md:inline">{cat.label}</span>
-                      </button>
-                    </TooltipTrigger>
-                    <TooltipContent className="md:hidden"><p>{cat.label}</p></TooltipContent>
-                  </Tooltip>
-                ))}
-              </nav>
             </div>
-          </div>
-          {/* Sub-tabs row */}
-          <div className="container flex items-center gap-1 h-10 overflow-x-auto scrollbar-none">
-            {activeCat?.tabs.map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => handleTabClick(tab.id)}
-                className={cn(
-                  "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap relative",
-                  activeTab === tab.id
-                    ? "bg-secondary text-foreground"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                {tab.icon}
-                <span className="relative">
-                  {tab.label}
-                  {tab.id === "mail" && unreadMail > 0 && (
-                    <span className="absolute -top-2 -right-3 text-[10px] font-bold bg-primary text-primary-foreground rounded-full px-1.5 py-0.5">
-                      {unreadMail > 99 ? "99+" : unreadMail}
-                    </span>
+            {/* Sub-tabs row */}
+            <div className="container flex items-center gap-1 h-10 overflow-x-auto scrollbar-none">
+              {activeCat?.tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => handleTabClick(tab.id)}
+                  className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap relative",
+                    activeTab === tab.id
+                      ? "bg-secondary text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
                   )}
-                </span>
-                {activeTab === tab.id && <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-primary rounded-full" />}
-              </button>
-            ))}
-          </div>
-        </header>
+                >
+                  {tab.icon}
+                  <span className="relative">
+                    {tab.label}
+                    {tab.id === "mail" && unreadMail > 0 && (
+                      <span className="absolute -top-2 -right-3 text-[10px] font-bold bg-primary text-primary-foreground rounded-full px-1.5 py-0.5">
+                        {unreadMail > 99 ? "99+" : unreadMail}
+                      </span>
+                    )}
+                  </span>
+                  {activeTab === tab.id && <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-primary rounded-full" />}
+                </button>
+              ))}
+            </div>
+          </header>
+        )}
 
         {/* Content */}
-        <main className="container py-8 relative z-10 max-w-7xl">
+        <main className={cn("relative z-10", hideAppChromeDuringBattle ? "w-full max-w-none px-0 py-0" : "container py-8 max-w-7xl")}>
           <div key={activeTab} className="tab-content-enter">
             {activeTab === "collection" && (
               <div>
