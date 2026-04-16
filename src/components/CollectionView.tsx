@@ -33,6 +33,7 @@ interface CollectionViewProps {
   elementFilter?: "all" | "fire" | "water" | "earth" | "air" | "shadow" | "light" | "neutral";
   inDeckOnly?: boolean;
   sortBy?: "rarity_desc" | "rarity_asc" | "name_asc" | "name_desc" | "attack_desc" | "defense_desc" | "hp_desc" | "level_desc";
+  highlightCardIds?: string[];
 }
 
 const rarityRank: Record<Rarity, number> = { common: 1, rare: 2, legendary: 3 };
@@ -90,7 +91,7 @@ function CardGridItem({ card, onAddToDeck, deckCardIds, playerState, onStateChan
   };
 
   return (
-    <div className="relative">
+    <div className={cn("relative", highlighted && "ring-2 ring-synergy rounded-lg shadow-[0_0_12px_hsl(var(--synergy)/0.5)] animate-pulse")}>
       <GameCardComponent
         card={card}
         onClick={onAddToDeck ? () => onAddToDeck(card.id) : undefined}
@@ -128,7 +129,9 @@ function CardGridItem({ card, onAddToDeck, deckCardIds, playerState, onStateChan
 export default function CollectionView({
   onAddToDeck, deckCardIds = [], playerState, onStateChange,
   searchQuery, typeFilter = "all", rarityFilter = "all", elementFilter = "all", inDeckOnly = false, sortBy = "rarity_desc",
+  highlightCardIds = [],
 }: CollectionViewProps) {
+  const highlightSet = useMemo(() => new Set(highlightCardIds), [highlightCardIds]);
   const ownedIds = playerState?.ownedCardIds || allGameCards.map(c => c.id);
   const [arcFilter, setArcFilter] = useState<string | null>(null);
 
