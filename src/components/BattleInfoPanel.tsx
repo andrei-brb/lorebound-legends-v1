@@ -96,9 +96,9 @@ export default function BattleInfoPanel({ selectedCard, synergies, logs, isMobil
             </div>
 
             {/* Passive */}
-            {selectedCard.card.passive && (
+            {selectedCard.card.passiveAbility && (
               <div className="text-[9px] text-muted-foreground">
-                <span className="font-bold text-foreground/70">Passive:</span> {selectedCard.card.passive.description}
+                <span className="font-bold text-foreground/70">Passive:</span> {selectedCard.card.passiveAbility.description}
               </div>
             )}
 
@@ -132,7 +132,7 @@ export default function BattleInfoPanel({ selectedCard, synergies, logs, isMobil
           <div className="space-y-0.5 mt-1">
             {synergies.map((s, i) => (
               <div key={i} className="text-[9px] text-synergy">
-                ✦ {s.name}: +{s.bonus.attack} ATK, +{s.bonus.defense} DEF
+                ✦ {s.name} ({s.bonuses.length} cards)
               </div>
             ))}
           </div>
