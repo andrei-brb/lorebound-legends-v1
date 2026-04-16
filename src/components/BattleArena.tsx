@@ -8,6 +8,7 @@ import { initBattle, playCard, equipWeapon, castSpell, attackTarget, useAbility,
 import {
   replayBattleFromActions,
   toViewerBattleState,
+  type BattleLockstepIntent,
   type LivePvPBattleConfig,
 } from "@/lib/battleLockstep";
 import BattleCardToken from "./BattleCardToken";
@@ -29,7 +30,15 @@ interface BattleArenaProps {
   /** If set, enemy uses this deck (e.g. ranked: opponent's snapshot). Otherwise random AI deck. */
   opponentDeckIds?: string[] | null;
   /** Ranked async: called once on game over before economy sync (submits MMR). */
-  onRankedSubmit?: (data: { won: boolean; draw?: boolean; turnCount: number }) => Promise<void>;
+  onRankedSubmit?: (data: {
+    won: boolean;
+    draw?: boolean;
+    turnCount: number;
+    actionLog?: BattleLockstepIntent[];
+    seed?: number;
+  }) => Promise<void>;
+  /** When set (ranked async with server seed), RNG is fixed so the server can verify `actionLog`. */
+  battleSeed?: number | null;
   /** Shown under retreat (e.g. "Ranked vs Name — AI controls their deck"). */
   rankedSubtitle?: string | null;
   onExit: () => void;
@@ -55,6 +64,7 @@ export default function BattleArena({
   playerDeckIds,
   opponentDeckIds,
   onRankedSubmit,
+  battleSeed,
   rankedSubtitle,
   onExit,
   playerState,
@@ -86,18 +96,24 @@ export default function BattleArena({
   const [selectedHandIndex, setSelectedHandIndex] = useState<number | null>(null);
   const [selectedFieldIndex, setSelectedFieldIndex] = useState<number | null>(null);
   const cardsPlayedRef = useRef(0);
+  const rankedActionLogRef = useRef<BattleLockstepIntent[]>([]);
   const isMobile = useIsMobile();
+
+  const queueRankedIntent = (intent: BattleLockstepIntent) => {
+    if (onRankedSubmit && !livePvP) rankedActionLogRef.current.push(intent);
+  };
 
   useEffect(() => {
     if (livePvP) return;
     const enemyIds =
       opponentDeckIds && opponentDeckIds.length > 0 ? opponentDeckIds : generateEnemyDeck(playerDeckIds.length);
-    setSoloState(initBattle(playerDeckIds, enemyIds));
+    rankedActionLogRef.current = [];
+    setSoloState(initBattle(playerDeckIds, enemyIds, battleSeed != null ? { seed: battleSeed } : undefined));
     setRewardsGiven(false);
     setGoldEarned(0);
     setLevelUps([]);
     cardsPlayedRef.current = 0;
-  }, [playerDeckIds, opponentDeckIds, livePvP]);
+  }, [playerDeckIds, opponentDeckIds, livePvP, battleSeed]);
 
   // Enemy AI turn
   useEffect(() => {
@@ -124,6 +140,7 @@ export default function BattleArena({
       return;
     }
     if (state.turn !== "player") return;
+    queueRankedIntent({ kind: "end-turn" });
     setSoloState((prev) => (prev ? endTurnAction(prev) : prev));
     setActionMode("none");
     setSelectedFieldIndex(null);
@@ -147,7 +164,13 @@ export default function BattleArena({
     void (async () => {
       try {
         if (onRankedSubmit) {
-          await onRankedSubmit({ won, draw: isDraw, turnCount: turnNumber });
+          await onRankedSubmit({
+            won,
+            draw: isDraw,
+            turnCount: turnNumber,
+            actionLog: rankedActionLogRef.current,
+            seed: battleSeed ?? undefined,
+          });
         }
       } catch (e) {
         toast({ title: "Ranked result failed", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
@@ -233,6 +256,7 @@ export default function BattleArena({
 
     if (card.type === "hero" || card.type === "god" || card.type === "trap") {
       cardsPlayedRef.current += 1;
+      queueRankedIntent({ kind: "play-card", handIndex: index });
       setAnimating(true);
       setTimeout(() => {
         setSoloState(prev => prev ? playCard(prev, index) : prev);
@@ -245,6 +269,7 @@ export default function BattleArena({
     } else if (card.type === "spell") {
       cardsPlayedRef.current += 1;
       if (card.spellEffect?.target === "all_enemies" || card.spellEffect?.target === "all_allies") {
+        queueRankedIntent({ kind: "cast-spell", handIndex: index });
         setAnimating(true);
         setTimeout(() => {
           setSoloState(prev => prev ? castSpell(prev, index) : prev);
@@ -295,6 +320,7 @@ export default function BattleArena({
 
     if (actionMode === "select-equip-target" && side === "player" && selectedHandIndex !== null) {
       cardsPlayedRef.current += 1;
+      queueRankedIntent({ kind: "equip-weapon", handIndex: selectedHandIndex, fieldIndex: index });
       setAnimating(true);
       setTimeout(() => {
         setSoloState(prev => prev ? equipWeapon(prev, selectedHandIndex!, index) : prev);
@@ -307,6 +333,7 @@ export default function BattleArena({
       const spell = state.player.hand[selectedHandIndex];
       const targetSide = spell?.spellEffect?.target === "single_ally" ? "player" : "enemy";
       if (side !== targetSide) return;
+      queueRankedIntent({ kind: "cast-spell", handIndex: selectedHandIndex, targetFieldIndex: index });
       setAnimating(true);
       setTimeout(() => {
         setSoloState(prev => prev ? castSpell(prev, selectedHandIndex!, index) : prev);
@@ -315,6 +342,11 @@ export default function BattleArena({
         setSelectedHandIndex(null);
       }, 150);
     } else if (actionMode === "select-attack-target" && side === "enemy" && selectedFieldIndex !== null) {
+      queueRankedIntent({
+        kind: "attack",
+        attackerFieldIndex: selectedFieldIndex,
+        targetFieldIndex: index,
+      });
       setAnimating(true);
       setTimeout(() => {
         setSoloState(prev => prev ? attackTarget(prev, selectedFieldIndex!, index) : prev);
@@ -352,6 +384,11 @@ export default function BattleArena({
       setSelectedFieldIndex(null);
       return;
     }
+    queueRankedIntent({
+      kind: "attack",
+      attackerFieldIndex: selectedFieldIndex,
+      targetFieldIndex: "direct",
+    });
     setAnimating(true);
     setTimeout(() => {
       setSoloState(prev => prev ? attackTarget(prev, selectedFieldIndex!, "direct") : prev);
@@ -370,6 +407,7 @@ export default function BattleArena({
       setSelectedFieldIndex(null);
       return;
     }
+    queueRankedIntent({ kind: "ability", fieldIndex });
     setAnimating(true);
     setTimeout(() => {
       setSoloState(prev => prev ? useAbility(prev, fieldIndex) : prev);
@@ -439,6 +477,28 @@ export default function BattleArena({
 
             {/* ===== Enemy Field ===== */}
             <div className="space-y-1.5">
+              <div className="flex justify-center gap-1 flex-wrap">
+                {state.enemy.tokens.map((tok, i) => (
+                  <div
+                    key={`et-${i}`}
+                    className={cn(
+                      "relative w-10 h-12 sm:w-11 sm:h-14 rounded-md border overflow-hidden flex flex-col items-center justify-end",
+                      tok ? "border-amber-500/50 bg-amber-950/30" : "border-border/10 opacity-40",
+                    )}
+                  >
+                    {tok ? (
+                      <>
+                        <img src={tok.image} alt="" className="absolute inset-0 w-full h-full object-cover opacity-90" />
+                        <span className="relative z-10 text-[8px] font-bold text-white drop-shadow px-0.5">
+                          {tok.attack}⚔ {tok.turnsRemaining}t
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-muted-foreground/20 text-[8px]">·</span>
+                    )}
+                  </div>
+                ))}
+              </div>
               <div className="flex justify-center gap-2 sm:gap-3 min-h-[104px]">
                 {state.enemy.field.map((fc, i) => (
                   <div key={i} className="relative group">
@@ -510,6 +570,28 @@ export default function BattleArena({
                 ))}
               </div>
 
+              <div className="flex justify-center gap-1 flex-wrap">
+                {state.player.tokens.map((tok, i) => (
+                  <div
+                    key={`pt-${i}`}
+                    className={cn(
+                      "relative w-10 h-12 sm:w-11 sm:h-14 rounded-md border overflow-hidden flex flex-col items-center justify-end",
+                      tok ? "border-primary/50 bg-primary/10" : "border-border/10 opacity-40",
+                    )}
+                  >
+                    {tok ? (
+                      <>
+                        <img src={tok.image} alt="" className="absolute inset-0 w-full h-full object-cover opacity-90" />
+                        <span className="relative z-10 text-[8px] font-bold text-white drop-shadow px-0.5">
+                          {tok.attack}⚔ {tok.turnsRemaining}t
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-muted-foreground/20 text-[8px]">·</span>
+                    )}
+                  </div>
+                ))}
+              </div>
               <div className="flex justify-center gap-2 sm:gap-3 min-h-[104px]">
                 {state.player.field.map((fc, i) => (
                   <div key={i} className="relative group">

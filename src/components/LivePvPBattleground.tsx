@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
-import { api } from "@/lib/apiClient";
+import { api, getLivePvpWebSocketUrl } from "@/lib/apiClient";
 import { toast } from "@/hooks/use-toast";
 import BattleArena from "./BattleArena";
 import LegacyLivePvPBattleground from "./LegacyLivePvPBattleground";
@@ -24,6 +24,7 @@ export default function LivePvPBattleground({ matchId, onExit, playerState, onSt
   const [acting, setActing] = useState(false);
   /** Last intent applied locally before the server confirms; cleared after sync or on error (rollback). */
   const [pendingIntent, setPendingIntent] = useState<BattleLockstepIntent | null>(null);
+  const [liveWsConnected, setLiveWsConnected] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -54,9 +55,63 @@ export default function LivePvPBattleground({ matchId, onExit, playerState, onSt
   useEffect(() => {
     if (!liveMatch) return;
     if (liveMatch.status !== "pending" && liveMatch.status !== "active") return;
-    const id = window.setInterval(() => refresh(), 1200);
+    const url = getLivePvpWebSocketUrl(matchId);
+    if (!url) {
+      setLiveWsConnected(false);
+      return;
+    }
+    let cancelled = false;
+    let ws: WebSocket | null = null;
+    let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
+
+    const connect = () => {
+      if (cancelled) return;
+      try {
+        ws?.close();
+        ws = new WebSocket(url);
+        ws.onopen = () => {
+          if (!cancelled) setLiveWsConnected(true);
+        };
+        ws.onmessage = (ev) => {
+          try {
+            const data = JSON.parse(String(ev.data)) as { type?: string; ok?: boolean; match?: unknown };
+            if (data.type === "live_match" && data.ok && data.match) {
+              setLiveMatch(data.match);
+            }
+          } catch {
+            /* ignore */
+          }
+        };
+        ws.onclose = () => {
+          if (!cancelled) setLiveWsConnected(false);
+          if (!cancelled) {
+            reconnectTimer = window.setTimeout(connect, 2500);
+          }
+        };
+        ws.onerror = () => {
+          ws?.close();
+        };
+      } catch {
+        if (!cancelled) reconnectTimer = window.setTimeout(connect, 2500);
+      }
+    };
+
+    connect();
+    return () => {
+      cancelled = true;
+      if (reconnectTimer !== undefined) window.clearTimeout(reconnectTimer);
+      ws?.close();
+      setLiveWsConnected(false);
+    };
+  }, [matchId, liveMatch?.status, liveMatch?.id]);
+
+  useEffect(() => {
+    if (!liveMatch) return;
+    if (liveMatch.status !== "pending" && liveMatch.status !== "active") return;
+    const intervalMs = liveWsConnected ? 30_000 : 1200;
+    const id = window.setInterval(() => refresh(), intervalMs);
     return () => window.clearInterval(id);
-  }, [liveMatch?.status, liveMatch?.id, refresh]);
+  }, [liveMatch?.status, liveMatch?.id, refresh, liveWsConnected]);
 
   useEffect(() => {
     if (!liveMatch) return;

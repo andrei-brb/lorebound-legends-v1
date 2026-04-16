@@ -14,7 +14,8 @@
     "discord:token-server": "node server/token-server.mjs",
     "discord:register-play": "node server/register-play-command.mjs",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "validate-cards": "vitest run src/data/cardRules.validation.test.ts"
   },
   "dependencies": {
     "@discord/embedded-app-sdk": "^2.4.1",
@@ -72,6 +73,7 @@
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^0.9.9",
+    "ws": "^8.20.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {

@@ -7,7 +7,41 @@ import {
   attackTarget,
   useAbility,
   endTurnAction,
+  performAITurn,
+  simulateBattle,
 } from "./battleEngine";
+
+export { simulateBattle };
+
+const MAX_REPLAY_STEPS = 16000;
+const MAX_ENEMY_SUBSTEPS = 64;
+
+/**
+ * Ranked async: player A (deck A) submits a log of player-intents only;
+ * opponent B runs the same `performAITurn` AI as the client between player turns.
+ */
+export function replayRankedFromPlayerActions(
+  seed: number,
+  deckA: string[],
+  deckB: string[],
+  playerActions: BattleLockstepIntent[],
+): BattleState {
+  let s = initBattle(deckA, deckB, { seed });
+  let qi = 0;
+  let steps = 0;
+  while (s.phase !== "game-over" && steps++ < MAX_REPLAY_STEPS) {
+    if (s.turn === "player") {
+      if (qi >= playerActions.length) break;
+      s = applyBattleLockstepIntent(s, playerActions[qi++]!);
+    } else {
+      let sub = 0;
+      while (s.turn === "enemy" && s.phase !== "game-over" && sub++ < MAX_ENEMY_SUBSTEPS) {
+        s = performAITurn(s);
+      }
+    }
+  }
+  return s;
+}
 
 /** Serialized actions for live PvP lockstep (same rules as vs AI). */
 export type BattleLockstepIntent =

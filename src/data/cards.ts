@@ -235,6 +235,8 @@ import crystalGuardianImg from "@/assets/cards/crystal-guardian.jpg";
 
 
 import { inferElementFromTags, type Element } from "@/lib/elementSystem";
+import type { CardGameRules, WeaponGameRules } from "./cardGameRules";
+import type { BattleKeywordId } from "@/lib/keywords";
 
 export type Rarity = "legendary" | "rare" | "common";
 export type CardType = "hero" | "god" | "weapon" | "spell" | "trap";
@@ -301,6 +303,11 @@ export interface GameCard {
   element?: Element;
   // Seasonal flag
   seasonal?: boolean;
+  /** Machine-readable ability / weapon hooks (see cardGameRules.ts) */
+  cardRules?: CardGameRules;
+  weaponRules?: WeaponGameRules;
+  /** Combat keywords (Taunt, Lifesteal, Poison) when on field */
+  keywords?: BattleKeywordId[];
 }
 
 // Helper to add element to card arrays
@@ -602,6 +609,7 @@ const godCards: GameCard[] = [
     attack: 8, defense: 8, hp: 24,
     tags: ["divine", "death", "undead"],
     specialAbility: { name: "Raise Dead", description: "Resurrects a fallen ally with 50% HP as an undead.", cost: 5 },
+    cardRules: { abilityEffect: { kind: "revive_from_graveyard", hpPercent: 50 } },
     lore: "Nekros blurs the line between life and death. His army grows with every battle.",
     synergies: [
       { partnerId: "thanatos", name: "Lords of Death", description: "Both gain lifesteal on all attacks.", boostedStat: "attack", boostValue: 5 },
@@ -659,6 +667,7 @@ const godCards: GameCard[] = [
     attack: 6, defense: 9, hp: 24,
     tags: ["divine", "nature"],
     specialAbility: { name: "Wild Growth", description: "Summons forest creatures to fight alongside allies for 2 turns.", cost: 4 },
+    cardRules: { abilityEffect: { kind: "summon_tokens", tokenId: "forest-sprite", count: 2, duration: 2 } },
     lore: "Sylvana is the heartbeat of the ancient woods. Her antlers grow with each season.",
     synergies: [
       { partnerId: "kova", name: "Beast Bond", description: "Kova's wolf companion evolves into an alpha pack leader.", boostedStat: "attack", boostValue: 3 },
@@ -732,6 +741,15 @@ const godCards: GameCard[] = [
     attack: 8, defense: 7, hp: 22,
     tags: ["divine", "shadow", "death"],
     specialAbility: { name: "Murder's Call", description: "Summons a flock of ravens dealing 4 damage to all enemies.", cost: 3 },
+    cardRules: {
+      abilityEffect: {
+        kind: "sequence",
+        steps: [
+          { kind: "damage_aoe", value: 4 },
+          { kind: "summon_tokens", tokenId: "raven-flock", count: 1, duration: 2 },
+        ],
+      },
+    },
     lore: "Corvus sees through every raven's eyes. He is the keeper of battlefields and collector of the fallen.",
     synergies: [
       { partnerId: "raven", name: "Raven's Chosen", description: "Raven gains shadow wings and aerial strike ability.", boostedStat: "attack", boostValue: 3 },
@@ -776,6 +794,7 @@ const godCards: GameCard[] = [
     attack: 7, defense: 8, hp: 24,
     tags: ["divine", "death", "undead"],
     specialAbility: { name: "Grave Call", description: "Summons 2 skeletal warriors to fight for 3 turns.", cost: 4 },
+    cardRules: { abilityEffect: { kind: "summon_tokens", tokenId: "skeleton-warrior", count: 2, duration: 3 } },
     lore: "Mortuus tends the graves of the world. He is neither friend nor foe to the living.",
     synergies: [
       { partnerId: "wraith", name: "Grave Rising", description: "Wraith becomes corporeal and gains +4 attack.", boostedStat: "attack", boostValue: 4 },
@@ -1112,6 +1131,7 @@ const heroCards: GameCard[] = [
     attack: 7, defense: 6, hp: 20,
     tags: ["nature", "beast"],
     specialAbility: { name: "Pack Call", description: "Summons a wolf companion that deals 3 damage per turn.", cost: 3 },
+    cardRules: { abilityEffect: { kind: "summon_tokens", tokenId: "wolf-companion", count: 1, duration: 99 } },
     lore: "Kova speaks the language of beasts. His wolf companion has fought beside him since childhood.",
     synergies: [
       { partnerId: "fenris", name: "Pack Alpha", description: "Wolf gains Fenris's power, becoming a dire wolf.", boostedStat: "attack", boostValue: 4 },
@@ -2232,6 +2252,7 @@ const weaponCards: GameCard[] = [
     attack: 4, defense: 2, hp: 0, tags: ["death", "arcane"],
     weaponBonus: { attack: 4, defense: 2 },
     specialAbility: { name: "Necrotic Knowledge", description: "Adds +4 ATK and +2 DEF. Summons a skeleton each turn.", cost: 0 },
+    weaponRules: { onTurnStart: { kind: "summon_token", tokenId: "skeleton-warrior", count: 1 } },
     lore: "A tome bound in grave dirt, its pages filled with necromantic rituals.",
     synergies: [{ partnerId: "skoll", name: "Bone Army", description: "Skoll's wolves become undead and unkillable.", boostedStat: "attack", boostValue: 4 }],
     level: 1, xp: 0, xpToNext: 80,

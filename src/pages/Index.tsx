@@ -78,6 +78,7 @@ export default function Index() {
     matchId: number;
     opponentName: string;
     opponentDeckIds: string[];
+    seed: number | null;
   } | null>(null);
   const [unreadMail, setUnreadMail] = useState(0);
   const lastUnreadMailRef = useRef<number | null>(null);
@@ -347,6 +348,7 @@ export default function Index() {
                     ? `Ranked vs ${rankedBattle.opponentName} — AI plays their deck`
                     : null
                 }
+                battleSeed={rankedBattle?.seed ?? null}
                 onRankedSubmit={
                   rankedBattle
                     ? async (data) => {
@@ -392,6 +394,7 @@ export default function Index() {
                       matchId: data.matchId,
                       opponentName: data.opponent.username,
                       opponentDeckIds: data.opponentDeckCardIds,
+                      seed: data.seed ?? null,
                     });
                     setBattleDeckIds(data.myDeckCardIds);
                     setActiveCategory("combat");

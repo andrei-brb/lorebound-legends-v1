@@ -334,6 +334,7 @@ export function inferAbilityEffect(card: GameCard): AbilityEffect {
 }
 
 export function resolveAbilityEffect(card: GameCard): AbilityEffect {
+  if (card.cardRules?.abilityEffect) return card.cardRules.abilityEffect;
   if (ABILITY_OVERRIDES[card.id]) return ABILITY_OVERRIDES[card.id]!;
   return inferAbilityEffect(card);
 }

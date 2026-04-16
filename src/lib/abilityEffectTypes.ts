@@ -29,4 +29,8 @@ export type AbilityEffect =
   | { kind: "debuff_one_enemy"; which: AbilityTarget; stat: "attack" | "defense"; value: number; duration: number }
   | { kind: "drain"; target: AbilityTarget; damage: number; healSelf: number }
   | { kind: "shield_side"; value: number }
-  | { kind: "hurt_self"; value: number };
+  | { kind: "hurt_self"; value: number }
+  | { kind: "summon_tokens"; tokenId: string; count: number; duration: number }
+  | { kind: "revive_from_graveyard"; hpPercent: number }
+  | { kind: "taunt_self"; duration: number }
+  | { kind: "poison_enemy"; which: AbilityTarget; damagePerTurn: number; duration: number };

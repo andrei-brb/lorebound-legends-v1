@@ -1,10 +1,22 @@
 import { getDiscordAuth } from "./discordEmbedded";
 
-function getApiBase(): string {
+export function getApiBase(): string {
   if (typeof window !== "undefined" && window.location.hostname.endsWith("discordsays.com")) {
     return "/.proxy";
   }
   return "";
+}
+
+/** Browser-only: `wss://…/.proxy/api/pvp/live/:id/ws?access_token=…` (or `ws` + `/api/…` locally). */
+export function getLivePvpWebSocketUrl(matchId: number): string | null {
+  if (typeof window === "undefined") return null;
+  const auth = getDiscordAuth();
+  const token = auth?.access_token;
+  if (!token) return null;
+  const base = getApiBase();
+  const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+  const path = `${base}/api/pvp/live/${matchId}/ws`;
+  return `${proto}//${window.location.host}${path}?access_token=${encodeURIComponent(token)}`;
 }
 
 function getHeaders(): Record<string, string> {
@@ -367,11 +379,21 @@ export const api = {
       opponent: { id: number; discordId: string; username: string; avatar?: string | null };
       myDeckCardIds: string[];
       opponentDeckCardIds: string[];
+      seed: number | null;
     }>(res);
   },
 
   /** Queue starter: submit ranked outcome after playing BattleArena. */
-  async pvpAsyncSubmit(matchId: number, body: { won: boolean; draw?: boolean; turnCount: number }) {
+  async pvpAsyncSubmit(
+    matchId: number,
+    body: {
+      won: boolean;
+      draw?: boolean;
+      turnCount: number;
+      actionLog?: import("./battleLockstep").BattleLockstepIntent[];
+      seed?: number;
+    },
+  ) {
     const res = await fetch(`${getApiBase()}/api/pvp/async/${matchId}/submit`, {
       method: "POST",
       headers: getHeaders(),

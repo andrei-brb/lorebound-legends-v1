@@ -11,6 +11,7 @@ import { dirname, join } from "node:path";
 import { PrismaClient } from "@prisma/client";
 import { requireAuth } from "./lib/auth.mjs";
 import { getClientIp, rateLimit } from "./lib/rateLimit.mjs";
+import { attachLiveMatchWebSocket } from "./lib/liveMatchWs.mjs";
 import {
   STARTER_CARD_IDS,
   FACTION_STARTER_CARDS,
@@ -28,10 +29,14 @@ import {
   getCardName,
   getCardElement,
 } from "./lib/gameLogic.mjs";
-import { replayBattleFromActions, applyBattleLockstepIntent } from "./battleLockstep.mjs";
+import {
+  replayBattleFromActions,
+  applyBattleLockstepIntent,
+  replayRankedFromPlayerActions,
+  simulateBattle,
+} from "./battleLockstep.mjs";
 import { pickRandomDropCard, buildDropEmbed, processCardClaim } from "./lib/cardDrop.mjs";
 import { SEASONAL_EVENTS, getSeasonalEventById, isEventActive } from "./lib/seasonalEvents.mjs";
-import { simulateBattle as simulateBattleServer } from "./lib/battleSim.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: join(__dirname, "..", ".env") });
@@ -725,6 +730,9 @@ async function handlePatchPlayer(req, res) {
 function toPublicPlayer(p) {
   return { id: p.id, discordId: p.discordId, username: p.username, avatar: p.avatar || null };
 }
+
+/** Replaced when the HTTP server is created; pushes live match updates over WebSocket. */
+let broadcastLiveMatchRefresh = async (_matchId) => {};
 
 async function createNotification(tx, playerId, type, title, body = null, data = null) {
   return tx.notification.create({
@@ -1736,7 +1744,27 @@ async function handleGetAsyncPlay(req, res, matchId) {
     opponent: toPublicPlayer(match.playerB),
     myDeckCardIds: snapA.deckCardIds,
     opponentDeckCardIds: snapB.deckCardIds,
+    seed: match.seed ?? null,
   });
+}
+
+const MAX_RANKED_ACTIONS = 800;
+
+function isValidBattleIntent(x) {
+  if (!x || typeof x !== "object") return false;
+  const k = x.kind;
+  if (k === "play-card") return Number.isFinite(x.handIndex);
+  if (k === "equip-weapon") return Number.isFinite(x.handIndex) && Number.isFinite(x.fieldIndex);
+  if (k === "cast-spell") return Number.isFinite(x.handIndex);
+  if (k === "attack") {
+    return (
+      Number.isFinite(x.attackerFieldIndex) &&
+      (x.targetFieldIndex === "direct" || Number.isFinite(x.targetFieldIndex))
+    );
+  }
+  if (k === "ability") return Number.isFinite(x.fieldIndex);
+  if (k === "end-turn") return true;
+  return false;
 }
 
 /** POST — queue starter submits outcome after playing BattleArena vs AI (opponent deck). */
@@ -1748,6 +1776,8 @@ async function handleSubmitAsyncBattle(req, res, matchId) {
   const won = !!body.won;
   const isDraw = !!body.draw;
   const turnCount = Number(body.turnCount) || 0;
+  const actionLog = Array.isArray(body.actionLog) ? body.actionLog : null;
+  const clientSeed = body.seed != null ? Number(body.seed) : null;
 
   const me = await prisma.player.findUnique({ where: { discordId: user.id } });
   if (!me) return sendJson(res, 404, { error: "Player not found" });
@@ -1760,8 +1790,36 @@ async function handleSubmitAsyncBattle(req, res, matchId) {
   }
   if (match.status !== "pending") return sendJson(res, 400, { error: "Match is not pending" });
 
-  const winner = isDraw ? "draw" : won ? "playerA" : "playerB";
   const seasonId = match.seasonId || DEFAULT_PVP_SEASON_ID;
+
+  const [snapA, snapB] = await Promise.all([
+    prisma.pvPDeckSnapshot.findUnique({ where: { playerId_seasonId: { playerId: match.playerAId, seasonId } } }),
+    prisma.pvPDeckSnapshot.findUnique({ where: { playerId_seasonId: { playerId: match.playerBId, seasonId } } }),
+  ]);
+  if (!snapA || !snapB) return sendJson(res, 400, { error: "Missing ranked deck snapshot" });
+
+  if (
+    actionLog &&
+    actionLog.length > 0 &&
+    actionLog.length <= MAX_RANKED_ACTIONS &&
+    match.seed != null &&
+    clientSeed === match.seed &&
+    actionLog.every(isValidBattleIntent)
+  ) {
+    const replayed = replayRankedFromPlayerActions(match.seed, snapA.deckCardIds, snapB.deckCardIds, actionLog);
+    if (replayed.phase !== "game-over" || replayed.winner === null) {
+      return sendJson(res, 400, { error: "Invalid or incomplete battle log" });
+    }
+    const expectedDraw = replayed.winner === "draw";
+    const expectedWon = replayed.winner === "player";
+    if (expectedDraw !== isDraw || (!isDraw && won !== expectedWon)) {
+      return sendJson(res, 400, { error: "Outcome does not match verified battle replay" });
+    }
+  } else if (actionLog && actionLog.length > 0) {
+    return sendJson(res, 400, { error: "Battle verification requires matching seed and valid action log" });
+  }
+
+  const winner = isDraw ? "draw" : won ? "playerA" : "playerB";
 
   const resultPayload = {
     winner,
@@ -1798,26 +1856,22 @@ async function handleResolveAsync(req, res, matchId) {
   ]);
   if (!snapA || !snapB) return sendJson(res, 400, { error: "Missing ranked deck snapshot" });
 
-  const sim = simulateBattleServer({
-    deckA: snapA.deckCardIds,
-    deckB: snapB.deckCardIds,
+  const sim = simulateBattle({
+    playerDeckIds: snapA.deckCardIds,
+    enemyDeckIds: snapB.deckCardIds,
     seed: match.seed ?? 12345,
   });
 
   const winner =
     sim.winner === "draw" ? "draw" :
-    sim.winner === "A" ? "playerA" : "playerB";
+    sim.winner === "player" ? "playerA" : "playerB";
 
   const resultPayload = {
     winner,
     turnCount: sim.turnCount,
-    scoreA: sim.scoreA,
-    scoreB: sim.scoreB,
-    powA: sim.powA,
-    powB: sim.powB,
     seasonId,
     seed: match.seed ?? null,
-    kind: "server_sim",
+    kind: "server_engine",
     resolvedAt: Date.now(),
   };
 
@@ -2069,6 +2123,7 @@ async function handleLiveJoin(req, res, matchId) {
       lastActionAt: new Date(),
     },
   });
+  void broadcastLiveMatchRefresh(matchId);
   return sendJson(res, 200, { ok: true, status: updated.status });
 }
 
@@ -2121,6 +2176,7 @@ async function handleLiveDecline(req, res, matchId) {
       return updated;
     });
 
+    void broadcastLiveMatchRefresh(matchId);
     return sendJson(res, 200, { ok: true, status: out.status });
   } catch (e) {
     const code = e?.statusCode || 500;
@@ -2301,6 +2357,7 @@ async function handleLiveAction(req, res, matchId) {
       return updated;
     });
 
+    void broadcastLiveMatchRefresh(matchId);
     return sendJson(res, 200, { ok: true, status: out.status, state: out.state, result: out.result, turnPlayerId: out.turnPlayerId });
   } catch (e) {
     const code = e?.statusCode || 500;
@@ -3095,6 +3152,8 @@ const server = http.createServer(async (req, res) => {
     sendJson(res, 500, { error: "Internal server error" });
   }
 });
+
+({ broadcastLiveMatchRefresh } = attachLiveMatchWebSocket(server, { prisma, toPublicPlayer }));
 
 server.listen(PORT, () => {
   console.log(`Lorebound API listening on http://127.0.0.1:${PORT}`);

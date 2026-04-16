@@ -18,7 +18,7 @@ function readBody(req: IncomingMessage): Promise<string> {
 }
 
 async function fetchDiscordTokenWithRetry(
-  input: string | URL,
+  input: RequestInfo | URL,
   init?: RequestInit,
   nRetries = 3,
 ): Promise<Response> {
@@ -162,6 +162,14 @@ export default defineConfig(({ mode }) => ({
     port: 8080,
     hmr: {
       overlay: false,
+    },
+    /** Dev: forward REST + WebSocket to token-server (default 3001). */
+    proxy: {
+      "/api": {
+        target: "http://127.0.0.1:3001",
+        changeOrigin: true,
+        ws: true,
+      },
     },
   },
   plugins: [

@@ -1,10 +1,12 @@
 import type { GameCard } from "@/data/cards";
 import { allCards } from "@/data/cards";
 import { allGameCards } from "@/data/cardIndex";
+import { TOKEN_CATALOG } from "@/data/tokenCatalog";
 import { calculateFieldSynergies, calculatePassiveBonuses, type ActiveSynergy } from "./synergyEngine";
 import { getElementMultiplier, getElementAdvantageLabel, elementEmoji } from "./elementSystem";
 import { resolveAbilityEffect } from "./abilityInference";
 import type { AbilityEffect, AbilityTarget } from "./abilityEffectTypes";
+import { cardHasKeyword } from "./keywords";
 
 // =================== Types ===================
 
@@ -35,6 +37,10 @@ export interface FieldCard {
   attackedThisTurn: boolean;
   stunned: boolean; // can't act this turn
   tempBuffs: TempBuff[];
+  /** Temporary taunt from abilities (card keyword "taunt" is implicit while on field). */
+  tauntTurnsRemaining?: number;
+  /** Damage at start of this unit's controller's turn. */
+  poison?: { damagePerTurn: number; turnsRemaining: number };
 }
 
 export interface TempBuff {
@@ -48,11 +54,26 @@ export interface TrapOnField {
   faceDown: boolean;
 }
 
+/** Summoned token/minion (Phase B) — parallel to field units, max 2 slots per side. */
+export interface FieldToken {
+  tokenId: string;
+  name: string;
+  image: string;
+  attack: number;
+  defense: number;
+  currentHp: number;
+  maxHp: number;
+  turnsRemaining: number;
+  autoStrike: boolean;
+}
+
 export interface PlayerSide {
   hp: number;
   shield: number;
   hand: GameCard[];
   field: (FieldCard | null)[]; // 4 slots
+  /** Token minions (max 2) */
+  tokens: (FieldToken | null)[];
   traps: (TrapOnField | null)[]; // 2 trap slots
   deck: GameCard[];
   graveyard: GameCard[];
@@ -63,14 +84,19 @@ export interface PlayerSide {
 
 export interface BattleLog {
   message: string;
-  type: "attack" | "ability" | "synergy" | "defeat" | "info" | "spell" | "trap" | "weapon" | "direct";
+  type: "attack" | "ability" | "synergy" | "defeat" | "info" | "spell" | "trap" | "weapon" | "direct" | "token";
   timestamp: number;
+  /** Adjudication source, e.g. "Ability: Grave Call", "Weapon: Tome of the Dead" */
+  source?: string;
+  ruleTag?: string;
 }
 
 export interface BattleState {
   player: PlayerSide;
   enemy: PlayerSide;
   turn: "player" | "enemy";
+  /** Start → main actions → end (Phase D UX) */
+  turnPhase: "start" | "main" | "end";
   phase: "select-action" | "select-target" | "animating" | "game-over";
   logs: BattleLog[];
   winner: "player" | "enemy" | "draw" | null;
@@ -110,6 +136,7 @@ function createSide(deckIds: string[], rng: RNG): PlayerSide {
     shield: 10,
     hand,
     field: [null, null, null, null],
+    tokens: [null, null],
     traps: [null, null],
     deck,
     graveyard: [],
@@ -129,6 +156,7 @@ export function initBattle(
     player: createSide(playerDeckIds, rng),
     enemy: createSide(enemyDeckIds, rng),
     turn: "player",
+    turnPhase: "start",
     phase: "select-action",
     logs: [{ message: "⚔️ Battle begins! Draw your weapons!", type: "info", timestamp: 0 }],
     winner: null,
@@ -224,8 +252,27 @@ function createFieldCard(card: GameCard): FieldCard {
   };
 }
 
-function addLog(state: BattleState, message: string, type: BattleLog["type"]): void {
-  state.logs.push({ message, type, timestamp: state.logs.length });
+function hasTaunt(fc: FieldCard): boolean {
+  return (fc.tauntTurnsRemaining ?? 0) > 0 || cardHasKeyword(fc.card, "taunt");
+}
+
+/** If any enemy taunts, attacks and single-target effects must pick from these indices. */
+function getTauntForcedEnemyIndices(field: (FieldCard | null)[]): number[] | null {
+  const indices: number[] = [];
+  for (let i = 0; i < field.length; i++) {
+    const fc = field[i];
+    if (fc && hasTaunt(fc)) indices.push(i);
+  }
+  return indices.length > 0 ? indices : null;
+}
+
+function addLog(
+  state: BattleState,
+  message: string,
+  type: BattleLog["type"],
+  meta?: { source?: string; ruleTag?: string },
+): void {
+  state.logs.push({ message, type, timestamp: state.logs.length, ...meta });
 }
 
 function getActiveSide(state: BattleState): PlayerSide {
@@ -236,10 +283,120 @@ function getOtherSide(state: BattleState): PlayerSide {
   return state.turn === "player" ? state.enemy : state.player;
 }
 
+function createFieldTokenFromCatalog(tokenId: string): FieldToken | null {
+  const def = TOKEN_CATALOG[tokenId];
+  if (!def) return null;
+  return {
+    tokenId: def.id,
+    name: def.name,
+    image: def.image,
+    attack: def.attack,
+    defense: def.defense,
+    currentHp: def.hp,
+    maxHp: def.hp,
+    turnsRemaining: 1,
+    autoStrike: def.autoStrike,
+  };
+}
+
+/** Place one token in first free slot; returns false if full or unknown id. */
+function tryPlaceToken(
+  state: BattleState,
+  side: PlayerSide,
+  tokenId: string,
+  duration: number,
+  meta?: { source?: string; ruleTag?: string },
+): boolean {
+  const slot = side.tokens.findIndex((t) => t === null);
+  if (slot === -1) {
+    addLog(state, `🪙 No token slot free — cannot summon ${tokenId}.`, "info", meta);
+    return false;
+  }
+  const base = createFieldTokenFromCatalog(tokenId);
+  if (!base) {
+    addLog(state, `🪙 Unknown token: ${tokenId}`, "info", meta);
+    return false;
+  }
+  base.turnsRemaining = duration;
+  side.tokens[slot] = base;
+  addLog(state, `🪙 Summoned ${base.name} (${duration} turns).`, "token", {
+    source: meta?.source,
+    ruleTag: meta?.ruleTag ?? "summon",
+  });
+  return true;
+}
+
+function applyWeaponTurnStartPassives(state: BattleState, side: PlayerSide): void {
+  const sideLabel = state.turn === "player" ? "You" : "Enemy";
+  for (const fc of side.field) {
+    if (!fc?.equippedWeapon?.weaponRules?.onTurnStart) continue;
+    const wr = fc.equippedWeapon.weaponRules.onTurnStart;
+    if (wr.kind === "summon_token") {
+      for (let i = 0; i < wr.count; i++) {
+        tryPlaceToken(state, side, wr.tokenId, 99, {
+          source: `Weapon: ${fc.equippedWeapon.name}`,
+          ruleTag: "weapon_passive",
+        });
+      }
+    }
+  }
+}
+
+/** Token auto-strike: deal damage to weakest enemy field unit (or direct if empty). */
+function processTokenAutoStrikes(state: BattleState, side: PlayerSide, otherSide: PlayerSide): void {
+  const sideLabel = state.turn === "player" ? "You" : "Enemy";
+  for (const tok of side.tokens) {
+    if (!tok || !tok.autoStrike) continue;
+    const raw = tok.attack;
+    let enemies = otherSide.field.map((fc, i) => (fc ? { fc, i } : null)).filter(Boolean) as {
+      fc: FieldCard;
+      i: number;
+    }[];
+    const forcedTaunt = getTauntForcedEnemyIndices(otherSide.field);
+    if (forcedTaunt) {
+      enemies = forcedTaunt.map((i) => ({ fc: otherSide.field[i]!, i }));
+    }
+    if (enemies.length === 0) {
+      let dmg = raw;
+      if (otherSide.shield > 0) {
+        const absorbed = Math.min(otherSide.shield, dmg);
+        otherSide.shield -= absorbed;
+        dmg -= absorbed;
+      }
+      otherSide.hp = Math.max(0, otherSide.hp - dmg);
+      addLog(
+        state,
+        `🪶 ${tok.name} strikes ${sideLabel}'s foe for ${raw} direct damage!`,
+        "token",
+        { source: tok.name, ruleTag: "token_strike" },
+      );
+      continue;
+    }
+    enemies.sort((a, b) => a.fc.currentHp - b.fc.currentHp);
+    const { fc: target, i: idx } = enemies[0];
+    const dmg = Math.max(1, raw - Math.floor(target.defense * 0.25));
+    target.currentHp = Math.max(0, target.currentHp - dmg);
+    addLog(
+      state,
+      `🪶 ${tok.name} strikes ${target.card.name} for ${dmg}!`,
+      "token",
+      { source: tok.name, ruleTag: "token_strike" },
+    );
+    if (target.currentHp <= 0) {
+      addLog(state, `💀 ${target.card.name} was destroyed!`, "defeat");
+      otherSide.graveyard.push(target.card);
+      if (target.equippedWeapon) otherSide.graveyard.push(target.equippedWeapon);
+      otherSide.field[idx] = null;
+    }
+  }
+}
+
 function startTurn(state: BattleState): BattleState {
   if (state.phase === "game-over") return state;
 
+  state.turnPhase = "start";
   const side = getActiveSide(state);
+  const otherSide = getOtherSide(state);
   const sideLabel = state.turn === "player" ? "You" : "Enemy";
 
   side.ap = 2;
@@ -248,6 +405,26 @@ function startTurn(state: BattleState): BattleState {
     if (!fc) continue;
     fc.attackedThisTurn = false;
   }
+
+  // Poison ticks at start of each unit's controller's turn
+  for (let pi = 0; pi < side.field.length; pi++) {
+    const fc = side.field[pi];
+    if (!fc?.poison || fc.poison.turnsRemaining <= 0) continue;
+    const pd = fc.poison.damagePerTurn;
+    fc.currentHp = Math.max(0, fc.currentHp - pd);
+    fc.poison.turnsRemaining -= 1;
+    if (fc.poison.turnsRemaining <= 0) delete fc.poison;
+    addLog(state, `☠️ ${fc.card.name} suffers ${pd} poison damage!`, "info");
+    if (fc.currentHp <= 0) {
+      addLog(state, `💀 ${fc.card.name} was destroyed!`, "defeat");
+      side.graveyard.push(fc.card);
+      if (fc.equippedWeapon) side.graveyard.push(fc.equippedWeapon);
+      side.field[pi] = null;
+    }
+  }
+
+  checkWinCondition(state);
+  if (state.phase === "game-over") return state;
 
   // Draw 1 card at start of turn; apply fatigue only on draw.
   if (side.deck.length > 0) {
@@ -258,6 +435,10 @@ function startTurn(state: BattleState): BattleState {
     addLog(state, `📦 ${sideLabel} fatigues for ${side.fatigue} damage!`, "info");
   }
 
+  applyWeaponTurnStartPassives(state, side);
+  processTokenAutoStrikes(state, side, otherSide);
+
+  state.turnPhase = "main";
   return checkWinCondition(state);
 }
 
@@ -564,15 +745,24 @@ export function attackTarget(state: BattleState, attackerFieldIndex: number, tar
 
     const dmg = attacker.attack;
     // Shield absorbs first
+    let hpDealt = 0;
     if (otherSide.shield > 0) {
       const absorbed = Math.min(otherSide.shield, dmg);
       otherSide.shield -= absorbed;
       const remaining = dmg - absorbed;
+      hpDealt = remaining;
       otherSide.hp = Math.max(0, otherSide.hp - remaining);
       addLog(newState, `💥 ${attacker.card.name} attacks directly! Shield absorbs ${absorbed}, ${remaining} damage to HP!`, "direct");
     } else {
+      hpDealt = dmg;
       otherSide.hp = Math.max(0, otherSide.hp - dmg);
       addLog(newState, `💥 ${attacker.card.name} attacks directly for ${dmg} damage!`, "direct");
+    }
+
+    if (cardHasKeyword(attacker.card, "lifesteal") && hpDealt > 0 && attacker.currentHp > 0) {
+      const healed = Math.min(hpDealt, attacker.maxHp - attacker.currentHp);
+      attacker.currentHp += healed;
+      addLog(newState, `💚 ${attacker.card.name} lifesteals ${healed} HP!`, "attack");
     }
 
     spendAp(newState, 1);
@@ -583,6 +773,12 @@ export function attackTarget(state: BattleState, attackerFieldIndex: number, tar
   // Attack a field card
   const target = otherSide.field[targetFieldIndex];
   if (!target) return state;
+
+  const tauntForced = getTauntForcedEnemyIndices(otherSide.field);
+  if (tauntForced && !tauntForced.includes(targetFieldIndex)) {
+    addLog(newState, "❌ Must attack a taunting unit first!", "info");
+    return state;
+  }
 
   // Check for traps
   for (let i = 0; i < otherSide.traps.length; i++) {
@@ -639,6 +835,12 @@ export function attackTarget(state: BattleState, attackerFieldIndex: number, tar
   }
   addLog(newState, attackMsg, "attack");
 
+  if (cardHasKeyword(attacker.card, "lifesteal") && dmg > 0 && attacker.currentHp > 0) {
+    const healed = Math.min(dmg, attacker.maxHp - attacker.currentHp);
+    attacker.currentHp += healed;
+    addLog(newState, `💚 ${attacker.card.name} lifesteals ${healed} HP!`, "attack");
+  }
+
   if (target.currentHp <= 0) {
     addLog(newState, `💀 ${target.card.name} was destroyed!`, "defeat");
     otherSide.graveyard.push(target.card);
@@ -664,7 +866,9 @@ function flattenAbilityEffects(effect: AbilityEffect): AbilityEffect[] {
 }
 
 function pickEnemyFieldIndex(field: (FieldCard | null)[], mode: AbilityTarget): number {
-  const entries = field.map((fc, i) => (fc ? { fc, i } : null)).filter(Boolean) as { fc: FieldCard; i: number }[];
+  const forced = getTauntForcedEnemyIndices(field);
+  const pool: number[] = forced ?? field.map((fc, i) => (fc ? i : -1)).filter((i) => i >= 0);
+  const entries = pool.map((i) => ({ fc: field[i]!, i }));
   if (entries.length === 0) return -1;
   if (mode === "highest_hp") {
     entries.sort((a, b) => b.fc.currentHp - a.fc.currentHp);
@@ -883,6 +1087,74 @@ function applyResolvedAbility(
         addLog(newState, `✨ ${fc.card.name} strains for ${e.value} self-damage!`, "ability");
         break;
       }
+      case "summon_tokens": {
+        let count = e.count;
+        let tokenId = e.tokenId;
+        if (fc.card.id === "mortuus" && side.field.some((x) => x?.card.id === "bone-knight")) {
+          count = 4;
+        }
+        if (fc.card.id === "kova" && side.field.some((x) => x?.card.id === "fenris")) {
+          tokenId = "dire-wolf";
+        }
+        for (let i = 0; i < count; i++) {
+          tryPlaceToken(newState, side, tokenId, e.duration, {
+            source: `Ability: ${ability.name}`,
+            ruleTag: "summon",
+          });
+        }
+        break;
+      }
+      case "revive_from_graveyard": {
+        const reviveeIdx = side.graveyard.findIndex((c) => c.type === "hero" || c.type === "god");
+        if (reviveeIdx < 0) {
+          addLog(newState, `✨ ${fc.card.name} finds no ally in the graveyard.`, "ability", {
+            source: `Ability: ${ability.name}`,
+            ruleTag: "revive",
+          });
+          break;
+        }
+        const slot = side.field.findIndex((s) => s === null);
+        if (slot < 0) {
+          addLog(newState, `✨ ${fc.card.name} cannot revive — field is full!`, "ability", {
+            source: `Ability: ${ability.name}`,
+            ruleTag: "revive",
+          });
+          break;
+        }
+        const revivee = side.graveyard[reviveeIdx]!;
+        const hp = Math.max(1, Math.floor((revivee.hp * e.hpPercent) / 100));
+        const risen = createFieldCard(revivee);
+        risen.currentHp = hp;
+        risen.maxHp = revivee.hp;
+        side.field[slot] = risen;
+        side.graveyard.splice(reviveeIdx, 1);
+        addLog(newState, `✨ ${fc.card.name} raises ${revivee.name} at ${hp} HP!`, "ability", {
+          source: `Ability: ${ability.name}`,
+          ruleTag: "revive",
+        });
+        break;
+      }
+      case "taunt_self": {
+        fc.tauntTurnsRemaining = (fc.tauntTurnsRemaining ?? 0) + e.duration;
+        addLog(
+          newState,
+          `✨ ${fc.card.name} uses ${ability.name}! Gains Taunt (${e.duration} turns).`,
+          "ability",
+        );
+        break;
+      }
+      case "poison_enemy": {
+        const pidx = pickEnemyFieldIndex(otherSide.field, e.which);
+        if (pidx < 0) break;
+        const t = otherSide.field[pidx]!;
+        t.poison = { damagePerTurn: e.damagePerTurn, turnsRemaining: e.duration };
+        addLog(
+          newState,
+          `✨ ${fc.card.name} uses ${ability.name}! Poisons ${t.card.name} (${e.damagePerTurn}/turn, ${e.duration} turns).`,
+          "ability",
+        );
+        break;
+      }
       default:
         break;
     }
@@ -896,35 +1168,53 @@ function applyResolvedAbility(
 export function useAbility(state: BattleState, fieldIndex: number): BattleState {
   const newState = deepCopy(state);
   const side = getActiveSide(newState);
-  const otherSide = getOtherSide(newState);
   const fc = side.field[fieldIndex];
 
   if (!fc || fc.abilityUsed || fc.stunned) return state;
-  if (!canSpendAp(newState, 1)) return state;
+
+  // Costs 1–2 use that much AP; higher listed costs are treated as 1 AP so abilities remain usable after playing a unit (2 AP/turn).
+  const c = fc.card.specialAbility.cost ?? 1;
+  const apCost = c <= 2 ? c : 1;
+  if (!canSpendAp(newState, apCost)) return state;
 
   fc.abilityUsed = true;
   const resolved = resolveAbilityEffect(fc.card);
   applyResolvedAbility(newState, fc, fieldIndex, resolved);
 
-  spendAp(newState, 1);
+  spendAp(newState, apCost);
   return maybeAutoEndTurn(recalcFieldStats(checkWinCondition(newState)));
 }
 
 // =================== Turn Management ===================
 
+function tickTokenDurations(side: PlayerSide): void {
+  for (let i = 0; i < side.tokens.length; i++) {
+    const t = side.tokens[i];
+    if (!t) continue;
+    t.turnsRemaining -= 1;
+    if (t.turnsRemaining <= 0) side.tokens[i] = null;
+  }
+}
+
 function endTurn(state: BattleState): BattleState {
   if (state.phase === "game-over") return state;
 
   const side = getActiveSide(state);
+  state.turnPhase = "end";
 
-  // Tick down temp buffs
+  // Tick down temp buffs and temporary taunt
   for (const fc of side.field) {
     if (!fc) continue;
     fc.tempBuffs = fc.tempBuffs
       .map(b => ({ ...b, turnsRemaining: b.turnsRemaining - 1 }))
       .filter(b => b.turnsRemaining > 0);
+    if (fc.tauntTurnsRemaining && fc.tauntTurnsRemaining > 0) {
+      fc.tauntTurnsRemaining -= 1;
+    }
     fc.stunned = false;
   }
+
+  tickTokenDurations(side);
 
   // Switch turn
   state.turn = state.turn === "player" ? "enemy" : "player";
