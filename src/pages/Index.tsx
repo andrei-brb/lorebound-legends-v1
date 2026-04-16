@@ -73,6 +73,16 @@ export default function Index() {
   const { playerState, setPlayerState, status, isOnline, pullCards, submitBattleResult, completeOnboarding, syncEconomy, craftFuse, craftSacrifice, pullSeasonalPack } = usePlayerApi();
   const isDiscordActivityHost = typeof window !== "undefined" && window.location.hostname.endsWith("discordsays.com");
   const discordOverlayInset = "calc(64px + env(safe-area-inset-top))";
+  const ambientParticles = useMemo(
+    () =>
+      Array.from({ length: 20 }).map(() => ({
+        left: `${Math.random() * 100}%`,
+        top: `${Math.random() * 100}%`,
+        animationDelay: `${Math.random() * 8}s`,
+        animationDuration: `${6 + Math.random() * 8}s`,
+      })),
+    []
+  );
 
   // Achievement checking on state changes
   useEffect(() => {
@@ -126,17 +136,6 @@ export default function Index() {
     setActiveCategory("combat");
     setActiveTab("battle");
   };
-
-  const ambientParticles = useMemo(
-    () =>
-      Array.from({ length: 20 }).map(() => ({
-        left: `${Math.random() * 100}%`,
-        top: `${Math.random() * 100}%`,
-        animationDelay: `${Math.random() * 8}s`,
-        animationDuration: `${6 + Math.random() * 8}s`,
-      })),
-    []
-  );
 
   return (
     <div
