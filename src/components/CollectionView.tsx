@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { allGameCards, loreArcs, type Rarity, type CardType, type GameCard as GameCardType } from "@/data/cardIndex";
 import GameCardComponent from "./GameCard";
 import { Star, SparklesIcon, BookOpen } from "lucide-react";
@@ -33,6 +33,7 @@ interface CollectionViewProps {
   elementFilter?: "all" | "fire" | "water" | "earth" | "air" | "shadow" | "light" | "neutral";
   inDeckOnly?: boolean;
   sortBy?: "rarity_desc" | "rarity_asc" | "name_asc" | "name_desc" | "attack_desc" | "defense_desc" | "hp_desc" | "level_desc";
+  highlightCardIds?: string[];
 }
 
 const rarityRank: Record<Rarity, number> = { common: 1, rare: 2, legendary: 3 };
@@ -71,9 +72,9 @@ function applyDiscovery({
   return out;
 }
 
-function CardGridItem({ card, onAddToDeck, deckCardIds, playerState, onStateChange }: {
+function CardGridItem({ card, onAddToDeck, deckCardIds, playerState, onStateChange, highlighted }: {
   card: GameCardType; onAddToDeck?: (id: string) => void; deckCardIds: string[];
-  playerState?: PlayerState; onStateChange?: (state: PlayerState) => void;
+  playerState?: PlayerState; onStateChange?: (state: PlayerState) => void; highlighted?: boolean;
 }) {
   const inDeck = deckCardIds.includes(card.id);
   const hasArcPartner = card.loreArc ? allGameCards.some((c) => c.id !== card.id && c.loreArc === card.loreArc) : false;
@@ -90,7 +91,7 @@ function CardGridItem({ card, onAddToDeck, deckCardIds, playerState, onStateChan
   };
 
   return (
-    <div className="relative">
+    <div className={cn("relative", highlighted && "ring-2 ring-synergy rounded-lg shadow-[0_0_12px_hsl(var(--synergy)/0.5)] animate-pulse")}>
       <GameCardComponent
         card={card}
         onClick={onAddToDeck ? () => onAddToDeck(card.id) : undefined}
@@ -128,7 +129,9 @@ function CardGridItem({ card, onAddToDeck, deckCardIds, playerState, onStateChan
 export default function CollectionView({
   onAddToDeck, deckCardIds = [], playerState, onStateChange,
   searchQuery, typeFilter = "all", rarityFilter = "all", elementFilter = "all", inDeckOnly = false, sortBy = "rarity_desc",
+  highlightCardIds = [],
 }: CollectionViewProps) {
+  const highlightSet = useMemo(() => new Set(highlightCardIds), [highlightCardIds]);
   const ownedIds = playerState?.ownedCardIds || allGameCards.map(c => c.id);
   const [arcFilter, setArcFilter] = useState<string | null>(null);
 
@@ -191,7 +194,7 @@ export default function CollectionView({
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-4 gap-4">
               {discoveredCards.map((card) => (
-                <CardGridItem key={card.id} card={card} onAddToDeck={onAddToDeck} deckCardIds={deckCardIds} playerState={playerState} onStateChange={onStateChange} />
+                <CardGridItem key={card.id} card={card} onAddToDeck={onAddToDeck} deckCardIds={deckCardIds} playerState={playerState} onStateChange={onStateChange} highlighted={highlightSet.has(card.id)} />
               ))}
             </div>
           )}
@@ -219,7 +222,7 @@ export default function CollectionView({
                 <CardContent>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-4 gap-4">
                     {cards.map((card) => (
-                      <CardGridItem key={card.id} card={card} onAddToDeck={onAddToDeck} deckCardIds={deckCardIds} playerState={playerState} onStateChange={onStateChange} />
+                      <CardGridItem key={card.id} card={card} onAddToDeck={onAddToDeck} deckCardIds={deckCardIds} playerState={playerState} onStateChange={onStateChange} highlighted={highlightSet.has(card.id)} />
                     ))}
                   </div>
                 </CardContent>
