@@ -4,6 +4,18 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 
+/* ─── Asset imports ─── */
+import heroVerdantSprout from "@/assets/battlepass/hero-verdant-sprout.jpg";
+import heroThornweaver from "@/assets/battlepass/hero-thornweaver.jpg";
+import heroPyralis from "@/assets/battlepass/hero-pyralis.jpg";
+import heroSolara from "@/assets/battlepass/hero-solara.jpg";
+import heroCelestialSolara from "@/assets/battlepass/hero-celestial-solara.jpg";
+import cardbackBloomCrest from "@/assets/battlepass/cardback-bloom-crest.jpg";
+import cardbackBloomInferno from "@/assets/battlepass/cardback-bloom-inferno.jpg";
+import boardRunedGarden from "@/assets/battlepass/board-runed-garden.jpg";
+import frameBloomAura from "@/assets/battlepass/frame-bloom-aura.jpg";
+import borderEternalBloom from "@/assets/battlepass/border-eternal-bloom.jpg";
+
 /* ─── Reward type definitions ─── */
 type RewardKind = "gold" | "dust" | "xp_boost" | "bronze_pack" | "silver_pack" | "gold_pack" | "hero" | "card_back" | "title" | "emote" | "board_skin" | "border" | "card_frame" | "hero_variant" | "crafting_mats";
 
@@ -13,6 +25,7 @@ interface Reward {
   amount?: number;
   seasonal?: boolean;
   rarity?: "common" | "rare" | "legendary";
+  image?: string;
 }
 
 interface LevelRewards {
@@ -49,32 +62,32 @@ const PASS_DATA: LevelRewards[] = [
   { level: 2, free: { kind: "dust", label: "50 Dust", amount: 50 }, elite: { kind: "dust", label: "100 Dust", amount: 100 } },
   { level: 3, free: { kind: "gold", label: "300 Gold", amount: 300 }, elite: { kind: "gold", label: "600 Gold", amount: 600 } },
   { level: 4, free: { kind: "dust", label: "75 Dust", amount: 75 }, elite: { kind: "dust", label: "150 Dust", amount: 150 } },
-  { level: 5, free: { kind: "card_back", label: "Bloom Crest", seasonal: true, rarity: "legendary" }, elite: { kind: "card_back", label: "Bloom Inferno", seasonal: true, rarity: "legendary" } },
+  { level: 5, free: { kind: "card_back", label: "Bloom Crest", seasonal: true, rarity: "legendary", image: cardbackBloomCrest }, elite: { kind: "card_back", label: "Bloom Inferno", seasonal: true, rarity: "legendary", image: cardbackBloomInferno } },
   { level: 6, free: { kind: "xp_boost", label: "2x XP (1hr)" }, elite: { kind: "gold_pack", label: "Gold Pack" } },
   { level: 7, free: { kind: "gold", label: "400 Gold", amount: 400 }, elite: { kind: "gold", label: "500 Gold", amount: 500 } },
   { level: 8, free: { kind: "bronze_pack", label: "Bronze Pack" }, elite: { kind: "dust", label: "200 Dust", amount: 200 } },
   { level: 9, free: { kind: "dust", label: "100 Dust", amount: 100 }, elite: { kind: "xp_boost", label: "2x XP (2hr)" } },
-  { level: 10, free: { kind: "hero", label: "Verdant Sprout", seasonal: true, rarity: "legendary" }, elite: { kind: "hero", label: "Pyralis, Bloom Knight", seasonal: true, rarity: "legendary" } },
+  { level: 10, free: { kind: "hero", label: "Verdant Sprout", seasonal: true, rarity: "legendary", image: heroVerdantSprout }, elite: { kind: "hero", label: "Pyralis, Bloom Knight", seasonal: true, rarity: "legendary", image: heroPyralis } },
   { level: 11, free: { kind: "gold", label: "500 Gold", amount: 500 }, elite: { kind: "gold_pack", label: "Gold Pack" } },
   { level: 12, free: { kind: "dust", label: "125 Dust", amount: 125 }, elite: { kind: "dust", label: "300 Dust", amount: 300 } },
   { level: 13, free: { kind: "xp_boost", label: "2x XP (1hr)" }, elite: { kind: "crafting_mats", label: "Crafting Mats" } },
   { level: 14, free: { kind: "gold", label: "600 Gold", amount: 600 }, elite: { kind: "gold_pack", label: "Gold Pack" } },
-  { level: 15, free: { kind: "title", label: "Bloomwalker", seasonal: true, rarity: "legendary" }, elite: { kind: "board_skin", label: "Runed Garden", seasonal: true, rarity: "legendary" } },
+  { level: 15, free: { kind: "title", label: "Bloomwalker", seasonal: true, rarity: "legendary" }, elite: { kind: "board_skin", label: "Runed Garden", seasonal: true, rarity: "legendary", image: boardRunedGarden } },
   { level: 16, free: { kind: "silver_pack", label: "Silver Pack" }, elite: { kind: "gold", label: "800 Gold", amount: 800 } },
   { level: 17, free: { kind: "gold", label: "700 Gold", amount: 700 }, elite: { kind: "gold_pack", label: "Gold Pack" } },
   { level: 18, free: { kind: "dust", label: "150 Dust", amount: 150 }, elite: { kind: "dust", label: "400 Dust", amount: 400 } },
   { level: 19, free: { kind: "gold", label: "800 Gold", amount: 800 }, elite: { kind: "gold", label: "1200 Gold", amount: 1200 } },
-  { level: 20, free: { kind: "hero", label: "Thornweaver", seasonal: true, rarity: "legendary" }, elite: { kind: "hero", label: "Solara, Bloom Empress", seasonal: true, rarity: "legendary" } },
+  { level: 20, free: { kind: "hero", label: "Thornweaver", seasonal: true, rarity: "legendary", image: heroThornweaver }, elite: { kind: "hero", label: "Solara, Bloom Empress", seasonal: true, rarity: "legendary", image: heroSolara } },
   { level: 21, free: { kind: "gold", label: "900 Gold", amount: 900 }, elite: { kind: "gold_pack", label: "Gold Pack" } },
   { level: 22, free: { kind: "dust", label: "175 Dust", amount: 175 }, elite: { kind: "dust", label: "500 Dust", amount: 500 } },
   { level: 23, free: { kind: "bronze_pack", label: "Bronze Pack" }, elite: { kind: "gold_pack", label: "Gold Pack" } },
   { level: 24, free: { kind: "gold", label: "1000 Gold", amount: 1000 }, elite: { kind: "gold", label: "1500 Gold", amount: 1500 } },
-  { level: 25, free: { kind: "emote", label: "Petal Storm", seasonal: true, rarity: "legendary" }, elite: { kind: "border", label: "Eternal Bloom", seasonal: true, rarity: "legendary" } },
+  { level: 25, free: { kind: "emote", label: "Petal Storm", seasonal: true, rarity: "legendary" }, elite: { kind: "border", label: "Eternal Bloom", seasonal: true, rarity: "legendary", image: borderEternalBloom } },
   { level: 26, free: { kind: "silver_pack", label: "Silver Pack" }, elite: { kind: "gold_pack", label: "Gold Pack" } },
   { level: 27, free: { kind: "gold", label: "1100 Gold", amount: 1100 }, elite: { kind: "gold", label: "1800 Gold", amount: 1800 } },
   { level: 28, free: { kind: "dust", label: "200 Dust", amount: 200 }, elite: { kind: "dust", label: "600 Dust", amount: 600 } },
   { level: 29, free: { kind: "silver_pack", label: "Silver Pack" }, elite: { kind: "gold_pack", label: "Gold Pack" } },
-  { level: 30, free: { kind: "card_frame", label: "Bloom Aura", seasonal: true, rarity: "legendary" }, elite: { kind: "hero_variant", label: "Celestial Solara", seasonal: true, rarity: "legendary" } },
+  { level: 30, free: { kind: "card_frame", label: "Bloom Aura", seasonal: true, rarity: "legendary", image: frameBloomAura }, elite: { kind: "hero_variant", label: "Celestial Solara", seasonal: true, rarity: "legendary", image: heroCelestialSolara } },
 ];
 
 const MILESTONES = new Set([5, 10, 15, 20, 25, 30]);
@@ -245,8 +258,12 @@ function RewardCell({
         </div>
       )}
 
-      {/* Icon */}
-      <RewardIcon kind={reward.kind} className={cn("w-6 h-6", milestone && "w-7 h-7")} />
+      {/* Icon or Image */}
+      {reward.image ? (
+        <img src={reward.image} alt={reward.label} className={cn("w-14 h-14 rounded-lg object-cover", milestone && "ring-1 ring-[hsl(var(--legendary))]/50")} loading="lazy" />
+      ) : (
+        <RewardIcon kind={reward.kind} className={cn("w-6 h-6", milestone && "w-7 h-7")} />
+      )}
 
       {/* Label */}
       <span className={cn(
