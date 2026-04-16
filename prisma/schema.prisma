@@ -45,6 +45,18 @@ enum PvPMatchStatus {
   expired
 }
 
+enum NotificationType {
+  friend_request
+  friend_accepted
+  trade_received
+  trade_accepted
+  trade_cancelled
+  market_listing_sold
+  pvp_match_ready
+  pvp_live_invite
+  pvp_live_result
+}
+
 model Player {
   id                         Int                  @id @default(autoincrement())
   discordId                  String               @unique
@@ -76,6 +88,7 @@ model Player {
   pvpRatings                 PvPRating[]
   pvpMatchesAsA              PvPMatch[]           @relation("PvPMatchPlayerA")
   pvpMatchesAsB              PvPMatch[]           @relation("PvPMatchPlayerB")
+  notifications              Notification[]
 }
 
 model CardProgress {
@@ -266,4 +279,22 @@ model PvPMatch {
   @@index([playerAId])
   @@index([playerBId])
   @@index([createdAt])
+}
+
+model Notification {
+  id        Int              @id @default(autoincrement())
+  playerId  Int
+  type      NotificationType
+  title     String
+  body      String?
+  data      Json?
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@index([playerId])
+  @@index([type])
+  @@index([createdAt])
+  @@index([readAt])
 }

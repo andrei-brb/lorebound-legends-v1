@@ -646,6 +646,86 @@ function toPublicPlayer(p) {
   return { id: p.id, discordId: p.discordId, username: p.username, avatar: p.avatar || null };
 }
 
+async function createNotification(tx, playerId, type, title, body = null, data = null) {
+  return tx.notification.create({
+    data: {
+      playerId,
+      type,
+      title,
+      body,
+      data,
+    },
+  });
+}
+
+async function handleGetNotifications(req, res) {
+  const user = await requireAuth(req, res);
+  if (!user) return;
+
+  const url = new URL(`http://localhost${req.url}`);
+  const limit = Math.min(50, Math.max(1, Number(url.searchParams.get("limit") || 30)));
+
+  const me = await prisma.player.findUnique({ where: { discordId: user.id } });
+  if (!me) return sendJson(res, 404, { error: "Player not found" });
+
+  const rows = await prisma.notification.findMany({
+    where: { playerId: me.id },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+  });
+
+  return sendJson(res, 200, {
+    notifications: rows.map((n) => ({
+      id: n.id,
+      type: n.type,
+      title: n.title,
+      body: n.body,
+      data: n.data,
+      createdAt: n.createdAt.getTime(),
+      readAt: n.readAt ? n.readAt.getTime() : null,
+    })),
+  });
+}
+
+async function handleGetUnreadCount(req, res) {
+  const user = await requireAuth(req, res);
+  if (!user) return;
+
+  const me = await prisma.player.findUnique({ where: { discordId: user.id } });
+  if (!me) return sendJson(res, 404, { error: "Player not found" });
+
+  const count = await prisma.notification.count({
+    where: { playerId: me.id, readAt: null },
+  });
+
+  return sendJson(res, 200, { unread: count });
+}
+
+async function handleMarkNotificationsRead(req, res) {
+  const user = await requireAuth(req, res);
+  if (!user) return;
+
+  const body = await readJsonBody(req);
+  const ids = Array.isArray(body.ids) ? body.ids.map(Number).filter(Number.isFinite) : [];
+
+  const me = await prisma.player.findUnique({ where: { discordId: user.id } });
+  if (!me) return sendJson(res, 404, { error: "Player not found" });
+
+  if (ids.length === 0) {
+    await prisma.notification.updateMany({
+      where: { playerId: me.id, readAt: null },
+      data: { readAt: new Date() },
+    });
+    return sendJson(res, 200, { ok: true });
+  }
+
+  await prisma.notification.updateMany({
+    where: { playerId: me.id, id: { in: ids } },
+    data: { readAt: new Date() },
+  });
+  return sendJson(res, 200, { ok: true });
+}
+
 async function handleGetFriends(req, res) {
   const user = await requireAuth(req, res);
   if (!user) return;
@@ -721,12 +801,34 @@ async function handleFriendRequest(req, res) {
         create: { playerId: me.id, friendPlayerId: target.id, status: "accepted" },
         update: { status: "accepted" },
       });
+
+      await createNotification(
+        tx,
+        target.id,
+        "friend_accepted",
+        `${me.username} accepted your friend request`,
+        null,
+        { fromPlayerId: me.id, friendshipId: reverse.id }
+      );
     });
     return sendJson(res, 200, { ok: true, status: "accepted", friend: toPublicPlayer(target) });
   }
 
-  const reqRow = await prisma.friendship.create({
-    data: { playerId: me.id, friendPlayerId: target.id, status: "pending" },
+  const reqRow = await prisma.$transaction(async (tx) => {
+    const created = await tx.friendship.create({
+      data: { playerId: me.id, friendPlayerId: target.id, status: "pending" },
+    });
+
+    await createNotification(
+      tx,
+      target.id,
+      "friend_request",
+      `Friend request from ${me.username}`,
+      "Open Friends to accept or decline.",
+      { fromPlayerId: me.id, friendshipId: created.id }
+    );
+
+    return created;
   });
   return sendJson(res, 200, { ok: true, status: reqRow.status, requestId: reqRow.id, friend: toPublicPlayer(target) });
 }
@@ -748,7 +850,17 @@ async function handleFriendRespond(req, res) {
   if (reqRow.status !== "pending") return sendJson(res, 400, { error: "Request is not pending" });
 
   if (!accept) {
-    await prisma.friendship.delete({ where: { id: reqRow.id } });
+    await prisma.$transaction(async (tx) => {
+      await tx.friendship.delete({ where: { id: reqRow.id } });
+      await createNotification(
+        tx,
+        reqRow.playerId,
+        "friend_accepted",
+        `${me.username} declined your friend request`,
+        null,
+        { toPlayerId: me.id, friendshipId: reqRow.id }
+      );
+    });
     return sendJson(res, 200, { ok: true, status: "denied" });
   }
 
@@ -759,6 +871,15 @@ async function handleFriendRespond(req, res) {
       create: { playerId: me.id, friendPlayerId: reqRow.playerId, status: "accepted" },
       update: { status: "accepted" },
     });
+
+    await createNotification(
+      tx,
+      reqRow.playerId,
+      "friend_accepted",
+      `${me.username} accepted your friend request`,
+      null,
+      { toPlayerId: me.id, friendshipId: reqRow.id }
+    );
   });
 
   return sendJson(res, 200, { ok: true, status: "accepted", friend: toPublicPlayer(reqRow.player) });
@@ -878,21 +999,34 @@ async function handleCreateTrade(req, res) {
 
   for (const id of [...offeredCardIds, ...requestedCardIds]) assertTradeable(id);
 
-  const trade = await prisma.trade.create({
-    data: {
-      fromPlayerId: me.id,
-      toPlayerId,
-      taxGold,
-      taxStardust,
-      message,
-      items: {
-        create: [
-          ...offeredCardIds.map((cardId) => ({ side: "from", cardId, quantity: 1 })),
-          ...requestedCardIds.map((cardId) => ({ side: "to", cardId, quantity: 1 })),
-        ],
+  const trade = await prisma.$transaction(async (tx) => {
+    const created = await tx.trade.create({
+      data: {
+        fromPlayerId: me.id,
+        toPlayerId,
+        taxGold,
+        taxStardust,
+        message,
+        items: {
+          create: [
+            ...offeredCardIds.map((cardId) => ({ side: "from", cardId, quantity: 1 })),
+            ...requestedCardIds.map((cardId) => ({ side: "to", cardId, quantity: 1 })),
+          ],
+        },
       },
-    },
-    include: { items: true, fromPlayer: true, toPlayer: true },
+      include: { items: true, fromPlayer: true, toPlayer: true },
+    });
+
+    await createNotification(
+      tx,
+      toPlayerId,
+      "trade_received",
+      `New trade from ${me.username}`,
+      created.message || "Open Trading to review and accept/cancel.",
+      { tradeId: created.id, fromPlayerId: me.id }
+    );
+
+    return created;
   });
 
   return sendJson(res, 200, { ok: true, tradeId: trade.id });
@@ -910,7 +1044,17 @@ async function handleCancelTrade(req, res, tradeId) {
   if (t.fromPlayerId !== me.id) return sendJson(res, 403, { error: "Only the sender can cancel" });
   if (t.status !== "open") return sendJson(res, 400, { error: "Trade is not open" });
 
-  await prisma.trade.update({ where: { id: tradeId }, data: { status: "cancelled" } });
+  await prisma.$transaction(async (tx) => {
+    await tx.trade.update({ where: { id: tradeId }, data: { status: "cancelled" } });
+    await createNotification(
+      tx,
+      t.toPlayerId,
+      "trade_cancelled",
+      `Trade cancelled by ${me.username}`,
+      null,
+      { tradeId: t.id, fromPlayerId: me.id }
+    );
+  });
   return sendJson(res, 200, { ok: true });
 }
 
@@ -1042,6 +1186,15 @@ async function handleAcceptTrade(req, res, tradeId) {
       }
 
       await tx.trade.update({ where: { id: trade.id }, data: { status: "accepted" } });
+
+      await createNotification(
+        tx,
+        trade.fromPlayerId,
+        "trade_accepted",
+        `${toPlayer.username} accepted your trade`,
+        null,
+        { tradeId: trade.id, toPlayerId: trade.toPlayerId }
+      );
     });
   } catch (e) {
     const code = e?.statusCode || 500;
@@ -1202,6 +1355,15 @@ async function handleBuyListing(req, res, listingId) {
       }
 
       await tx.marketplaceListing.update({ where: { id: listing.id }, data: { status: "fulfilled" } });
+
+      await createNotification(
+        tx,
+        listing.sellerPlayerId,
+        "market_listing_sold",
+        `Marketplace sale: your listing was bought`,
+        `Bought by ${buyerRow.username}.`,
+        { listingId: listing.id, buyerPlayerId: buyerRow.id }
+      );
     });
   } catch (e) {
     const code = e?.statusCode || 500;
@@ -1394,6 +1556,23 @@ async function handleResolveAsync(req, res, matchId) {
       where: { id: match.id },
       data: { status: "completed", result: resultPayload },
     });
+
+    await createNotification(
+      tx,
+      match.playerAId,
+      "pvp_match_ready",
+      "Ranked PvP match resolved",
+      "Open PvP → History to view the result.",
+      { matchId: match.id, type: "async", seasonId }
+    );
+    await createNotification(
+      tx,
+      match.playerBId,
+      "pvp_match_ready",
+      "Ranked PvP match resolved",
+      "Open PvP → History to view the result.",
+      { matchId: match.id, type: "async", seasonId }
+    );
   });
 
   return sendJson(res, 200, { ok: true, result: resultPayload });
@@ -1483,19 +1662,32 @@ async function handleLiveCreate(req, res) {
     createdAt: Date.now(),
   };
 
-  const match = await prisma.pvPMatch.create({
-    data: {
-      type: "live",
-      status: "pending",
-      playerAId: me.id,
-      playerBId: opp.id,
-      seasonId,
-      seed,
-      state,
-      actionLog: [],
-      turnPlayerId: me.id,
-      lastActionAt: new Date(),
-    },
+  const match = await prisma.$transaction(async (tx) => {
+    const created = await tx.pvPMatch.create({
+      data: {
+        type: "live",
+        status: "pending",
+        playerAId: me.id,
+        playerBId: opp.id,
+        seasonId,
+        seed,
+        state,
+        actionLog: [],
+        turnPlayerId: me.id,
+        lastActionAt: new Date(),
+      },
+    });
+
+    await createNotification(
+      tx,
+      opp.id,
+      "pvp_live_invite",
+      `Live PvP challenge from ${me.username}`,
+      "Open PvP → Live to join the match.",
+      { matchId: created.id, fromPlayerId: me.id, seasonId }
+    );
+
+    return created;
   });
 
   return sendJson(res, 200, { ok: true, matchId: match.id });
@@ -1680,6 +1872,25 @@ async function handleLiveAction(req, res, matchId) {
           lastActionAt: new Date(),
         },
       });
+
+      if (nextStatus === "completed") {
+        await createNotification(
+          tx,
+          match.playerAId,
+          "pvp_live_result",
+          "Live PvP match completed",
+          "Open PvP → Live to view the result.",
+          { matchId: match.id, seasonId: match.seasonId || DEFAULT_PVP_SEASON_ID }
+        );
+        await createNotification(
+          tx,
+          match.playerBId,
+          "pvp_live_result",
+          "Live PvP match completed",
+          "Open PvP → Live to view the result.",
+          { matchId: match.id, seasonId: match.seasonId || DEFAULT_PVP_SEASON_ID }
+        );
+      }
 
       return updated;
     });
@@ -2324,6 +2535,9 @@ const server = http.createServer(async (req, res) => {
     if (method === "GET" && path === "/api/player") return await handleGetPlayer(req, res);
     if (method === "GET" && path === "/api/me") return await handleGetMe(req, res);
     if (method === "PATCH" && path === "/api/player") return await handlePatchPlayer(req, res);
+    if (method === "GET" && path === "/api/notifications") return await handleGetNotifications(req, res);
+    if (method === "GET" && path === "/api/notifications/unread-count") return await handleGetUnreadCount(req, res);
+    if (method === "POST" && path === "/api/notifications/mark-read") return await handleMarkNotificationsRead(req, res);
     if (method === "GET" && path === "/api/friends") return await handleGetFriends(req, res);
     if (method === "POST" && path === "/api/friends/request") return await handleFriendRequest(req, res);
     if (method === "POST" && path === "/api/friends/respond") return await handleFriendRespond(req, res);

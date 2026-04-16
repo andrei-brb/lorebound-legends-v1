@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
-import { BookOpen, Layers, Swords, Coins, Sparkles as SparklesIcon, Grid3X3, Loader2, ScrollText, Hammer, Trophy, ArrowLeftRight, BarChart3, Calendar, Zap, Crown, Shield } from "lucide-react";
+import { BookOpen, Layers, Swords, Coins, Sparkles as SparklesIcon, Grid3X3, Loader2, ScrollText, Hammer, Trophy, ArrowLeftRight, BarChart3, Calendar, Zap, Crown, Shield, Mail } from "lucide-react";
 import CollectionView from "@/components/CollectionView";
 import DeckBuilder from "@/components/DeckBuilder";
 import BattleArena from "@/components/BattleArena";
@@ -16,12 +16,14 @@ import BoostRewards from "@/components/BoostRewards";
 import BattlePass from "@/components/BattlePass";
 import Onboarding from "@/components/Onboarding";
 import PvPPanel from "@/components/PvPPanel";
+import InboxPanel from "@/components/InboxPanel";
 import { cn } from "@/lib/utils";
 import { usePlayerApi } from "@/lib/usePlayerApi";
 import { loadAchievementState, checkNewAchievements, saveAchievementState } from "@/lib/achievementEngine";
 import { toast } from "@/hooks/use-toast";
+import { api } from "@/lib/apiClient";
 
-type Tab = "collection" | "catalog" | "deck" | "battle" | "pvp" | "summon" | "quests" | "workshop" | "achievements" | "leaderboard" | "trade" | "events" | "tournament" | "boost" | "pass";
+type Tab = "collection" | "catalog" | "deck" | "battle" | "pvp" | "summon" | "quests" | "workshop" | "achievements" | "leaderboard" | "trade" | "mail" | "events" | "tournament" | "boost" | "pass";
 type Category = "cards" | "combat" | "progress" | "social";
 
 const categories: { id: Category; label: string; icon: React.ReactNode; tabs: { id: Tab; label: string; icon: React.ReactNode }[] }[] = [
@@ -57,6 +59,7 @@ const categories: { id: Category; label: string; icon: React.ReactNode; tabs: { 
     id: "social", label: "Social", icon: <ArrowLeftRight className="w-4 h-4" />,
     tabs: [
       { id: "trade", label: "Trade", icon: <ArrowLeftRight className="w-4 h-4" /> },
+      { id: "mail", label: "Mail", icon: <Mail className="w-4 h-4" /> },
       { id: "leaderboard", label: "Ranks", icon: <BarChart3 className="w-4 h-4" /> },
     ],
   },
@@ -72,6 +75,7 @@ export default function Index() {
     social: "trade",
   });
   const [battleDeckIds, setBattleDeckIds] = useState<string[]>([]);
+  const [unreadMail, setUnreadMail] = useState(0);
   const { playerState, setPlayerState, status, isOnline, pullCards, submitBattleResult, completeOnboarding, syncEconomy, craftFuse, craftSacrifice, pullSeasonalPack } = usePlayerApi();
   const isDiscordActivityHost = typeof window !== "undefined" && window.location.hostname.endsWith("discordsays.com");
   const discordOverlayInset = "calc(64px + env(safe-area-inset-top))";
@@ -98,6 +102,25 @@ export default function Index() {
       }
     }
   }, [playerState]);
+
+  useEffect(() => {
+    if (!isOnline) return;
+    let alive = true;
+    const tick = async () => {
+      try {
+        const data = await api.getNotificationUnreadCount();
+        if (alive) setUnreadMail(Number(data.unread) || 0);
+      } catch {
+        // ignore polling errors
+      }
+    };
+    tick();
+    const id = window.setInterval(tick, 8000);
+    return () => {
+      alive = false;
+      window.clearInterval(id);
+    };
+  }, [isOnline]);
 
   if (status === "loading") {
     return (
@@ -213,7 +236,14 @@ export default function Index() {
               )}
             >
               {tab.icon}
-              {tab.label}
+              <span className="relative">
+                {tab.label}
+                {tab.id === "mail" && unreadMail > 0 ? (
+                  <span className="absolute -top-2 -right-3 text-[10px] font-bold bg-primary text-primary-foreground rounded-full px-1.5 py-0.5">
+                    {unreadMail > 99 ? "99+" : unreadMail}
+                  </span>
+                ) : null}
+              </span>
             </button>
           ))}
         </div>
@@ -254,6 +284,14 @@ export default function Index() {
         )}
         {activeTab === "trade" && (
           <TradeUI playerState={playerState} onStateChange={setPlayerState} />
+        )}
+        {activeTab === "mail" && (
+          <InboxPanel
+            onNavigate={(tab) => {
+              setActiveCategory("social");
+              setActiveTab(tab);
+            }}
+          />
         )}
         {activeTab === "pvp" && (
           <PvPPanel playerState={playerState} />

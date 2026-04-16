@@ -179,6 +179,33 @@ export const api = {
     }>(res);
   },
 
+  async getNotifications(limit: number = 30) {
+    const res = await fetch(`${getApiBase()}/api/notifications?limit=${encodeURIComponent(String(limit))}`, { headers: getHeaders() });
+    return handleResponse<{ notifications: Array<{
+      id: number;
+      type: string;
+      title: string;
+      body?: string | null;
+      data?: any;
+      createdAt: number;
+      readAt?: number | null;
+    }> }>(res);
+  },
+
+  async getNotificationUnreadCount() {
+    const res = await fetch(`${getApiBase()}/api/notifications/unread-count`, { headers: getHeaders() });
+    return handleResponse<{ unread: number }>(res);
+  },
+
+  async markNotificationsRead(ids?: number[]) {
+    const res = await fetch(`${getApiBase()}/api/notifications/mark-read`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({ ids: ids || [] }),
+    });
+    return handleResponse<{ ok: true }>(res);
+  },
+
   async friendRequest(usernameOrDiscordId: string) {
     const res = await fetch(`${getApiBase()}/api/friends/request`, {
       method: "POST",
