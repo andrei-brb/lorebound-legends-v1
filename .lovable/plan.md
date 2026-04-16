@@ -1,125 +1,64 @@
 
 
-## Plan: Full Feature Expansion for Mythic Arcana (Discord Game)
+## Battle Pass — Reward Structure & Implementation Plan
 
-This is a large scope. I recommend building in **4 phases** so you can test each batch before moving on. Here's everything organized by priority and dependency.
+### Reward Layout (30 Levels, Dual Track)
 
----
+**FREE Track** — Moderate value, keeps F2P players progressing:
 
-### Phase 1 — Daily Loop & Economy (keeps players coming back)
+| Levels | Reward Type | Examples |
+|--------|------------|---------|
+| 1, 2, 3, 4 | Gold + Stardust | 200g, 50 dust, 300g, 75 dust |
+| **5** | **Legendary milestone** | Seasonal card back "Bloom Crest" (season exclusive) |
+| 6, 7, 8, 9 | XP Boost + Gold + Bronze Pack | 2x XP (1hr), 400g, Bronze Pack, 100 dust |
+| **10** | **Legendary milestone** | Free Common hero "Verdant Sprout" (seasonal) |
+| 11–14 | Gold, Dust, XP Boosts | Mixed currency rewards |
+| **15** | **Legendary milestone** | Seasonal title "Bloomwalker" |
+| 16–19 | Silver Pack, Gold, Dust | Escalating currency |
+| **20** | **Legendary milestone** | Free Rare hero "Thornweaver" (seasonal) |
+| 21–24 | Gold, Dust, Bronze Packs | Mixed |
+| **25** | **Legendary milestone** | Seasonal emote "Petal Storm" |
+| 26–29 | Silver Pack, Gold, Dust | Final push rewards |
+| **30** | **Legendary milestone** | Exclusive cosmetic: "Bloom Aura" card frame |
 
-**1. Daily Quests System**
-- New `src/lib/questEngine.ts` — quest definitions, progress tracking, reward logic
-- New `src/components/DailyQuests.tsx` — UI showing 3 daily quests with progress bars
-- New "Quests" tab in `Index.tsx` header nav
-- Quest types: "Win N battles", "Pull N packs", "Level up a card", "Play N cards in battle"
-- Server: new `DailyQuest` Prisma model tracking per-player quest state, reset daily
-- Server: quest progress hooks in existing battle/pull/level endpoints
+**ELITE Track** — Premium flex, exclusive heroes & cosmetics:
 
-**2. Crafting & Fusion**
-- New `src/components/CraftingWorkshop.tsx` — UI to select 3 duplicate commons → fuse into random rare (or 3 rares → legendary)
-- New `src/lib/craftingEngine.ts` — fusion rules, sacrifice-for-stardust math
-- Server: `/api/craft` endpoint with validation
-- Add "Workshop" tab to nav
+| Levels | Reward Type | Examples |
+|--------|------------|---------|
+| 1–4 | 2x Gold + Stardust (doubled) | 400g, 100 dust, 600g, 150 dust |
+| **5** | **Legendary milestone** | Animated card back "Bloom Inferno" (season exclusive) |
+| 6–9 | Gold Packs + bonus currency | Gold Pack, 500g, 200 dust, 2x XP (2hr) |
+| **10** | **Legendary milestone** | Elite Rare hero "Pyralis, the Bloom Knight" (seasonal) |
+| 11–14 | Gold Packs, bonus Dust, crafting mats | Premium currency flow |
+| **15** | **Legendary milestone** | Seasonal board skin "Runed Garden" |
+| 16–19 | 2x Gold, Gold Packs, Dust | Escalating |
+| **20** | **Legendary milestone** | Elite Legendary hero "Solara, Bloom Empress" (seasonal) |
+| 21–24 | Gold Packs, bonus currency | Premium flow |
+| **25** | **Legendary milestone** | Animated border "Eternal Bloom" |
+| 26–29 | Gold Packs, 2x currency | Final stretch |
+| **30** | **Legendary milestone** | Seasonal animated hero variant "Celestial Solara" (alternate art, never returns) |
 
-**3. Achievement Badges**
-- New `src/lib/achievementEngine.ts` — ~15 achievements ("First Legendary", "10-Win Streak", "Full Collection", "Max Level Card", etc.)
-- New `src/components/AchievementPanel.tsx` — badge grid displayed in a profile section
-- Server: `Achievement` Prisma model, checked after key actions
-- Add achievement popup toast when unlocked
+### Implementation
 
----
+**Files to create/edit:**
 
-### Phase 2 — Gameplay Depth (makes battles more strategic)
+1. **Create `src/components/BattlePass.tsx`**
+   - Horizontal scrollable 30-level grid, FREE row on top, ELITE row below
+   - Hardcoded reward data arrays matching the tables above
+   - Milestone cells (5/10/15/20/25/30): golden glow border + "Season Exclusive" badge
+   - Hero reward cells show card art thumbnail; currency cells show icon + amount
+   - Current level pulsing highlight, claimed = checkmark, locked = dimmed + lock
+   - "Upgrade to Elite" CTA button, XP progress bar in header
+   - Dark-gold mythic styling consistent with existing theme
 
-**4. Elemental Weakness Triangle**
-- Add `element` field to card data: `"fire" | "nature" | "shadow" | "water" | "light" | "dark" | "neutral"`
-- Update `src/data/cards.ts` — assign elements to all ~80+ hero/god cards based on existing tags
-- Update `src/lib/battleEngine.ts` — apply 1.3x damage when attacker has type advantage (Fire > Nature > Shadow > Fire), 0.7x when disadvantaged
-- Show element icon on `GameCard.tsx` and type advantage indicator in battle UI
+2. **Fix `src/components/CollectionView.tsx`** — resolve `GameCard` naming collision (already partially done)
 
-**5. Card Abilities & Spells (Active mid-battle)**
-- Already partially implemented (spells exist). Extend hero/god cards with `activeAbility` field
-- New ability types: heal self, stun enemy, double-strike, shield ally
-- Add "Use Ability" button on field cards in `BattleArena.tsx` (costs 1 AP, once per battle per card)
-- Update battle engine to process active abilities
+3. **Edit `src/pages/Index.tsx`** — add "Pass" tab with Shield icon, render `<BattlePass />`
 
-**6. Campaign / PvE Mode**
-- New `src/components/Campaign.tsx` — world map with 3 chapters (Fire Realm, Nature Grove, Shadow Depths), 5 stages each
-- Each stage has a pre-built AI deck with increasing difficulty + unique boss mechanics
-- First-clear rewards: gold, stardust, exclusive cards
-- Server: `CampaignProgress` Prisma model tracking cleared stages
-- Add "Campaign" tab to nav
-
----
-
-### Phase 3 — Social & Discord Integration
-
-**7. Leaderboards**
-- New `src/components/Leaderboard.tsx` — tabs for Wins, Collection %, Rarest Cards
-- Server: `/api/leaderboard` endpoint querying BattleStat + CardProgress
-- Shows top 20 players with avatars from Discord
-
-**8. Trading System**
-- New `src/components/TradeUI.tsx` — offer/counter-offer interface with card previews
-- Server: `TradeOffer` Prisma model (offerer, receiver, offered cards, requested cards, status)
-- Endpoints: create, counter, accept, reject, cancel
-- Confirmation step before finalizing
-
-**9. Slash Commands** (server-side only)
-- Update `server/register-play-command.mjs` to register: `/mythic profile`, `/mythic daily`, `/mythic duel @user`
-- Update `server/token-server.mjs` interaction handler to respond with embed cards showing player stats
-- Quick actions without opening the Activity
-
-**10. Card Drop Events**
-- Server: scheduled random drops via Discord webhook to a designated channel
-- First user to react (emoji) claims the card → server processes claim
-- Configurable frequency per server
-
----
-
-### Phase 4 — Events & Competitive
-
-**11. Seasonal Events**
-- Data-driven event system: `src/lib/eventEngine.ts` with start/end dates
-- Limited-time cards added to `cards.ts` with `seasonal: true` flag
-- Special event packs in PackShop, themed battle modifiers (e.g. "Shadow Week" = +20% shadow card stats)
-- Event banner in UI
-
-**12. Tournament Mode**
-- New `src/components/Tournament.tsx` — bracket visualization
-- Server: `Tournament` + `TournamentEntry` Prisma models
-- Entry fee (gold), prize pool distribution
-- Auto-matchmaking with AI-vs-AI simulation for absent players
-
-**13. Server Boost Rewards**
-- Check Discord server boost status via API
-- Boosters get: exclusive card backs, bonus daily pack, cosmetic profile flair
-- Server: store boost status on Player model
-
----
-
-### Database Changes (all phases)
-
-New Prisma models needed:
-- `DailyQuest` (playerId, questType, progress, target, completed, resetAt)
-- `Achievement` (playerId, achievementId, unlockedAt)
-- `CampaignProgress` (playerId, stageId, cleared, stars)
-- `TradeOffer` (offererId, receiverId, offeredCardIds, requestedCardIds, status)
-- `Tournament`, `TournamentEntry`
-- Add `element` column to card metadata (or keep in code since cards are defined in `cards.ts`)
-
----
-
-### Won't it be too full?
-
-No — each feature lives in its own tab/section. The nav will grow but we can use a collapsible sidebar or icon-only mobile nav. Campaign and Tournaments are separate screens. PvP battles stay in the existing Battle tab. Trading/Leaderboards are social tabs that open as overlays.
-
-For the Discord slash commands, those work outside the Activity entirely — no UI needed.
-
----
-
-### Recommended start
-
-**Phase 1 first** (Daily Quests + Crafting + Achievements). These are self-contained, add immediate replay value, and don't require multiplayer networking. Shall I begin with Phase 1?
+### Visual Style
+- Dark card cells (`bg-card`), gold accents on milestones
+- Elite row: purple-gold gradient border accent
+- Milestone legendary cells: animated golden shimmer border
+- "Season Exclusive — Limited Time" label on all milestone rewards
+- Hero thumbnails use existing card art from the card data
 
