@@ -379,9 +379,9 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
                 ))}
               </div>
 
-              <div className="flex justify-center gap-2 sm:gap-3 min-h-[88px]">
+              <div className="flex justify-center gap-2 sm:gap-3 min-h-[104px]">
                 {state.player.field.map((fc, i) => (
-                  <div key={i} className="relative">
+                  <div key={i} className="relative group">
                     {fc ? (
                       <>
                         <BattleCardToken
@@ -394,9 +394,12 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
                             (actionMode === "select-spell-target" && state.player.hand[selectedHandIndex!]?.spellEffect?.target === "single_ally")
                           }
                           onClick={() => handleFieldCardClick("player", i)}
-                          onHover={() => setHoveredCard(fc)}
-                          onHoverEnd={() => { if (hoveredCard === fc) setHoveredCard(null); }}
                         />
+
+                        {/* Hover tooltip */}
+                        <div className="hidden group-hover:block absolute z-50 bottom-full mb-1 left-1/2 -translate-x-1/2">
+                          <BattleInfoPanel fieldCard={fc} side="player" />
+                        </div>
 
                         {/* Radial menu on selected card */}
                         {isPlayerTurn && selectedFieldIndex === i && actionMode === "none" && (
@@ -415,7 +418,7 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
                         )}
                       </>
                     ) : (
-                      <div className="w-16 h-20 sm:w-[72px] sm:h-[88px] rounded-lg border border-dashed border-border/20 flex items-center justify-center">
+                      <div className="w-[72px] h-[92px] sm:w-20 sm:h-[104px] rounded-lg border border-dashed border-border/20 flex items-center justify-center">
                         <span className="text-muted-foreground/15 text-[9px]">—</span>
                       </div>
                     )}
