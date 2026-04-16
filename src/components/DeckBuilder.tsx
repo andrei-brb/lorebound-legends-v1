@@ -582,7 +582,7 @@ export default function DeckBuilder({ onStartBattle, playerState, onStateChange 
             <span className="text-xs font-bold text-foreground w-8 text-right">{avgStats.defense}</span>
           </div>
           <div className="flex items-center gap-2">
-            <Zap className="w-3 h-3 text-emerald-400" />
+            <Zap className="w-3 h-3 text-synergy" />
             <span className="text-[10px] text-muted-foreground w-10">HP</span>
             <Progress value={(avgStats.hp / 100) * 100} className="h-2 flex-1 bg-secondary" />
             <span className="text-xs font-bold text-foreground w-8 text-right">{avgStats.hp}</span>
