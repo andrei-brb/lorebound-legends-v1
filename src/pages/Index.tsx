@@ -198,7 +198,7 @@ export default function Index() {
           <BoostRewards />
         )}
         {activeTab === "pass" && (
-          <BattlePass />
+          <BattlePass playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} />
         )}
         {activeTab === "battle" && battleDeckIds.length === 0 && (
           <div className="text-center py-20">

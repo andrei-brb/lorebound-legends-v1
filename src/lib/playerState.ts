@@ -20,6 +20,35 @@ export interface PlayerState {
   totalPulls: number;
   hasCompletedOnboarding: boolean;
   selectedPath: FactionPath | null;
+  // Battle Pass + cosmetics (client + server)
+  battlePass?: BattlePassState;
+  cosmeticsOwned?: string[];
+  cosmeticsEquipped?: CosmeticsEquipped;
+  battlePassXpBoostExpiresAt?: number | null; // epoch ms; doubles BP XP while active
+}
+
+export type BattlePassSeasonId = "season-01" | "season-02" | "season-03";
+
+export interface BattlePassSeasonProgress {
+  seasonId: BattlePassSeasonId;
+  xp: number;
+  hasElite: boolean;
+  claimedFreeLevels: number[];
+  claimedEliteLevels: number[];
+}
+
+export interface BattlePassState {
+  activeSeasonId: BattlePassSeasonId;
+  seasons: Partial<Record<BattlePassSeasonId, BattlePassSeasonProgress>>;
+  daily: { date: string; xpEarned: number }; // XP cap tracking
+}
+
+export interface CosmeticsEquipped {
+  boardSkinId?: string | null;
+  cardFrameId?: string | null;
+  cardBackId?: string | null;
+  borderId?: string | null;
+  titleId?: string | null;
 }
 
 export const FACTION_STARTER_CARDS: Record<FactionPath, string[]> = {
@@ -44,6 +73,39 @@ const STARTER_CARD_IDS = [
   "healer", "divine-shield", "terragon", "tempestia", "nekros",
 ];
 
+function todayString(): string {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function getDefaultBattlePassState(): BattlePassState {
+  return {
+    activeSeasonId: "season-01",
+    seasons: {},
+    daily: { date: todayString(), xpEarned: 0 },
+  };
+}
+
+function normalizeBattlePassState(bp: BattlePassState | undefined): BattlePassState {
+  const base = bp ?? getDefaultBattlePassState();
+  const date = base.daily?.date ?? todayString();
+  const daily = date === todayString() ? base.daily : { date: todayString(), xpEarned: 0 };
+  return {
+    activeSeasonId: (base.activeSeasonId ?? "season-01") as BattlePassSeasonId,
+    seasons: base.seasons ?? {},
+    daily,
+  };
+}
+
+function normalizeCosmeticsEquipped(eq: CosmeticsEquipped | undefined): CosmeticsEquipped {
+  return {
+    boardSkinId: eq?.boardSkinId ?? null,
+    cardFrameId: eq?.cardFrameId ?? null,
+    cardBackId: eq?.cardBackId ?? null,
+    borderId: eq?.borderId ?? null,
+    titleId: eq?.titleId ?? null,
+  };
+}
+
 function createDefaultState(): PlayerState {
   return {
     gold: 500,
@@ -55,6 +117,10 @@ function createDefaultState(): PlayerState {
     totalPulls: 0,
     hasCompletedOnboarding: false,
     selectedPath: null,
+    battlePass: getDefaultBattlePassState(),
+    cosmeticsOwned: [],
+    cosmeticsEquipped: normalizeCosmeticsEquipped(undefined),
+    battlePassXpBoostExpiresAt: null,
   };
 }
 
@@ -83,6 +149,11 @@ export function loadPlayerState(): PlayerState {
       // Migration: add onboarding fields
       if (state.hasCompletedOnboarding === undefined) state.hasCompletedOnboarding = true; // existing players already onboarded
       if (state.selectedPath === undefined) state.selectedPath = null;
+      // Migration: add battle pass + cosmetics
+      state.battlePass = normalizeBattlePassState(state.battlePass);
+      if (!Array.isArray(state.cosmeticsOwned)) state.cosmeticsOwned = [];
+      state.cosmeticsEquipped = normalizeCosmeticsEquipped(state.cosmeticsEquipped);
+      if (state.battlePassXpBoostExpiresAt === undefined) state.battlePassXpBoostExpiresAt = null;
       // Migration: add starProgress to existing cards
       for (const id of Object.keys(state.cardProgress)) {
         if (!state.cardProgress[id].starProgress) {

@@ -3,6 +3,7 @@ import GameCardComponent from "./GameCard";
 import { Star } from "lucide-react";
 import { type PlayerState, getCardProgress, xpForLevel } from "@/lib/playerState";
 import { canPrestige, prestige } from "@/lib/progressionEngine";
+import { getCosmeticById } from "@/data/cosmetics";
 
 const rarityOrder: Rarity[] = ["legendary", "rare", "common"];
 const rarityLabels: Record<Rarity, string> = {
@@ -101,6 +102,8 @@ export default function CollectionView({
   sortBy = "rarity_desc",
 }: CollectionViewProps) {
   const ownedIds = playerState?.ownedCardIds || allGameCards.map(c => c.id);
+  const equippedFrameId = playerState?.cosmeticsEquipped?.cardFrameId || null;
+  const equippedFrameImage = equippedFrameId ? (getCosmeticById(equippedFrameId)?.image || null) : null;
   const q = (searchQuery || "").trim();
   const discoveryActive = q.length > 0 || typeFilter !== "all" || rarityFilter !== "all" || elementFilter !== "all" || inDeckOnly || sortBy !== "rarity_desc";
   const discoveredCards = discoveryActive
@@ -170,6 +173,7 @@ export default function CollectionView({
                       selected={inDeck}
                       showSynergy={hasArcPartner}
                       cardProgress={progress}
+                      equippedFrameImage={equippedFrameImage}
                     />
                     {inDeck && (
                       <div className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">
@@ -234,6 +238,7 @@ export default function CollectionView({
                           selected={inDeck}
                           showSynergy={hasArcPartner}
                           cardProgress={progress}
+                          equippedFrameImage={equippedFrameImage}
                         />
                         {inDeck && (
                           <div className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">

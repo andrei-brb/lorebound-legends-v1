@@ -11,6 +11,7 @@ import {
 } from "@/lib/questEngine";
 import type { PlayerState } from "@/lib/playerState";
 import { toast } from "@/hooks/use-toast";
+import { awardBattlePassXp } from "@/lib/battlePassEngine";
 
 interface DailyQuestsProps {
   playerState: PlayerState;
@@ -45,15 +46,17 @@ export default function DailyQuests({ playerState, onStateChange, isOnline, sync
     const result = claimQuestReward(questState, questId, playerState);
     if (result) {
       setQuestState(result.questState);
-      onStateChange(result.playerState);
+      // Also award Battle Pass XP on quest claim (daily-capped in engine).
+      const bp = awardBattlePassXp(result.playerState, 250);
+      onStateChange(bp.state);
       const def = result.questState.questDefinitions.find(d => d.id === questId);
       toast({
         title: "🎉 Quest Complete!",
-        description: `Earned ${def?.goldReward} gold and ${def?.stardustReward} stardust!`,
+        description: `Earned ${def?.goldReward} gold and ${def?.stardustReward} stardust! +${bp.awarded} Pass XP`,
       });
       // Sync gold/stardust to server so rewards persist across sessions
       if (isOnline && syncEconomyApi) {
-        syncEconomyApi(result.playerState.gold, result.playerState.stardust ?? 0).catch(() => {});
+        syncEconomyApi(bp.state.gold, bp.state.stardust ?? 0).catch(() => {});
       }
     }
   };

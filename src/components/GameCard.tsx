@@ -16,6 +16,7 @@ interface GameCardProps {
   showSynergy?: boolean;
   size?: "sm" | "md" | "lg";
   cardProgress?: CardProgress;
+  equippedFrameImage?: string | null;
 }
 
 const rarityBadge: Record<string, string> = {
@@ -90,7 +91,7 @@ const visualTierClasses: Record<string, string> = {
   awakened: "card-awakened",
 };
 
-export default function GameCard({ card, onClick, selected, showSynergy, size = "md", cardProgress }: GameCardProps) {
+export default function GameCard({ card, onClick, selected, showSynergy, size = "md", cardProgress, equippedFrameImage }: GameCardProps) {
   const [flipped, setFlipped] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
@@ -184,6 +185,17 @@ export default function GameCard({ card, onClick, selected, showSynergy, size = 
             )}
             style={{ backfaceVisibility: "hidden" }}
           >
+            {/* Equipped cosmetic frame overlay (subtle) */}
+            {equippedFrameImage && (
+              <div className="absolute inset-0 z-40 pointer-events-none">
+                <img
+                  src={equippedFrameImage}
+                  alt=""
+                  className="w-full h-full object-cover opacity-20 mix-blend-screen"
+                  loading="lazy"
+                />
+              </div>
+            )}
             {/* Rarity frame */}
             <div className={cn("absolute inset-0 z-30 pointer-events-none rounded-xl", rarityFrameClass[card.rarity])} />
 

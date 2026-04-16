@@ -70,6 +70,11 @@ export interface Reward {
   seasonal?: boolean;
   rarity?: "common" | "rare" | "legendary";
   image?: string;
+  // Real grant targets
+  cardId?: string;
+  cosmeticId?: string;
+  packId?: "bronze" | "silver" | "gold";
+  xpBoostMinutes?: number;
 }
 
 export interface LevelRewards {
@@ -210,8 +215,8 @@ const PASS_SEASON_01: LevelRewards[] = [
   { level: 4, ...FILL[4] },
   {
     level: 5,
-    free: { kind: "card_back", label: "Bloom Crest", seasonal: true, rarity: "legendary", image: cardbackBloomCrest },
-    elite: { kind: "card_back", label: "Bloom Inferno", seasonal: true, rarity: "legendary", image: cardbackBloomInferno },
+    free: { kind: "card_back", label: "Bloom Crest", seasonal: true, rarity: "legendary", image: cardbackBloomCrest, cosmeticId: "cardback_bloom_crest" },
+    elite: { kind: "card_back", label: "Bloom Inferno", seasonal: true, rarity: "legendary", image: cardbackBloomInferno, cosmeticId: "cardback_bloom_inferno" },
   },
   { level: 6, ...FILL[6] },
   { level: 7, ...FILL[7] },
@@ -219,8 +224,8 @@ const PASS_SEASON_01: LevelRewards[] = [
   { level: 9, ...FILL[9] },
   {
     level: 10,
-    free: { kind: "hero", label: "Verdant Sprout", seasonal: true, rarity: "legendary", image: heroVerdantSprout },
-    elite: { kind: "hero", label: "Pyralis, Bloom Knight", seasonal: true, rarity: "legendary", image: heroPyralis },
+    free: { kind: "hero", label: "Verdant Sprout", seasonal: true, rarity: "legendary", image: heroVerdantSprout, cardId: "bp-verdant-sprout" },
+    elite: { kind: "hero", label: "Pyralis, Bloom Knight", seasonal: true, rarity: "legendary", image: heroPyralis, cardId: "bp-pyralis-bloom-knight" },
   },
   { level: 11, ...FILL[11] },
   { level: 12, ...FILL[12] },
@@ -228,8 +233,8 @@ const PASS_SEASON_01: LevelRewards[] = [
   { level: 14, ...FILL[14] },
   {
     level: 15,
-    free: { kind: "title", label: "Bloomwalker", seasonal: true, rarity: "legendary" },
-    elite: { kind: "board_skin", label: "Runed Garden", seasonal: true, rarity: "legendary", image: boardRunedGarden },
+    free: { kind: "title", label: "Bloomwalker", seasonal: true, rarity: "legendary", cosmeticId: "title_bloomwalker" },
+    elite: { kind: "board_skin", label: "Runed Garden", seasonal: true, rarity: "legendary", image: boardRunedGarden, cosmeticId: "board_runed_garden" },
   },
   { level: 16, ...FILL[16] },
   { level: 17, ...FILL[17] },
@@ -237,8 +242,8 @@ const PASS_SEASON_01: LevelRewards[] = [
   { level: 19, ...FILL[19] },
   {
     level: 20,
-    free: { kind: "hero", label: "Thornweaver", seasonal: true, rarity: "legendary", image: heroThornweaver },
-    elite: { kind: "hero", label: "Solara, Bloom Empress", seasonal: true, rarity: "legendary", image: heroSolara },
+    free: { kind: "hero", label: "Thornweaver", seasonal: true, rarity: "legendary", image: heroThornweaver, cardId: "bp-thornweaver" },
+    elite: { kind: "hero", label: "Solara, Bloom Empress", seasonal: true, rarity: "legendary", image: heroSolara, cardId: "bp-solara-bloom-empress" },
   },
   { level: 21, ...FILL[21] },
   { level: 22, ...FILL[22] },
@@ -246,8 +251,8 @@ const PASS_SEASON_01: LevelRewards[] = [
   { level: 24, ...FILL[24] },
   {
     level: 25,
-    free: { kind: "emote", label: "Petal Storm", seasonal: true, rarity: "legendary" },
-    elite: { kind: "border", label: "Eternal Bloom", seasonal: true, rarity: "legendary", image: borderEternalBloom },
+    free: { kind: "emote", label: "Petal Storm", seasonal: true, rarity: "legendary", cosmeticId: "emote_petal_storm" },
+    elite: { kind: "border", label: "Eternal Bloom", seasonal: true, rarity: "legendary", image: borderEternalBloom, cosmeticId: "border_eternal_bloom" },
   },
   { level: 26, ...FILL[26] },
   { level: 27, ...FILL[27] },
@@ -255,62 +260,62 @@ const PASS_SEASON_01: LevelRewards[] = [
   { level: 29, ...FILL[29] },
   {
     level: 30,
-    free: { kind: "card_frame", label: "Bloom Aura", seasonal: true, rarity: "legendary", image: frameBloomAura },
-    elite: { kind: "hero_variant", label: "Celestial Solara", seasonal: true, rarity: "legendary", image: heroCelestialSolara },
+    free: { kind: "card_frame", label: "Bloom Aura", seasonal: true, rarity: "legendary", image: frameBloomAura, cosmeticId: "frame_bloom_aura" },
+    elite: { kind: "hero_variant", label: "Celestial Solara", seasonal: true, rarity: "legendary", image: heroCelestialSolara, cardId: "bp-celestial-solara" },
   },
 ];
 
 const PASS_SEASON_02 = buildPass({
   5: {
-    free: { kind: "card_back", label: "Lunar Sigil", seasonal: true, rarity: "legendary", image: s02Free05 },
-    elite: { kind: "card_back", label: "Eclipse Veil", seasonal: true, rarity: "legendary", image: s02Elite05 },
+    free: { kind: "card_back", label: "Lunar Sigil", seasonal: true, rarity: "legendary", image: s02Free05, cosmeticId: "cardback_lunar_sigil" },
+    elite: { kind: "card_back", label: "Eclipse Veil", seasonal: true, rarity: "legendary", image: s02Elite05, cosmeticId: "cardback_eclipse_veil" },
   },
   10: {
-    free: { kind: "hero", label: "Moonpetal Fawn", seasonal: true, rarity: "legendary", image: s02Free10 },
-    elite: { kind: "hero", label: "Nyx, Moon Assassin", seasonal: true, rarity: "legendary", image: s02Elite10 },
+    free: { kind: "hero", label: "Moonpetal Fawn", seasonal: true, rarity: "legendary", image: s02Free10, cardId: "moonpetal-fawn" },
+    elite: { kind: "hero", label: "Nyx, Moon Assassin", seasonal: true, rarity: "legendary", image: s02Elite10, cardId: "nyx-moon-assassin" },
   },
   15: {
-    free: { kind: "title", label: "Lunarbound", seasonal: true, rarity: "legendary", image: s02Free15 },
-    elite: { kind: "board_skin", label: "Moonlit Shrine", seasonal: true, rarity: "legendary", image: s02Elite15 },
+    free: { kind: "title", label: "Lunarbound", seasonal: true, rarity: "legendary", image: s02Free15, cosmeticId: "title_lunarbound" },
+    elite: { kind: "board_skin", label: "Moonlit Shrine", seasonal: true, rarity: "legendary", image: s02Elite15, cosmeticId: "board_moonlit_shrine" },
   },
   20: {
-    free: { kind: "hero", label: "Selene's Warden", seasonal: true, rarity: "legendary", image: s02Free20 },
-    elite: { kind: "hero", label: "Lunara, Veil Empress", seasonal: true, rarity: "legendary", image: s02Elite20 },
+    free: { kind: "hero", label: "Selene's Warden", seasonal: true, rarity: "legendary", image: s02Free20, cardId: "selenes-warden" },
+    elite: { kind: "hero", label: "Lunara, Veil Empress", seasonal: true, rarity: "legendary", image: s02Elite20, cardId: "lunara-veil-empress" },
   },
   25: {
-    free: { kind: "emote", label: "Moonbeam", seasonal: true, rarity: "legendary", image: s02Free25 },
-    elite: { kind: "border", label: "Astral Crescent", seasonal: true, rarity: "legendary", image: s02Elite25 },
+    free: { kind: "emote", label: "Moonbeam", seasonal: true, rarity: "legendary", image: s02Free25, cosmeticId: "emote_moonbeam" },
+    elite: { kind: "border", label: "Astral Crescent", seasonal: true, rarity: "legendary", image: s02Elite25, cosmeticId: "border_astral_crescent" },
   },
   30: {
-    free: { kind: "card_frame", label: "Lunar Halo", seasonal: true, rarity: "legendary", image: s02Free30 },
-    elite: { kind: "hero_variant", label: "Celestial Lunara", seasonal: true, rarity: "legendary", image: s02Elite30 },
+    free: { kind: "card_frame", label: "Lunar Halo", seasonal: true, rarity: "legendary", image: s02Free30, cosmeticId: "frame_lunar_halo" },
+    elite: { kind: "hero_variant", label: "Celestial Lunara", seasonal: true, rarity: "legendary", image: s02Elite30, cardId: "celestial-lunara" },
   },
 });
 
 const PASS_SEASON_03 = buildPass({
   5: {
-    free: { kind: "card_back", label: "Stormcrest", seasonal: true, rarity: "legendary", image: s03Free05 },
-    elite: { kind: "card_back", label: "Voltaic Edge", seasonal: true, rarity: "legendary", image: s03Elite05 },
+    free: { kind: "card_back", label: "Stormcrest", seasonal: true, rarity: "legendary", image: s03Free05, cosmeticId: "cardback_stormcrest" },
+    elite: { kind: "card_back", label: "Voltaic Edge", seasonal: true, rarity: "legendary", image: s03Elite05, cosmeticId: "cardback_voltaic_edge" },
   },
   10: {
-    free: { kind: "hero", label: "Thunderling Scout", seasonal: true, rarity: "legendary", image: s03Free10 },
-    elite: { kind: "hero", label: "Kaelen, Storm Knight", seasonal: true, rarity: "legendary", image: s03Elite10 },
+    free: { kind: "hero", label: "Thunderling Scout", seasonal: true, rarity: "legendary", image: s03Free10, cardId: "thunderling-scout" },
+    elite: { kind: "hero", label: "Kaelen, Storm Knight", seasonal: true, rarity: "legendary", image: s03Elite10, cardId: "kaelen-storm-knight" },
   },
   15: {
-    free: { kind: "title", label: "Stormcaller", seasonal: true, rarity: "legendary", image: s03Free15 },
-    elite: { kind: "board_skin", label: "Lightning Spire Arena", seasonal: true, rarity: "legendary", image: s03Elite15 },
+    free: { kind: "title", label: "Stormcaller", seasonal: true, rarity: "legendary", image: s03Free15, cosmeticId: "title_stormcaller" },
+    elite: { kind: "board_skin", label: "Lightning Spire Arena", seasonal: true, rarity: "legendary", image: s03Elite15, cosmeticId: "board_lightning_spire" },
   },
   20: {
-    free: { kind: "hero", label: "Aegis, Storm Shield", seasonal: true, rarity: "legendary", image: s03Free20 },
-    elite: { kind: "hero", label: "Tempesta, Storm Sovereign", seasonal: true, rarity: "legendary", image: s03Elite20 },
+    free: { kind: "hero", label: "Aegis, Storm Shield", seasonal: true, rarity: "legendary", image: s03Free20, cardId: "aegis-storm-shield" },
+    elite: { kind: "hero", label: "Tempesta, Storm Sovereign", seasonal: true, rarity: "legendary", image: s03Elite20, cardId: "tempesta-storm-sovereign" },
   },
   25: {
-    free: { kind: "emote", label: "Lightning Strike", seasonal: true, rarity: "legendary", image: s03Free25 },
-    elite: { kind: "border", label: "Thunderborn", seasonal: true, rarity: "legendary", image: s03Elite25 },
+    free: { kind: "emote", label: "Lightning Strike", seasonal: true, rarity: "legendary", image: s03Free25, cosmeticId: "emote_lightning_strike" },
+    elite: { kind: "border", label: "Thunderborn", seasonal: true, rarity: "legendary", image: s03Elite25, cosmeticId: "border_thunderborn" },
   },
   30: {
-    free: { kind: "card_frame", label: "Tempest Crown", seasonal: true, rarity: "legendary", image: s03Free30 },
-    elite: { kind: "hero_variant", label: "Ascended Tempesta", seasonal: true, rarity: "legendary", image: s03Elite30 },
+    free: { kind: "card_frame", label: "Tempest Crown", seasonal: true, rarity: "legendary", image: s03Free30, cosmeticId: "frame_tempest_crown" },
+    elite: { kind: "hero_variant", label: "Ascended Tempesta", seasonal: true, rarity: "legendary", image: s03Elite30, cardId: "ascended-tempesta" },
   },
 });
 

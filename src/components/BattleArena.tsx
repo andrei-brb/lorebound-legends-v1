@@ -11,6 +11,8 @@ import { awardXp, type LevelUpResult } from "@/lib/progressionEngine";
 import { getBattleGoldReward } from "@/lib/gachaEngine";
 import { loadDailyQuests, progressQuest, saveDailyQuests } from "@/lib/questEngine";
 import { toast } from "@/hooks/use-toast";
+import { awardBattlePassXp } from "@/lib/battlePassEngine";
+import { getCosmeticById } from "@/data/cosmetics";
 
 interface BattleArenaProps {
   playerDeckIds: string[];
@@ -112,6 +114,10 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
           }
         }
       });
+      // Still award Battle Pass XP locally so the UI updates immediately.
+      // (Online persistence requires server support; we persist locally via playerState.)
+      const bp = awardBattlePassXp(playerState, won ? 120 : isDraw ? 80 : 60);
+      onStateChange(bp.state);
       return;
     }
 
@@ -132,6 +138,8 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
       const qs = progressQuest(loadDailyQuests(), "level_up_card", allLevelUps.length);
       saveDailyQuests(qs);
     }
+    // Battle pass XP (daily-capped)
+    newState = awardBattlePassXp(newState, won ? 120 : isDraw ? 80 : 60).state;
     onStateChange(newState);
     savePlayerState(newState);
   }, [state?.phase]);
@@ -250,9 +258,15 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
   const playerFieldCards = state.player.field.filter(Boolean) as FieldCard[];
   const enemyFieldCards = state.enemy.field.filter(Boolean) as FieldCard[];
   const isPlayerTurn = state.turn === "player" && !animating && state.phase !== "game-over";
+  const boardSkinId = playerState.cosmeticsEquipped?.boardSkinId || null;
+  const boardSkinImage = boardSkinId ? (getCosmeticById(boardSkinId)?.image || null) : null;
 
   return (
-    <div className="space-y-4">
+    <div
+      className="relative space-y-4 rounded-2xl border border-border/40 p-3 sm:p-4"
+      style={boardSkinImage ? { backgroundImage: `url(${boardSkinImage})`, backgroundSize: "cover", backgroundPosition: "center" } : undefined}
+    >
+      {boardSkinImage && <div className="absolute inset-0 pointer-events-none rounded-2xl bg-background/70" />}
       {showLevelUps && <CardLevelUp levelUps={levelUps} onClose={() => setShowLevelUps(false)} />}
 
       {/* Header */}

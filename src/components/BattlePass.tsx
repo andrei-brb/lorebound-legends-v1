@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Shield, Lock, Check, Coins, Star, Sparkles, Crown, Zap, Package, Award, Palette, Frame, SmilePlus, X, Eye } from "lucide-react";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
@@ -9,6 +9,10 @@ import {
   type Reward,
   type RewardKind,
 } from "@/data/battlePassSeasons";
+import type { PlayerState, BattlePassSeasonId } from "@/lib/playerState";
+import { awardBattlePassXp, claimBattlePassLevelReward, getBattlePassLevelFromXp, getBattlePassSeasonProgress, getBattlePassXpToNextLevel, normalizeBattlePassDaily, setBattlePassActiveSeason, setCosmeticEquipped } from "@/lib/battlePassEngine";
+import { toast } from "@/hooks/use-toast";
+import { getCosmeticById } from "@/data/cosmetics";
 
 const MILESTONES = new Set([5, 10, 15, 20, 25, 30]);
 
@@ -34,20 +38,55 @@ function RewardIcon({ kind, className }: { kind: RewardKind; className?: string 
   }
 }
 
-export default function BattlePass() {
-  const [seasonId, setSeasonId] = useState(ACTIVE_BATTLE_PASS_SEASON_ID);
+interface BattlePassProps {
+  playerState: PlayerState;
+  onStateChange: (state: PlayerState) => void;
+  isOnline?: boolean;
+}
+
+export default function BattlePass({ playerState, onStateChange }: BattlePassProps) {
+  const normalizedState = useMemo(() => normalizeBattlePassDaily(playerState), [playerState]);
+  const activeSeasonId = (normalizedState.battlePass?.activeSeasonId ?? ACTIVE_BATTLE_PASS_SEASON_ID) as BattlePassSeasonId;
+  const [seasonId, setSeasonIdLocal] = useState<BattlePassSeasonId>(activeSeasonId);
   const season = BATTLE_PASS_SEASONS.find((s) => s.id === seasonId) ?? BATTLE_PASS_SEASONS[0];
   const passData = season.passData;
 
-  const [currentLevel] = useState(7);
-  const [currentXp] = useState(340);
-  const xpToNext = 500;
-  const [hasElite] = useState(false);
-  const [claimedFree] = useState<Set<number>>(new Set([1, 2, 3, 4, 5, 6]));
-  const [claimedElite] = useState<Set<number>>(new Set([1, 2, 3, 4, 5, 6]));
+  const seasonProgress = getBattlePassSeasonProgress(normalizedState, seasonId);
+  const currentLevel = getBattlePassLevelFromXp(seasonProgress.xp);
+  const xpToNext = getBattlePassXpToNextLevel(seasonProgress.xp) || 0;
+  const currentXp = seasonProgress.xp - (currentLevel - 1) * 500;
+  const hasElite = seasonProgress.hasElite;
+  const claimedFree = new Set<number>(seasonProgress.claimedFreeLevels);
+  const claimedElite = new Set<number>(seasonProgress.claimedEliteLevels);
+
   const [previewReward, setPreviewReward] = useState<{ reward: Reward; level: number; track: "free" | "elite" } | null>(null);
 
   const isMilestone = (lvl: number) => MILESTONES.has(lvl);
+
+  const setSeasonId = (id: BattlePassSeasonId) => {
+    setSeasonIdLocal(id);
+    const next = setBattlePassActiveSeason(normalizedState, id);
+    onStateChange(next);
+  };
+
+  const handleClaim = (level: number, track: "free" | "elite") => {
+    const res = claimBattlePassLevelReward(normalizedState, seasonId, level, track);
+    if (!res.ok) {
+      toast({ title: "Cannot claim", description: res.error, variant: "destructive" });
+      return;
+    }
+    onStateChange(res.state);
+    toast({ title: "Claimed!", description: `Collected ${track.toUpperCase()} reward for level ${level}.` });
+  };
+
+  const handleEquip = (reward: Reward) => {
+    if (!reward.cosmeticId) return;
+    const cos = getCosmeticById(reward.cosmeticId);
+    if (!cos) return;
+    const next = setCosmeticEquipped(normalizedState, reward.cosmeticId);
+    onStateChange(next);
+    toast({ title: "Equipped", description: `${cos.name} equipped.` });
+  };
 
   return (
     <div className="space-y-6">
@@ -98,9 +137,9 @@ export default function BattlePass() {
       <div className="bg-card border border-border rounded-xl p-4">
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm font-heading font-bold text-foreground">Level {currentLevel}</span>
-          <span className="text-xs text-muted-foreground">{currentXp} / {xpToNext} XP</span>
+          <span className="text-xs text-muted-foreground">{currentXp} / {Math.max(1, xpToNext)} XP</span>
         </div>
-        <Progress value={(currentXp / xpToNext) * 100} className="h-3 bg-secondary" />
+        <Progress value={(currentXp / Math.max(1, xpToNext)) * 100} className="h-3 bg-secondary" />
       </div>
 
       {/* Track Legend */}
@@ -142,6 +181,7 @@ export default function BattlePass() {
                 claimed={claimedFree.has(r.level)}
                 milestone={isMilestone(r.level)}
                 elite={false}
+                onClaim={() => handleClaim(r.level, "free")}
                 onPreview={() => setPreviewReward({ reward: r.free, level: r.level, track: "free" })}
               />
             ))}
@@ -162,6 +202,7 @@ export default function BattlePass() {
                 milestone={isMilestone(r.level)}
                 elite
                 locked={!hasElite}
+                onClaim={() => handleClaim(r.level, "elite")}
                 onPreview={() => setPreviewReward({ reward: r.elite, level: r.level, track: "elite" })}
               />
             ))}
@@ -234,6 +275,15 @@ export default function BattlePass() {
             {previewReward.reward.seasonal && (
               <p className="text-xs text-muted-foreground mt-3 italic">⚠ This reward is season exclusive and won&apos;t return after the season ends.</p>
             )}
+
+            {previewReward.reward.cosmeticId && (normalizedState.cosmeticsOwned || []).includes(previewReward.reward.cosmeticId) && (
+              <button
+                onClick={() => handleEquip(previewReward.reward)}
+                className="mt-5 w-full px-4 py-2 rounded-xl bg-primary text-primary-foreground font-heading font-bold text-sm hover:brightness-110 transition-all"
+              >
+                Equip
+              </button>
+            )}
           </div>
         </div>
       )}
@@ -250,6 +300,7 @@ function RewardCell({
   milestone,
   elite,
   locked,
+  onClaim,
   onPreview,
 }: {
   reward: Reward;
@@ -259,10 +310,12 @@ function RewardCell({
   milestone: boolean;
   elite: boolean;
   locked?: boolean;
+  onClaim?: () => void;
   onPreview?: () => void;
 }) {
   const isCurrent = level === currentLevel;
   const isLocked = level > currentLevel;
+  const canClaim = !isLocked && !claimed && (!locked || !elite);
 
   return (
     <div
@@ -319,6 +372,19 @@ function RewardCell({
         <div className="absolute -bottom-8 left-1/2 -translate-x-1/2 hidden group-hover:block bg-card border border-border text-[9px] text-muted-foreground px-2 py-1 rounded-lg whitespace-nowrap z-20 shadow-lg">
           Season exclusive — limited time
         </div>
+      )}
+
+      {canClaim && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onClaim?.(); }}
+          className={cn(
+            "absolute bottom-1 left-1 right-1 text-[9px] font-bold rounded-md py-1 transition-colors",
+            elite ? "bg-[hsl(var(--legendary))]/25 text-[hsl(var(--legendary))] hover:bg-[hsl(var(--legendary))]/35" : "bg-primary/15 text-primary hover:bg-primary/25"
+          )}
+        >
+          Claim
+        </button>
       )}
     </div>
   );
