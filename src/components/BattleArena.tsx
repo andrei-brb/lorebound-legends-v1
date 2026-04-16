@@ -491,7 +491,7 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
                     )}
                     onClick={() => isPlayerTurn && handleHandCardClick(i)}
                   >
-                    <div className="w-full h-14 sm:h-16 overflow-hidden">
+                    <div className="w-full h-16 sm:h-20 overflow-hidden">
                       <img src={card.image} alt={card.name} className="w-full h-full object-cover" />
                     </div>
                     <div className="p-1 bg-card/90 space-y-0.5">
