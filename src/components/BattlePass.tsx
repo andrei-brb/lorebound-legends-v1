@@ -25,6 +25,7 @@ interface Reward {
   amount?: number;
   seasonal?: boolean;
   rarity?: "common" | "rare" | "legendary";
+  image?: string;
 }
 
 interface LevelRewards {
