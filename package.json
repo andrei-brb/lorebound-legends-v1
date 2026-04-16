@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "vite",
     "start": "node server/token-server.mjs",
-    "build": "vite build",
+    "build:server-battle": "esbuild src/lib/battleLockstep.ts --bundle --platform=node --format=esm --outfile=server/battleLockstep.mjs --alias:@=./src --loader:.jpg=empty --loader:.jpeg=empty --loader:.png=empty --loader:.webp=empty --loader:.svg=empty",
+    "build": "npm run build:server-battle && vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview",
@@ -83,6 +84,7 @@
     "autoprefixer": "^10.4.21",
     "eslint": "^9.32.0",
     "eslint-plugin-react-hooks": "^5.2.0",
+    "esbuild": "^0.25.0",
     "eslint-plugin-react-refresh": "^0.4.20",
     "globals": "^15.15.0",
     "jsdom": "^20.0.3",

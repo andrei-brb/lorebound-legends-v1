@@ -413,6 +413,8 @@ export default function Index() {
             {activeTab === "battle" && battleDeckIds.length === 0 && hasLiveMatchFromInbox && (
               <LivePvPBattleground
                 matchId={liveMatchIdFromInbox}
+                playerState={playerState}
+                onStateChange={setPlayerState}
                 onExit={() => {
                   sessionStorage.removeItem("pvp.live.matchId");
                   setActiveCategory("social");

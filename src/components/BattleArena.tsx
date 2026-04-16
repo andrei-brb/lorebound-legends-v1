@@ -1,10 +1,15 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import battleBg from "@/assets/battle-bg.jpg";
 import { motion, AnimatePresence } from "framer-motion";
 import { Trophy, Skull, Coins, Sparkles, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { BattleState } from "@/lib/battleEngine";
 import { initBattle, playCard, equipWeapon, castSpell, attackTarget, useAbility, performAITurn, generateEnemyDeck, endTurnAction } from "@/lib/battleEngine";
+import {
+  replayBattleFromActions,
+  toViewerBattleState,
+  type LivePvPBattleConfig,
+} from "@/lib/battleLockstep";
 import BattleCardToken from "./BattleCardToken";
 import BattleRadialMenu from "./BattleRadialMenu";
 import HeroPortrait from "./HeroPortrait";
@@ -40,6 +45,8 @@ interface BattleArenaProps {
     goldReward: number;
     levelUps: Array<{ cardId: string; oldLevel: number; newLevel: number }>;
   } | null>;
+  /** Live friend PvP: same rules as vs AI; actions sync via server action log. */
+  livePvP?: LivePvPBattleConfig;
 }
 
 type ActionMode = "none" | "select-attack-target" | "select-equip-target" | "select-spell-target";
@@ -54,8 +61,22 @@ export default function BattleArena({
   onStateChange,
   isOnline,
   submitBattleResultApi,
+  livePvP,
 }: BattleArenaProps) {
-  const [state, setState] = useState<BattleState | null>(null);
+  const [soloState, setSoloState] = useState<BattleState | null>(null);
+  const actionLogKey = livePvP ? JSON.stringify(livePvP.actionLog) : "";
+  const liveDisplayState = useMemo(() => {
+    if (!livePvP) return null;
+    const canonical = replayBattleFromActions(
+      livePvP.seed,
+      livePvP.deckA,
+      livePvP.deckB,
+      livePvP.actionLog
+    );
+    return toViewerBattleState(canonical, livePvP.viewerIsA);
+  }, [livePvP?.seed, livePvP?.viewerIsA, actionLogKey, livePvP?.deckA, livePvP?.deckB]);
+
+  const state = livePvP ? liveDisplayState : soloState;
   const [animating, setAnimating] = useState(false);
   const [rewardsGiven, setRewardsGiven] = useState(false);
   const [goldEarned, setGoldEarned] = useState(0);
@@ -68,31 +89,42 @@ export default function BattleArena({
   const isMobile = useIsMobile();
 
   useEffect(() => {
+    if (livePvP) return;
     const enemyIds =
       opponentDeckIds && opponentDeckIds.length > 0 ? opponentDeckIds : generateEnemyDeck(playerDeckIds.length);
-    setState(initBattle(playerDeckIds, enemyIds));
+    setSoloState(initBattle(playerDeckIds, enemyIds));
     setRewardsGiven(false);
     setGoldEarned(0);
     setLevelUps([]);
     cardsPlayedRef.current = 0;
-  }, [playerDeckIds, opponentDeckIds]);
+  }, [playerDeckIds, opponentDeckIds, livePvP]);
 
   // Enemy AI turn
   useEffect(() => {
+    if (livePvP) return;
     if (!state || state.phase === "game-over" || state.turn !== "enemy" || animating) return;
     const timer = setTimeout(() => {
       setAnimating(true);
       setTimeout(() => {
-        setState(prev => prev ? performAITurn(prev) : prev);
+        setSoloState(prev => prev ? performAITurn(prev) : prev);
         setAnimating(false);
       }, 800);
     }, 600);
     return () => clearTimeout(timer);
-  }, [state?.turn, state?.turnNumber, animating]);
+  }, [state?.turn, state?.turnNumber, animating, livePvP]);
 
   const handleEndTurn = () => {
-    if (!state || state.phase === "game-over" || state.turn !== "player" || animating) return;
-    setState((prev) => (prev ? endTurnAction(prev) : prev));
+    if (!state || state.phase === "game-over" || animating) return;
+    if (livePvP) {
+      if (state.turn !== "player" || livePvP.isSubmitting) return;
+      void livePvP.onIntent({ kind: "end-turn" });
+      setActionMode("none");
+      setSelectedFieldIndex(null);
+      setSelectedHandIndex(null);
+      return;
+    }
+    if (state.turn !== "player") return;
+    setSoloState((prev) => (prev ? endTurnAction(prev) : prev));
     setActionMode("none");
     setSelectedFieldIndex(null);
     setSelectedHandIndex(null);
@@ -100,6 +132,7 @@ export default function BattleArena({
 
   // Award rewards on game over (ranked MMR submit first when applicable)
   useEffect(() => {
+    if (livePvP) return;
     if (!state || state.phase !== "game-over" || rewardsGiven) return;
     setRewardsGiven(true);
     const won = state.winner === "player";
@@ -166,18 +199,43 @@ export default function BattleArena({
       onStateChange(newState);
       savePlayerState(newState);
     })();
-  }, [state?.phase]);
+  }, [state?.phase, livePvP]);
 
   const handleHandCardClick = (index: number) => {
     if (!state || state.turn !== "player" || animating || state.phase === "game-over") return;
+    if (livePvP?.isSubmitting) return;
     const card = state.player.hand[index];
     if (!card) return;
+
+    if (livePvP) {
+      if (card.type === "hero" || card.type === "god" || card.type === "trap") {
+        void livePvP.onIntent({ kind: "play-card", handIndex: index });
+        setActionMode("none");
+        return;
+      }
+      if (card.type === "weapon") {
+        setSelectedHandIndex(index);
+        setActionMode("select-equip-target");
+        return;
+      }
+      if (card.type === "spell") {
+        if (card.spellEffect?.target === "all_enemies" || card.spellEffect?.target === "all_allies") {
+          void livePvP.onIntent({ kind: "cast-spell", handIndex: index });
+          setActionMode("none");
+          return;
+        }
+        setSelectedHandIndex(index);
+        setActionMode("select-spell-target");
+        return;
+      }
+      return;
+    }
 
     if (card.type === "hero" || card.type === "god" || card.type === "trap") {
       cardsPlayedRef.current += 1;
       setAnimating(true);
       setTimeout(() => {
-        setState(prev => prev ? playCard(prev, index) : prev);
+        setSoloState(prev => prev ? playCard(prev, index) : prev);
         setAnimating(false);
         setActionMode("none");
       }, 400);
@@ -189,7 +247,7 @@ export default function BattleArena({
       if (card.spellEffect?.target === "all_enemies" || card.spellEffect?.target === "all_allies") {
         setAnimating(true);
         setTimeout(() => {
-          setState(prev => prev ? castSpell(prev, index) : prev);
+          setSoloState(prev => prev ? castSpell(prev, index) : prev);
           setAnimating(false);
           setActionMode("none");
         }, 400);
@@ -202,12 +260,44 @@ export default function BattleArena({
 
   const handleFieldCardClick = (side: "player" | "enemy", index: number) => {
     if (!state || state.turn !== "player" || animating || state.phase === "game-over") return;
+    if (livePvP?.isSubmitting) return;
+
+    if (livePvP) {
+      if (actionMode === "select-equip-target" && side === "player" && selectedHandIndex !== null) {
+        void livePvP.onIntent({ kind: "equip-weapon", handIndex: selectedHandIndex, fieldIndex: index });
+        setActionMode("none");
+        setSelectedHandIndex(null);
+        return;
+      }
+      if (actionMode === "select-spell-target") {
+        if (selectedHandIndex === null) return;
+        const spell = state.player.hand[selectedHandIndex];
+        const targetSide = spell?.spellEffect?.target === "single_ally" ? "player" : "enemy";
+        if (side !== targetSide) return;
+        void livePvP.onIntent({ kind: "cast-spell", handIndex: selectedHandIndex, targetFieldIndex: index });
+        setActionMode("none");
+        setSelectedHandIndex(null);
+        return;
+      }
+      if (actionMode === "select-attack-target" && side === "enemy" && selectedFieldIndex !== null) {
+        void livePvP.onIntent({ kind: "attack", attackerFieldIndex: selectedFieldIndex, targetFieldIndex: index });
+        setActionMode("none");
+        setSelectedFieldIndex(null);
+        return;
+      }
+      if (actionMode === "none" && side === "player") {
+        const fc = state.player.field[index];
+        if (!fc) return;
+        setSelectedFieldIndex(prev => (prev === index ? null : index));
+      }
+      return;
+    }
 
     if (actionMode === "select-equip-target" && side === "player" && selectedHandIndex !== null) {
       cardsPlayedRef.current += 1;
       setAnimating(true);
       setTimeout(() => {
-        setState(prev => prev ? equipWeapon(prev, selectedHandIndex!, index) : prev);
+        setSoloState(prev => prev ? equipWeapon(prev, selectedHandIndex!, index) : prev);
         setAnimating(false);
         setActionMode("none");
         setSelectedHandIndex(null);
@@ -219,7 +309,7 @@ export default function BattleArena({
       if (side !== targetSide) return;
       setAnimating(true);
       setTimeout(() => {
-        setState(prev => prev ? castSpell(prev, selectedHandIndex!, index) : prev);
+        setSoloState(prev => prev ? castSpell(prev, selectedHandIndex!, index) : prev);
         setAnimating(false);
         setActionMode("none");
         setSelectedHandIndex(null);
@@ -227,7 +317,7 @@ export default function BattleArena({
     } else if (actionMode === "select-attack-target" && side === "enemy" && selectedFieldIndex !== null) {
       setAnimating(true);
       setTimeout(() => {
-        setState(prev => prev ? attackTarget(prev, selectedFieldIndex!, index) : prev);
+        setSoloState(prev => prev ? attackTarget(prev, selectedFieldIndex!, index) : prev);
         setAnimating(false);
         setActionMode("none");
         setSelectedFieldIndex(null);
@@ -243,6 +333,7 @@ export default function BattleArena({
 
   const beginAttackFromRadial = () => {
     if (!state || !isPlayerTurn || animating || selectedFieldIndex === null) return;
+    if (livePvP?.isSubmitting) return;
     const fc = state.player.field[selectedFieldIndex];
     if (!fc || fc.stunned || fc.attackedThisTurn) return;
     if (state.player.ap < 1) {
@@ -254,9 +345,16 @@ export default function BattleArena({
 
   const handleDirectAttack = () => {
     if (!state || selectedFieldIndex === null || animating) return;
+    if (livePvP?.isSubmitting) return;
+    if (livePvP) {
+      void livePvP.onIntent({ kind: "attack", attackerFieldIndex: selectedFieldIndex, targetFieldIndex: "direct" });
+      setActionMode("none");
+      setSelectedFieldIndex(null);
+      return;
+    }
     setAnimating(true);
     setTimeout(() => {
-      setState(prev => prev ? attackTarget(prev, selectedFieldIndex!, "direct") : prev);
+      setSoloState(prev => prev ? attackTarget(prev, selectedFieldIndex!, "direct") : prev);
       setAnimating(false);
       setActionMode("none");
       setSelectedFieldIndex(null);
@@ -265,9 +363,16 @@ export default function BattleArena({
 
   const handleUseAbility = (fieldIndex: number) => {
     if (!state || animating) return;
+    if (livePvP?.isSubmitting) return;
+    if (livePvP) {
+      void livePvP.onIntent({ kind: "ability", fieldIndex });
+      setActionMode("none");
+      setSelectedFieldIndex(null);
+      return;
+    }
     setAnimating(true);
     setTimeout(() => {
-      setState(prev => prev ? useAbility(prev, fieldIndex) : prev);
+      setSoloState(prev => prev ? useAbility(prev, fieldIndex) : prev);
       setAnimating(false);
       setActionMode("none");
       setSelectedFieldIndex(null);
@@ -276,7 +381,11 @@ export default function BattleArena({
 
   if (!state) return null;
 
-  const isPlayerTurn = state.turn === "player" && !animating && state.phase !== "game-over";
+  const isPlayerTurn =
+    state.turn === "player" &&
+    !animating &&
+    state.phase !== "game-over" &&
+    !livePvP?.isSubmitting;
   const boardSkinId = playerState.cosmeticsEquipped?.boardSkinId || null;
   const boardSkinImage = boardSkinId ? (getCosmeticById(boardSkinId)?.image || null) : null;
   const noEnemyField = !state.enemy.field.some(fc => fc !== null);
@@ -582,34 +691,38 @@ export default function BattleArena({
                   <p className="text-muted-foreground text-sm">Rebuild and try again!</p>
                 </>
               )}
-              <div className="mt-4 p-3 rounded-xl bg-secondary space-y-2">
-                <div className="flex items-center justify-center gap-2">
-                  <Coins className="w-4 h-4 text-legendary" />
-                  <span className="font-heading font-bold text-foreground">+{goldEarned} Gold</span>
+              {!livePvP && (
+                <div className="mt-4 p-3 rounded-xl bg-secondary space-y-2">
+                  <div className="flex items-center justify-center gap-2">
+                    <Coins className="w-4 h-4 text-legendary" />
+                    <span className="font-heading font-bold text-foreground">+{goldEarned} Gold</span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground">
+                    All deck cards earned {state.winner === "player" ? "50" : state.winner === "draw" ? "35" : "20"} XP
+                  </p>
                 </div>
-                <p className="text-[10px] text-muted-foreground">
-                  All deck cards earned {state.winner === "player" ? "50" : state.winner === "draw" ? "35" : "20"} XP
-                </p>
-              </div>
+              )}
               <div className="flex gap-3 mt-6 justify-center">
                 <button onClick={onExit} className="px-5 py-2.5 rounded-xl bg-secondary text-secondary-foreground font-heading font-bold text-sm hover:bg-secondary/80">
-                  Back to Deck
+                  {livePvP ? "Back to PvP" : "Back to Deck"}
                 </button>
-                <button
-                  onClick={() => {
-                    const enemyIds = generateEnemyDeck(playerDeckIds.length);
-                    setState(initBattle(playerDeckIds, enemyIds));
-                    setRewardsGiven(false);
-                    setGoldEarned(0);
-                    setLevelUps([]);
-                    setActionMode("none");
-                    setSelectedFieldIndex(null);
-                    setSelectedHandIndex(null);
-                  }}
-                  className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-heading font-bold text-sm hover:brightness-110"
-                >
-                  Battle Again
-                </button>
+                {!livePvP && (
+                  <button
+                    onClick={() => {
+                      const enemyIds = generateEnemyDeck(playerDeckIds.length);
+                      setSoloState(initBattle(playerDeckIds, enemyIds));
+                      setRewardsGiven(false);
+                      setGoldEarned(0);
+                      setLevelUps([]);
+                      setActionMode("none");
+                      setSelectedFieldIndex(null);
+                      setSelectedHandIndex(null);
+                    }}
+                    className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-heading font-bold text-sm hover:brightness-110"
+                  >
+                    Battle Again
+                  </button>
+                )}
               </div>
             </motion.div>
           </motion.div>

@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { PrismaClient } from "@prisma/client";
 import { requireAuth } from "./lib/auth.mjs";
+import { getClientIp, rateLimit } from "./lib/rateLimit.mjs";
 import {
   STARTER_CARD_IDS,
   FACTION_STARTER_CARDS,
@@ -27,6 +28,7 @@ import {
   getCardName,
   getCardElement,
 } from "./lib/gameLogic.mjs";
+import { replayBattleFromActions, applyBattleLockstepIntent } from "./battleLockstep.mjs";
 import { pickRandomDropCard, buildDropEmbed, processCardClaim } from "./lib/cardDrop.mjs";
 import { SEASONAL_EVENTS, getSeasonalEventById, isEventActive } from "./lib/seasonalEvents.mjs";
 import { simulateBattle as simulateBattleServer } from "./lib/battleSim.mjs";
@@ -1847,6 +1849,96 @@ function sanitizeDeckIds(deckCardIds) {
   return deckCardIds.map(String).slice(0, 10);
 }
 
+async function handleLiveBattleTx(tx, match, me, body) {
+  const intent = body.intent;
+  if (!intent || typeof intent.kind !== "string") {
+    const err = new Error("intent required");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const seed = match.seed;
+  const s = match.state || {};
+  const deckA = s.deckA || [];
+  const deckB = s.deckB || [];
+  const prevLog = Array.isArray(match.actionLog) ? match.actionLog : [];
+
+  const before = replayBattleFromActions(seed, deckA, deckB, prevLog);
+  const expectedTurnPlayerId =
+    before.phase === "game-over"
+      ? null
+      : before.turn === "player"
+        ? match.playerAId
+        : match.playerBId;
+  if (expectedTurnPlayerId !== me.id) {
+    const err = new Error("Not your turn");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const after = applyBattleLockstepIntent(before, intent);
+  if (after === before) {
+    const err = new Error("Invalid action");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const nextLog = [...prevLog, intent].slice(-500);
+
+  let nextResult = match.result;
+  let nextStatus = match.status;
+  let nextTurnPlayerId = match.turnPlayerId;
+
+  if (after.phase === "game-over") {
+    nextStatus = "completed";
+    let winner = null;
+    if (after.winner === "draw") winner = null;
+    else if (after.winner === "player") winner = "playerA";
+    else if (after.winner === "enemy") winner = "playerB";
+    nextResult = {
+      winner,
+      resolvedAt: Date.now(),
+      kind: "live_battle",
+      seed: match.seed ?? null,
+    };
+    nextTurnPlayerId = null;
+  } else {
+    nextTurnPlayerId = after.turn === "player" ? match.playerAId : match.playerBId;
+  }
+
+  const updated = await tx.pvPMatch.update({
+    where: { id: match.id },
+    data: {
+      status: nextStatus,
+      result: nextResult,
+      actionLog: nextLog,
+      turnPlayerId: nextTurnPlayerId,
+      lastActionAt: new Date(),
+    },
+  });
+
+  if (nextStatus === "completed") {
+    await createNotification(
+      tx,
+      match.playerAId,
+      "pvp_live_result",
+      "Live PvP match completed",
+      "Open PvP → Live to view the result.",
+      { matchId: match.id, seasonId: match.seasonId || DEFAULT_PVP_SEASON_ID }
+    );
+    await createNotification(
+      tx,
+      match.playerBId,
+      "pvp_live_result",
+      "Live PvP match completed",
+      "Open PvP → Live to view the result.",
+      { matchId: match.id, seasonId: match.seasonId || DEFAULT_PVP_SEASON_ID }
+    );
+  }
+
+  return updated;
+}
+
 async function handleLiveCreate(req, res) {
   const user = await requireAuth(req, res);
   if (!user) return;
@@ -1878,14 +1970,10 @@ async function handleLiveCreate(req, res) {
 
   const seed = Math.floor(Math.random() * 2 ** 31);
   const state = {
-    version: 1,
-    hpA: 30,
-    hpB: 30,
-    usedA: [],
-    usedB: [],
+    version: 2,
+    engine: "battle",
     deckA,
     deckB,
-    turn: "A",
     createdAt: Date.now(),
   };
 
@@ -2038,6 +2126,8 @@ async function handleLiveGet(req, res, matchId) {
       playerA: toPublicPlayer(match.playerA),
       playerB: toPublicPlayer(match.playerB),
       turnPlayerId: match.turnPlayerId,
+      seed: match.seed,
+      actionLog: match.actionLog || [],
       state: match.state || null,
       result: match.result || null,
     },
@@ -2078,13 +2168,19 @@ async function handleLiveAction(req, res, matchId) {
         err.statusCode = 400;
         throw err;
       }
+
+      const s = match.state || {};
+      const isBattleEngine = s.engine === "battle" || s.version === 2;
+      if (isBattleEngine) {
+        return await handleLiveBattleTx(tx, match, me, body);
+      }
+
       if (match.turnPlayerId !== me.id) {
         const err = new Error("Not your turn");
         err.statusCode = 400;
         throw err;
       }
 
-      const s = match.state || {};
       const isA = me.id === match.playerAId;
       const myKey = isA ? "A" : "B";
       const oppKey = isA ? "B" : "A";
@@ -2815,8 +2911,36 @@ const server = http.createServer(async (req, res) => {
 
   const path = parsePath(req.url);
   const method = req.method;
+  const clientIp = getClientIp(req);
 
   try {
+    // Rate limits (per IP; trust X-Forwarded-For when behind Railway/nginx)
+    if (method !== "OPTIONS") {
+      if (method === "POST" && path === "/interactions") {
+        const rl = rateLimit(`interactions:${clientIp}`, { max: 400, windowMs: 60_000 });
+        if (!rl.ok) {
+          res.writeHead(429, { "Content-Type": "application/json", "Retry-After": String(rl.retryAfterSec ?? 60) });
+          res.end(JSON.stringify({ error: "Too many requests" }));
+          return;
+        }
+      }
+      if (method === "POST" && path === "/api/token") {
+        const rl = rateLimit(`token:${clientIp}`, { max: 25, windowMs: 15 * 60_000 });
+        if (!rl.ok) {
+          res.writeHead(429, { "Content-Type": "application/json", "Retry-After": String(rl.retryAfterSec ?? 60) });
+          res.end(JSON.stringify({ error: "Too many token requests. Try again later." }));
+          return;
+        }
+      } else if (path.startsWith("/api/")) {
+        const rl = rateLimit(`api:${clientIp}`, { max: 450, windowMs: 60_000 });
+        if (!rl.ok) {
+          res.writeHead(429, { "Content-Type": "application/json", "Retry-After": String(rl.retryAfterSec ?? 60) });
+          res.end(JSON.stringify({ error: "Too many requests" }));
+          return;
+        }
+      }
+    }
+
     // Frontend (SPA) + static assets
     if (tryServeFrontend(req, res, path)) return;
 

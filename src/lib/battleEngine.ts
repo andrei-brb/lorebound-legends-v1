@@ -128,7 +128,7 @@ export function initBattle(
     enemy: createSide(enemyDeckIds, rng),
     turn: "player",
     phase: "select-action",
-    logs: [{ message: "⚔️ Battle begins! Draw your weapons!", type: "info", timestamp: Date.now() }],
+    logs: [{ message: "⚔️ Battle begins! Draw your weapons!", type: "info", timestamp: 0 }],
     winner: null,
     turnNumber: 1,
     activeSynergies: { player: [], enemy: [] },
@@ -223,7 +223,7 @@ function createFieldCard(card: GameCard): FieldCard {
 }
 
 function addLog(state: BattleState, message: string, type: BattleLog["type"]): void {
-  state.logs.push({ message, type, timestamp: Date.now() });
+  state.logs.push({ message, type, timestamp: state.logs.length });
 }
 
 function getActiveSide(state: BattleState): PlayerSide {

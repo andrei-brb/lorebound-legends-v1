@@ -416,7 +416,12 @@ export const api = {
     return handleResponse<{ ok: true; match: any }>(res);
   },
 
-  async pvpLiveAction(matchId: number, action: { type: "play" | "end"; cardId?: string | null }) {
+  async pvpLiveAction(
+    matchId: number,
+    action:
+      | { type: "play" | "end"; cardId?: string | null }
+      | { type: "battle"; intent: import("./battleLockstep").BattleLockstepIntent }
+  ) {
     const res = await fetch(`${getApiBase()}/api/pvp/live/${matchId}/action`, {
       method: "POST",
       headers: getHeaders(),
