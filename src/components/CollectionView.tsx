@@ -1,5 +1,5 @@
-import { allGameCards, loreArcs, type Rarity, type CardType, type GameCard } from "@/data/cardIndex";
-import GameCard from "./GameCard";
+import { allGameCards, loreArcs, type Rarity, type CardType, type GameCard as GameCardType } from "@/data/cardIndex";
+import GameCardComponent from "./GameCard";
 import { Star } from "lucide-react";
 import { type PlayerState, getCardProgress, xpForLevel } from "@/lib/playerState";
 import { canPrestige, prestige } from "@/lib/progressionEngine";
@@ -39,7 +39,7 @@ function applyDiscovery({
   inDeckOnly,
   sortBy,
 }: {
-  cards: GameCard[];
+  cards: GameCardType[];
   ownedIds: string[];
   deckCardIds: string[];
   playerState?: PlayerState;
@@ -49,7 +49,7 @@ function applyDiscovery({
   elementFilter?: "all" | "fire" | "water" | "earth" | "air" | "shadow" | "light" | "neutral";
   inDeckOnly?: boolean;
   sortBy?: CollectionViewProps["sortBy"];
-}): GameCard[] {
+}): GameCardType[] {
   const q = (searchQuery || "").trim().toLowerCase();
 
   let out = cards.filter((c) => ownedIds.includes(c.id));
@@ -164,7 +164,7 @@ export default function CollectionView({
 
                 return (
                   <div key={card.id} className="relative">
-                    <GameCard
+                    <GameCardComponent
                       card={card}
                       onClick={onAddToDeck ? () => onAddToDeck(card.id) : undefined}
                       selected={inDeck}
@@ -228,7 +228,7 @@ export default function CollectionView({
 
                     return (
                       <div key={card.id} className="relative">
-                        <GameCard
+                        <GameCardComponent
                           card={card}
                           onClick={onAddToDeck ? () => onAddToDeck(card.id) : undefined}
                           selected={inDeck}
