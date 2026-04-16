@@ -3,6 +3,8 @@ import { allCards } from "@/data/cards";
 import { allGameCards } from "@/data/cardIndex";
 import { calculateFieldSynergies, calculatePassiveBonuses, type ActiveSynergy } from "./synergyEngine";
 import { getElementMultiplier, getElementAdvantageLabel, elementEmoji } from "./elementSystem";
+import { resolveAbilityEffect } from "./abilityInference";
+import type { AbilityEffect, AbilityTarget } from "./abilityEffectTypes";
 
 // =================== Types ===================
 
@@ -656,6 +658,241 @@ export function attackTarget(state: BattleState, attackerFieldIndex: number, tar
   return maybeAutoEndTurn(recalcFieldStats(checkWinCondition(newState)));
 }
 
+function flattenAbilityEffects(effect: AbilityEffect): AbilityEffect[] {
+  if (effect.kind === "sequence") return effect.steps.flatMap(flattenAbilityEffects);
+  return [effect];
+}
+
+function pickEnemyFieldIndex(field: (FieldCard | null)[], mode: AbilityTarget): number {
+  const entries = field.map((fc, i) => (fc ? { fc, i } : null)).filter(Boolean) as { fc: FieldCard; i: number }[];
+  if (entries.length === 0) return -1;
+  if (mode === "highest_hp") {
+    entries.sort((a, b) => b.fc.currentHp - a.fc.currentHp);
+    return entries[0].i;
+  }
+  entries.sort((a, b) => a.fc.currentHp - b.fc.currentHp);
+  return entries[0].i;
+}
+
+function pickAllyFieldIndex(field: (FieldCard | null)[], mode: "lowest" | "self", selfIndex: number): number {
+  const entries = field.map((fc, i) => (fc ? { fc, i } : null)).filter(Boolean) as { fc: FieldCard; i: number }[];
+  if (mode === "self") return selfIndex;
+  if (entries.length === 0) return -1;
+  entries.sort((a, b) => a.fc.currentHp - b.fc.currentHp);
+  return entries[0].i;
+}
+
+function abilityDefenseMitigation(defense: number, ignoreDefenseFrac?: number): number {
+  if (ignoreDefenseFrac === 1) return 0;
+  const base = Math.floor(defense * 0.25);
+  if (ignoreDefenseFrac === undefined) return base;
+  return Math.max(0, Math.floor(base * (1 - ignoreDefenseFrac)));
+}
+
+function dealAbilityDamageToField(
+  state: BattleState,
+  attackerCard: GameCard,
+  target: FieldCard,
+  rawDamage: number,
+  ignoreDefenseFrac?: number,
+): number {
+  const atkEl = attackerCard.element || "neutral";
+  const defEl = target.card.element || "neutral";
+  const elemMult = getElementMultiplier(atkEl, defEl);
+  const mit = abilityDefenseMitigation(target.defense, ignoreDefenseFrac);
+  return Math.max(1, Math.round((rawDamage - mit) * elemMult));
+}
+
+function destroyFieldCardIfDead(state: BattleState, side: PlayerSide, fieldIndex: number) {
+  const fc = side.field[fieldIndex];
+  if (!fc || fc.currentHp > 0) return;
+  addLog(state, `💀 ${fc.card.name} was destroyed!`, "defeat");
+  side.graveyard.push(fc.card);
+  if (fc.equippedWeapon) side.graveyard.push(fc.equippedWeapon);
+  side.field[fieldIndex] = null;
+}
+
+/**
+ * Applies resolved ability data (from card text + overrides). Mutates `newState`.
+ */
+function applyResolvedAbility(
+  newState: BattleState,
+  fc: FieldCard,
+  fieldIndex: number,
+  effect: AbilityEffect,
+): void {
+  const side = getActiveSide(newState);
+  const otherSide = getOtherSide(newState);
+  const ability = fc.card.specialAbility;
+  const attackerElement = fc.card.element || "neutral";
+
+  const run = (e: AbilityEffect) => {
+    switch (e.kind) {
+      case "generic_scaled": {
+        const targets = otherSide.field.filter(Boolean) as FieldCard[];
+        if (targets.length === 0) break;
+        const target = targets.sort((a, b) => b.currentHp - a.currentHp)[0];
+        const abilityDmg = Math.max(2, Math.round(fc.attack * 1.2 + (ability.cost || 3)));
+        const dmg = dealAbilityDamageToField(newState, fc.card, target, abilityDmg);
+        target.currentHp = Math.max(0, target.currentHp - dmg);
+        const elemLabel = getElementAdvantageLabel(attackerElement, target.card.element || "neutral");
+        let msg = `✨ ${fc.card.name} uses ${ability.name}! Deals ${dmg} damage to ${target.card.name}!`;
+        if (elemLabel) msg += ` ${elementEmoji[attackerElement]} ${elemLabel}`;
+        addLog(newState, msg, "ability");
+        destroyFieldCardIfDead(newState, otherSide, otherSide.field.indexOf(target));
+        break;
+      }
+      case "damage_single": {
+        const idx = pickEnemyFieldIndex(otherSide.field, e.target);
+        if (idx < 0) break;
+        const target = otherSide.field[idx]!;
+        const dmg = dealAbilityDamageToField(newState, fc.card, target, e.value, e.ignoreDefenseFrac);
+        target.currentHp = Math.max(0, target.currentHp - dmg);
+        const elemLabel = getElementAdvantageLabel(attackerElement, target.card.element || "neutral");
+        let msg = `✨ ${fc.card.name} uses ${ability.name}! Deals ${dmg} damage to ${target.card.name}!`;
+        if (elemLabel) msg += ` ${elementEmoji[attackerElement]} ${elemLabel}`;
+        addLog(newState, msg, "ability");
+        if (e.stun) {
+          target.stunned = true;
+          addLog(newState, `😵 ${target.card.name} is stunned!`, "ability");
+        }
+        if (e.debuff) {
+          target.tempBuffs.push({
+            stat: e.debuff.stat,
+            value: -e.debuff.value,
+            turnsRemaining: e.debuff.duration,
+          });
+        }
+        destroyFieldCardIfDead(newState, otherSide, idx);
+        break;
+      }
+      case "damage_aoe": {
+        for (let i = 0; i < otherSide.field.length; i++) {
+          const t = otherSide.field[i];
+          if (!t) continue;
+          const dmg = dealAbilityDamageToField(newState, fc.card, t, e.value);
+          t.currentHp = Math.max(0, t.currentHp - dmg);
+          const elemLabel = getElementAdvantageLabel(attackerElement, t.card.element || "neutral");
+          let msg = `✨ ${fc.card.name} uses ${ability.name}! Hits ${t.card.name} for ${dmg}!`;
+          if (elemLabel) msg += ` ${elementEmoji[attackerElement]} ${elemLabel}`;
+          addLog(newState, msg, "ability");
+          if (e.debuff) {
+            t.tempBuffs.push({
+              stat: e.debuff.stat,
+              value: -e.debuff.value,
+              turnsRemaining: e.debuff.duration,
+            });
+          }
+          destroyFieldCardIfDead(newState, otherSide, i);
+        }
+        break;
+      }
+      case "damage_multi": {
+        for (let h = 0; h < e.hits; h++) {
+          const indices = otherSide.field.map((x, i) => (x ? i : -1)).filter((i) => i >= 0);
+          if (indices.length === 0) break;
+          let idx: number;
+          if (e.randomTargets) {
+            idx = indices[Math.floor(newState.rng() * indices.length)]!;
+          } else {
+            idx = indices[Math.min(h, indices.length - 1)]!;
+          }
+          const t = otherSide.field[idx]!;
+          const dmg = dealAbilityDamageToField(newState, fc.card, t, e.damageEach);
+          t.currentHp = Math.max(0, t.currentHp - dmg);
+          addLog(newState, `✨ ${fc.card.name} uses ${ability.name}! Hits ${t.card.name} for ${dmg}!`, "ability");
+          destroyFieldCardIfDead(newState, otherSide, idx);
+        }
+        break;
+      }
+      case "heal": {
+        if (e.scope === "self") {
+          fc.currentHp = Math.min(fc.maxHp, fc.currentHp + e.value);
+          addLog(newState, `✨ ${fc.card.name} uses ${ability.name}! Heals self for ${e.value} HP.`, "ability");
+        } else if (e.scope === "all_allies") {
+          for (let i = 0; i < side.field.length; i++) {
+            const ally = side.field[i];
+            if (!ally) continue;
+            ally.currentHp = Math.min(ally.maxHp, ally.currentHp + e.value);
+          }
+          addLog(newState, `✨ ${fc.card.name} uses ${ability.name}! Heals all allies for ${e.value} HP.`, "ability");
+        } else {
+          const ai = pickAllyFieldIndex(side.field, "lowest", fieldIndex);
+          if (ai >= 0 && side.field[ai]) {
+            const ally = side.field[ai]!;
+            ally.currentHp = Math.min(ally.maxHp, ally.currentHp + e.value);
+            addLog(newState, `✨ ${fc.card.name} uses ${ability.name}! Heals ${ally.card.name} for ${e.value} HP.`, "ability");
+          }
+        }
+        break;
+      }
+      case "buff_allies": {
+        for (let i = 0; i < side.field.length; i++) {
+          const ally = side.field[i];
+          if (!ally) continue;
+          ally.tempBuffs.push({ stat: e.stat, value: e.value, turnsRemaining: e.duration });
+        }
+        addLog(
+          newState,
+          `✨ ${fc.card.name} uses ${ability.name}! ${e.stat === "attack" ? "ATK" : "DEF"} +${e.value} to allies (${e.duration} turns).`,
+          "ability",
+        );
+        break;
+      }
+      case "buff_self": {
+        fc.tempBuffs.push({ stat: e.stat, value: e.value, turnsRemaining: e.duration });
+        addLog(newState, `✨ ${fc.card.name} uses ${ability.name}! ${e.stat.toUpperCase()} +${e.value} (${e.duration} turns).`, "ability");
+        break;
+      }
+      case "debuff_all_enemies": {
+        for (let i = 0; i < otherSide.field.length; i++) {
+          const t = otherSide.field[i];
+          if (!t) continue;
+          t.tempBuffs.push({ stat: e.stat, value: -e.value, turnsRemaining: e.duration });
+        }
+        addLog(newState, `✨ ${fc.card.name} uses ${ability.name}! Weakens all enemies.`, "ability");
+        break;
+      }
+      case "debuff_one_enemy": {
+        const idx = pickEnemyFieldIndex(otherSide.field, e.which);
+        if (idx < 0) break;
+        const t = otherSide.field[idx]!;
+        t.tempBuffs.push({ stat: e.stat, value: -e.value, turnsRemaining: e.duration });
+        addLog(newState, `✨ ${fc.card.name} uses ${ability.name}! Debuffs ${t.card.name}.`, "ability");
+        break;
+      }
+      case "drain": {
+        const idx = pickEnemyFieldIndex(otherSide.field, e.target);
+        if (idx < 0) break;
+        const target = otherSide.field[idx]!;
+        const dmg = dealAbilityDamageToField(newState, fc.card, target, e.damage);
+        target.currentHp = Math.max(0, target.currentHp - dmg);
+        addLog(newState, `✨ ${fc.card.name} uses ${ability.name}! Deals ${dmg} to ${target.card.name}.`, "ability");
+        fc.currentHp = Math.min(fc.maxHp, fc.currentHp + e.healSelf);
+        addLog(newState, `💚 Drains life: heals self for ${e.healSelf} HP.`, "ability");
+        destroyFieldCardIfDead(newState, otherSide, idx);
+        break;
+      }
+      case "shield_side": {
+        side.shield += e.value;
+        addLog(newState, `✨ ${fc.card.name} uses ${ability.name}! Gains ${e.value} shield.`, "ability");
+        break;
+      }
+      case "hurt_self": {
+        fc.currentHp = Math.max(1, fc.currentHp - e.value);
+        addLog(newState, `✨ ${fc.card.name} strains for ${e.value} self-damage!`, "ability");
+        break;
+      }
+      default:
+        break;
+    }
+  };
+
+  for (const ex of flattenAbilityEffects(effect)) {
+    run(ex);
+  }
+}
+
 export function useAbility(state: BattleState, fieldIndex: number): BattleState {
   const newState = deepCopy(state);
   const side = getActiveSide(newState);
@@ -666,34 +903,8 @@ export function useAbility(state: BattleState, fieldIndex: number): BattleState 
   if (!canSpendAp(newState, 1)) return state;
 
   fc.abilityUsed = true;
-  const ability = fc.card.specialAbility;
-  const sideLabel = newState.turn === "player" ? "You" : "Enemy";
-
-  // Generic ability: deal damage based on ability cost to strongest enemy
-  const targets = otherSide.field.filter(Boolean) as FieldCard[];
-  if (targets.length > 0) {
-    const target = targets.sort((a, b) => b.currentHp - a.currentHp)[0];
-    const attackerElement = fc.card.element || "neutral";
-    const defenderElement = target.card.element || "neutral";
-    const elemMult = getElementMultiplier(attackerElement, defenderElement);
-    const elemLabel = getElementAdvantageLabel(attackerElement, defenderElement);
-    
-    const abilityDmg = Math.max(2, Math.round(fc.attack * 1.2 + (ability.cost || 3)));
-    const dmg = Math.max(1, Math.round((abilityDmg - Math.floor(target.defense * 0.25)) * elemMult));
-    target.currentHp = Math.max(0, target.currentHp - dmg);
-
-    let abilityMsg = `✨ ${fc.card.name} uses ${ability.name}! Deals ${dmg} damage to ${target.card.name}!`;
-    if (elemLabel) abilityMsg += ` ${elementEmoji[attackerElement]} ${elemLabel}`;
-    addLog(newState, abilityMsg, "ability");
-
-    if (target.currentHp <= 0) {
-      const targetIdx = otherSide.field.indexOf(target);
-      addLog(newState, `💀 ${target.card.name} was destroyed!`, "defeat");
-      otherSide.graveyard.push(target.card);
-      if (target.equippedWeapon) otherSide.graveyard.push(target.equippedWeapon);
-      otherSide.field[targetIdx] = null;
-    }
-  }
+  const resolved = resolveAbilityEffect(fc.card);
+  applyResolvedAbility(newState, fc, fieldIndex, resolved);
 
   spendAp(newState, 1);
   return maybeAutoEndTurn(recalcFieldStats(checkWinCondition(newState)));

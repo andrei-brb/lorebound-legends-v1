@@ -7026,6 +7026,285 @@ function calculatePassiveBonuses(fieldCardIds) {
   return bonusMap;
 }
 
+// src/lib/abilityOverrides.ts
+var ABILITY_OVERRIDES = {
+  // Examples (add as needed):
+  // "temporal-rift": { kind: "heal", scope: "lowest_ally", value: 8 },
+};
+
+// src/lib/abilityInference.ts
+function clamp(n, lo, hi) {
+  return Math.max(lo, Math.min(hi, n));
+}
+function firstInt(s) {
+  const m = s.match(/(\d+)/);
+  return m ? parseInt(m[1], 10) : null;
+}
+function damageNumber(d) {
+  const m = d.match(/(\d+)\s*damage/i);
+  return m ? parseInt(m[1], 10) : null;
+}
+function scaledFallback(card) {
+  const cost = card.specialAbility.cost ?? 3;
+  const v = Math.max(2, Math.round(card.attack * 1.2 + cost));
+  return { kind: "damage_single", target: "highest_hp", value: v };
+}
+function inferAbilityEffect(card) {
+  if (card.type !== "hero" && card.type !== "god") {
+    return { kind: "generic_scaled" };
+  }
+  const raw = card.specialAbility.description;
+  const d = raw.toLowerCase();
+  const cost = card.specialAbility.cost ?? 3;
+  const healAllMatch = d.match(/heals?\s+all\s+allies\s+for\s+(\d+)\s*hp/);
+  if (healAllMatch) {
+    const h = parseInt(healAllMatch[1], 10);
+    const steps = [{ kind: "heal", scope: "all_allies", value: h }];
+    if (/invisibility|ethereal|barrier|defense/.test(d) && /grants?|granting|\+(\d+)\s*def/.test(d)) {
+      const dm = d.match(/\+(\d+)\s*def/i);
+      steps.push({ kind: "buff_allies", stat: "defense", value: dm ? parseInt(dm[1], 10) : 2, duration: 2 });
+    } else if (/\+(\d+)\s*attack.*all allies|all allies.*\+(\d+)\s*attack/.test(d)) {
+      const m = d.match(/\+(\d+)\s*attack/);
+      steps.push({ kind: "buff_allies", stat: "attack", value: m ? parseInt(m[1], 10) : 2, duration: 2 });
+    } else if (damageNumber(d) !== null && /all enemies/.test(d)) {
+      steps.push({ kind: "damage_aoe", value: damageNumber(d) });
+    } else if (damageNumber(d) !== null && /strongest/.test(d)) {
+      steps.push({
+        kind: "damage_single",
+        target: "highest_hp",
+        value: damageNumber(d),
+        stun: /stun/.test(d)
+      });
+    }
+    if (steps.length > 1) return { kind: "sequence", steps };
+    return steps[0];
+  }
+  if (/dealing\s+(\d+)\s+damage.*healing\s+allies\s+(\d+)/i.test(raw) || /(\d+)\s+damage.*heal.*allies\s+for\s+(\d+)/i.test(d)) {
+    const m = raw.match(/(\d+)\s+damage/i);
+    const h = raw.match(/heal(?:ing)?\s+allies\s+(\d+)/i) || raw.match(/allies\s+(\d+)\s*hp/i);
+    const dmg = m ? parseInt(m[1], 10) : 4;
+    const heal = h ? parseInt(h[1], 10) : 4;
+    return { kind: "sequence", steps: [{ kind: "damage_aoe", value: dmg }, { kind: "heal", scope: "all_allies", value: heal }] };
+  }
+  if (/prevents all damage|absorbs all damage/i.test(d) && /heals?\s+(\d+)/i.test(d)) {
+    const hm = d.match(/heals?\s+(\d+)/);
+    return {
+      kind: "sequence",
+      steps: [
+        { kind: "heal", scope: "all_allies", value: hm ? parseInt(hm[1], 10) : 3 },
+        { kind: "shield_side", value: 15 }
+      ]
+    };
+  }
+  if (/restores?\s+(\d+)\s*hp\s+to\s+a\s+single\s+ally|restores?\s+(\d+)\s*hp\s+to\s+one\s+ally/i.test(d)) {
+    const m = raw.match(/(\d+)\s*hp/i);
+    return { kind: "heal", scope: "lowest_ally", value: m ? parseInt(m[1], 10) : 5 };
+  }
+  if (/heals?\s+self\s+for\s+(\d+).*deals?\s+(\d+)/i.test(d) || /deals?\s+(\d+).*heals?\s+self\s+for\s+(\d+)/i.test(d)) {
+    const m1 = d.match(/deals?\s+(\d+)/i);
+    const m2 = d.match(/heals?\s+self\s+for\s+(\d+)/i);
+    const dmg = m1 ? parseInt(m1[1], 10) : 7;
+    const heal = m2 ? parseInt(m2[1], 10) : 3;
+    return { kind: "drain", target: "highest_hp", damage: dmg, healSelf: heal };
+  }
+  if (/holy damage.*heals?\s+self/i.test(d)) {
+    const m = d.match(/(\d+)\s*holy/i);
+    const h = d.match(/heals?\s+self\s+for\s+(\d+)/i);
+    return {
+      kind: "drain",
+      target: "highest_hp",
+      damage: m ? parseInt(m[1], 10) : 5,
+      healSelf: h ? parseInt(h[1], 10) : 5
+    };
+  }
+  if (/heals?\s+all\s+allies/i.test(d) && !/heals?\s+all\s+allies\s+for\s+(\d+)\s*hp/.test(d)) {
+    const m = d.match(/for\s+(\d+)/i);
+    const n = m ? parseInt(m[1], 10) : firstInt(d) ?? 5;
+    return { kind: "heal", scope: "all_allies", value: clamp(n, 2, 20) };
+  }
+  if (/\ball enemies\b/.test(d) && /\bfire damage\b|\bdamage\b|\bburns\b|\bwave\b|\bmeteors\b|\bflame\b|\bdivine fire\b/i.test(d)) {
+    const n = damageNumber(d) ?? firstInt(d);
+    if (n !== null) return { kind: "damage_aoe", value: clamp(n, 1, 25) };
+  }
+  if (/\bto all enemies\b/.test(d)) {
+    const n = damageNumber(d) ?? firstInt(d);
+    if (n !== null) {
+      const debuff = /reduc(?:e|ing).*attack by (\d+).*(\d+)\s*turn/i.test(d) || /attack by (\d+).*for (\d+) turn/i.test(d) ? (() => {
+        const dm = d.match(/attack by (\d+)/i);
+        const tm = d.match(/(\d+)\s*turn/i);
+        return {
+          stat: "attack",
+          value: dm ? parseInt(dm[1], 10) : 2,
+          duration: tm ? parseInt(tm[1], 10) : 2
+        };
+      })() : void 0;
+      return { kind: "damage_aoe", value: clamp(n, 1, 25), debuff };
+    }
+  }
+  if (/deals?\s+(\d+)\s+damage.*reduc(?:e|ing).*all enemy attack by (\d+)/i.test(d)) {
+    const m = raw.match(/(\d+)\s+damage/i);
+    const dm = raw.match(/attack by (\d+)/i);
+    const tm = raw.match(/(\d+)\s*turn/i);
+    return {
+      kind: "sequence",
+      steps: [
+        { kind: "damage_aoe", value: m ? parseInt(m[1], 10) : 5 },
+        {
+          kind: "debuff_all_enemies",
+          stat: "attack",
+          value: dm ? parseInt(dm[1], 10) : 2,
+          duration: tm ? parseInt(tm[1], 10) : 2
+        }
+      ]
+    };
+  }
+  if (/reduc(?:e|ing).*all enemy attack|reduc(?:e|ing).*their attack by/i.test(d) && /all enemies|all enemy/i.test(d)) {
+    const dm = d.match(/attack by (\d+)/i);
+    const tm = d.match(/(\d+)\s*turn/i);
+    return {
+      kind: "debuff_all_enemies",
+      stat: "attack",
+      value: dm ? parseInt(dm[1], 10) : 2,
+      duration: tm ? parseInt(tm[1], 10) : 2
+    };
+  }
+  if (/grants?\s+\+(\d+)\s+attack.*all allies|all allies.*\+(\d+)\s+attack/i.test(d)) {
+    const m = d.match(/\+(\d+)\s+attack/i);
+    const tm = d.match(/(\d+)\s*turn/i);
+    return {
+      kind: "buff_allies",
+      stat: "attack",
+      value: m ? parseInt(m[1], 10) : 2,
+      duration: tm ? parseInt(tm[1], 10) : 2
+    };
+  }
+  if (/grants?\s+\+(\d+)\s+attack and \+(\d+)\s+defense to all allies/i.test(d)) {
+    const m = d.match(/\+(\d+)\s+attack/i);
+    const m2 = d.match(/\+(\d+)\s+defense/i);
+    const tm = d.match(/(\d+)\s*turn/i);
+    return {
+      kind: "sequence",
+      steps: [
+        { kind: "buff_allies", stat: "attack", value: m ? parseInt(m[1], 10) : 2, duration: tm ? parseInt(tm[1], 10) : 2 },
+        { kind: "buff_allies", stat: "defense", value: m2 ? parseInt(m2[1], 10) : 2, duration: tm ? parseInt(tm[1], 10) : 2 }
+      ]
+    };
+  }
+  if (/\+(\d+)\s+defense to all allies/i.test(d)) {
+    const m = d.match(/\+(\d+)\s+defense/i);
+    const tm = d.match(/(\d+)\s*turn/i);
+    return {
+      kind: "buff_allies",
+      stat: "defense",
+      value: m ? parseInt(m[1], 10) : 3,
+      duration: tm ? parseInt(tm[1], 10) : 2
+    };
+  }
+  if (/grants?\s+\+(\d+)\s+attack to all allies/i.test(d)) {
+    const m = d.match(/\+(\d+)\s+attack/i);
+    return { kind: "buff_allies", stat: "attack", value: m ? parseInt(m[1], 10) : 2, duration: 2 };
+  }
+  if (/absorb(?:ing)?\s+(\d+)\s+damage|barrier absorbing|light barrier/i.test(d)) {
+    const m = d.match(/(\d+)\s*damage/i);
+    return { kind: "shield_side", value: m ? parseInt(m[1], 10) : 8 };
+  }
+  if (/strongest enemy|highest hp|most hp/i.test(d)) {
+    const n = damageNumber(d) ?? firstInt(d);
+    if (n !== null) {
+      return {
+        kind: "damage_single",
+        target: "highest_hp",
+        value: clamp(n, 1, 25),
+        stun: /stun/.test(d),
+        ignoreDefenseFrac: /ignoring defense|ignores defense|bypass/i.test(d) ? 1 : void 0
+      };
+    }
+  }
+  if (/weakest enemy|lowest hp|below \d+%/i.test(d)) {
+    const n = damageNumber(d) ?? firstInt(d);
+    if (n !== null) {
+      return {
+        kind: "damage_single",
+        target: "lowest_hp",
+        value: clamp(n, 1, 30),
+        ignoreDefenseFrac: /ignoring defense|ignores/i.test(d) ? 1 : void 0
+      };
+    }
+  }
+  if (/below\s+(\d+)%/i.test(d)) {
+    const n = damageNumber(d) ?? 8;
+    return { kind: "damage_single", target: "lowest_hp", value: n, ignoreDefenseFrac: 0.5 };
+  }
+  if (/ignores?\s+(\d+)%\s+defense|ignoring defense|ignore defense|bypass/i.test(d)) {
+    const n = damageNumber(d) ?? firstInt(d);
+    const frac = /50%/.test(d) ? 0.5 : /ignoring defense/i.test(d) ? 1 : 0.25;
+    return {
+      kind: "damage_single",
+      target: "highest_hp",
+      value: n ?? Math.max(2, Math.round(card.attack * 1.2 + cost)),
+      ignoreDefenseFrac: frac
+    };
+  }
+  if (/(\d+)\+(\d+)\s* damage|strikes twice|each hit dealing (\d+)/i.test(d)) {
+    const m = d.match(/each hit.*?(\d+)/i) || d.match(/(\d+)\+(\d+)/);
+    const each = m ? parseInt(m[1], 10) : 4;
+    return { kind: "damage_multi", hits: 2, damageEach: each, randomTargets: false };
+  }
+  if (/(\d+)\s+random enemies/i.test(d)) {
+    const hm = d.match(/(\d+)\s+random/i);
+    const dm = d.match(/(\d+)\s*damage each/i) || d.match(/dealing (\d+)/i);
+    const hits = hm ? parseInt(hm[1], 10) : 3;
+    const each = dm ? parseInt(dm[1], 10) : 4;
+    return { kind: "damage_multi", hits, damageEach: each, randomTargets: true };
+  }
+  if (/attacks\s+(\d+)\s+random enemies/i.test(d)) {
+    const hm = d.match(/(\d+)\s+random/i);
+    const dm = d.match(/(\d+)\s*damage each/i);
+    return {
+      kind: "damage_multi",
+      hits: hm ? parseInt(hm[1], 10) : 3,
+      damageEach: dm ? parseInt(dm[1], 10) : 3,
+      randomTargets: true
+    };
+  }
+  if (/rain of arrows|volley/i.test(d) && /all enemies/i.test(d)) {
+    const n = damageNumber(d) ?? 3;
+    return { kind: "damage_aoe", value: n };
+  }
+  if (/stun.*turn|stuns for/i.test(d)) {
+    const n = damageNumber(d) ?? firstInt(d);
+    if (n !== null) {
+      return { kind: "damage_single", target: "highest_hp", value: n, stun: true };
+    }
+  }
+  if (/takes\s+(\d+)\s+damage from exhaustion/i.test(d)) {
+    const m = d.match(/takes\s+(\d+)/i);
+    return {
+      kind: "sequence",
+      steps: [
+        { kind: "damage_single", target: "highest_hp", value: 6 },
+        { kind: "hurt_self", value: m ? parseInt(m[1], 10) : 3 }
+      ]
+    };
+  }
+  const dn = damageNumber(d);
+  if (dn !== null && !/all allies/i.test(d)) {
+    const tgt = /weakest|lowest|below/i.test(d) ? "lowest_hp" : "highest_hp";
+    return {
+      kind: "damage_single",
+      target: tgt,
+      value: clamp(dn, 1, 25),
+      stun: /stun|sleep|freeze/i.test(d) && !/all enemies/i.test(d),
+      ignoreDefenseFrac: /ignore/i.test(d) ? 0.5 : void 0
+    };
+  }
+  return scaledFallback(card);
+}
+function resolveAbilityEffect(card) {
+  if (ABILITY_OVERRIDES[card.id]) return ABILITY_OVERRIDES[card.id];
+  return inferAbilityEffect(card);
+}
+
 // src/lib/battleEngine.ts
 function createSeededRng(seed) {
   let t = seed >>> 0;
@@ -7510,6 +7789,218 @@ function attackTarget(state, attackerFieldIndex, targetFieldIndex) {
   attacker.attackedThisTurn = true;
   return maybeAutoEndTurn(recalcFieldStats(checkWinCondition(newState)));
 }
+function flattenAbilityEffects(effect) {
+  if (effect.kind === "sequence") return effect.steps.flatMap(flattenAbilityEffects);
+  return [effect];
+}
+function pickEnemyFieldIndex(field, mode) {
+  const entries = field.map((fc, i) => fc ? { fc, i } : null).filter(Boolean);
+  if (entries.length === 0) return -1;
+  if (mode === "highest_hp") {
+    entries.sort((a, b) => b.fc.currentHp - a.fc.currentHp);
+    return entries[0].i;
+  }
+  entries.sort((a, b) => a.fc.currentHp - b.fc.currentHp);
+  return entries[0].i;
+}
+function pickAllyFieldIndex(field, mode, selfIndex) {
+  const entries = field.map((fc, i) => fc ? { fc, i } : null).filter(Boolean);
+  if (mode === "self") return selfIndex;
+  if (entries.length === 0) return -1;
+  entries.sort((a, b) => a.fc.currentHp - b.fc.currentHp);
+  return entries[0].i;
+}
+function abilityDefenseMitigation(defense, ignoreDefenseFrac) {
+  if (ignoreDefenseFrac === 1) return 0;
+  const base = Math.floor(defense * 0.25);
+  if (ignoreDefenseFrac === void 0) return base;
+  return Math.max(0, Math.floor(base * (1 - ignoreDefenseFrac)));
+}
+function dealAbilityDamageToField(state, attackerCard, target, rawDamage, ignoreDefenseFrac) {
+  const atkEl = attackerCard.element || "neutral";
+  const defEl = target.card.element || "neutral";
+  const elemMult = getElementMultiplier(atkEl, defEl);
+  const mit = abilityDefenseMitigation(target.defense, ignoreDefenseFrac);
+  return Math.max(1, Math.round((rawDamage - mit) * elemMult));
+}
+function destroyFieldCardIfDead(state, side, fieldIndex) {
+  const fc = side.field[fieldIndex];
+  if (!fc || fc.currentHp > 0) return;
+  addLog(state, `\u{1F480} ${fc.card.name} was destroyed!`, "defeat");
+  side.graveyard.push(fc.card);
+  if (fc.equippedWeapon) side.graveyard.push(fc.equippedWeapon);
+  side.field[fieldIndex] = null;
+}
+function applyResolvedAbility(newState, fc, fieldIndex, effect) {
+  const side = getActiveSide(newState);
+  const otherSide = getOtherSide(newState);
+  const ability = fc.card.specialAbility;
+  const attackerElement = fc.card.element || "neutral";
+  const run = (e) => {
+    switch (e.kind) {
+      case "generic_scaled": {
+        const targets = otherSide.field.filter(Boolean);
+        if (targets.length === 0) break;
+        const target = targets.sort((a, b) => b.currentHp - a.currentHp)[0];
+        const abilityDmg = Math.max(2, Math.round(fc.attack * 1.2 + (ability.cost || 3)));
+        const dmg = dealAbilityDamageToField(newState, fc.card, target, abilityDmg);
+        target.currentHp = Math.max(0, target.currentHp - dmg);
+        const elemLabel = getElementAdvantageLabel(attackerElement, target.card.element || "neutral");
+        let msg = `\u2728 ${fc.card.name} uses ${ability.name}! Deals ${dmg} damage to ${target.card.name}!`;
+        if (elemLabel) msg += ` ${elementEmoji[attackerElement]} ${elemLabel}`;
+        addLog(newState, msg, "ability");
+        destroyFieldCardIfDead(newState, otherSide, otherSide.field.indexOf(target));
+        break;
+      }
+      case "damage_single": {
+        const idx = pickEnemyFieldIndex(otherSide.field, e.target);
+        if (idx < 0) break;
+        const target = otherSide.field[idx];
+        const dmg = dealAbilityDamageToField(newState, fc.card, target, e.value, e.ignoreDefenseFrac);
+        target.currentHp = Math.max(0, target.currentHp - dmg);
+        const elemLabel = getElementAdvantageLabel(attackerElement, target.card.element || "neutral");
+        let msg = `\u2728 ${fc.card.name} uses ${ability.name}! Deals ${dmg} damage to ${target.card.name}!`;
+        if (elemLabel) msg += ` ${elementEmoji[attackerElement]} ${elemLabel}`;
+        addLog(newState, msg, "ability");
+        if (e.stun) {
+          target.stunned = true;
+          addLog(newState, `\u{1F635} ${target.card.name} is stunned!`, "ability");
+        }
+        if (e.debuff) {
+          target.tempBuffs.push({
+            stat: e.debuff.stat,
+            value: -e.debuff.value,
+            turnsRemaining: e.debuff.duration
+          });
+        }
+        destroyFieldCardIfDead(newState, otherSide, idx);
+        break;
+      }
+      case "damage_aoe": {
+        for (let i = 0; i < otherSide.field.length; i++) {
+          const t = otherSide.field[i];
+          if (!t) continue;
+          const dmg = dealAbilityDamageToField(newState, fc.card, t, e.value);
+          t.currentHp = Math.max(0, t.currentHp - dmg);
+          const elemLabel = getElementAdvantageLabel(attackerElement, t.card.element || "neutral");
+          let msg = `\u2728 ${fc.card.name} uses ${ability.name}! Hits ${t.card.name} for ${dmg}!`;
+          if (elemLabel) msg += ` ${elementEmoji[attackerElement]} ${elemLabel}`;
+          addLog(newState, msg, "ability");
+          if (e.debuff) {
+            t.tempBuffs.push({
+              stat: e.debuff.stat,
+              value: -e.debuff.value,
+              turnsRemaining: e.debuff.duration
+            });
+          }
+          destroyFieldCardIfDead(newState, otherSide, i);
+        }
+        break;
+      }
+      case "damage_multi": {
+        for (let h = 0; h < e.hits; h++) {
+          const indices = otherSide.field.map((x, i) => x ? i : -1).filter((i) => i >= 0);
+          if (indices.length === 0) break;
+          let idx;
+          if (e.randomTargets) {
+            idx = indices[Math.floor(newState.rng() * indices.length)];
+          } else {
+            idx = indices[Math.min(h, indices.length - 1)];
+          }
+          const t = otherSide.field[idx];
+          const dmg = dealAbilityDamageToField(newState, fc.card, t, e.damageEach);
+          t.currentHp = Math.max(0, t.currentHp - dmg);
+          addLog(newState, `\u2728 ${fc.card.name} uses ${ability.name}! Hits ${t.card.name} for ${dmg}!`, "ability");
+          destroyFieldCardIfDead(newState, otherSide, idx);
+        }
+        break;
+      }
+      case "heal": {
+        if (e.scope === "self") {
+          fc.currentHp = Math.min(fc.maxHp, fc.currentHp + e.value);
+          addLog(newState, `\u2728 ${fc.card.name} uses ${ability.name}! Heals self for ${e.value} HP.`, "ability");
+        } else if (e.scope === "all_allies") {
+          for (let i = 0; i < side.field.length; i++) {
+            const ally = side.field[i];
+            if (!ally) continue;
+            ally.currentHp = Math.min(ally.maxHp, ally.currentHp + e.value);
+          }
+          addLog(newState, `\u2728 ${fc.card.name} uses ${ability.name}! Heals all allies for ${e.value} HP.`, "ability");
+        } else {
+          const ai = pickAllyFieldIndex(side.field, "lowest", fieldIndex);
+          if (ai >= 0 && side.field[ai]) {
+            const ally = side.field[ai];
+            ally.currentHp = Math.min(ally.maxHp, ally.currentHp + e.value);
+            addLog(newState, `\u2728 ${fc.card.name} uses ${ability.name}! Heals ${ally.card.name} for ${e.value} HP.`, "ability");
+          }
+        }
+        break;
+      }
+      case "buff_allies": {
+        for (let i = 0; i < side.field.length; i++) {
+          const ally = side.field[i];
+          if (!ally) continue;
+          ally.tempBuffs.push({ stat: e.stat, value: e.value, turnsRemaining: e.duration });
+        }
+        addLog(
+          newState,
+          `\u2728 ${fc.card.name} uses ${ability.name}! ${e.stat === "attack" ? "ATK" : "DEF"} +${e.value} to allies (${e.duration} turns).`,
+          "ability"
+        );
+        break;
+      }
+      case "buff_self": {
+        fc.tempBuffs.push({ stat: e.stat, value: e.value, turnsRemaining: e.duration });
+        addLog(newState, `\u2728 ${fc.card.name} uses ${ability.name}! ${e.stat.toUpperCase()} +${e.value} (${e.duration} turns).`, "ability");
+        break;
+      }
+      case "debuff_all_enemies": {
+        for (let i = 0; i < otherSide.field.length; i++) {
+          const t = otherSide.field[i];
+          if (!t) continue;
+          t.tempBuffs.push({ stat: e.stat, value: -e.value, turnsRemaining: e.duration });
+        }
+        addLog(newState, `\u2728 ${fc.card.name} uses ${ability.name}! Weakens all enemies.`, "ability");
+        break;
+      }
+      case "debuff_one_enemy": {
+        const idx = pickEnemyFieldIndex(otherSide.field, e.which);
+        if (idx < 0) break;
+        const t = otherSide.field[idx];
+        t.tempBuffs.push({ stat: e.stat, value: -e.value, turnsRemaining: e.duration });
+        addLog(newState, `\u2728 ${fc.card.name} uses ${ability.name}! Debuffs ${t.card.name}.`, "ability");
+        break;
+      }
+      case "drain": {
+        const idx = pickEnemyFieldIndex(otherSide.field, e.target);
+        if (idx < 0) break;
+        const target = otherSide.field[idx];
+        const dmg = dealAbilityDamageToField(newState, fc.card, target, e.damage);
+        target.currentHp = Math.max(0, target.currentHp - dmg);
+        addLog(newState, `\u2728 ${fc.card.name} uses ${ability.name}! Deals ${dmg} to ${target.card.name}.`, "ability");
+        fc.currentHp = Math.min(fc.maxHp, fc.currentHp + e.healSelf);
+        addLog(newState, `\u{1F49A} Drains life: heals self for ${e.healSelf} HP.`, "ability");
+        destroyFieldCardIfDead(newState, otherSide, idx);
+        break;
+      }
+      case "shield_side": {
+        side.shield += e.value;
+        addLog(newState, `\u2728 ${fc.card.name} uses ${ability.name}! Gains ${e.value} shield.`, "ability");
+        break;
+      }
+      case "hurt_self": {
+        fc.currentHp = Math.max(1, fc.currentHp - e.value);
+        addLog(newState, `\u2728 ${fc.card.name} strains for ${e.value} self-damage!`, "ability");
+        break;
+      }
+      default:
+        break;
+    }
+  };
+  for (const ex of flattenAbilityEffects(effect)) {
+    run(ex);
+  }
+}
 function useAbility(state, fieldIndex) {
   const newState = deepCopy(state);
   const side = getActiveSide(newState);
@@ -7518,29 +8009,8 @@ function useAbility(state, fieldIndex) {
   if (!fc || fc.abilityUsed || fc.stunned) return state;
   if (!canSpendAp(newState, 1)) return state;
   fc.abilityUsed = true;
-  const ability = fc.card.specialAbility;
-  const sideLabel = newState.turn === "player" ? "You" : "Enemy";
-  const targets = otherSide.field.filter(Boolean);
-  if (targets.length > 0) {
-    const target = targets.sort((a, b) => b.currentHp - a.currentHp)[0];
-    const attackerElement = fc.card.element || "neutral";
-    const defenderElement = target.card.element || "neutral";
-    const elemMult = getElementMultiplier(attackerElement, defenderElement);
-    const elemLabel = getElementAdvantageLabel(attackerElement, defenderElement);
-    const abilityDmg = Math.max(2, Math.round(fc.attack * 1.2 + (ability.cost || 3)));
-    const dmg = Math.max(1, Math.round((abilityDmg - Math.floor(target.defense * 0.25)) * elemMult));
-    target.currentHp = Math.max(0, target.currentHp - dmg);
-    let abilityMsg = `\u2728 ${fc.card.name} uses ${ability.name}! Deals ${dmg} damage to ${target.card.name}!`;
-    if (elemLabel) abilityMsg += ` ${elementEmoji[attackerElement]} ${elemLabel}`;
-    addLog(newState, abilityMsg, "ability");
-    if (target.currentHp <= 0) {
-      const targetIdx = otherSide.field.indexOf(target);
-      addLog(newState, `\u{1F480} ${target.card.name} was destroyed!`, "defeat");
-      otherSide.graveyard.push(target.card);
-      if (target.equippedWeapon) otherSide.graveyard.push(target.equippedWeapon);
-      otherSide.field[targetIdx] = null;
-    }
-  }
+  const resolved = resolveAbilityEffect(fc.card);
+  applyResolvedAbility(newState, fc, fieldIndex, resolved);
   spendAp(newState, 1);
   return maybeAutoEndTurn(recalcFieldStats(checkWinCondition(newState)));
 }
