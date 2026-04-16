@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Shield, Lock, Check, Coins, Star, Sparkles, Crown, Zap, Package, Award, Palette, Frame, SmilePlus } from "lucide-react";
+import { Shield, Lock, Check, Coins, Star, Sparkles, Crown, Zap, Package, Award, Palette, Frame, SmilePlus, X, Eye } from "lucide-react";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
@@ -13,6 +13,7 @@ import heroCelestialSolara from "@/assets/battlepass/hero-celestial-solara.jpg";
 import cardbackBloomCrest from "@/assets/battlepass/cardback-bloom-crest.jpg";
 import cardbackBloomInferno from "@/assets/battlepass/cardback-bloom-inferno.jpg";
 import boardRunedGarden from "@/assets/battlepass/board-runed-garden.jpg";
+import boardMossyHearth from "@/assets/battlepass/board-mossy-hearth.jpg";
 import frameBloomAura from "@/assets/battlepass/frame-bloom-aura.jpg";
 import borderEternalBloom from "@/assets/battlepass/border-eternal-bloom.jpg";
 
@@ -58,7 +59,7 @@ function RewardIcon({ kind, className }: { kind: RewardKind; className?: string 
 
 /* ─── 30-level reward data ─── */
 const PASS_DATA: LevelRewards[] = [
-  { level: 1, free: { kind: "gold", label: "200 Gold", amount: 200 }, elite: { kind: "gold", label: "400 Gold", amount: 400 } },
+  { level: 1, free: { kind: "board_skin", label: "Mossy Hearth", image: boardMossyHearth }, elite: { kind: "gold", label: "400 Gold", amount: 400 } },
   { level: 2, free: { kind: "dust", label: "50 Dust", amount: 50 }, elite: { kind: "dust", label: "100 Dust", amount: 100 } },
   { level: 3, free: { kind: "gold", label: "300 Gold", amount: 300 }, elite: { kind: "gold", label: "600 Gold", amount: 600 } },
   { level: 4, free: { kind: "dust", label: "75 Dust", amount: 75 }, elite: { kind: "dust", label: "150 Dust", amount: 150 } },
