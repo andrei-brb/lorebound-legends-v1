@@ -102,6 +102,8 @@ export default function TradeUI({ playerState, onStateChange }: TradeUIProps) {
   };
 
   const toggleRequested = (id: string) => {
+    // Don't allow selecting requested cards until a friend is chosen.
+    if (!selectedFriendId) return;
     setRequestedCards(prev => prev.includes(id) ? prev.filter(x => x !== id) : prev.length < 3 ? [...prev, id] : prev);
   };
 
@@ -468,6 +470,7 @@ export default function TradeUI({ playerState, onStateChange }: TradeUIProps) {
                   setFriendDropdownOpen(true);
                   // If the user starts typing again, clear the previous selection.
                   setSelectedFriendId(null);
+                  setRequestedCards([]);
                 }}
                 onFocus={() => setFriendDropdownOpen(true)}
                 onBlur={() => setTimeout(() => setFriendDropdownOpen(false), 120)}
@@ -488,6 +491,7 @@ export default function TradeUI({ playerState, onStateChange }: TradeUIProps) {
                           setSelectedFriendId(f.friend.id);
                           setFriendQuery(f.friend.username);
                           setFriendDropdownOpen(false);
+                          setRequestedCards([]);
                         }}
                       >
                         <span className="font-heading font-bold">{f.friend.username}</span>
@@ -560,20 +564,27 @@ export default function TradeUI({ playerState, onStateChange }: TradeUIProps) {
                   placeholder="Search catalog..."
                   value={searchCatalog}
                   onChange={(e) => setSearchCatalog(e.target.value)}
+                  disabled={!selectedFriendId}
                   className="w-full pl-7 pr-3 py-2 text-xs rounded-lg bg-secondary border border-border text-foreground placeholder:text-muted-foreground"
                 />
               </div>
-              <div className="grid grid-cols-3 gap-1.5 max-h-[300px] overflow-y-auto pr-1">
-                {catalogCards.slice(0, 30).map(card => (
-                  <div
-                    key={card.id}
-                    onClick={() => toggleRequested(card.id)}
-                    className={cn("cursor-pointer transition-all", requestedCards.includes(card.id) && "ring-2 ring-legendary scale-95")}
-                  >
-                    <GameCard card={card} size="sm" selected={requestedCards.includes(card.id)} />
-                  </div>
-                ))}
-              </div>
+              {!selectedFriendId ? (
+                <div className="text-xs text-muted-foreground py-6 text-center border border-dashed border-border rounded-lg">
+                  Choose a friend first to pick what you want.
+                </div>
+              ) : (
+                <div className="grid grid-cols-3 gap-1.5 max-h-[300px] overflow-y-auto pr-1">
+                  {catalogCards.slice(0, 30).map(card => (
+                    <div
+                      key={card.id}
+                      onClick={() => toggleRequested(card.id)}
+                      className={cn("cursor-pointer transition-all", requestedCards.includes(card.id) && "ring-2 ring-legendary scale-95")}
+                    >
+                      <GameCard card={card} size="sm" selected={requestedCards.includes(card.id)} />
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
