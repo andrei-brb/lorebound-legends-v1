@@ -206,6 +206,11 @@ export const api = {
     return handleResponse<{ ok: true }>(res);
   },
 
+  async searchUsers(q: string) {
+    const res = await fetch(`${getApiBase()}/api/users/search?q=${encodeURIComponent(q)}`, { headers: getHeaders() });
+    return handleResponse<{ users: Array<{ id: number; discordId: string; username: string; avatar?: string | null }> }>(res);
+  },
+
   async friendRequest(usernameOrDiscordId: string) {
     const res = await fetch(`${getApiBase()}/api/friends/request`, {
       method: "POST",

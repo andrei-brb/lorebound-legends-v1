@@ -28,6 +28,9 @@ export default function TradeUI({ playerState, onStateChange }: TradeUIProps) {
   const [taxGold, setTaxGold] = useState<number>(0);
   const [taxStardust, setTaxStardust] = useState<number>(0);
   const [friendSearch, setFriendSearch] = useState("");
+  const [friendSearchResults, setFriendSearchResults] = useState<Array<{ id: number; discordId: string; username: string; avatar?: string | null }>>([]);
+  const [friendSearchOpen, setFriendSearchOpen] = useState(false);
+  const [friendSearchLoading, setFriendSearchLoading] = useState(false);
   const [me, setMe] = useState<{ id: number; discordId: string; username: string; avatar?: string | null } | null>(null);
   const [friends, setFriends] = useState<Awaited<ReturnType<typeof api.getFriends>> | null>(null);
   const [trades, setTrades] = useState<Awaited<ReturnType<typeof api.getTrades>>["trades"]>([]);
@@ -59,6 +62,27 @@ export default function TradeUI({ playerState, onStateChange }: TradeUIProps) {
     refreshAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    if (friendSearch.trim().length < 2) {
+      setFriendSearchResults([]);
+      setFriendSearchOpen(false);
+      return;
+    }
+    setFriendSearchLoading(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await api.searchUsers(friendSearch.trim());
+        setFriendSearchResults(res.users);
+        setFriendSearchOpen(res.users.length > 0);
+      } catch {
+        setFriendSearchResults([]);
+      } finally {
+        setFriendSearchLoading(false);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [friendSearch]);
 
   const ownedCards = useMemo(() => {
     return playerState.ownedCardIds
@@ -258,18 +282,48 @@ export default function TradeUI({ playerState, onStateChange }: TradeUIProps) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="bg-card border border-border rounded-xl p-4 space-y-3">
               <h3 className="font-heading font-bold text-foreground text-sm">Add Friend</h3>
-              <input
-                value={friendSearch}
-                onChange={(e) => setFriendSearch(e.target.value)}
-                placeholder="Search by username or Discord ID..."
-                className="w-full px-3 py-2 text-xs rounded-lg bg-secondary border border-border text-foreground placeholder:text-muted-foreground"
-              />
+              <div className="relative">
+                <input
+                  value={friendSearch}
+                  onChange={(e) => setFriendSearch(e.target.value)}
+                  onFocus={() => { if (friendSearchResults.length > 0) setFriendSearchOpen(true); }}
+                  onBlur={() => setTimeout(() => setFriendSearchOpen(false), 150)}
+                  placeholder="Search by username..."
+                  className="w-full px-3 py-2 text-xs rounded-lg bg-secondary border border-border text-foreground placeholder:text-muted-foreground"
+                />
+                {friendSearchLoading && (
+                  <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">searching…</span>
+                )}
+                {friendSearchOpen && friendSearchResults.length > 0 && (
+                  <div className="absolute z-50 mt-1 w-full rounded-lg border border-border bg-card shadow-lg overflow-hidden">
+                    <div className="max-h-48 overflow-y-auto">
+                      {friendSearchResults.map((u) => (
+                        <button
+                          key={u.id}
+                          type="button"
+                          className="w-full text-left px-3 py-2 text-xs hover:bg-secondary/80 text-foreground"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            setFriendSearch(u.username);
+                            setFriendSearchOpen(false);
+                          }}
+                        >
+                          <span className="font-heading font-bold">{u.username}</span>
+                          <span className="ml-2 text-[10px] text-muted-foreground">#{u.id}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
               <button
                 onClick={async () => {
                   try {
                     await api.friendRequest(friendSearch);
                     toast({ title: "Friend request sent" });
                     setFriendSearch("");
+                    setFriendSearchResults([]);
+                    setFriendSearchOpen(false);
                     await refreshAll();
                   } catch (e) {
                     toast({ title: "Friend request failed", description: e instanceof Error ? e.message : String(e) });

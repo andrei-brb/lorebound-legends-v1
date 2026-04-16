@@ -758,6 +758,31 @@ async function handleGetFriends(req, res) {
   });
 }
 
+async function handleSearchUsers(req, res) {
+  const user = await requireAuth(req, res);
+  if (!user) return;
+
+  const url = new URL(`http://localhost${req.url}`);
+  const q = (url.searchParams.get("q") || "").trim();
+  if (q.length < 2) return sendJson(res, 200, { users: [] });
+
+  const me = await prisma.player.findUnique({ where: { discordId: user.id } });
+  if (!me) return sendJson(res, 404, { error: "Player not found" });
+
+  const results = await prisma.player.findMany({
+    where: {
+      AND: [
+        { id: { not: me.id } },
+        { username: { contains: q, mode: "insensitive" } },
+      ],
+    },
+    take: 8,
+    orderBy: { username: "asc" },
+  });
+
+  return sendJson(res, 200, { users: results.map(toPublicPlayer) });
+}
+
 async function handleFriendRequest(req, res) {
   const user = await requireAuth(req, res);
   if (!user) return;
@@ -2595,6 +2620,7 @@ const server = http.createServer(async (req, res) => {
     if (method === "GET" && path === "/api/notifications") return await handleGetNotifications(req, res);
     if (method === "GET" && path === "/api/notifications/unread-count") return await handleGetUnreadCount(req, res);
     if (method === "POST" && path === "/api/notifications/mark-read") return await handleMarkNotificationsRead(req, res);
+    if (method === "GET" && path === "/api/users/search") return await handleSearchUsers(req, res);
     if (method === "GET" && path === "/api/friends") return await handleGetFriends(req, res);
     if (method === "POST" && path === "/api/friends/request") return await handleFriendRequest(req, res);
     if (method === "POST" && path === "/api/friends/respond") return await handleFriendRespond(req, res);
