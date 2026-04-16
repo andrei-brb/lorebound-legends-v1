@@ -74,6 +74,11 @@ export default function Index() {
     cards: "collection", combat: "battle", progress: "quests", social: "trade",
   });
   const [battleDeckIds, setBattleDeckIds] = useState<string[]>([]);
+  const [rankedBattle, setRankedBattle] = useState<{
+    matchId: number;
+    opponentName: string;
+    opponentDeckIds: string[];
+  } | null>(null);
   const [unreadMail, setUnreadMail] = useState(0);
   const lastUnreadMailRef = useRef<number | null>(null);
   const shownInviteIdsRef = useRef<Set<number>>(new Set());
@@ -166,6 +171,7 @@ export default function Index() {
   };
 
   const startBattle = (deckIds: string[]) => {
+    setRankedBattle(null);
     setBattleDeckIds(deckIds);
     setActiveCategory("combat");
     setActiveTab("battle");
@@ -179,6 +185,8 @@ export default function Index() {
       await api.markNotificationsRead([notifId]);
       sessionStorage.setItem("pvp.live.matchId", String(matchId));
       setPvpInvitePopup(null);
+      setRankedBattle(null);
+      setBattleDeckIds([]);
       setActiveCategory("combat");
       setActiveTab("battle");
       toast({ title: "⚔ Match accepted!", description: `Joining match #${matchId}` });
@@ -326,7 +334,32 @@ export default function Index() {
             {activeTab === "summon" && <PackShop playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} pullCardsApi={pullCards} />}
             {activeTab === "deck" && <DeckBuilder onStartBattle={startBattle} playerState={playerState} onStateChange={setPlayerState} />}
             {activeTab === "battle" && battleDeckIds.length > 0 && (
-              <BattleArena playerDeckIds={battleDeckIds} onExit={() => setActiveTab("deck")} playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} submitBattleResultApi={submitBattleResult} />
+              <BattleArena
+                playerDeckIds={battleDeckIds}
+                opponentDeckIds={rankedBattle?.opponentDeckIds ?? null}
+                rankedSubtitle={
+                  rankedBattle
+                    ? `Ranked vs ${rankedBattle.opponentName} — AI plays their deck`
+                    : null
+                }
+                onRankedSubmit={
+                  rankedBattle
+                    ? async (data) => {
+                        await api.pvpAsyncSubmit(rankedBattle.matchId, data);
+                      }
+                    : undefined
+                }
+                onExit={() => {
+                  setBattleDeckIds([]);
+                  const wasRanked = rankedBattle != null;
+                  setRankedBattle(null);
+                  setActiveTab(wasRanked ? "pvp" : "deck");
+                }}
+                playerState={playerState}
+                onStateChange={setPlayerState}
+                isOnline={isOnline}
+                submitBattleResultApi={submitBattleResult}
+              />
             )}
             {activeTab === "quests" && <DailyQuests playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} syncEconomyApi={syncEconomy} />}
             {activeTab === "workshop" && <CraftingWorkshop playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} craftFuseApi={craftFuse} craftSacrificeApi={craftSacrifice} />}
@@ -342,8 +375,29 @@ export default function Index() {
                 playerState={playerState}
                 onNavigateBattle={(matchId) => {
                   sessionStorage.setItem("pvp.live.matchId", String(matchId));
+                  setRankedBattle(null);
+                  setBattleDeckIds([]);
                   setActiveCategory("combat");
                   setActiveTab("battle");
+                }}
+                onStartRankedBattle={async (matchId) => {
+                  try {
+                    const data = await api.pvpAsyncGetPlay(matchId);
+                    setRankedBattle({
+                      matchId: data.matchId,
+                      opponentName: data.opponent.username,
+                      opponentDeckIds: data.opponentDeckCardIds,
+                    });
+                    setBattleDeckIds(data.myDeckCardIds);
+                    setActiveCategory("combat");
+                    setActiveTab("battle");
+                  } catch (e) {
+                    toast({
+                      title: "Could not load ranked match",
+                      description: e instanceof Error ? e.message : String(e),
+                      variant: "destructive",
+                    });
+                  }
                 }}
               />
             )}

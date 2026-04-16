@@ -21,6 +21,12 @@ import { useIsMobile } from "@/hooks/use-mobile";
 
 interface BattleArenaProps {
   playerDeckIds: string[];
+  /** If set, enemy uses this deck (e.g. ranked: opponent's snapshot). Otherwise random AI deck. */
+  opponentDeckIds?: string[] | null;
+  /** Ranked async: called once on game over before economy sync (submits MMR). */
+  onRankedSubmit?: (data: { won: boolean; draw?: boolean; turnCount: number }) => Promise<void>;
+  /** Shown under retreat (e.g. "Ranked vs Name — AI controls their deck"). */
+  rankedSubtitle?: string | null;
   onExit: () => void;
   playerState: PlayerState;
   onStateChange: (state: PlayerState) => void;
@@ -38,7 +44,17 @@ interface BattleArenaProps {
 
 type ActionMode = "none" | "select-attack-target" | "select-equip-target" | "select-spell-target";
 
-export default function BattleArena({ playerDeckIds, onExit, playerState, onStateChange, isOnline, submitBattleResultApi }: BattleArenaProps) {
+export default function BattleArena({
+  playerDeckIds,
+  opponentDeckIds,
+  onRankedSubmit,
+  rankedSubtitle,
+  onExit,
+  playerState,
+  onStateChange,
+  isOnline,
+  submitBattleResultApi,
+}: BattleArenaProps) {
   const [state, setState] = useState<BattleState | null>(null);
   const [animating, setAnimating] = useState(false);
   const [rewardsGiven, setRewardsGiven] = useState(false);
@@ -52,13 +68,14 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
   const isMobile = useIsMobile();
 
   useEffect(() => {
-    const enemyIds = generateEnemyDeck(playerDeckIds.length);
+    const enemyIds =
+      opponentDeckIds && opponentDeckIds.length > 0 ? opponentDeckIds : generateEnemyDeck(playerDeckIds.length);
     setState(initBattle(playerDeckIds, enemyIds));
     setRewardsGiven(false);
     setGoldEarned(0);
     setLevelUps([]);
     cardsPlayedRef.current = 0;
-  }, [playerDeckIds]);
+  }, [playerDeckIds, opponentDeckIds]);
 
   // Enemy AI turn
   useEffect(() => {
@@ -81,25 +98,35 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
     setSelectedHandIndex(null);
   };
 
-  // Award rewards on game over
+  // Award rewards on game over (ranked MMR submit first when applicable)
   useEffect(() => {
     if (!state || state.phase !== "game-over" || rewardsGiven) return;
     setRewardsGiven(true);
     const won = state.winner === "player";
     const isDraw = state.winner === "draw";
+    const turnNumber = state.turnNumber;
 
     let questState = loadDailyQuests();
     if (won) questState = progressQuest(questState, "win_battles");
     if (cardsPlayedRef.current > 0) questState = progressQuest(questState, "play_cards_in_battle", cardsPlayedRef.current);
     saveDailyQuests(questState);
 
-    if (isOnline && submitBattleResultApi) {
-      submitBattleResultApi({
-        won,
-        draw: isDraw,
-        turnCount: state.turnNumber,
-        deckCardIds: playerDeckIds,
-      }).then((result) => {
+    void (async () => {
+      try {
+        if (onRankedSubmit) {
+          await onRankedSubmit({ won, draw: isDraw, turnCount: turnNumber });
+        }
+      } catch (e) {
+        toast({ title: "Ranked result failed", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
+      }
+
+      if (isOnline && submitBattleResultApi) {
+        const result = await submitBattleResultApi({
+          won,
+          draw: isDraw,
+          turnCount: turnNumber,
+          deckCardIds: playerDeckIds,
+        });
         if (result) {
           setGoldEarned(result.goldReward);
           const mapped = result.levelUps.map((lu) => ({
@@ -113,32 +140,32 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
             saveDailyQuests(qs);
           }
         }
-      });
-      const bp = awardBattlePassXp(playerState, won ? 120 : isDraw ? 80 : 60);
-      onStateChange(bp.state);
-      return;
-    }
+        const bp = awardBattlePassXp(playerState, won ? 120 : isDraw ? 80 : 60);
+        onStateChange(bp.state);
+        return;
+      }
 
-    const gold = getBattleGoldReward(won, state.turnNumber);
-    setGoldEarned(gold);
-    let newState = { ...playerState, cardProgress: { ...playerState.cardProgress }, gold: playerState.gold + gold };
-    const allLevelUps: (LevelUpResult & { cardId: string })[] = [];
-    const xpAmount = won ? 50 : isDraw ? 35 : 20;
-    for (const id of playerDeckIds) {
-      const progress = getCardProgress(newState, id);
-      const result = awardXp(progress, xpAmount);
-      newState.cardProgress[id] = result.progress;
-      for (const lu of result.levelUps) allLevelUps.push({ ...lu, cardId: id });
-    }
-    setLevelUps(allLevelUps);
-    if (allLevelUps.length > 0) {
-      setShowLevelUps(true);
-      const qs = progressQuest(loadDailyQuests(), "level_up_card", allLevelUps.length);
-      saveDailyQuests(qs);
-    }
-    newState = awardBattlePassXp(newState, won ? 120 : isDraw ? 80 : 60).state;
-    onStateChange(newState);
-    savePlayerState(newState);
+      const gold = getBattleGoldReward(won, turnNumber);
+      setGoldEarned(gold);
+      let newState = { ...playerState, cardProgress: { ...playerState.cardProgress }, gold: playerState.gold + gold };
+      const allLevelUps: (LevelUpResult & { cardId: string })[] = [];
+      const xpAmount = won ? 50 : isDraw ? 35 : 20;
+      for (const id of playerDeckIds) {
+        const progress = getCardProgress(newState, id);
+        const result = awardXp(progress, xpAmount);
+        newState.cardProgress[id] = result.progress;
+        for (const lu of result.levelUps) allLevelUps.push({ ...lu, cardId: id });
+      }
+      setLevelUps(allLevelUps);
+      if (allLevelUps.length > 0) {
+        setShowLevelUps(true);
+        const qs = progressQuest(loadDailyQuests(), "level_up_card", allLevelUps.length);
+        saveDailyQuests(qs);
+      }
+      newState = awardBattlePassXp(newState, won ? 120 : isDraw ? 80 : 60).state;
+      onStateChange(newState);
+      savePlayerState(newState);
+    })();
   }, [state?.phase]);
 
   const handleHandCardClick = (index: number) => {
@@ -266,13 +293,18 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
         {/* ===== Main Battlefield ===== */}
         <div className="flex-1 flex flex-col min-h-0">
           {/* Retreat button */}
-          <div className="absolute top-2 left-2 z-30">
+          <div className="absolute top-2 left-2 z-30 flex flex-col gap-1 items-start max-w-[min(100%,280px)]">
             <button
               onClick={onExit}
               className="flex items-center gap-1 px-2 py-1 rounded-lg bg-secondary/80 text-secondary-foreground text-[10px] font-bold hover:bg-secondary transition-colors backdrop-blur-sm"
             >
               <ArrowLeft className="w-3 h-3" /> Retreat
             </button>
+            {rankedSubtitle ? (
+              <span className="text-[9px] text-muted-foreground font-heading leading-tight bg-background/70 px-2 py-1 rounded-md border border-border/50">
+                {rankedSubtitle}
+              </span>
+            ) : null}
           </div>
 
           {/* Turn indicator */}

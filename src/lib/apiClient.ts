@@ -350,9 +350,40 @@ export const api = {
     return handleResponse<{ ok: true; result: any }>(res);
   },
 
+  /** Queue starter: load decks for Battle vs AI (opponent's ranked deck). */
+  async pvpAsyncGetPlay(matchId: number) {
+    const res = await fetch(`${getApiBase()}/api/pvp/async/${matchId}/play`, { headers: getHeaders() });
+    return handleResponse<{
+      ok: true;
+      matchId: number;
+      opponent: { id: number; discordId: string; username: string; avatar?: string | null };
+      myDeckCardIds: string[];
+      opponentDeckCardIds: string[];
+    }>(res);
+  },
+
+  /** Queue starter: submit ranked outcome after playing BattleArena. */
+  async pvpAsyncSubmit(matchId: number, body: { won: boolean; draw?: boolean; turnCount: number }) {
+    const res = await fetch(`${getApiBase()}/api/pvp/async/${matchId}/submit`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify(body),
+    });
+    return handleResponse<{ ok: true; result: any }>(res);
+  },
+
   async pvpHistory() {
     const res = await fetch(`${getApiBase()}/api/pvp/history`, { headers: getHeaders() });
-    return handleResponse<{ matches: Array<{ id: number; createdAt: number; opponent: { id: number; discordId: string; username: string; avatar?: string | null }; result: any }> }>(res);
+    return handleResponse<{
+      matches: Array<{
+        id: number;
+        createdAt: number;
+        opponent: { id: number; discordId: string; username: string; avatar?: string | null };
+        result: any;
+        youWon: boolean | null;
+        youArePlayerA: boolean;
+      }>;
+    }>(res);
   },
 
   async pvpLiveCreate(opponentPlayerId: number, deckCardIds?: string[], seasonId?: string) {

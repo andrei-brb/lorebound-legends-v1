@@ -1,5 +1,6 @@
 import type { GameCard } from "@/data/cards";
 import { allCards } from "@/data/cards";
+import { allGameCards } from "@/data/cardIndex";
 import { calculateFieldSynergies, calculatePassiveBonuses, type ActiveSynergy } from "./synergyEngine";
 import { getElementMultiplier, getElementAdvantageLabel, elementEmoji } from "./elementSystem";
 
@@ -97,7 +98,7 @@ function shuffleDeck(cards: GameCard[], rng: RNG): GameCard[] {
 }
 
 function createSide(deckIds: string[], rng: RNG): PlayerSide {
-  const deckCards = deckIds.map(id => allCards.find(c => c.id === id)).filter(Boolean) as GameCard[];
+  const deckCards = deckIds.map((id) => allGameCards.find((c) => c.id === id)).filter(Boolean) as GameCard[];
   const shuffled = shuffleDeck(deckCards, rng);
   const hand = shuffled.slice(0, 5);
   const deck = shuffled.slice(5);

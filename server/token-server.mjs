@@ -1619,51 +1619,11 @@ async function handleQueueAsync(req, res) {
   return sendJson(res, 200, { ok: true, matchId: match.id, opponent: toPublicPlayer(opponent.player) });
 }
 
-async function handleResolveAsync(req, res, matchId) {
-  const user = await requireAuth(req, res);
-  if (!user) return;
-
-  const me = await prisma.player.findUnique({ where: { discordId: user.id } });
-  if (!me) return sendJson(res, 404, { error: "Player not found" });
-
-  const match = await prisma.pvPMatch.findUnique({ where: { id: matchId } });
-  if (!match) return sendJson(res, 404, { error: "Match not found" });
-  if (match.type !== "async") return sendJson(res, 400, { error: "Not an async match" });
-  if (match.playerAId !== me.id && match.playerBId !== me.id) return sendJson(res, 403, { error: "Not your match" });
-  if (match.status === "completed") return sendJson(res, 200, { ok: true, result: match.result });
-  if (match.status !== "pending") return sendJson(res, 400, { error: "Match is not pending" });
-
+/** Shared completion for async ranked matches (server sim or client-played battle). */
+async function finalizeAsyncMatchWithResult(match, resultPayload) {
   const seasonId = match.seasonId || DEFAULT_PVP_SEASON_ID;
-
-  const [snapA, snapB] = await Promise.all([
-    prisma.pvPDeckSnapshot.findUnique({ where: { playerId_seasonId: { playerId: match.playerAId, seasonId } } }),
-    prisma.pvPDeckSnapshot.findUnique({ where: { playerId_seasonId: { playerId: match.playerBId, seasonId } } }),
-  ]);
-  if (!snapA || !snapB) return sendJson(res, 400, { error: "Missing ranked deck snapshot" });
-
-  const sim = simulateBattleServer({
-    deckA: snapA.deckCardIds,
-    deckB: snapB.deckCardIds,
-    seed: match.seed ?? 12345,
-  });
-
-  const winner =
-    sim.winner === "draw" ? "draw" :
-    sim.winner === "A" ? "playerA" : "playerB";
-
+  const winner = resultPayload.winner;
   const outcomeA = winner === "draw" ? 0.5 : winner === "playerA" ? 1 : 0;
-
-  const resultPayload = {
-    winner,
-    turnCount: sim.turnCount,
-    scoreA: sim.scoreA,
-    scoreB: sim.scoreB,
-    powA: sim.powA,
-    powB: sim.powB,
-    seasonId,
-    seed: match.seed ?? null,
-    resolvedAt: Date.now(),
-  };
 
   await prisma.$transaction(async (tx) => {
     const ra = await getOrCreateRating(tx, match.playerAId, seasonId);
@@ -1679,7 +1639,6 @@ async function handleResolveAsync(req, res, matchId) {
       data: { mmr: nb, gamesPlayed: { increment: 1 } },
     });
 
-    // Update aggregated stats.
     const aUpdate = winner === "draw" ? { draws: { increment: 1 } } : winner === "playerA" ? { wins: { increment: 1 } } : { losses: { increment: 1 } };
     const bUpdate = winner === "draw" ? { draws: { increment: 1 } } : winner === "playerB" ? { wins: { increment: 1 } } : { losses: { increment: 1 } };
     await tx.battleStat.upsert({
@@ -1715,6 +1674,126 @@ async function handleResolveAsync(req, res, matchId) {
       { matchId: match.id, type: "async", seasonId }
     );
   });
+}
+
+/** GET — queue starter loads both decks to play the real battle vs AI (opponent deck). */
+async function handleGetAsyncPlay(req, res, matchId) {
+  const user = await requireAuth(req, res);
+  if (!user) return;
+
+  const me = await prisma.player.findUnique({ where: { discordId: user.id } });
+  if (!me) return sendJson(res, 404, { error: "Player not found" });
+
+  const match = await prisma.pvPMatch.findUnique({
+    where: { id: matchId },
+    include: { playerA: true, playerB: true },
+  });
+  if (!match) return sendJson(res, 404, { error: "Match not found" });
+  if (match.type !== "async") return sendJson(res, 400, { error: "Not an async match" });
+  if (match.status !== "pending") return sendJson(res, 400, { error: "Match is not pending" });
+  if (match.playerAId !== me.id) {
+    return sendJson(res, 403, { error: "Only the player who queued can fight this ranked match" });
+  }
+
+  const seasonId = match.seasonId || DEFAULT_PVP_SEASON_ID;
+  const [snapA, snapB] = await Promise.all([
+    prisma.pvPDeckSnapshot.findUnique({ where: { playerId_seasonId: { playerId: match.playerAId, seasonId } } }),
+    prisma.pvPDeckSnapshot.findUnique({ where: { playerId_seasonId: { playerId: match.playerBId, seasonId } } }),
+  ]);
+  if (!snapA || !snapB) return sendJson(res, 400, { error: "Missing ranked deck snapshot" });
+
+  return sendJson(res, 200, {
+    ok: true,
+    matchId: match.id,
+    opponent: toPublicPlayer(match.playerB),
+    myDeckCardIds: snapA.deckCardIds,
+    opponentDeckCardIds: snapB.deckCardIds,
+  });
+}
+
+/** POST — queue starter submits outcome after playing BattleArena vs AI (opponent deck). */
+async function handleSubmitAsyncBattle(req, res, matchId) {
+  const user = await requireAuth(req, res);
+  if (!user) return;
+
+  const body = await readJsonBody(req);
+  const won = !!body.won;
+  const isDraw = !!body.draw;
+  const turnCount = Number(body.turnCount) || 0;
+
+  const me = await prisma.player.findUnique({ where: { discordId: user.id } });
+  if (!me) return sendJson(res, 404, { error: "Player not found" });
+
+  const match = await prisma.pvPMatch.findUnique({ where: { id: matchId } });
+  if (!match) return sendJson(res, 404, { error: "Match not found" });
+  if (match.type !== "async") return sendJson(res, 400, { error: "Not an async match" });
+  if (match.playerAId !== me.id) {
+    return sendJson(res, 403, { error: "Only the player who queued can submit this ranked battle" });
+  }
+  if (match.status !== "pending") return sendJson(res, 400, { error: "Match is not pending" });
+
+  const winner = isDraw ? "draw" : won ? "playerA" : "playerB";
+  const seasonId = match.seasonId || DEFAULT_PVP_SEASON_ID;
+
+  const resultPayload = {
+    winner,
+    turnCount,
+    seasonId,
+    kind: "ranked_client",
+    resolvedAt: Date.now(),
+  };
+
+  await finalizeAsyncMatchWithResult(match, resultPayload);
+
+  return sendJson(res, 200, { ok: true, result: resultPayload });
+}
+
+async function handleResolveAsync(req, res, matchId) {
+  const user = await requireAuth(req, res);
+  if (!user) return;
+
+  const me = await prisma.player.findUnique({ where: { discordId: user.id } });
+  if (!me) return sendJson(res, 404, { error: "Player not found" });
+
+  const match = await prisma.pvPMatch.findUnique({ where: { id: matchId } });
+  if (!match) return sendJson(res, 404, { error: "Match not found" });
+  if (match.type !== "async") return sendJson(res, 400, { error: "Not an async match" });
+  if (match.playerAId !== me.id && match.playerBId !== me.id) return sendJson(res, 403, { error: "Not your match" });
+  if (match.status === "completed") return sendJson(res, 200, { ok: true, result: match.result });
+  if (match.status !== "pending") return sendJson(res, 400, { error: "Match is not pending" });
+
+  const seasonId = match.seasonId || DEFAULT_PVP_SEASON_ID;
+
+  const [snapA, snapB] = await Promise.all([
+    prisma.pvPDeckSnapshot.findUnique({ where: { playerId_seasonId: { playerId: match.playerAId, seasonId } } }),
+    prisma.pvPDeckSnapshot.findUnique({ where: { playerId_seasonId: { playerId: match.playerBId, seasonId } } }),
+  ]);
+  if (!snapA || !snapB) return sendJson(res, 400, { error: "Missing ranked deck snapshot" });
+
+  const sim = simulateBattleServer({
+    deckA: snapA.deckCardIds,
+    deckB: snapB.deckCardIds,
+    seed: match.seed ?? 12345,
+  });
+
+  const winner =
+    sim.winner === "draw" ? "draw" :
+    sim.winner === "A" ? "playerA" : "playerB";
+
+  const resultPayload = {
+    winner,
+    turnCount: sim.turnCount,
+    scoreA: sim.scoreA,
+    scoreB: sim.scoreB,
+    powA: sim.powA,
+    powB: sim.powB,
+    seasonId,
+    seed: match.seed ?? null,
+    kind: "server_sim",
+    resolvedAt: Date.now(),
+  };
+
+  await finalizeAsyncMatchWithResult(match, resultPayload);
 
   return sendJson(res, 200, { ok: true, result: resultPayload });
 }
@@ -1738,12 +1817,19 @@ async function handlePvPHistory(req, res) {
   });
 
   return sendJson(res, 200, {
-    matches: matches.map((m) => ({
-      id: m.id,
-      createdAt: m.createdAt.getTime(),
-      opponent: m.playerAId === me.id ? toPublicPlayer(m.playerB) : toPublicPlayer(m.playerA),
-      result: m.result || null,
-    })),
+    matches: matches.map((m) => {
+      const w = m.result?.winner;
+      const youWon =
+        w === "draw" || w == null ? null : w === "playerA" ? m.playerAId === me.id : m.playerBId === me.id;
+      return {
+        id: m.id,
+        createdAt: m.createdAt.getTime(),
+        opponent: m.playerAId === me.id ? toPublicPlayer(m.playerB) : toPublicPlayer(m.playerA),
+        result: m.result || null,
+        youWon,
+        youArePlayerA: m.playerAId === me.id,
+      };
+    }),
   });
 }
 
@@ -2814,12 +2900,15 @@ const server = http.createServer(async (req, res) => {
       if (action === "buy") return await handleBuyListing(req, res, listingId);
     }
 
-    // /api/pvp/async/:id/resolve
-    const pvpAsyncMatch = path.match(/^\/api\/pvp\/async\/(\d+)\/resolve$/);
-    if (pvpAsyncMatch && method === "POST") {
-      const matchId = Number(pvpAsyncMatch[1]);
+    // /api/pvp/async/:id/play | submit | resolve
+    const pvpAsyncPath = path.match(/^\/api\/pvp\/async\/(\d+)\/(play|submit|resolve)$/);
+    if (pvpAsyncPath) {
+      const matchId = Number(pvpAsyncPath[1]);
+      const sub = pvpAsyncPath[2];
       if (!Number.isFinite(matchId)) return sendJson(res, 400, { error: "Invalid match id" });
-      return await handleResolveAsync(req, res, matchId);
+      if (sub === "play" && method === "GET") return await handleGetAsyncPlay(req, res, matchId);
+      if (sub === "submit" && method === "POST") return await handleSubmitAsyncBattle(req, res, matchId);
+      if (sub === "resolve" && method === "POST") return await handleResolveAsync(req, res, matchId);
     }
 
     const pvpLiveJoin = path.match(/^\/api\/pvp\/live\/(\d+)\/join$/);
