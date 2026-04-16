@@ -259,7 +259,16 @@ export default function Index() {
               if (tab === "trade" || tab === "pvp") { setActiveCategory("social"); setActiveTab(tab); return; }
               if (tab === "battle") { setActiveCategory("combat"); setActiveTab("battle"); return; }
             }} />}
-            {activeTab === "pvp" && <PvPPanel playerState={playerState} />}
+            {activeTab === "pvp" && (
+              <PvPPanel
+                playerState={playerState}
+                onNavigateBattle={(matchId) => {
+                  sessionStorage.setItem("pvp.live.matchId", String(matchId));
+                  setActiveCategory("combat");
+                  setActiveTab("battle");
+                }}
+              />
+            )}
             {activeTab === "events" && <SeasonalEvents playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} pullSeasonalPackApi={pullSeasonalPack} />}
             {activeTab === "tournament" && <Tournament playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} syncEconomyApi={syncEconomy} />}
             {activeTab === "boost" && <BoostRewards />}

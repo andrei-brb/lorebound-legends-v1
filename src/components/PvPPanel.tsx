@@ -9,13 +9,16 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { allGameCards } from "@/data/cardIndex";
 
-type Props = { playerState: PlayerState };
+type Props = {
+  playerState: PlayerState;
+  onNavigateBattle?: (matchId: number) => void;
+};
 
 function cardName(id: string) {
   return allGameCards.find(c => c.id === id)?.name || id;
 }
 
-export default function PvPPanel({ playerState }: Props) {
+export default function PvPPanel({ playerState, onNavigateBattle }: Props) {
   const [me, setMe] = useState<{ id: number; username: string } | null>(null);
   const [friends, setFriends] = useState<Awaited<ReturnType<typeof api.getFriends>> | null>(null);
   const [history, setHistory] = useState<Awaited<ReturnType<typeof api.pvpHistory>>["matches"]>([]);
@@ -41,13 +44,7 @@ export default function PvPPanel({ playerState }: Props) {
 
   useEffect(() => { refresh(); }, []);
 
-  useEffect(() => {
-    const raw = sessionStorage.getItem("pvp.live.matchId");
-    const id = raw ? Number(raw) : NaN;
-    if (!Number.isFinite(id)) return;
-    sessionStorage.removeItem("pvp.live.matchId");
-    setLiveMatchId(id); refreshLive(id);
-  }, []);
+  // Live match routing is handled by the Battle tab (LivePvPBattleground).
 
   useEffect(() => {
     if (!liveMatchId || !liveMatch || liveMatch.id !== liveMatchId) return;
@@ -241,8 +238,29 @@ export default function PvPPanel({ playerState }: Props) {
                 className="w-full px-3 py-2 text-xs rounded-lg bg-secondary border border-border text-foreground placeholder:text-muted-foreground"
               />
               <div className="flex gap-2">
-                <button disabled={!liveMatchId} onClick={async () => { if (!liveMatchId) return; try { await api.pvpLiveJoin(liveMatchId); toast({ title: "Joined match" }); await refreshLive(liveMatchId); } catch (e) { toast({ title: "Join failed", description: e instanceof Error ? e.message : String(e) }); } }} className="px-4 py-2 rounded-lg bg-secondary text-secondary-foreground font-heading font-bold text-sm disabled:opacity-40">Join</button>
-                <button disabled={!liveMatchId} onClick={() => liveMatchId && refreshLive(liveMatchId)} className="px-4 py-2 rounded-lg bg-secondary text-secondary-foreground font-heading font-bold text-sm disabled:opacity-40">Load</button>
+                <button
+                  disabled={!liveMatchId}
+                  onClick={async () => {
+                    if (!liveMatchId) return;
+                    try {
+                      await api.pvpLiveJoin(liveMatchId);
+                      toast({ title: "Joined match" });
+                      onNavigateBattle?.(liveMatchId);
+                    } catch (e) {
+                      toast({ title: "Join failed", description: e instanceof Error ? e.message : String(e) });
+                    }
+                  }}
+                  className="px-4 py-2 rounded-lg bg-secondary text-secondary-foreground font-heading font-bold text-sm disabled:opacity-40"
+                >
+                  Join
+                </button>
+                <button
+                  disabled={!liveMatchId}
+                  onClick={() => liveMatchId && onNavigateBattle?.(liveMatchId)}
+                  className="px-4 py-2 rounded-lg bg-secondary text-secondary-foreground font-heading font-bold text-sm disabled:opacity-40"
+                >
+                  Open battle
+                </button>
               </div>
             </div>
           </div>
