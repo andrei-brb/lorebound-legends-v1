@@ -945,6 +945,40 @@ async function handleFriendRemove(req, res) {
   return sendJson(res, 200, { ok: true });
 }
 
+async function handleGetFriendTradeableCards(req, res, friendId) {
+  const user = await requireAuth(req, res);
+  if (!user) return;
+
+  const me = await prisma.player.findUnique({ where: { discordId: user.id } });
+  if (!me) return sendJson(res, 404, { error: "Player not found" });
+
+  const friend = await prisma.player.findUnique({ where: { id: friendId } });
+  if (!friend) return sendJson(res, 404, { error: "Friend not found" });
+
+  const friendship = await prisma.friendship.findFirst({
+    where: {
+      OR: [
+        { playerId: me.id, friendPlayerId: friend.id, status: "accepted" },
+        { playerId: friend.id, friendPlayerId: me.id, status: "accepted" },
+      ],
+    },
+  });
+  if (!friendship) return sendJson(res, 403, { error: "Not friends" });
+
+  if (!friend.shareCollectionWithFriends) {
+    return sendJson(res, 403, { error: "Friend has not enabled collection sharing" });
+  }
+
+  const rows = await prisma.cardProgress.findMany({
+    where: { playerId: friend.id },
+    select: { cardId: true },
+  });
+
+  // Only return tradeable cards.
+  const cardIds = rows.map((r) => r.cardId).filter((id) => !UNTRADEABLE_CARD_IDS.has(id));
+  return sendJson(res, 200, { cardIds });
+}
+
 // ─── Trading API ───────────────────────────────────────────────────────────────
 
 const UNTRADEABLE_CARD_IDS = new Set(
