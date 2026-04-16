@@ -17,31 +17,58 @@ import BattlePass from "@/components/BattlePass";
 import Onboarding from "@/components/Onboarding";
 import { cn } from "@/lib/utils";
 import { usePlayerApi } from "@/lib/usePlayerApi";
-import { loadAchievementState, checkNewAchievements, saveAchievementState, type AchievementState } from "@/lib/achievementEngine";
+import { loadAchievementState, checkNewAchievements, saveAchievementState } from "@/lib/achievementEngine";
 import { toast } from "@/hooks/use-toast";
 
-
 type Tab = "collection" | "catalog" | "deck" | "battle" | "summon" | "quests" | "workshop" | "achievements" | "leaderboard" | "trade" | "events" | "tournament" | "boost" | "pass";
+type Category = "cards" | "combat" | "progress" | "social";
 
-const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-  { id: "collection", label: "Collection", icon: <BookOpen className="w-4 h-4" /> },
-  { id: "catalog", label: "Catalog", icon: <Grid3X3 className="w-4 h-4" /> },
-  { id: "summon", label: "Summon", icon: <SparklesIcon className="w-4 h-4" /> },
-  { id: "deck", label: "Deck", icon: <Layers className="w-4 h-4" /> },
-  { id: "battle", label: "Battle", icon: <Swords className="w-4 h-4" /> },
-  { id: "quests", label: "Quests", icon: <ScrollText className="w-4 h-4" /> },
-  { id: "workshop", label: "Workshop", icon: <Hammer className="w-4 h-4" /> },
-  { id: "achievements", label: "Badges", icon: <Trophy className="w-4 h-4" /> },
-  { id: "leaderboard", label: "Ranks", icon: <BarChart3 className="w-4 h-4" /> },
-  { id: "trade", label: "Trade", icon: <ArrowLeftRight className="w-4 h-4" /> },
-  { id: "events", label: "Events", icon: <Calendar className="w-4 h-4" /> },
-  { id: "tournament", label: "Tourney", icon: <Crown className="w-4 h-4" /> },
-  { id: "boost", label: "Boost", icon: <Zap className="w-4 h-4" /> },
-  { id: "pass", label: "Pass", icon: <Shield className="w-4 h-4" /> },
+const categories: { id: Category; label: string; icon: React.ReactNode; tabs: { id: Tab; label: string; icon: React.ReactNode }[] }[] = [
+  {
+    id: "cards", label: "Cards", icon: <BookOpen className="w-4 h-4" />,
+    tabs: [
+      { id: "collection", label: "Collection", icon: <BookOpen className="w-4 h-4" /> },
+      { id: "catalog", label: "Catalog", icon: <Grid3X3 className="w-4 h-4" /> },
+      { id: "summon", label: "Summon", icon: <SparklesIcon className="w-4 h-4" /> },
+      { id: "deck", label: "Deck", icon: <Layers className="w-4 h-4" /> },
+    ],
+  },
+  {
+    id: "combat", label: "Combat", icon: <Swords className="w-4 h-4" />,
+    tabs: [
+      { id: "battle", label: "Battle", icon: <Swords className="w-4 h-4" /> },
+      { id: "tournament", label: "Tourney", icon: <Crown className="w-4 h-4" /> },
+    ],
+  },
+  {
+    id: "progress", label: "Progress", icon: <Trophy className="w-4 h-4" />,
+    tabs: [
+      { id: "quests", label: "Quests", icon: <ScrollText className="w-4 h-4" /> },
+      { id: "workshop", label: "Workshop", icon: <Hammer className="w-4 h-4" /> },
+      { id: "achievements", label: "Badges", icon: <Trophy className="w-4 h-4" /> },
+      { id: "pass", label: "Pass", icon: <Shield className="w-4 h-4" /> },
+      { id: "boost", label: "Boost", icon: <Zap className="w-4 h-4" /> },
+      { id: "events", label: "Events", icon: <Calendar className="w-4 h-4" /> },
+    ],
+  },
+  {
+    id: "social", label: "Social", icon: <ArrowLeftRight className="w-4 h-4" />,
+    tabs: [
+      { id: "trade", label: "Trade", icon: <ArrowLeftRight className="w-4 h-4" /> },
+      { id: "leaderboard", label: "Ranks", icon: <BarChart3 className="w-4 h-4" /> },
+    ],
+  },
 ];
 
 export default function Index() {
+  const [activeCategory, setActiveCategory] = useState<Category>("cards");
   const [activeTab, setActiveTab] = useState<Tab>("collection");
+  const [lastTabPerCategory, setLastTabPerCategory] = useState<Record<Category, Tab>>({
+    cards: "collection",
+    combat: "battle",
+    progress: "quests",
+    social: "trade",
+  });
   const [battleDeckIds, setBattleDeckIds] = useState<string[]>([]);
   const { playerState, setPlayerState, status, isOnline, pullCards, submitBattleResult, completeOnboarding, syncEconomy, craftFuse, craftSacrifice, pullSeasonalPack } = usePlayerApi();
   const isDiscordActivityHost = typeof window !== "undefined" && window.location.hostname.endsWith("discordsays.com");
@@ -83,8 +110,20 @@ export default function Index() {
     );
   }
 
+  const handleCategoryClick = (catId: Category) => {
+    setActiveCategory(catId);
+    const remembered = lastTabPerCategory[catId];
+    setActiveTab(remembered);
+  };
+
+  const handleTabClick = (tabId: Tab) => {
+    setActiveTab(tabId);
+    setLastTabPerCategory((prev) => ({ ...prev, [activeCategory]: tabId }));
+  };
+
   const startBattle = (deckIds: string[]) => {
     setBattleDeckIds(deckIds);
+    setActiveCategory("combat");
     setActiveTab("battle");
   };
 
@@ -114,41 +153,57 @@ export default function Index() {
         className="border-b border-border bg-card/50 backdrop-blur-sm sticky z-50"
         style={{ top: 0 }}
       >
+        {/* Top row: logo + currency + categories */}
         <div className="container flex items-center justify-between h-14">
           <div className="flex items-center gap-2">
             <Swords className="w-6 h-6 text-primary" />
             <h1 className="font-heading text-lg font-bold text-foreground tracking-wide">Mythic Arcana</h1>
           </div>
           <div className="flex items-center gap-4">
-            {/* Gold Display */}
             <div className="flex items-center gap-1.5 bg-secondary/80 rounded-lg px-3 py-1.5">
               <Coins className="w-4 h-4 text-legendary" />
               <span className="font-heading font-bold text-sm text-foreground">{playerState.gold}</span>
             </div>
-            {/* Stardust Display */}
             <div className="flex items-center gap-1.5 bg-secondary/80 rounded-lg px-3 py-1.5">
               <span className="text-sm">💎</span>
               <span className="font-heading font-bold text-sm text-foreground">{playerState.stardust || 0}</span>
             </div>
-            <nav className="flex gap-0.5 overflow-x-auto max-w-[600px]">
-              {tabs.map((tab) => (
+            <nav className="flex gap-1">
+              {categories.map((cat) => (
                 <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  title={tab.label}
+                  key={cat.id}
+                  onClick={() => handleCategoryClick(cat.id)}
                   className={cn(
-                    "flex items-center gap-1 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors whitespace-nowrap",
-                    activeTab === tab.id
+                    "flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap",
+                    activeCategory === cat.id
                       ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:bg-secondary hover:text-secondary-foreground"
                   )}
                 >
-                  {tab.icon}
-                  <span className="hidden xl:inline">{tab.label}</span>
+                  {cat.icon}
+                  <span className="hidden sm:inline">{cat.label}</span>
                 </button>
               ))}
             </nav>
           </div>
+        </div>
+        {/* Sub-tabs row */}
+        <div className="container flex items-center gap-1 h-10 overflow-x-auto">
+          {categories.find((c) => c.id === activeCategory)?.tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => handleTabClick(tab.id)}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap",
+                activeTab === tab.id
+                  ? "bg-secondary text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {tab.icon}
+              {tab.label}
+            </button>
+          ))}
         </div>
       </header>
 
