@@ -493,6 +493,7 @@ function playerToClientState(player, cards) {
     totalPulls: player.totalPulls,
     hasCompletedOnboarding: player.hasCompletedOnboarding ?? true,
     selectedPath: player.selectedPath ?? null,
+    shareCollectionWithFriends: !!player.shareCollectionWithFriends,
     battlePass: player.battlePass ?? undefined,
     cosmeticsOwned: player.cosmeticsOwned ?? undefined,
     cosmeticsEquipped: player.cosmeticsEquipped ?? undefined,
@@ -2697,6 +2698,14 @@ const server = http.createServer(async (req, res) => {
     // /api/decks/:id
     const deckMatch = path.match(/^\/api\/decks\/(\d+)$/);
     if (deckMatch && method === "DELETE") return await handleDeleteDeck(req, res, deckMatch[1]);
+
+    // /api/friends/:id/tradeable-cards
+    const friendCardsMatch = path.match(/^\/api\/friends\/(\d+)\/tradeable-cards$/);
+    if (friendCardsMatch && method === "GET") {
+      const friendId = Number(friendCardsMatch[1]);
+      if (!Number.isFinite(friendId)) return sendJson(res, 400, { error: "Invalid friend id" });
+      return await handleGetFriendTradeableCards(req, res, friendId);
+    }
 
     // /api/trades/:id/cancel or /api/trades/:id/accept
     const tradeMatch = path.match(/^\/api\/trades\/(\d+)\/(cancel|accept)$/);

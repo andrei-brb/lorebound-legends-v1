@@ -20,6 +20,7 @@ export interface PlayerState {
   totalPulls: number;
   hasCompletedOnboarding: boolean;
   selectedPath: FactionPath | null;
+  shareCollectionWithFriends?: boolean;
   // Battle Pass + cosmetics (client + server)
   battlePass?: BattlePassState;
   cosmeticsOwned?: string[];
@@ -197,6 +198,7 @@ export function normalizePlayerState(state: PlayerState): PlayerState {
     lastFreePackTime: (typeof lfpt === "number") ? lfpt : (typeof lfpt === "string" ? new Date(lfpt).getTime() : null),
     hasCompletedOnboarding: !!state.hasCompletedOnboarding,
     selectedPath: state.selectedPath ?? null,
+    shareCollectionWithFriends: !!state.shareCollectionWithFriends,
     battlePass: normalizeBattlePassState(state.battlePass),
     cosmeticsOwned: Array.isArray(state.cosmeticsOwned) ? state.cosmeticsOwned : [],
     cosmeticsEquipped: normalizeCosmeticsEquipped(state.cosmeticsEquipped),

@@ -23,6 +23,9 @@ export default function TradeUI({ playerState, onStateChange }: TradeUIProps) {
   const [searchCatalog, setSearchCatalog] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
   const [selectedFriendId, setSelectedFriendId] = useState<number | null>(null);
+  const [friendTradeableCardIds, setFriendTradeableCardIds] = useState<string[]>([]);
+  const [friendCardsLoading, setFriendCardsLoading] = useState(false);
+  const [friendCardsError, setFriendCardsError] = useState<string | null>(null);
   const [friendQuery, setFriendQuery] = useState("");
   const [friendDropdownOpen, setFriendDropdownOpen] = useState(false);
   const [taxGold, setTaxGold] = useState<number>(0);
@@ -36,6 +39,7 @@ export default function TradeUI({ playerState, onStateChange }: TradeUIProps) {
   const [trades, setTrades] = useState<Awaited<ReturnType<typeof api.getTrades>>["trades"]>([]);
   const [listings, setListings] = useState<Awaited<ReturnType<typeof api.getMarket>>["listings"]>([]);
   const [loading, setLoading] = useState(false);
+  const [shareLoading, setShareLoading] = useState(false);
 
   const refreshAll = async () => {
     setLoading(true);
@@ -62,6 +66,36 @@ export default function TradeUI({ playerState, onStateChange }: TradeUIProps) {
     refreshAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadFriendCards(friendId: number) {
+      setFriendCardsLoading(true);
+      setFriendCardsError(null);
+      try {
+        const res = await api.getFriendTradeableCards(friendId);
+        if (!cancelled) setFriendTradeableCardIds(res.cardIds || []);
+      } catch (e) {
+        if (!cancelled) {
+          setFriendTradeableCardIds([]);
+          setFriendCardsError(e instanceof Error ? e.message : String(e));
+        }
+      } finally {
+        if (!cancelled) setFriendCardsLoading(false);
+      }
+    }
+
+    if (!selectedFriendId) {
+      setFriendTradeableCardIds([]);
+      setFriendCardsLoading(false);
+      setFriendCardsError(null);
+      return () => { cancelled = true; };
+    }
+
+    loadFriendCards(selectedFriendId);
+    return () => { cancelled = true; };
+  }, [selectedFriendId]);
 
   useEffect(() => {
     if (friendSearch.trim().length < 2) {
@@ -97,13 +131,22 @@ export default function TradeUI({ playerState, onStateChange }: TradeUIProps) {
       .filter(c => c.name.toLowerCase().includes(searchCatalog.toLowerCase()));
   }, [playerState.ownedCardIds, searchCatalog]);
 
+  const friendWantedCards = useMemo(() => {
+    const allowed = new Set(friendTradeableCardIds);
+    return allCards
+      .filter(c => allowed.has(c.id))
+      .filter(c => c.name.toLowerCase().includes(searchCatalog.toLowerCase()));
+  }, [friendTradeableCardIds, searchCatalog]);
+
+  const canPickRequested = !!selectedFriendId && !friendCardsLoading && !friendCardsError;
+
   const toggleOffered = (id: string) => {
     setOfferedCards(prev => prev.includes(id) ? prev.filter(x => x !== id) : prev.length < 3 ? [...prev, id] : prev);
   };
 
   const toggleRequested = (id: string) => {
     // Don't allow selecting requested cards until a friend is chosen.
-    if (!selectedFriendId) return;
+    if (!canPickRequested) return;
     setRequestedCards(prev => prev.includes(id) ? prev.filter(x => x !== id) : prev.length < 3 ? [...prev, id] : prev);
   };
 
@@ -281,6 +324,36 @@ export default function TradeUI({ playerState, onStateChange }: TradeUIProps) {
       {/* Friends */}
       {phase === "friends" && (
         <div className="space-y-4">
+          <div className="bg-card border border-border rounded-xl p-4 space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <h3 className="font-heading font-bold text-foreground text-sm">Privacy</h3>
+                <p className="text-xs text-muted-foreground mt-0.5">Opt-in: let friends see your tradeable card collection when they create a trade.</p>
+              </div>
+              <label className={cn("inline-flex items-center gap-2 text-xs font-bold", shareLoading && "opacity-70")}>
+                <input
+                  type="checkbox"
+                  checked={!!playerState.shareCollectionWithFriends}
+                  disabled={shareLoading}
+                  onChange={async (e) => {
+                    const next = e.target.checked;
+                    try {
+                      setShareLoading(true);
+                      const updated = await api.patchPlayer({ shareCollectionWithFriends: next }) as PlayerState;
+                      onStateChange(updated);
+                      toast({ title: next ? "Collection sharing enabled" : "Collection sharing disabled" });
+                    } catch (err) {
+                      toast({ title: "Update failed", description: err instanceof Error ? err.message : String(err) });
+                    } finally {
+                      setShareLoading(false);
+                    }
+                  }}
+                />
+                Share collection with friends
+              </label>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="bg-card border border-border rounded-xl p-4 space-y-3">
               <h3 className="font-heading font-bold text-foreground text-sm">Add Friend</h3>
@@ -564,7 +637,7 @@ export default function TradeUI({ playerState, onStateChange }: TradeUIProps) {
                   placeholder="Search catalog..."
                   value={searchCatalog}
                   onChange={(e) => setSearchCatalog(e.target.value)}
-                  disabled={!selectedFriendId}
+                  disabled={!selectedFriendId || friendCardsLoading || !!friendCardsError}
                   className="w-full pl-7 pr-3 py-2 text-xs rounded-lg bg-secondary border border-border text-foreground placeholder:text-muted-foreground"
                 />
               </div>
@@ -572,9 +645,19 @@ export default function TradeUI({ playerState, onStateChange }: TradeUIProps) {
                 <div className="text-xs text-muted-foreground py-6 text-center border border-dashed border-border rounded-lg">
                   Choose a friend first to pick what you want.
                 </div>
+              ) : friendCardsLoading ? (
+                <div className="text-xs text-muted-foreground py-6 text-center border border-dashed border-border rounded-lg">
+                  Loading friend’s tradeable cards…
+                </div>
+              ) : friendCardsError ? (
+                <div className="text-xs text-muted-foreground py-6 text-center border border-dashed border-border rounded-lg">
+                  {friendCardsError.includes("enabled collection sharing")
+                    ? "This friend hasn’t enabled collection sharing."
+                    : friendCardsError}
+                </div>
               ) : (
                 <div className="grid grid-cols-3 gap-1.5 max-h-[300px] overflow-y-auto pr-1">
-                  {catalogCards.slice(0, 30).map(card => (
+                  {friendWantedCards.slice(0, 30).map(card => (
                     <div
                       key={card.id}
                       onClick={() => toggleRequested(card.id)}

@@ -179,6 +179,11 @@ export const api = {
     }>(res);
   },
 
+  async getFriendTradeableCards(friendId: number) {
+    const res = await fetch(`${getApiBase()}/api/friends/${friendId}/tradeable-cards`, { headers: getHeaders() });
+    return handleResponse<{ cardIds: string[] }>(res);
+  },
+
   async getNotifications(limit: number = 30) {
     const res = await fetch(`${getApiBase()}/api/notifications?limit=${encodeURIComponent(String(limit))}`, { headers: getHeaders() });
     return handleResponse<{ notifications: Array<{
