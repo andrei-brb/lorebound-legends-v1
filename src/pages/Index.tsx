@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { BookOpen, Layers, Swords, Coins, Sparkles as SparklesIcon, Grid3X3, Loader2, ScrollText, Hammer, Trophy, ArrowLeftRight, BarChart3, Calendar, Zap, Crown } from "lucide-react";
+import { BookOpen, Layers, Swords, Coins, Sparkles as SparklesIcon, Grid3X3, Loader2, ScrollText, Hammer, Trophy, ArrowLeftRight, BarChart3, Calendar, Zap, Crown, Shield } from "lucide-react";
 import CollectionView from "@/components/CollectionView";
 import DeckBuilder from "@/components/DeckBuilder";
 import BattleArena from "@/components/BattleArena";
@@ -13,6 +13,7 @@ import TradeUI from "@/components/TradeUI";
 import SeasonalEvents from "@/components/SeasonalEvents";
 import Tournament from "@/components/Tournament";
 import BoostRewards from "@/components/BoostRewards";
+import BattlePass from "@/components/BattlePass";
 import Onboarding from "@/components/Onboarding";
 import { cn } from "@/lib/utils";
 import { usePlayerApi } from "@/lib/usePlayerApi";
@@ -20,7 +21,7 @@ import { loadAchievementState, checkNewAchievements, saveAchievementState, type 
 import { toast } from "@/hooks/use-toast";
 
 
-type Tab = "collection" | "catalog" | "deck" | "battle" | "summon" | "quests" | "workshop" | "achievements" | "leaderboard" | "trade" | "events" | "tournament" | "boost";
+type Tab = "collection" | "catalog" | "deck" | "battle" | "summon" | "quests" | "workshop" | "achievements" | "leaderboard" | "trade" | "events" | "tournament" | "boost" | "pass";
 
 const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "collection", label: "Collection", icon: <BookOpen className="w-4 h-4" /> },
@@ -36,6 +37,7 @@ const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
   { id: "events", label: "Events", icon: <Calendar className="w-4 h-4" /> },
   { id: "tournament", label: "Tourney", icon: <Crown className="w-4 h-4" /> },
   { id: "boost", label: "Boost", icon: <Zap className="w-4 h-4" /> },
+  { id: "pass", label: "Pass", icon: <Shield className="w-4 h-4" /> },
 ];
 
 export default function Index() {
@@ -194,6 +196,9 @@ export default function Index() {
         )}
         {activeTab === "boost" && (
           <BoostRewards />
+        )}
+        {activeTab === "pass" && (
+          <BattlePass />
         )}
         {activeTab === "battle" && battleDeckIds.length === 0 && (
           <div className="text-center py-20">
