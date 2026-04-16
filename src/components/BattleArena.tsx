@@ -262,8 +262,6 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
   const isPlayerTurn = state.turn === "player" && !animating && state.phase !== "game-over";
   const boardSkinId = playerState.cosmeticsEquipped?.boardSkinId || null;
   const boardSkinImage = boardSkinId ? (getCosmeticById(boardSkinId)?.image || null) : null;
-  const selectedPlayerCard = selectedFieldIndex !== null ? state.player.field[selectedFieldIndex] : null;
-  const infoCard = hoveredCard || selectedPlayerCard;
   const noEnemyField = !state.enemy.field.some(fc => fc !== null);
 
   return (
