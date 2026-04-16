@@ -153,41 +153,57 @@ export default function Index() {
         className="border-b border-border bg-card/50 backdrop-blur-sm sticky z-50"
         style={{ top: 0 }}
       >
+        {/* Top row: logo + currency + categories */}
         <div className="container flex items-center justify-between h-14">
           <div className="flex items-center gap-2">
             <Swords className="w-6 h-6 text-primary" />
             <h1 className="font-heading text-lg font-bold text-foreground tracking-wide">Mythic Arcana</h1>
           </div>
           <div className="flex items-center gap-4">
-            {/* Gold Display */}
             <div className="flex items-center gap-1.5 bg-secondary/80 rounded-lg px-3 py-1.5">
               <Coins className="w-4 h-4 text-legendary" />
               <span className="font-heading font-bold text-sm text-foreground">{playerState.gold}</span>
             </div>
-            {/* Stardust Display */}
             <div className="flex items-center gap-1.5 bg-secondary/80 rounded-lg px-3 py-1.5">
               <span className="text-sm">💎</span>
               <span className="font-heading font-bold text-sm text-foreground">{playerState.stardust || 0}</span>
             </div>
-            <nav className="flex gap-0.5 overflow-x-auto max-w-[600px]">
-              {tabs.map((tab) => (
+            <nav className="flex gap-1">
+              {categories.map((cat) => (
                 <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  title={tab.label}
+                  key={cat.id}
+                  onClick={() => handleCategoryClick(cat.id)}
                   className={cn(
-                    "flex items-center gap-1 px-2.5 py-2 rounded-lg text-xs font-medium transition-colors whitespace-nowrap",
-                    activeTab === tab.id
+                    "flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap",
+                    activeCategory === cat.id
                       ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:bg-secondary hover:text-secondary-foreground"
                   )}
                 >
-                  {tab.icon}
-                  <span className="hidden xl:inline">{tab.label}</span>
+                  {cat.icon}
+                  <span className="hidden sm:inline">{cat.label}</span>
                 </button>
               ))}
             </nav>
           </div>
+        </div>
+        {/* Sub-tabs row */}
+        <div className="container flex items-center gap-1 h-10 overflow-x-auto">
+          {categories.find((c) => c.id === activeCategory)?.tabs.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => handleTabClick(tab.id)}
+              className={cn(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap",
+                activeTab === tab.id
+                  ? "bg-secondary text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {tab.icon}
+              {tab.label}
+            </button>
+          ))}
         </div>
       </header>
 
