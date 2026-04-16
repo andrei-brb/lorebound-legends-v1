@@ -38,9 +38,9 @@ export default function BattleCardToken({
   const { card, currentHp, maxHp, attack, equippedWeapon, stunned, abilityUsed } = fieldCard;
 
   const lungeVariants = {
-    idle: { y: 0, scale: 1, opacity: 1 },
-    "lunge-up": { y: [-0, -30, 0], scale: [1, 1.08, 1], transition: { duration: 0.4, ease: "easeInOut" } },
-    "lunge-down": { y: [-0, 30, 0], scale: [1, 1.08, 1], transition: { duration: 0.4, ease: "easeInOut" } },
+    idle: { y: 0, opacity: 1 },
+    "lunge-up": { y: [-0, -28, 0], transition: { duration: 0.35, ease: "easeInOut" } },
+    "lunge-down": { y: [-0, 28, 0], transition: { duration: 0.35, ease: "easeInOut" } },
     death: { scale: 0.3, opacity: 0, transition: { duration: 0.4 } },
   };
 
@@ -54,8 +54,8 @@ export default function BattleCardToken({
       className={cn(
         "relative w-[72px] h-[92px] sm:w-20 sm:h-[104px] rounded-lg border-2 overflow-hidden cursor-default transition-all flex-shrink-0",
         rarityGlow[card.rarity] || rarityGlow.common,
-        isSelected && "ring-2 ring-primary ring-offset-1 ring-offset-background scale-110 z-10",
-        selectable && "cursor-pointer hover:brightness-125 hover:scale-105",
+        isSelected && "ring-2 ring-primary ring-offset-1 ring-offset-background z-10",
+        selectable && "cursor-pointer hover:brightness-110",
         stunned && "grayscale opacity-60",
       )}
     >

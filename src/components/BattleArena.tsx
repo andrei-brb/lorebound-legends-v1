@@ -108,8 +108,8 @@ export default function BattleArena({
       setTimeout(() => {
         setSoloState(prev => prev ? performAITurn(prev) : prev);
         setAnimating(false);
-      }, 800);
-    }, 600);
+      }, 500);
+    }, 350);
     return () => clearTimeout(timer);
   }, [state?.turn, state?.turnNumber, animating, livePvP]);
 
@@ -238,7 +238,7 @@ export default function BattleArena({
         setSoloState(prev => prev ? playCard(prev, index) : prev);
         setAnimating(false);
         setActionMode("none");
-      }, 400);
+      }, 150);
     } else if (card.type === "weapon") {
       setSelectedHandIndex(index);
       setActionMode("select-equip-target");
@@ -250,7 +250,7 @@ export default function BattleArena({
           setSoloState(prev => prev ? castSpell(prev, index) : prev);
           setAnimating(false);
           setActionMode("none");
-        }, 400);
+        }, 150);
       } else {
         setSelectedHandIndex(index);
         setActionMode("select-spell-target");
@@ -301,7 +301,7 @@ export default function BattleArena({
         setAnimating(false);
         setActionMode("none");
         setSelectedHandIndex(null);
-      }, 400);
+      }, 150);
     } else if (actionMode === "select-spell-target") {
       if (selectedHandIndex === null) return;
       const spell = state.player.hand[selectedHandIndex];
@@ -313,7 +313,7 @@ export default function BattleArena({
         setAnimating(false);
         setActionMode("none");
         setSelectedHandIndex(null);
-      }, 400);
+      }, 150);
     } else if (actionMode === "select-attack-target" && side === "enemy" && selectedFieldIndex !== null) {
       setAnimating(true);
       setTimeout(() => {
@@ -321,7 +321,7 @@ export default function BattleArena({
         setAnimating(false);
         setActionMode("none");
         setSelectedFieldIndex(null);
-      }, 400);
+      }, 150);
     } else if (actionMode === "none" && side === "player") {
       const fc = state.player.field[index];
       if (!fc) return;
@@ -358,7 +358,7 @@ export default function BattleArena({
       setAnimating(false);
       setActionMode("none");
       setSelectedFieldIndex(null);
-    }, 400);
+    }, 150);
   };
 
   const handleUseAbility = (fieldIndex: number) => {
@@ -376,7 +376,7 @@ export default function BattleArena({
       setAnimating(false);
       setActionMode("none");
       setSelectedFieldIndex(null);
-    }, 400);
+    }, 150);
   };
 
   if (!state) return null;
@@ -615,19 +615,15 @@ export default function BattleArena({
               </div>
               <div className="flex gap-1.5 sm:gap-2 overflow-x-auto pb-1 justify-center">
                 {state.player.hand.map((card, i) => (
-                  <motion.div
+                  <div
                     key={`${card.id}-${i}`}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{
-                      opacity: 1,
-                      y: selectedHandIndex === i ? -8 : 0,
-                    }}
-                    whileHover={isPlayerTurn ? { y: -6, scale: 1.05 } : undefined}
                     className={cn(
-                      "flex-shrink-0 w-[68px] sm:w-20 rounded-lg border-2 overflow-hidden cursor-pointer transition-shadow",
+                      "flex-shrink-0 w-[68px] sm:w-20 rounded-lg border-2 overflow-hidden cursor-pointer",
+                      "transition-[transform,box-shadow,border-color] duration-150 ease-out will-change-transform",
                       selectedHandIndex === i
-                        ? "ring-2 ring-legendary border-legendary shadow-[0_0_12px_hsl(var(--legendary)/0.4)]"
-                        : "border-border hover:border-primary/50",
+                        ? "-translate-y-2 ring-2 ring-legendary border-legendary shadow-[0_0_12px_hsl(var(--legendary)/0.4)]"
+                        : "border-border translate-y-0",
+                      isPlayerTurn && selectedHandIndex !== i && "hover:border-primary/50",
                       !isPlayerTurn && "opacity-50 pointer-events-none"
                     )}
                     onClick={() => isPlayerTurn && handleHandCardClick(i)}
@@ -655,7 +651,7 @@ export default function BattleArena({
                         <div className="text-[7px] text-destructive">🪤 Trap</div>
                       )}
                     </div>
-                  </motion.div>
+                  </div>
                 ))}
                 {state.player.hand.length === 0 && (
                   <p className="text-[10px] text-muted-foreground py-3">No cards in hand</p>

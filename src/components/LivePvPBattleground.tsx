@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { api } from "@/lib/apiClient";
 import { toast } from "@/hooks/use-toast";
@@ -6,6 +6,10 @@ import BattleArena from "./BattleArena";
 import LegacyLivePvPBattleground from "./LegacyLivePvPBattleground";
 import type { PlayerState } from "@/lib/playerState";
 import type { BattleLockstepIntent } from "@/lib/battleLockstep";
+
+function intentsEqual(a: BattleLockstepIntent, b: BattleLockstepIntent): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
 
 type Props = {
   matchId: number;
@@ -18,6 +22,8 @@ export default function LivePvPBattleground({ matchId, onExit, playerState, onSt
   const [me, setMe] = useState<{ id: number; username: string } | null>(null);
   const [liveMatch, setLiveMatch] = useState<any | null>(null);
   const [acting, setActing] = useState(false);
+  /** Last intent applied locally before the server confirms; cleared after sync or on error (rollback). */
+  const [pendingIntent, setPendingIntent] = useState<BattleLockstepIntent | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -36,9 +42,22 @@ export default function LivePvPBattleground({ matchId, onExit, playerState, onSt
   useEffect(() => {
     if (!liveMatch) return;
     if (liveMatch.status !== "pending" && liveMatch.status !== "active") return;
-    const id = window.setInterval(() => refresh(), 2500);
+    const id = window.setInterval(() => refresh(), 1200);
     return () => window.clearInterval(id);
   }, [liveMatch?.status, liveMatch?.id, refresh]);
+
+  useEffect(() => {
+    if (!liveMatch) return;
+    if (liveMatch.status !== "active") setPendingIntent(null);
+  }, [liveMatch?.status, liveMatch?.id]);
+
+  const serverActionLog = (liveMatch?.actionLog as BattleLockstepIntent[]) || [];
+  const optimisticActionLog = useMemo(() => {
+    if (!pendingIntent) return serverActionLog;
+    const last = serverActionLog[serverActionLog.length - 1];
+    if (last && intentsEqual(last, pendingIntent)) return serverActionLog;
+    return [...serverActionLog, pendingIntent];
+  }, [liveMatch?.actionLog, pendingIntent]);
 
   if (!liveMatch || !me) {
     return (
@@ -59,7 +78,6 @@ export default function LivePvPBattleground({ matchId, onExit, playerState, onSt
   const deckA: string[] = s.deckA || [];
   const deckB: string[] = s.deckB || [];
   const seed = liveMatch.seed ?? 0;
-  const actionLog = (liveMatch.actionLog as BattleLockstepIntent[]) || [];
 
   const canPlay = liveMatch.status === "active" && deckA.length > 0 && deckB.length > 0;
   const isTerminal = liveMatch.status === "completed" || liveMatch.status === "cancelled";
@@ -78,7 +96,7 @@ export default function LivePvPBattleground({ matchId, onExit, playerState, onSt
           deckA,
           deckB,
           viewerIsA: isA,
-          actionLog,
+          actionLog: serverActionLog,
           isSubmitting: false,
           onIntent: async () => {},
         }}
@@ -112,9 +130,10 @@ export default function LivePvPBattleground({ matchId, onExit, playerState, onSt
         deckA,
         deckB,
         viewerIsA: isA,
-        actionLog,
+        actionLog: optimisticActionLog,
         isSubmitting: acting,
         onIntent: async (intent) => {
+          setPendingIntent(intent);
           setActing(true);
           try {
             await api.pvpLiveAction(matchId, { type: "battle", intent });
@@ -122,6 +141,7 @@ export default function LivePvPBattleground({ matchId, onExit, playerState, onSt
           } catch (e: any) {
             toast({ title: "Action failed", description: e?.message || "Could not apply action" });
           } finally {
+            setPendingIntent(null);
             setActing(false);
           }
         },
