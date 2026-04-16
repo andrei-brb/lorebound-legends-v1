@@ -282,6 +282,7 @@ function RewardCell({
   milestone,
   elite,
   locked,
+  onPreview,
 }: {
   reward: Reward;
   level: number;
@@ -290,14 +291,16 @@ function RewardCell({
   milestone: boolean;
   elite: boolean;
   locked?: boolean;
+  onPreview?: () => void;
 }) {
   const isCurrent = level === currentLevel;
   const isLocked = level > currentLevel;
 
   return (
     <div
+      onClick={onPreview}
       className={cn(
-        "relative w-24 h-24 rounded-xl border flex flex-col items-center justify-center gap-1 shrink-0 transition-all group",
+        "relative w-24 h-24 rounded-xl border flex flex-col items-center justify-center gap-1 shrink-0 transition-all group cursor-pointer hover:scale-105",
         // Base styles
         elite
           ? "bg-gradient-to-b from-[hsl(var(--legendary))]/5 to-[hsl(280,60%,55%)]/5 border-[hsl(var(--legendary))]/20"
