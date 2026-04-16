@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { allGameCards, loreArcs, type Rarity, type CardType, type GameCard as GameCardType } from "@/data/cardIndex";
 import GameCardComponent from "./GameCard";
 import { Star, SparklesIcon, BookOpen } from "lucide-react";
@@ -72,9 +72,9 @@ function applyDiscovery({
   return out;
 }
 
-function CardGridItem({ card, onAddToDeck, deckCardIds, playerState, onStateChange }: {
+function CardGridItem({ card, onAddToDeck, deckCardIds, playerState, onStateChange, highlighted }: {
   card: GameCardType; onAddToDeck?: (id: string) => void; deckCardIds: string[];
-  playerState?: PlayerState; onStateChange?: (state: PlayerState) => void;
+  playerState?: PlayerState; onStateChange?: (state: PlayerState) => void; highlighted?: boolean;
 }) {
   const inDeck = deckCardIds.includes(card.id);
   const hasArcPartner = card.loreArc ? allGameCards.some((c) => c.id !== card.id && c.loreArc === card.loreArc) : false;
