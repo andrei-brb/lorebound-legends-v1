@@ -14,6 +14,7 @@ const advantageMap: Record<Element, Element[]> = {
   water: ["fire"],
   light: ["shadow"],
   neutral: [],
+  air: ["water"],
 };
 
 export function getElementMultiplier(attackerElement: Element, defenderElement: Element): number {
@@ -37,6 +38,7 @@ export const elementColors: Record<Element, string> = {
   shadow: "hsl(270, 50%, 45%)",
   light: "hsl(45, 90%, 60%)",
   neutral: "hsl(230, 10%, 55%)",
+  air: "hsl(195, 70%, 60%)",
 };
 
 export const elementEmoji: Record<Element, string> = {
@@ -46,6 +48,7 @@ export const elementEmoji: Record<Element, string> = {
   shadow: "🌑",
   light: "☀️",
   neutral: "⚪",
+  air: "💨",
 };
 
 export const elementCssClass: Record<Element, string> = {
@@ -55,6 +58,7 @@ export const elementCssClass: Record<Element, string> = {
   shadow: "text-element-shadow",
   light: "text-element-light",
   neutral: "text-muted-foreground",
+  air: "text-element-water",
 };
 
 export const elementBgClass: Record<Element, string> = {
@@ -64,6 +68,7 @@ export const elementBgClass: Record<Element, string> = {
   shadow: "bg-element-shadow/20 border-element-shadow/40",
   light: "bg-element-light/20 border-element-light/40",
   neutral: "bg-muted/20 border-muted/40",
+  air: "bg-element-water/20 border-element-water/40",
 };
 
 // Infer element from card tags
