@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import battleBg from "@/assets/battle-bg.jpg";
 import { motion, AnimatePresence } from "framer-motion";
 import { Trophy, Skull, Coins, Sparkles, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
