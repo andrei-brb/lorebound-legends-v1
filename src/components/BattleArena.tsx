@@ -534,28 +534,7 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
           </div>
         </div>
 
-        {/* ===== Side Info Panel (desktop) ===== */}
-        {!isMobile && (
-          <div className="hidden md:flex border-l border-border">
-            <BattleInfoPanel
-              selectedCard={infoCard}
-              synergies={state.activeSynergies.player}
-              logs={state.logs}
-            />
-          </div>
-        )}
       </div>
-
-      {/* ===== Mobile Info Panel (bottom sheet) ===== */}
-      {isMobile && (
-        <BattleInfoPanel
-          selectedCard={infoCard}
-          synergies={state.activeSynergies.player}
-          logs={state.logs}
-          isMobile
-          onClose={() => { setMobileInfoOpen(false); setHoveredCard(null); }}
-        />
-      )}
 
       {/* ===== Game Over Overlay ===== */}
       <AnimatePresence>
