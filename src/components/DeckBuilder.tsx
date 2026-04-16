@@ -1,12 +1,15 @@
 import { useMemo, useState } from "react";
 import { allGameCards } from "@/data/cardIndex";
 import CollectionView from "./CollectionView";
-import { X, Swords } from "lucide-react";
+import { X, Swords, Layers, ChevronDown, Shield, Zap, Flame } from "lucide-react";
 import type { PlayerState } from "@/lib/playerState";
 import { getCardProgress } from "@/lib/playerState";
 import { Input } from "@/components/ui/input";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 import type { DeckPreset } from "@/lib/playerState";
@@ -36,55 +39,12 @@ export default function DeckBuilder({ onStartBattle, playerState, onStateChange 
   const [renamePresetId, setRenamePresetId] = useState<string | null>(null);
   const [renamePresetName, setRenamePresetName] = useState("");
 
-  // Collection discovery (power-user)
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | "hero" | "god" | "weapon" | "spell" | "trap">("all");
   const [rarityFilter, setRarityFilter] = useState<"all" | "legendary" | "rare" | "common">("all");
   const [elementFilter, setElementFilter] = useState<"all" | "fire" | "water" | "earth" | "air" | "shadow" | "light" | "neutral">("all");
   const [inDeckOnly, setInDeckOnly] = useState(false);
   const [sortBy, setSortBy] = useState<SortBy>("rarity_desc");
-
-  const parseTypeFilter = (v: string): typeof typeFilter => {
-    switch (v) {
-      case "hero":
-      case "god":
-      case "weapon":
-      case "spell":
-      case "trap":
-      case "all":
-        return v;
-      default:
-        return "all";
-    }
-  };
-
-  const parseRarityFilter = (v: string): typeof rarityFilter => {
-    switch (v) {
-      case "legendary":
-      case "rare":
-      case "common":
-      case "all":
-        return v;
-      default:
-        return "all";
-    }
-  };
-
-  const parseElementFilter = (v: string): typeof elementFilter => {
-    switch (v) {
-      case "fire":
-      case "water":
-      case "earth":
-      case "air":
-      case "shadow":
-      case "light":
-      case "neutral":
-      case "all":
-        return v;
-      default:
-        return "all";
-    }
-  };
 
   const toggleCard = (cardId: string) => {
     if (!playerState.ownedCardIds.includes(cardId)) return;
@@ -104,10 +64,7 @@ export default function DeckBuilder({ onStartBattle, playerState, onStateChange 
 
     for (const id of preset.cardIds) {
       if (chosen.length >= MAX_DECK_SIZE) break;
-      if (!owned.has(id)) {
-        missing.push(id);
-        continue;
-      }
+      if (!owned.has(id)) { missing.push(id); continue; }
       if (!chosen.includes(id)) chosen.push(id);
     }
 
@@ -116,7 +73,6 @@ export default function DeckBuilder({ onStartBattle, playerState, onStateChange 
         .filter((c) => owned.has(c.id))
         .filter((c) => !chosen.includes(c.id))
         .sort((a, b) => {
-          // Prefer units first, then higher rarity, then higher level
           const aUnit = a.type === "hero" || a.type === "god";
           const bUnit = b.type === "hero" || b.type === "god";
           if (aUnit !== bUnit) return aUnit ? -1 : 1;
@@ -142,10 +98,7 @@ export default function DeckBuilder({ onStartBattle, playerState, onStateChange 
     const { deckIds: nextIds, missingIds } = buildPresetDeck(preset);
     setDeckIds(nextIds);
     if (missingIds.length > 0) {
-      toast({
-        title: "Preset loaded (with substitutions)",
-        description: `You were missing ${missingIds.length} cards, so we filled the remaining slots with cards you own.`,
-      });
+      toast({ title: "Preset loaded (with substitutions)", description: `You were missing ${missingIds.length} cards, so we filled the remaining slots with cards you own.` });
     } else {
       toast({ title: "Preset loaded", description: `${preset.name} applied.` });
     }
@@ -153,25 +106,11 @@ export default function DeckBuilder({ onStartBattle, playerState, onStateChange 
 
   const savePreset = () => {
     const name = newPresetName.trim();
-    if (!name) {
-      toast({ title: "Name required", description: "Give your preset a name.", variant: "destructive" });
-      return;
-    }
-    if (deckIds.length === 0) {
-      toast({ title: "Empty deck", description: "Add some cards first.", variant: "destructive" });
-      return;
-    }
+    if (!name) { toast({ title: "Name required", description: "Give your preset a name.", variant: "destructive" }); return; }
+    if (deckIds.length === 0) { toast({ title: "Empty deck", description: "Add some cards first.", variant: "destructive" }); return; }
     const existing = playerState.deckPresets || [];
-    if (existing.length >= 5) {
-      toast({ title: "Preset limit reached", description: "You can have up to 5 presets.", variant: "destructive" });
-      return;
-    }
-    const preset: DeckPreset = {
-      id: `preset_${Date.now()}`,
-      name,
-      cardIds: [...deckIds],
-      updatedAt: Date.now(),
-    };
+    if (existing.length >= 5) { toast({ title: "Preset limit reached", description: "You can have up to 5 presets.", variant: "destructive" }); return; }
+    const preset: DeckPreset = { id: `preset_${Date.now()}`, name, cardIds: [...deckIds], updatedAt: Date.now() };
     onStateChange({ ...playerState, deckPresets: [...existing, preset] });
     toast({ title: "Saved preset", description: `${name} saved.` });
     setNewPresetName("");
@@ -192,15 +131,9 @@ export default function DeckBuilder({ onStartBattle, playerState, onStateChange 
     const id = renamePresetId;
     if (!id) return;
     const name = renamePresetName.trim();
-    if (!name) {
-      toast({ title: "Name required", description: "Preset name cannot be empty.", variant: "destructive" });
-      return;
-    }
+    if (!name) { toast({ title: "Name required", description: "Preset name cannot be empty.", variant: "destructive" }); return; }
     const existing = playerState.deckPresets || [];
-    onStateChange({
-      ...playerState,
-      deckPresets: existing.map((p) => p.id === id ? { ...p, name, updatedAt: Date.now() } : p),
-    });
+    onStateChange({ ...playerState, deckPresets: existing.map((p) => p.id === id ? { ...p, name, updatedAt: Date.now() } : p) });
     setRenamePresetId(null);
     setRenamePresetName("");
     toast({ title: "Preset renamed" });
@@ -223,32 +156,72 @@ export default function DeckBuilder({ onStartBattle, playerState, onStateChange 
   const spellCount = deckCards.filter(c => c.type === "spell").length;
   const trapCount = deckCards.filter(c => c.type === "trap").length;
 
+  // Deck strength indicator
+  const avgStats = useMemo(() => {
+    if (deckCards.length === 0) return { attack: 0, defense: 0, hp: 0 };
+    const totals = deckCards.reduce((acc, c) => ({ attack: acc.attack + c.attack, defense: acc.defense + c.defense, hp: acc.hp + c.hp }), { attack: 0, defense: 0, hp: 0 });
+    return { attack: Math.round(totals.attack / deckCards.length), defense: Math.round(totals.defense / deckCards.length), hp: Math.round(totals.hp / deckCards.length) };
+  }, [deckCards]);
+
+  const maxStat = 100; // rough upper bound for progress bars
+
+  const presetCount = (playerState.deckPresets || []).length;
+
   const deckPanel = (
-    <div className="bg-card border border-border rounded-xl p-5">
-      <h3 className="font-heading text-lg font-bold text-foreground mb-4">Your Deck</h3>
+    <div className="bg-card border border-border rounded-xl p-5 space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="font-heading text-lg font-bold text-foreground">Your Deck</h3>
+        <Badge variant="secondary" className="font-heading">{deckIds.length}/{MAX_DECK_SIZE}</Badge>
+      </div>
 
       {deckCards.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Tap cards to add them to your deck.</p>
+        <div className="flex flex-col items-center justify-center py-10 text-center">
+          <Layers className="w-12 h-12 text-muted-foreground/30 mb-3" />
+          <p className="text-sm font-heading font-bold text-foreground mb-1">No cards yet</p>
+          <p className="text-xs text-muted-foreground">Tap cards below to build your deck</p>
+        </div>
       ) : (
         <>
+          {/* Deck strength indicator */}
+          <div className="space-y-2 bg-secondary/50 rounded-lg p-3">
+            <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">Avg Stats</p>
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2">
+                <Flame className="w-3 h-3 text-destructive" />
+                <Progress value={(avgStats.attack / maxStat) * 100} className="h-1.5 flex-1 bg-secondary" />
+                <span className="text-[10px] font-bold text-foreground w-6 text-right">{avgStats.attack}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Shield className="w-3 h-3 text-primary" />
+                <Progress value={(avgStats.defense / maxStat) * 100} className="h-1.5 flex-1 bg-secondary" />
+                <span className="text-[10px] font-bold text-foreground w-6 text-right">{avgStats.defense}</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Zap className="w-3 h-3 text-emerald-400" />
+                <Progress value={(avgStats.hp / maxStat) * 100} className="h-1.5 flex-1 bg-secondary" />
+                <span className="text-[10px] font-bold text-foreground w-6 text-right">{avgStats.hp}</span>
+              </div>
+            </div>
+          </div>
+
           {/* Deck composition */}
-          <div className="flex flex-wrap gap-2 mb-4 text-xs">
-            <span className="px-2 py-1 rounded bg-primary/20 text-primary font-bold">Heroes/Gods: {heroGodCount}</span>
-            <span className="px-2 py-1 rounded bg-legendary/20 text-legendary font-bold">Weapons: {weaponCount}</span>
-            <span className="px-2 py-1 rounded bg-synergy/20 text-synergy font-bold">Spells: {spellCount}</span>
-            <span className="px-2 py-1 rounded bg-destructive/20 text-destructive font-bold">Traps: {trapCount}</span>
+          <div className="flex flex-wrap gap-1.5">
+            <Badge variant="outline" className="text-primary border-primary/30 bg-primary/10">Heroes/Gods: {heroGodCount}</Badge>
+            <Badge variant="outline" className="text-[hsl(var(--legendary))] border-[hsl(var(--legendary))]/30 bg-[hsl(var(--legendary))]/10">Weapons: {weaponCount}</Badge>
+            <Badge variant="outline" className="text-synergy border-synergy/30 bg-synergy/10">Spells: {spellCount}</Badge>
+            <Badge variant="outline" className="text-destructive border-destructive/30 bg-destructive/10">Traps: {trapCount}</Badge>
           </div>
 
           {onStartBattle && deckIds.length >= 4 && (
             <button
               onClick={() => onStartBattle(deckIds)}
-              className="w-full mb-4 flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-destructive text-destructive-foreground font-heading font-bold text-sm hover:brightness-110 transition-all hover:scale-[1.02] active:scale-95"
+              className="w-full flex items-center justify-center gap-2 px-4 py-3 rounded-xl bg-destructive text-destructive-foreground font-heading font-bold text-sm hover:brightness-110 transition-all hover:scale-[1.02] active:scale-95"
             >
               <Swords className="w-5 h-5" /> Battle! ({deckIds.length} cards)
             </button>
           )}
 
-          <div className="space-y-2 mb-4">
+          <div className="space-y-2">
             {deckCards.map((card) => {
               const progress = getCardProgress(playerState, card.id);
               return (
@@ -260,7 +233,7 @@ export default function DeckBuilder({ onStartBattle, playerState, onStateChange 
                   </div>
                   <button
                     onClick={() => toggleCard(card.id)}
-                    className="text-muted-foreground hover:text-destructive"
+                    className="text-muted-foreground hover:text-destructive transition-colors"
                     aria-label={`Remove ${card.name} from deck`}
                   >
                     <X className="w-4 h-4" />
@@ -292,15 +265,6 @@ export default function DeckBuilder({ onStartBattle, playerState, onStateChange 
   );
 
   const showFilterResults = search.trim().length > 0 || typeFilter !== "all" || rarityFilter !== "all" || elementFilter !== "all" || inDeckOnly;
-  const filterSummary = useMemo(() => {
-    const bits: string[] = [];
-    if (search.trim()) bits.push(`“${search.trim()}”`);
-    if (typeFilter !== "all") bits.push(typeFilter);
-    if (rarityFilter !== "all") bits.push(rarityFilter);
-    if (elementFilter !== "all") bits.push(elementFilter);
-    if (inDeckOnly) bits.push("in deck");
-    return bits.join(" · ");
-  }, [elementFilter, inDeckOnly, rarityFilter, search, typeFilter]);
 
   return (
     <div className="grid grid-cols-1 xl:grid-cols-[1fr_360px] gap-8">
@@ -312,82 +276,84 @@ export default function DeckBuilder({ onStartBattle, playerState, onStateChange 
           <div className="hidden xl:block text-xs text-muted-foreground">Tip: click cards to add/remove</div>
         </div>
 
-        {/* My Presets */}
-        <div className="mb-4 space-y-2">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">My Presets</span>
-            {(playerState.deckPresets || []).map((p) => (
-              <div key={p.id} className="flex items-center rounded-md border border-input overflow-hidden">
-                <button
-                  type="button"
-                  onClick={() => applyPreset(p)}
-                  className="h-9 px-3 bg-card text-sm font-heading font-bold text-foreground hover:bg-secondary transition-colors"
-                  title="Load preset"
-                >
-                  {p.name}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => startRenamePreset(p)}
-                  className="h-9 px-2 bg-background text-xs text-muted-foreground hover:text-foreground border-l border-input"
-                  title="Rename"
-                >
-                  ✎
-                </button>
-                <button
-                  type="button"
-                  onClick={() => deletePreset(p.id)}
-                  className="h-9 px-2 bg-background text-xs text-muted-foreground hover:text-destructive border-l border-input"
-                  title="Delete"
-                >
-                  ✕
-                </button>
+        {/* My Presets - Accordion */}
+        <Accordion type="single" collapsible className="mb-4">
+          <AccordionItem value="presets" className="border-border">
+            <AccordionTrigger className="py-3 hover:no-underline">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">My Presets</span>
+                <Badge variant="secondary" className="text-[10px]">{presetCount}/5</Badge>
               </div>
-            ))}
-            {deckIds.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setDeckIds([])}
-                className="h-9 px-3 rounded-md border border-input bg-background text-sm text-muted-foreground hover:text-foreground transition-colors"
-              >
-                Clear deck
-              </button>
-            )}
-          </div>
-          <div className="flex flex-col sm:flex-row gap-2">
-            <Input value={newPresetName} onChange={(e) => setNewPresetName(e.target.value)} placeholder="Preset name (max 5)" />
-            <button
-              type="button"
-              onClick={savePreset}
-              className="h-10 px-4 rounded-md bg-primary text-primary-foreground font-heading font-bold text-sm hover:brightness-110 transition-colors"
-            >
-              Save preset
-            </button>
-          </div>
-          {renamePresetId && (
-            <div className="flex flex-col sm:flex-row gap-2">
-              <Input value={renamePresetName} onChange={(e) => setRenamePresetName(e.target.value)} placeholder="New preset name" />
-              <button
-                type="button"
-                onClick={confirmRenamePreset}
-                className="h-10 px-4 rounded-md bg-secondary text-secondary-foreground font-heading font-bold text-sm"
-              >
-                Rename
-              </button>
-              <button
-                type="button"
-                onClick={() => { setRenamePresetId(null); setRenamePresetName(""); }}
-                className="h-10 px-4 rounded-md border border-input text-sm text-muted-foreground hover:text-foreground"
-              >
-                Cancel
-              </button>
-            </div>
-          )}
-          <p className="text-xs text-muted-foreground">Save your current deck as a reusable preset. You can store up to 5.</p>
-        </div>
+            </AccordionTrigger>
+            <AccordionContent>
+              <div className="space-y-3 pt-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  {(playerState.deckPresets || []).map((p) => (
+                    <div key={p.id} className="flex items-center rounded-md border border-input overflow-hidden">
+                      <button
+                        type="button"
+                        onClick={() => applyPreset(p)}
+                        className="h-9 px-3 bg-card text-sm font-heading font-bold text-foreground hover:bg-secondary transition-colors"
+                        title="Load preset"
+                      >
+                        {p.name}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => startRenamePreset(p)}
+                        className="h-9 px-2 bg-background text-xs text-muted-foreground hover:text-foreground border-l border-input"
+                        title="Rename"
+                      >
+                        ✎
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => deletePreset(p.id)}
+                        className="h-9 px-2 bg-background text-xs text-muted-foreground hover:text-destructive border-l border-input"
+                        title="Delete"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ))}
+                  {deckIds.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setDeckIds([])}
+                      className="h-9 px-3 rounded-md border border-input bg-background text-sm text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      Clear deck
+                    </button>
+                  )}
+                </div>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Input value={newPresetName} onChange={(e) => setNewPresetName(e.target.value)} placeholder="Preset name (max 5)" />
+                  <button
+                    type="button"
+                    onClick={savePreset}
+                    className="h-10 px-4 rounded-md bg-primary text-primary-foreground font-heading font-bold text-sm hover:brightness-110 transition-colors"
+                  >
+                    Save preset
+                  </button>
+                </div>
+                {renamePresetId && (
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Input value={renamePresetName} onChange={(e) => setRenamePresetName(e.target.value)} placeholder="New preset name" />
+                    <button type="button" onClick={confirmRenamePreset} className="h-10 px-4 rounded-md bg-secondary text-secondary-foreground font-heading font-bold text-sm">
+                      Rename
+                    </button>
+                    <button type="button" onClick={() => { setRenamePresetId(null); setRenamePresetName(""); }} className="h-10 px-4 rounded-md border border-input text-sm text-muted-foreground hover:text-foreground">
+                      Cancel
+                    </button>
+                  </div>
+                )}
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
 
         {/* Discovery controls */}
-        <div className="mb-5 space-y-2">
+        <div className="mb-5 space-y-3">
           <div className="grid grid-cols-1 md:grid-cols-[1fr_200px] gap-2">
             <Input
               value={search}
@@ -411,50 +377,54 @@ export default function DeckBuilder({ onStartBattle, playerState, onStateChange 
             </Select>
           </div>
 
+          {/* Filter badges row */}
           <div className="flex flex-wrap items-center gap-2">
-            <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(parseTypeFilter(e.target.value))}
-              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-            >
-              <option value="all">All types</option>
-              <option value="hero">Hero</option>
-              <option value="god">God</option>
-              <option value="weapon">Weapon</option>
-              <option value="spell">Spell</option>
-              <option value="trap">Trap</option>
-            </select>
+            <Select value={typeFilter} onValueChange={(v) => setTypeFilter(v as typeof typeFilter)}>
+              <SelectTrigger className="h-9 w-[130px]">
+                <SelectValue placeholder="All types" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All types</SelectItem>
+                <SelectItem value="hero">Hero</SelectItem>
+                <SelectItem value="god">God</SelectItem>
+                <SelectItem value="weapon">Weapon</SelectItem>
+                <SelectItem value="spell">Spell</SelectItem>
+                <SelectItem value="trap">Trap</SelectItem>
+              </SelectContent>
+            </Select>
 
-            <select
-              value={rarityFilter}
-              onChange={(e) => setRarityFilter(parseRarityFilter(e.target.value))}
-              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-            >
-              <option value="all">All rarities</option>
-              <option value="legendary">Legendary</option>
-              <option value="rare">Rare</option>
-              <option value="common">Common</option>
-            </select>
+            <Select value={rarityFilter} onValueChange={(v) => setRarityFilter(v as typeof rarityFilter)}>
+              <SelectTrigger className="h-9 w-[140px]">
+                <SelectValue placeholder="All rarities" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All rarities</SelectItem>
+                <SelectItem value="legendary">Legendary</SelectItem>
+                <SelectItem value="rare">Rare</SelectItem>
+                <SelectItem value="common">Common</SelectItem>
+              </SelectContent>
+            </Select>
 
-            <select
-              value={elementFilter}
-              onChange={(e) => setElementFilter(parseElementFilter(e.target.value))}
-              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-            >
-              <option value="all">All elements</option>
-              <option value="fire">Fire</option>
-              <option value="water">Water</option>
-              <option value="earth">Earth</option>
-              <option value="air">Air</option>
-              <option value="shadow">Shadow</option>
-              <option value="light">Light</option>
-              <option value="neutral">Neutral</option>
-            </select>
+            <Select value={elementFilter} onValueChange={(v) => setElementFilter(v as typeof elementFilter)}>
+              <SelectTrigger className="h-9 w-[140px]">
+                <SelectValue placeholder="All elements" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All elements</SelectItem>
+                <SelectItem value="fire">Fire</SelectItem>
+                <SelectItem value="water">Water</SelectItem>
+                <SelectItem value="earth">Earth</SelectItem>
+                <SelectItem value="air">Air</SelectItem>
+                <SelectItem value="shadow">Shadow</SelectItem>
+                <SelectItem value="light">Light</SelectItem>
+                <SelectItem value="neutral">Neutral</SelectItem>
+              </SelectContent>
+            </Select>
 
             <button
               onClick={() => setInDeckOnly(v => !v)}
               className={cn(
-                "h-9 px-3 rounded-md border text-sm",
+                "h-9 px-3 rounded-md border text-sm transition-colors",
                 inDeckOnly ? "border-primary bg-primary/10 text-primary font-semibold" : "border-input bg-background text-muted-foreground hover:text-foreground"
               )}
             >
@@ -462,15 +432,12 @@ export default function DeckBuilder({ onStartBattle, playerState, onStateChange 
             </button>
 
             {showFilterResults && (
-              <>
-                <span className="text-xs text-muted-foreground">{filterSummary}</span>
-                <button
-                  onClick={() => { setSearch(""); setTypeFilter("all"); setRarityFilter("all"); setElementFilter("all"); setInDeckOnly(false); setSortBy("rarity_desc"); }}
-                  className="h-9 px-3 rounded-md border border-input text-sm text-muted-foreground hover:text-foreground"
-                >
-                  Clear
-                </button>
-              </>
+              <button
+                onClick={() => { setSearch(""); setTypeFilter("all"); setRarityFilter("all"); setElementFilter("all"); setInDeckOnly(false); setSortBy("rarity_desc"); }}
+                className="h-9 px-3 rounded-md border border-input text-sm text-muted-foreground hover:text-foreground"
+              >
+                Clear
+              </button>
             )}
           </div>
         </div>
@@ -479,7 +446,6 @@ export default function DeckBuilder({ onStartBattle, playerState, onStateChange 
           onAddToDeck={toggleCard}
           deckCardIds={deckIds}
           playerState={playerState}
-          // discovery
           searchQuery={search}
           typeFilter={typeFilter}
           rarityFilter={rarityFilter}
@@ -499,10 +465,17 @@ export default function DeckBuilder({ onStartBattle, playerState, onStateChange 
         <Sheet open={deckOpen} onOpenChange={setDeckOpen}>
           <SheetTrigger asChild>
             <button
-              className="fixed bottom-4 right-4 z-40 rounded-full bg-primary text-primary-foreground px-4 py-3 shadow-lg border border-primary/30 hover:brightness-110 active:scale-95 transition-all"
+              className={cn(
+                "fixed bottom-4 right-4 z-40 rounded-full bg-primary text-primary-foreground px-4 py-3 shadow-lg border border-primary/30 hover:brightness-110 active:scale-95 transition-all",
+                deckIds.length >= 4 && "animate-glow-pulse"
+              )}
               aria-label="Open deck"
             >
-              Deck ({deckIds.length}/{MAX_DECK_SIZE})
+              <span className="flex items-center gap-2">
+                <Layers className="w-4 h-4" />
+                Deck ({deckIds.length}/{MAX_DECK_SIZE})
+                {deckIds.length >= 4 && <span className="w-2 h-2 rounded-full bg-destructive animate-pulse" />}
+              </span>
             </button>
           </SheetTrigger>
           <SheetContent side="bottom" className="p-4 max-h-[85vh] overflow-auto rounded-t-2xl">
