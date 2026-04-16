@@ -100,6 +100,7 @@ export default function BattlePass() {
   const [hasElite] = useState(false);
   const [claimedFree] = useState<Set<number>>(new Set([1, 2, 3, 4, 5, 6]));
   const [claimedElite] = useState<Set<number>>(new Set([1, 2, 3, 4, 5, 6]));
+  const [previewReward, setPreviewReward] = useState<{ reward: Reward; level: number; track: "free" | "elite" } | null>(null);
 
   const isMilestone = (lvl: number) => MILESTONES.has(lvl);
 
@@ -169,6 +170,7 @@ export default function BattlePass() {
                 claimed={claimedFree.has(r.level)}
                 milestone={isMilestone(r.level)}
                 elite={false}
+                onPreview={() => setPreviewReward({ reward: r.free, level: r.level, track: "free" })}
               />
             ))}
           </div>
@@ -188,12 +190,85 @@ export default function BattlePass() {
                 milestone={isMilestone(r.level)}
                 elite
                 locked={!hasElite}
+                onPreview={() => setPreviewReward({ reward: r.elite, level: r.level, track: "elite" })}
               />
             ))}
           </div>
         </div>
         <ScrollBar orientation="horizontal" />
       </ScrollArea>
+
+      {/* Preview Modal */}
+      {previewReward && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm" onClick={() => setPreviewReward(null)}>
+          <div
+            className={cn(
+              "relative max-w-md w-full mx-4 rounded-2xl border p-6 shadow-2xl animate-fade-in",
+              previewReward.track === "elite"
+                ? "bg-card border-[hsl(var(--legendary))]/40 shadow-[0_0_40px_hsl(var(--legendary)/0.15)]"
+                : "bg-card border-border"
+            )}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Close */}
+            <button onClick={() => setPreviewReward(null)} className="absolute top-3 right-3 text-muted-foreground hover:text-foreground transition-colors">
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Track & Level badge */}
+            <div className="flex items-center gap-2 mb-4">
+              <span className={cn(
+                "text-[10px] font-heading font-bold uppercase px-2 py-0.5 rounded-full",
+                previewReward.track === "elite"
+                  ? "bg-gradient-to-r from-[hsl(var(--legendary))]/20 to-[hsl(280,60%,55%)]/20 text-[hsl(var(--legendary))]"
+                  : "bg-secondary text-muted-foreground"
+              )}>
+                {previewReward.track === "elite" ? "✦ Elite" : "Free"} · Level {previewReward.level}
+              </span>
+              {previewReward.reward.seasonal && (
+                <span className="text-[10px] font-heading font-bold uppercase px-2 py-0.5 rounded-full bg-[hsl(var(--legendary))]/20 text-[hsl(var(--legendary))]">
+                  Season Exclusive
+                </span>
+              )}
+            </div>
+
+            {/* Image */}
+            {previewReward.reward.image ? (
+              <div className="relative rounded-xl overflow-hidden mb-4 border border-border">
+                <img
+                  src={previewReward.reward.image}
+                  alt={previewReward.reward.label}
+                  className="w-full h-auto object-cover"
+                />
+                {previewReward.reward.rarity === "legendary" && (
+                  <div className="absolute inset-0 ring-2 ring-inset ring-[hsl(var(--legendary))]/30 rounded-xl pointer-events-none" />
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-32 bg-secondary/50 rounded-xl mb-4 border border-border">
+                <RewardIcon kind={previewReward.reward.kind} className="w-16 h-16" />
+              </div>
+            )}
+
+            {/* Info */}
+            <h3 className="font-heading text-lg font-bold text-foreground">{previewReward.reward.label}</h3>
+            <p className="text-sm text-muted-foreground mt-1 capitalize">{previewReward.reward.kind.replace(/_/g, " ")}</p>
+            {previewReward.reward.rarity && (
+              <span className={cn(
+                "inline-block mt-2 text-xs font-heading font-bold uppercase px-2 py-0.5 rounded-full",
+                previewReward.reward.rarity === "legendary" && "bg-[hsl(var(--legendary))]/20 text-[hsl(var(--legendary))]",
+                previewReward.reward.rarity === "rare" && "bg-[hsl(var(--rare))]/20 text-[hsl(var(--rare))]",
+                previewReward.reward.rarity === "common" && "bg-secondary text-muted-foreground",
+              )}>
+                {previewReward.reward.rarity}
+              </span>
+            )}
+            {previewReward.reward.seasonal && (
+              <p className="text-xs text-muted-foreground mt-3 italic">⚠ This reward is season exclusive and won't return after the season ends.</p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
