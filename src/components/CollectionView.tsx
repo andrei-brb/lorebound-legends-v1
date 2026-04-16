@@ -1,5 +1,5 @@
-import { allGameCards, loreArcs, type Rarity, type CardType, type GameCard } from "@/data/cardIndex";
-import GameCard from "./GameCard";
+import { allGameCards, loreArcs, type Rarity, type CardType, type GameCard as GameCardType } from "@/data/cardIndex";
+import GameCardComponent from "./GameCard";
 import { Star } from "lucide-react";
 import { type PlayerState, getCardProgress, xpForLevel } from "@/lib/playerState";
 import { canPrestige, prestige } from "@/lib/progressionEngine";
