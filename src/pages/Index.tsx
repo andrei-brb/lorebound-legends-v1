@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { BookOpen, Layers, Swords, Coins, Sparkles as SparklesIcon, Grid3X3, Loader2, ScrollText, Hammer, Trophy, ArrowLeftRight, BarChart3, Calendar, Zap, Crown, Shield, Mail, User, Gift, Users, MessageCircle, Eye, Flag, Palette } from "lucide-react";
+import { BookOpen, Layers, Swords, Coins, Sparkles as SparklesIcon, Grid3X3, Loader2, ScrollText, Hammer, Trophy, ArrowLeftRight, BarChart3, Calendar, Zap, Crown, Shield, Mail, User, Gift, Users, MessageCircle, Eye, Flag, Palette, Flame } from "lucide-react";
 import TabTransition from "@/components/TabTransition";
 import TutorialOverlay from "@/components/TutorialOverlay";
 import CollectionView from "@/components/CollectionView";
@@ -28,6 +28,7 @@ import GuildHall from "@/components/halls/GuildHall";
 import SpectateHall from "@/components/halls/SpectateHall";
 import ProfileHall from "@/components/halls/ProfileHall";
 import DailyHall from "@/components/halls/DailyHall";
+import CombatHall from "@/components/halls/CombatHall";
 import LivePvPBattleground from "@/components/LivePvPBattleground";
 import { cn } from "@/lib/utils";
 import { setSfxVolume } from "@/lib/sfx";
@@ -37,7 +38,7 @@ import { toast } from "@/hooks/use-toast";
 import { api } from "@/lib/apiClient";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 
-type Tab = "collection" | "cosmetics" | "catalog" | "deck" | "battle" | "pvp" | "summon" | "quests" | "workshop" | "achievements" | "leaderboard" | "trade" | "mail" | "events" | "tournament" | "boost" | "pass" | "profile" | "daily" | "friends" | "chat" | "guild" | "spectate";
+type Tab = "collection" | "cosmetics" | "catalog" | "deck" | "combat-hall" | "battle" | "pvp" | "summon" | "quests" | "workshop" | "achievements" | "leaderboard" | "trade" | "mail" | "events" | "tournament" | "boost" | "pass" | "profile" | "daily" | "friends" | "chat" | "guild" | "spectate";
 type Category = "cards" | "combat" | "progress" | "social" | "community" | "you";
 
 const categories: { id: Category; label: string; icon: React.ReactNode; tabs: { id: Tab; label: string; icon: React.ReactNode }[] }[] = [
@@ -54,9 +55,7 @@ const categories: { id: Category; label: string; icon: React.ReactNode; tabs: { 
   {
     id: "combat", label: "Combat", icon: <Swords className="w-4 h-4" />,
     tabs: [
-      { id: "battle", label: "Battle", icon: <Swords className="w-4 h-4" /> },
-      { id: "pvp", label: "PvP", icon: <Crown className="w-4 h-4" /> },
-      { id: "tournament", label: "Tourney", icon: <Crown className="w-4 h-4" /> },
+      { id: "combat-hall", label: "Arena", icon: <Flame className="w-4 h-4" /> },
     ],
   },
   {
@@ -100,7 +99,7 @@ export default function Index() {
   const [activeCategory, setActiveCategory] = useState<Category>("cards");
   const [activeTab, setActiveTab] = useState<Tab>("collection");
   const [lastTabPerCategory, setLastTabPerCategory] = useState<Record<Category, Tab>>({
-    cards: "collection", combat: "battle", progress: "quests", social: "trade", community: "friends", you: "profile",
+    cards: "collection", combat: "combat-hall", progress: "quests", social: "trade", community: "friends", you: "profile",
   });
   const [battleDeckIds, setBattleDeckIds] = useState<string[]>([]);
   const [rankedBattle, setRankedBattle] = useState<{
@@ -323,6 +322,15 @@ export default function Index() {
   };
 
   const activeCat = categories.find((c) => c.id === activeCategory);
+
+  /** Arena is the only combat sub-tab, but PvP / Tourney / Battle still use internal tab ids — keep Arena highlighted. */
+  const isSubTabSelected = (tabId: Tab) => {
+    if (tabId === "combat-hall") {
+      return activeTab === "combat-hall" || activeTab === "pvp" || activeTab === "tournament" || activeTab === "battle";
+    }
+    return activeTab === tabId;
+  };
+
   const liveMatchIdFromInbox = typeof window !== "undefined" ? Number(sessionStorage.getItem("pvp.live.matchId") || "") : NaN;
   const hasLiveMatchFromInbox = Number.isFinite(liveMatchIdFromInbox) && liveMatchIdFromInbox > 0;
 
@@ -452,7 +460,7 @@ export default function Index() {
                   onClick={() => handleTabClick(tab.id)}
                   className={cn(
                     "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap relative",
-                    activeTab === tab.id
+                    isSubTabSelected(tab.id)
                       ? "bg-secondary text-foreground"
                       : "text-muted-foreground hover:text-foreground"
                   )}
@@ -466,7 +474,7 @@ export default function Index() {
                       </span>
                     )}
                   </span>
-                  {activeTab === tab.id && <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-primary rounded-full" />}
+                  {isSubTabSelected(tab.id) && <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-primary rounded-full" />}
                 </button>
               ))}
             </div>
@@ -503,6 +511,16 @@ export default function Index() {
             {activeTab === "catalog" && <CardCatalog playerState={playerState} />}
             {activeTab === "summon" && <PackShop playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} pullCardsApi={pullCards} />}
             {activeTab === "deck" && <DeckBuilder onStartBattle={startBattle} playerState={playerState} onStateChange={setPlayerState} />}
+            {activeTab === "combat-hall" && (
+              <CombatHall
+                playerState={playerState}
+                onLaunchMode={(mode) => {
+                  if (mode === "ranked") setActiveTab("pvp");
+                  else if (mode === "tourney") setActiveTab("tournament");
+                  else setActiveTab("deck");
+                }}
+              />
+            )}
             {activeTab === "battle" && battleDeckIds.length > 0 && (
               <BattleArena
                 playerDeckIds={battleDeckIds}
@@ -524,7 +542,7 @@ export default function Index() {
                   setBattleDeckIds([]);
                   const wasRanked = rankedBattle != null;
                   setRankedBattle(null);
-                  setActiveTab(wasRanked ? "pvp" : "deck");
+                  setActiveTab(wasRanked ? "pvp" : "combat-hall");
                 }}
                 playerState={playerState}
                 onStateChange={setPlayerState}
@@ -596,8 +614,8 @@ export default function Index() {
                 syncEconomyApi={syncEconomy}
                 onExit={() => {
                   sessionStorage.removeItem("pvp.live.matchId");
-                  setActiveCategory("social");
-                  setActiveTab("pvp");
+                  setActiveCategory("combat");
+                  setActiveTab("combat-hall");
                 }}
               />
             )}

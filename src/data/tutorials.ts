@@ -27,7 +27,12 @@ export const TUTORIALS: Record<string, TutorialStep[]> = {
   deck: [
     { icon: "🃏", title: "Build a Deck", body: "Pick up to 10 cards. A balanced deck mixes attackers, defenders, and spells." },
     { icon: "💾", title: "Save presets", body: "Save your favorite decks so you can swap loadouts in one click." },
-    { icon: "⚔️", title: "Start the fight", body: "Hit Battle to take your deck into combat against the AI." },
+    { icon: "⚔️", title: "Start the fight", body: "From Arena, pick Skirmish and Begin Battle — or start from here after you have a deck." },
+  ],
+  "combat-hall": [
+    { icon: "🔥", title: "Arena", body: "One hub for every combat mode — no more jumping between Battle, PvP, and Tourney in the nav." },
+    { icon: "⚔️", title: "Skirmish & more", body: "Choose Skirmish for PvE, Ranked PvP for ladder, or Tournament for brackets. Begin Battle routes you to the right screen." },
+    { icon: "🃏", title: "Deck first", body: "Build a deck under Cards → Deck, then return here to launch Skirmish or hop into PvP and Tourney." },
   ],
   battle: [
     { icon: "⚔️", title: "Welcome to Battle", body: "Take down your opponent's hero by playing cards and attacking each turn." },
