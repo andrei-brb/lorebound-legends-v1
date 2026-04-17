@@ -54,9 +54,6 @@ const categories: { id: Category; label: string; icon: React.ReactNode; tabs: { 
   {
     id: "combat", label: "Combat", icon: <Swords className="w-4 h-4" />,
     tabs: [
-      { id: "battle", label: "Battle", icon: <Swords className="w-4 h-4" /> },
-      { id: "pvp", label: "PvP", icon: <Crown className="w-4 h-4" /> },
-      { id: "tournament", label: "Tourney", icon: <Crown className="w-4 h-4" /> },
       { id: "combat-hall", label: "Arena", icon: <Flame className="w-4 h-4" /> },
     ],
   },
