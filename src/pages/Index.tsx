@@ -278,6 +278,8 @@ export default function Index() {
             {activeTab === "tournament" && <Tournament playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} syncEconomyApi={syncEconomy} />}
             {activeTab === "boost" && <BoostRewards />}
             {activeTab === "pass" && <BattlePass playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} />}
+            {activeTab === "profile" && <ProfilePage playerState={playerState} onStateChange={setPlayerState} />}
+            {activeTab === "daily" && <DailyHub playerState={playerState} onStateChange={setPlayerState} />}
             {activeTab === "battle" && battleDeckIds.length === 0 && (
               <div className="text-center py-20">
                 <Swords className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
