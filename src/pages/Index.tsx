@@ -15,6 +15,7 @@ import SettingsPanel from "@/components/SettingsPanel";
 import TradeHall from "@/components/TradeHall";
 import QuestsHall from "@/components/halls/QuestsHall";
 import WorkshopHall from "@/components/halls/WorkshopHall";
+import WorkshopHallTest from "@/components/halls/WorkshopHallTest";
 import BadgesHall from "@/components/halls/BadgesHall";
 import PassHall from "@/components/halls/PassHall";
 import BoostHall from "@/components/halls/BoostHall";
@@ -37,7 +38,7 @@ import { api } from "@/lib/apiClient";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { setSfxVolume } from "@/lib/sfx";
 
-type Tab = "collection" | "catalog" | "deck" | "battle" | "pvp" | "summon" | "quests" | "workshop" | "achievements" | "leaderboard" | "trade" | "mail" | "events" | "tournament" | "boost" | "pass" | "profile" | "daily" | "friends" | "chat" | "guild" | "spectate" | "cards-hall" | "combat-hall";
+type Tab = "collection" | "catalog" | "deck" | "battle" | "pvp" | "summon" | "quests" | "workshop" | "workshop-test" | "achievements" | "leaderboard" | "trade" | "mail" | "events" | "tournament" | "boost" | "pass" | "profile" | "daily" | "friends" | "chat" | "guild" | "spectate" | "cards-hall" | "combat-hall";
 type Category = "cards" | "combat" | "progress" | "social" | "community" | "you";
 
 const categories: { id: Category; label: string; icon: React.ReactNode; tabs: { id: Tab; label: string; icon: React.ReactNode }[] }[] = [
@@ -65,6 +66,7 @@ const categories: { id: Category; label: string; icon: React.ReactNode; tabs: { 
     tabs: [
       { id: "quests", label: "Quests", icon: <ScrollText className="w-4 h-4" /> },
       { id: "workshop", label: "Workshop", icon: <Hammer className="w-4 h-4" /> },
+      { id: "workshop-test", label: "Forge ✨", icon: <SparklesIcon className="w-4 h-4" /> },
       { id: "achievements", label: "Badges", icon: <Trophy className="w-4 h-4" /> },
       { id: "pass", label: "Pass", icon: <Shield className="w-4 h-4" /> },
       { id: "boost", label: "Boost", icon: <Zap className="w-4 h-4" /> },
@@ -300,6 +302,7 @@ export default function Index() {
             )}
             {activeTab === "quests" && <QuestsHall playerState={playerState} onStateChange={setPlayerState} />}
             {activeTab === "workshop" && <WorkshopHall playerState={playerState} onStateChange={setPlayerState} />}
+            {activeTab === "workshop-test" && <WorkshopHallTest playerState={playerState} onStateChange={setPlayerState} />}
             {activeTab === "achievements" && <BadgesHall playerState={playerState} />}
             {activeTab === "leaderboard" && <RanksHall playerState={playerState} isOnline={isOnline} />}
             {activeTab === "trade" && <TradeHall playerState={playerState} onStateChange={setPlayerState} />}
