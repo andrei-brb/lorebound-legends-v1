@@ -172,12 +172,14 @@ export default function Index() {
   return (
     <TooltipProvider>
       <div className="min-h-screen bg-background" style={{ paddingTop: isDiscordActivityHost ? discordOverlayInset : "env(safe-area-inset-top)" }}>
-        {/* Ambient particles */}
-        <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-          {ambientParticles.map((p, i) => (
-            <div key={i} className="absolute w-1 h-1 rounded-full bg-primary/20 animate-float" style={{ left: p.left, top: p.top, animationDelay: p.animationDelay, animationDuration: p.animationDuration }} />
-          ))}
-        </div>
+        {/* Ambient particles — disabled when reduceMotion or animationsOn = false */}
+        {playerState.settings?.animationsOn !== false && !playerState.settings?.reduceMotion && (
+          <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+            {ambientParticles.map((p, i) => (
+              <div key={i} className="absolute w-1 h-1 rounded-full bg-primary/20 animate-float" style={{ left: p.left, top: p.top, animationDelay: p.animationDelay, animationDuration: p.animationDuration }} />
+            ))}
+          </div>
+        )}
 
         {/* Header */}
         <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky z-50" style={{ top: 0 }}>
@@ -216,6 +218,7 @@ export default function Index() {
                   </Tooltip>
                 ))}
               </nav>
+              <SettingsPanel playerState={playerState} onStateChange={setPlayerState} />
             </div>
           </div>
           {/* Sub-tabs row */}
