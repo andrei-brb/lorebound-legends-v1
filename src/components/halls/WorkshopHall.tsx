@@ -21,22 +21,16 @@ type RarityFilter = "all" | Rarity;
 
 const RARITY_HUE: Record<Rarity, string> = {
   common: "var(--muted-foreground)",
-  uncommon: "var(--primary)",
   rare: "var(--rare)",
-  epic: "var(--epic)",
   legendary: "var(--legendary)",
-  mythic: "var(--legendary)",
 };
 
-const RARITIES: RarityFilter[] = ["all", "common", "uncommon", "rare", "epic", "legendary"];
+const RARITIES: RarityFilter[] = ["all", "common", "rare", "legendary"];
 
 const NEXT_RARITY: Record<Rarity, Rarity> = {
-  common: "uncommon",
-  uncommon: "rare",
-  rare: "epic",
-  epic: "legendary",
+  common: "rare",
+  rare: "legendary",
   legendary: "legendary",
-  mythic: "mythic",
 };
 
 export default function WorkshopHall({ playerState }: Props) {
