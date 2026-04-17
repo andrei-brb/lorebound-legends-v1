@@ -15,6 +15,7 @@ import SettingsPanel from "@/components/SettingsPanel";
 import TradeHall from "@/components/TradeHall";
 import QuestsHall from "@/components/halls/QuestsHall";
 import WorkshopHall from "@/components/halls/WorkshopHall";
+import WorkshopHallTest from "@/components/halls/WorkshopHallTest";
 import BadgesHall from "@/components/halls/BadgesHall";
 import PassHall from "@/components/halls/PassHall";
 import BoostHall from "@/components/halls/BoostHall";
