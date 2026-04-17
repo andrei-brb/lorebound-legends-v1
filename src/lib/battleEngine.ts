@@ -45,6 +45,8 @@ export interface FieldCard {
   burn?: { damagePerTurn: number; turnsRemaining: number };
   /** Miss chance on attacks while active. */
   blind?: { missChance: number; turnsRemaining: number };
+  /** Co-op raid: which ally controls this unit. */
+  raidOwner?: "allyA" | "allyB";
 }
 
 export interface TempBuff {
@@ -129,15 +131,19 @@ function shuffleDeck(cards: GameCard[], rng: RNG): GameCard[] {
   return arr;
 }
 
-function createSide(deckIds: string[], rng: RNG): PlayerSide {
+function createSide(
+  deckIds: string[],
+  rng: RNG,
+  heroStats?: { hp?: number; shield?: number },
+): PlayerSide {
   const deckCards = deckIds.map((id) => allGameCards.find((c) => c.id === id)).filter(Boolean) as GameCard[];
   const shuffled = shuffleDeck(deckCards, rng);
   const hand = shuffled.slice(0, 5);
   const deck = shuffled.slice(5);
 
   return {
-    hp: 30,
-    shield: 10,
+    hp: heroStats?.hp ?? 30,
+    shield: heroStats?.shield ?? 10,
     hand,
     field: [null, null, null, null],
     tokens: [null, null],
@@ -150,15 +156,24 @@ function createSide(deckIds: string[], rng: RNG): PlayerSide {
   };
 }
 
+/** Shuffled hand/deck from card IDs (same rules as battle init). For raid co-op ally sides. */
+export function createPlayerSideFromDeck(
+  deckIds: string[],
+  rng: RNG,
+  heroStats?: { hp?: number; shield?: number },
+): PlayerSide {
+  return createSide(deckIds, rng, heroStats);
+}
+
 export function initBattle(
   playerDeckIds: string[],
   enemyDeckIds: string[],
-  opts?: { seed?: number; rng?: RNG }
+  opts?: { seed?: number; rng?: RNG; enemyHero?: { hp?: number; shield?: number } }
 ): BattleState {
   const rng = opts?.rng ?? (opts?.seed !== undefined ? createSeededRng(opts.seed) : Math.random);
   const state: BattleState = {
     player: createSide(playerDeckIds, rng),
-    enemy: createSide(enemyDeckIds, rng),
+    enemy: createSide(enemyDeckIds, rng, opts?.enemyHero),
     turn: "player",
     turnPhase: "start",
     phase: "select-action",
@@ -395,7 +410,7 @@ function processTokenAutoStrikes(state: BattleState, side: PlayerSide, otherSide
   }
 }
 
-function startTurn(state: BattleState): BattleState {
+export function startTurn(state: BattleState): BattleState {
   if (state.phase === "game-over") return state;
 
   state.turnPhase = "start";
@@ -1276,7 +1291,7 @@ function tickTokenDurations(side: PlayerSide): void {
   }
 }
 
-function endTurn(state: BattleState): BattleState {
+export function endTurn(state: BattleState): BattleState {
   if (state.phase === "game-over") return state;
 
   const side = getActiveSide(state);

@@ -7497,14 +7497,14 @@ function shuffleDeck(cards, rng) {
   }
   return arr;
 }
-function createSide(deckIds, rng) {
+function createSide(deckIds, rng, heroStats) {
   const deckCards = deckIds.map((id) => allGameCards.find((c) => c.id === id)).filter(Boolean);
   const shuffled = shuffleDeck(deckCards, rng);
   const hand = shuffled.slice(0, 5);
   const deck = shuffled.slice(5);
   return {
-    hp: 30,
-    shield: 10,
+    hp: heroStats?.hp ?? 30,
+    shield: heroStats?.shield ?? 10,
     hand,
     field: [null, null, null, null],
     tokens: [null, null],
@@ -7520,7 +7520,7 @@ function initBattle(playerDeckIds, enemyDeckIds, opts) {
   const rng = opts?.rng ?? (opts?.seed !== void 0 ? createSeededRng(opts.seed) : Math.random);
   const state = {
     player: createSide(playerDeckIds, rng),
-    enemy: createSide(enemyDeckIds, rng),
+    enemy: createSide(enemyDeckIds, rng, opts?.enemyHero),
     turn: "player",
     turnPhase: "start",
     phase: "select-action",
