@@ -101,7 +101,7 @@ export default function Index() {
   const [activeCategory, setActiveCategory] = useState<Category>("cards");
   const [activeTab, setActiveTab] = useState<Tab>("collection");
   const [lastTabPerCategory, setLastTabPerCategory] = useState<Record<Category, Tab>>({
-    cards: "collection", combat: "battle", progress: "quests", social: "trade", community: "friends", you: "profile",
+    cards: "collection", combat: "combat-hall", progress: "quests", social: "trade", community: "friends", you: "profile",
   });
   const [battleDeckIds, setBattleDeckIds] = useState<string[]>([]);
   const [unreadMail, setUnreadMail] = useState(0);
@@ -316,7 +316,16 @@ export default function Index() {
             {activeTab === "guild" && <GuildHall isOnline={isOnline} playerState={playerState} />}
             {activeTab === "spectate" && <SpectateHall isOnline={isOnline} />}
             {activeTab === "cards-hall" && <CardsHall playerState={playerState} />}
-            {activeTab === "combat-hall" && <CombatHall playerState={playerState} />}
+            {activeTab === "combat-hall" && (
+              <CombatHall
+                playerState={playerState}
+                onLaunchMode={(mode) => {
+                  if (mode === "ranked") setActiveTab("pvp");
+                  else if (mode === "tourney") setActiveTab("tournament");
+                  else setActiveTab("deck"); // skirmish/raid → pick a deck first
+                }}
+              />
+            )}
             {activeTab === "battle" && battleDeckIds.length === 0 && (
               <div className="text-center py-20">
                 <Swords className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
