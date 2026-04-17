@@ -81,7 +81,7 @@ export default function ChatScene({ isOnline, playerState }: ChatSceneProps) {
           id: Date.now(),
           channel: activeChannel,
           playerId: 0,
-          username: playerState.profile?.username || "You",
+          username: "You",
           avatar: null,
           body,
           createdAt: Date.now(),
