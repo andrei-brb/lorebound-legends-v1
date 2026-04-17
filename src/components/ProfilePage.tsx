@@ -5,10 +5,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { cn } from "@/lib/utils";
 import type { PlayerState } from "@/lib/playerState";
 import { AVATARS, getAvatar, type AvatarDefinition } from "@/data/avatars";
-import { TITLES, getTitle, type TitleDefinition } from "@/data/titles";
+import { COSMETICS } from "@/data/cosmetics";
+import { TITLES, type TitleDefinition } from "@/data/titles";
 import { loadAchievementState, type AchievementState } from "@/lib/achievementEngine";
 import { allCards } from "@/data/cards";
-import { getBattlePassLevelFromXp } from "@/lib/battlePassEngine";
+import { clearCosmeticSlot, getBattlePassLevelFromXp, setCosmeticEquipped } from "@/lib/battlePassEngine";
+import { getDisplayedProfileTitle, isCosmeticTitleActive } from "@/lib/profileTitleDisplay";
 
 interface ProfilePageProps {
   playerState: PlayerState;
@@ -22,7 +24,9 @@ export default function ProfilePage({ playerState, onStateChange }: ProfilePageP
   const ach: AchievementState = useMemo(() => loadAchievementState(), []);
   const profile = playerState.profile ?? { avatarId: "default", titleId: null, bannerId: null };
   const avatar = getAvatar(profile.avatarId);
-  const title = getTitle(profile.titleId);
+  const displayedTitle = getDisplayedProfileTitle(playerState);
+  const cosmeticTitleActive = isCosmeticTitleActive(playerState);
+  const ownedTitleCosmetics = COSMETICS.filter((c) => c.type === "title" && (playerState.cosmeticsOwned || []).includes(c.id));
 
   const autoUnlocked = useMemo(() => {
     const unlockedAv = new Set(playerState.unlockedAvatars ?? ["default"]);
@@ -62,14 +66,35 @@ export default function ProfilePage({ playerState, onStateChange }: ProfilePageP
   const battles = ach.stats.totalBattles;
   const winRate = battles > 0 ? Math.round((wins / battles) * 100) : 0;
 
+  const titleTriggerClass =
+    displayedTitle.kind === "cosmetic"
+      ? "text-[hsl(var(--legendary))]"
+      : displayedTitle.kind === "achievement"
+        ? displayedTitle.colorClass ?? "text-muted-foreground"
+        : "text-muted-foreground";
+
   const selectAvatar = (a: AvatarDefinition) => {
     if (!autoUnlocked.avatars.has(a.id)) return;
     onStateChange({ ...playerState, profile: { ...profile, avatarId: a.id } });
     setAvatarOpen(false);
   };
-  const selectTitle = (t: TitleDefinition | null) => {
+  const selectAchievementTitle = (t: TitleDefinition | null) => {
     if (t && !autoUnlocked.titles.has(t.id)) return;
-    onStateChange({ ...playerState, profile: { ...profile, titleId: t?.id ?? null } });
+    let next = clearCosmeticSlot(playerState, "title");
+    next = { ...next, profile: { ...profile, titleId: t?.id ?? null } };
+    onStateChange(next);
+    setTitleOpen(false);
+  };
+
+  const selectCosmeticTitle = (cosmeticId: string) => {
+    onStateChange(setCosmeticEquipped(playerState, cosmeticId));
+    setTitleOpen(false);
+  };
+
+  const clearAllTitles = () => {
+    let next = clearCosmeticSlot(playerState, "title");
+    next = { ...next, profile: { ...profile, titleId: null } };
+    onStateChange(next);
     setTitleOpen(false);
   };
 
@@ -124,8 +149,8 @@ export default function ProfilePage({ playerState, onStateChange }: ProfilePageP
             <h2 className="font-heading text-2xl font-bold text-foreground">{avatar.name}</h2>
             <Dialog open={titleOpen} onOpenChange={setTitleOpen}>
               <DialogTrigger asChild>
-                <button className={cn("text-sm mt-1 inline-flex items-center gap-1.5 hover:underline", title?.color ?? "text-muted-foreground")}>
-                  {title ? title.label : "No title"}
+                <button className={cn("text-sm mt-1 inline-flex items-center gap-1.5 hover:underline", titleTriggerClass)}>
+                  {displayedTitle.kind === "none" ? "No title" : displayedTitle.label}
                   <Edit3 className="w-3 h-3 opacity-60" />
                 </button>
               </DialogTrigger>
@@ -133,25 +158,26 @@ export default function ProfilePage({ playerState, onStateChange }: ProfilePageP
                 <DialogHeader><DialogTitle>Choose Title</DialogTitle></DialogHeader>
                 <div className="space-y-1 max-h-[60vh] overflow-y-auto pr-1">
                   <button
-                    onClick={() => selectTitle(null)}
+                    onClick={() => clearAllTitles()}
                     className={cn(
                       "w-full text-left px-3 py-2 rounded-md transition-colors",
-                      profile.titleId === null ? "bg-primary/15 border border-primary/40" : "hover:bg-secondary/60 border border-transparent",
+                      displayedTitle.kind === "none" ? "bg-primary/15 border border-primary/40" : "hover:bg-secondary/60 border border-transparent",
                     )}
                   >
                     <span className="text-sm text-muted-foreground italic">No title</span>
                   </button>
                   {TITLES.map((t) => {
                     const unlocked = autoUnlocked.titles.has(t.id);
+                    const sel = !cosmeticTitleActive && profile.titleId === t.id;
                     return (
                       <button
                         key={t.id}
                         disabled={!unlocked}
-                        onClick={() => selectTitle(t)}
+                        onClick={() => selectAchievementTitle(t)}
                         className={cn(
                           "w-full text-left px-3 py-2 rounded-md transition-colors flex items-center justify-between",
                           unlocked
-                            ? profile.titleId === t.id
+                            ? sel
                               ? "bg-primary/15 border border-primary/40"
                               : "hover:bg-secondary/60 border border-transparent"
                             : "opacity-50 cursor-not-allowed border border-transparent",
@@ -166,6 +192,26 @@ export default function ProfilePage({ playerState, onStateChange }: ProfilePageP
                       </button>
                     );
                   })}
+                  {ownedTitleCosmetics.length > 0 && (
+                    <>
+                      <p className="text-xs text-muted-foreground pt-3 pb-1">Season titles (Battle Pass)</p>
+                      {ownedTitleCosmetics.map((c) => {
+                        const sel = playerState.cosmeticsEquipped?.titleId === c.id;
+                        return (
+                          <button
+                            key={c.id}
+                            onClick={() => selectCosmeticTitle(c.id)}
+                            className={cn(
+                              "w-full text-left px-3 py-2 rounded-md transition-colors",
+                              sel ? "bg-primary/15 border border-primary/40" : "hover:bg-secondary/60 border border-transparent",
+                            )}
+                          >
+                            <span className="text-sm font-medium text-[hsl(var(--legendary))]">{c.name}</span>
+                          </button>
+                        );
+                      })}
+                    </>
+                  )}
                 </div>
               </DialogContent>
             </Dialog>
