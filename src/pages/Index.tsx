@@ -112,6 +112,12 @@ export default function Index() {
   const [pvpInvitePopup, setPvpInvitePopup] = useState<{
     notifId: number; matchId: number; title: string; body?: string | null;
   } | null>(null);
+  const [guildInvitePopup, setGuildInvitePopup] = useState<{
+    inviteId: number;
+    guildName: string;
+    guildTag: string;
+    fromUsername: string;
+  } | null>(null);
   const { playerState, setPlayerState, status, isOnline, pullCards, submitBattleResult, completeOnboarding, syncEconomy, craftFuse, craftSacrifice, pullSeasonalPack } = usePlayerApi();
   const isDiscordActivityHost = typeof window !== "undefined" && window.location.hostname.endsWith("discordsays.com");
   const discordOverlayInset = "calc(64px + env(safe-area-inset-top))";
@@ -187,6 +193,35 @@ export default function Index() {
     return () => { alive = false; window.clearInterval(id); };
   }, [isOnline]);
 
+  // Guild invite popup — poll for newest pending invite
+  useEffect(() => {
+    if (!isOnline) return;
+    let alive = true;
+    const tick = async () => {
+      if (!alive) return;
+      if (guildInvitePopup) return;
+      try {
+        const r = await api.getIncomingGuildInvites(1);
+        const inv = (r.invites || [])[0];
+        if (!inv) return;
+        const g = inv.guild;
+        const from = inv.fromPlayer;
+        if (!g || !from) return;
+        setGuildInvitePopup({
+          inviteId: inv.id,
+          guildName: g.name,
+          guildTag: g.tag,
+          fromUsername: from.username,
+        });
+      } catch {
+        // ignore
+      }
+    };
+    tick();
+    const id = window.setInterval(tick, 12000);
+    return () => { alive = false; window.clearInterval(id); };
+  }, [isOnline, guildInvitePopup]);
+
   if (status === "loading") {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -250,6 +285,32 @@ export default function Index() {
     }
   };
 
+  const acceptGuildInvitePopup = async () => {
+    if (!guildInvitePopup) return;
+    const { inviteId, guildName, guildTag, fromUsername } = guildInvitePopup;
+    try {
+      await api.respondGuildInvite(inviteId, true);
+      setGuildInvitePopup(null);
+      toast({ title: "Joined guild", description: `Welcome to ${guildName} [${guildTag}] — invited by ${fromUsername}.` });
+      setActiveCategory("community");
+      setActiveTab("guild");
+    } catch (e: any) {
+      toast({ title: "Accept failed", description: e?.message || "Could not accept invite", variant: "destructive" });
+    }
+  };
+
+  const declineGuildInvitePopup = async () => {
+    if (!guildInvitePopup) return;
+    const { inviteId } = guildInvitePopup;
+    try {
+      await api.respondGuildInvite(inviteId, false);
+      setGuildInvitePopup(null);
+      toast({ title: "Invite declined" });
+    } catch (e: any) {
+      toast({ title: "Decline failed", description: e?.message || "Could not decline invite", variant: "destructive" });
+    }
+  };
+
   const activeCat = categories.find((c) => c.id === activeCategory);
   const liveMatchIdFromInbox = typeof window !== "undefined" ? Number(sessionStorage.getItem("pvp.live.matchId") || "") : NaN;
   const hasLiveMatchFromInbox = Number.isFinite(liveMatchIdFromInbox) && liveMatchIdFromInbox > 0;
@@ -260,6 +321,39 @@ export default function Index() {
 
   return (
     <TooltipProvider>
+      {guildInvitePopup && (
+        <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/70 animate-fade-in">
+          <div className="bg-card border border-border rounded-2xl p-6 mx-4 max-w-sm w-full shadow-2xl space-y-5 animate-slide-in-up">
+            <div className="flex items-center gap-3">
+              <div className="rounded-full bg-primary/15 p-3">
+                <Shield className="w-6 h-6 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-heading font-bold text-foreground text-lg">Guild invite</h3>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  {guildInvitePopup.fromUsername} invited you to{" "}
+                  <span className="text-foreground font-medium">{guildInvitePopup.guildName}</span>{" "}
+                  <span className="font-mono text-xs text-muted-foreground">[{guildInvitePopup.guildTag}]</span>
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={acceptGuildInvitePopup}
+                className="flex-1 px-4 py-3 rounded-xl bg-emerald-600 text-white font-heading font-bold hover:bg-emerald-700 transition-colors text-sm"
+              >
+                Accept
+              </button>
+              <button
+                onClick={declineGuildInvitePopup}
+                className="flex-1 px-4 py-3 rounded-xl bg-secondary text-secondary-foreground font-heading font-bold hover:bg-secondary/80 transition-colors text-sm"
+              >
+                Decline
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       {pvpInvitePopup && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 animate-fade-in">
           <div className="bg-card border border-border rounded-2xl p-6 mx-4 max-w-sm w-full shadow-2xl space-y-5 animate-slide-in-up">

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Shield, Plus, LogOut, Loader2, Users, Trophy, Circle } from "lucide-react";
+import { Shield, Plus, LogOut, Loader2, Users, Trophy, Circle, UserPlus } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,8 @@ export default function GuildPanel({ isOnline }: GuildPanelProps) {
   const [browseList, setBrowseList] = useState<GuildPublic[]>([]);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteUsername, setInviteUsername] = useState("");
   const [name, setName] = useState("");
   const [tag, setTag] = useState("");
   const [description, setDescription] = useState("");
@@ -76,6 +78,20 @@ export default function GuildPanel({ isOnline }: GuildPanelProps) {
     } finally { setBusy(false); }
   };
 
+  const invite = async () => {
+    const u = inviteUsername.trim();
+    if (!u) return;
+    setBusy(true);
+    try {
+      await api.inviteToGuild(u);
+      toast({ title: "Invite sent", description: `Sent an invite to ${u}.` });
+      setInviteOpen(false);
+      setInviteUsername("");
+    } catch (e: any) {
+      toast({ title: "Could not invite", description: e?.message || "", variant: "destructive" });
+    } finally { setBusy(false); }
+  };
+
   if (!isOnline) {
     return (
       <Card className="p-6 text-center">
@@ -112,6 +128,45 @@ export default function GuildPanel({ isOnline }: GuildPanelProps) {
             <div className="h-full bg-gradient-to-r from-primary to-[hsl(var(--legendary))]" style={{ width: `${goalPct}%` }} />
           </div>
           <p className="text-[11px] text-muted-foreground mt-2">Resets weekly. Hit the target as a guild for shared bonus rewards.</p>
+        </Card>
+
+        <Card className="p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="font-heading font-bold text-sm text-foreground flex items-center gap-2">
+              <UserPlus className="w-4 h-4 text-primary" /> Invite a player
+            </h3>
+            <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" variant="secondary" disabled={busy}>
+                  <UserPlus className="w-3.5 h-3.5" /> Invite
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader><DialogTitle>Invite to {myGuild.name}</DialogTitle></DialogHeader>
+                <div className="space-y-3 pt-2">
+                  <div>
+                    <label className="text-xs text-muted-foreground">Username</label>
+                    <Input
+                      value={inviteUsername}
+                      onChange={(e) => setInviteUsername(e.target.value)}
+                      placeholder="playername"
+                      maxLength={32}
+                      onKeyDown={(e) => { if (e.key === "Enter") invite(); }}
+                    />
+                  </div>
+                  <Button onClick={invite} disabled={busy || !inviteUsername.trim()} className="w-full">
+                    {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "Send invite"}
+                  </Button>
+                  <p className="text-xs text-muted-foreground">
+                    They’ll get a popup with Accept / Decline while online.
+                  </p>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Invite by username. Once they accept, they’ll join instantly.
+          </p>
         </Card>
 
         <Card className="p-4">

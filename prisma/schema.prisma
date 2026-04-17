@@ -45,6 +45,13 @@ enum PvPMatchStatus {
   expired
 }
 
+enum GuildInviteStatus {
+  pending
+  accepted
+  declined
+  cancelled
+}
+
 enum NotificationType {
   friend_request
   friend_accepted
@@ -341,4 +348,24 @@ model ChatMessage {
 
   @@index([channel, createdAt])
   @@index([playerId])
+}
+
+model GuildInvite {
+  id           Int              @id @default(autoincrement())
+  guildId      Int
+  fromPlayerId Int
+  toPlayerId   Int
+  status       GuildInviteStatus @default(pending)
+  createdAt    DateTime         @default(now())
+  respondedAt  DateTime?
+
+  guild      Guild   @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  fromPlayer Player  @relation("GuildInviteFrom", fields: [fromPlayerId], references: [id], onDelete: Cascade)
+  toPlayer   Player  @relation("GuildInviteTo", fields: [toPlayerId], references: [id], onDelete: Cascade)
+
+  @@index([guildId])
+  @@index([toPlayerId])
+  @@index([status])
+  @@index([createdAt])
+  @@unique([guildId, toPlayerId, status])
 }
