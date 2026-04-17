@@ -294,28 +294,23 @@ export default function Index() {
             {activeTab === "battle" && battleDeckIds.length > 0 && (
               <BattleArena playerDeckIds={battleDeckIds} onExit={() => setActiveTab("deck")} playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} submitBattleResultApi={submitBattleResult} />
             )}
-            {activeTab === "quests" && <DailyQuests playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} syncEconomyApi={syncEconomy} />}
-            {activeTab === "workshop" && <CraftingWorkshop playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} craftFuseApi={craftFuse} craftSacrificeApi={craftSacrifice} />}
-            {activeTab === "achievements" && <AchievementPanel playerState={playerState} />}
-            {activeTab === "leaderboard" && <Leaderboard playerState={playerState} isOnline={isOnline} />}
-            {activeTab === "trade" && <TradeUI playerState={playerState} onStateChange={setPlayerState} />}
-            {activeTab === "mail" && <InboxPanel onNavigate={(tab) => { setActiveCategory("social"); setActiveTab(tab); }} />}
+            {activeTab === "quests" && <QuestsHall playerState={playerState} onStateChange={setPlayerState} />}
+            {activeTab === "workshop" && <WorkshopHall playerState={playerState} onStateChange={setPlayerState} />}
+            {activeTab === "achievements" && <BadgesHall playerState={playerState} />}
+            {activeTab === "leaderboard" && <RanksHall playerState={playerState} isOnline={isOnline} />}
+            {activeTab === "trade" && <TradeHall playerState={playerState} onStateChange={setPlayerState} />}
+            {activeTab === "mail" && <MailHall onNavigate={(tab) => { setActiveCategory("social"); setActiveTab(tab as Tab); }} />}
             {activeTab === "pvp" && <PvPPanel playerState={playerState} />}
-            {activeTab === "events" && <SeasonalEvents playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} pullSeasonalPackApi={pullSeasonalPack} />}
+            {activeTab === "events" && <EventsHall playerState={playerState} onStateChange={setPlayerState} />}
             {activeTab === "tournament" && <Tournament playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} syncEconomyApi={syncEconomy} />}
-            {activeTab === "boost" && <BoostRewards />}
-            {activeTab === "pass" && <BattlePass playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} />}
-            {activeTab === "profile" && <ProfilePage playerState={playerState} onStateChange={setPlayerState} />}
-            {activeTab === "daily" && <DailyHub playerState={playerState} onStateChange={setPlayerState} />}
-            {activeTab === "friends" && <FriendsPanel isOnline={isOnline} />}
-            {activeTab === "chat" && <ChatPanel isOnline={isOnline} />}
-            {activeTab === "guild" && <GuildPanel isOnline={isOnline} />}
-            {activeTab === "spectate" && <SpectatePanel isOnline={isOnline} />}
-            {activeTab === "chat-new" && <ChatScene isOnline={isOnline} playerState={playerState} />}
-            {activeTab === "trade-new" && <TradeScene playerState={playerState} onStateChange={setPlayerState} />}
-            {activeTab === "trade-hall" && <TradeHall playerState={playerState} onStateChange={setPlayerState} />}
-            {activeTab === "guild-new" && <GuildScene isOnline={isOnline} playerState={playerState} />}
-            {activeTab === "hall-new" && <CommunityHallScene isOnline={isOnline} playerState={playerState} />}
+            {activeTab === "boost" && <BoostHall playerState={playerState} />}
+            {activeTab === "pass" && <PassHall playerState={playerState} onStateChange={setPlayerState} />}
+            {activeTab === "profile" && <ProfileHall playerState={playerState} onStateChange={setPlayerState} />}
+            {activeTab === "daily" && <DailyHall playerState={playerState} onStateChange={setPlayerState} />}
+            {activeTab === "friends" && <FriendsHall isOnline={isOnline} />}
+            {activeTab === "chat" && <ChatHall isOnline={isOnline} playerState={playerState} />}
+            {activeTab === "guild" && <GuildHall isOnline={isOnline} playerState={playerState} />}
+            {activeTab === "spectate" && <SpectateHall isOnline={isOnline} />}
             {activeTab === "battle" && battleDeckIds.length === 0 && (
               <div className="text-center py-20">
                 <Swords className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
