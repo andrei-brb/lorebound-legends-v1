@@ -28,6 +28,8 @@ import DailyHub from "@/components/DailyHub";
 import SettingsPanel from "@/components/SettingsPanel";
 import ChatScene from "@/components/ChatScene";
 import TradeScene from "@/components/TradeScene";
+import GuildScene from "@/components/GuildScene";
+import CommunityHallScene from "@/components/CommunityHallScene";
 import { cn } from "@/lib/utils";
 import { usePlayerApi } from "@/lib/usePlayerApi";
 import { loadAchievementState, checkNewAchievements, saveAchievementState } from "@/lib/achievementEngine";
@@ -36,7 +38,7 @@ import { api } from "@/lib/apiClient";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { setSfxVolume } from "@/lib/sfx";
 
-type Tab = "collection" | "catalog" | "deck" | "battle" | "pvp" | "summon" | "quests" | "workshop" | "achievements" | "leaderboard" | "trade" | "trade-new" | "mail" | "events" | "tournament" | "boost" | "pass" | "profile" | "daily" | "friends" | "chat" | "chat-new" | "guild" | "spectate";
+type Tab = "collection" | "catalog" | "deck" | "battle" | "pvp" | "summon" | "quests" | "workshop" | "achievements" | "leaderboard" | "trade" | "trade-new" | "mail" | "events" | "tournament" | "boost" | "pass" | "profile" | "daily" | "friends" | "chat" | "chat-new" | "guild" | "guild-new" | "hall-new" | "spectate";
 type Category = "cards" | "combat" | "progress" | "social" | "community" | "you";
 
 const categories: { id: Category; label: string; icon: React.ReactNode; tabs: { id: Tab; label: string; icon: React.ReactNode }[] }[] = [
@@ -83,7 +85,9 @@ const categories: { id: Category; label: string; icon: React.ReactNode; tabs: { 
       { id: "friends", label: "Friends", icon: <Users className="w-4 h-4" /> },
       { id: "chat", label: "Chat", icon: <MessageCircle className="w-4 h-4" /> },
       { id: "chat-new", label: "Hearth ✨", icon: <SparklesIcon className="w-4 h-4" /> },
+      { id: "hall-new", label: "Hall ✨", icon: <SparklesIcon className="w-4 h-4" /> },
       { id: "guild", label: "Guild", icon: <Flag className="w-4 h-4" /> },
+      { id: "guild-new", label: "Hall of Banners ✨", icon: <SparklesIcon className="w-4 h-4" /> },
       { id: "spectate", label: "Spectate", icon: <Eye className="w-4 h-4" /> },
     ],
   },
@@ -316,6 +320,8 @@ export default function Index() {
             {activeTab === "spectate" && <SpectatePanel isOnline={isOnline} />}
             {activeTab === "chat-new" && <ChatScene isOnline={isOnline} playerState={playerState} />}
             {activeTab === "trade-new" && <TradeScene playerState={playerState} onStateChange={setPlayerState} />}
+            {activeTab === "guild-new" && <GuildScene isOnline={isOnline} playerState={playerState} />}
+            {activeTab === "hall-new" && <CommunityHallScene isOnline={isOnline} playerState={playerState} />}
             {activeTab === "battle" && battleDeckIds.length === 0 && (
               <div className="text-center py-20">
                 <Swords className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
