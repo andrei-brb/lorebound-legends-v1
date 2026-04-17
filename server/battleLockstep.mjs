@@ -7162,6 +7162,67 @@ function inferAbilityEffect(card) {
   }
   const raw = card.specialAbility.description;
   const d = raw.toLowerCase();
+  const missChanceAll = d.match(/(\d+)%\s*miss chance.*?(\d+)\s*turn/i);
+  if (missChanceAll) {
+    const pct = clamp(parseInt(missChanceAll[1], 10), 0, 95);
+    const turns = clamp(parseInt(missChanceAll[2], 10), 1, 6);
+    return { kind: "blind_all_enemies", missChance: pct / 100, duration: turns };
+  }
+  const accAll = d.match(/accuracy (?:reduced|reducing).*?(\d+)%.*?(\d+)\s*turn/i) || d.match(/reducing accuracy by (\d+)%/i);
+  if (accAll && /all enemies|enemies'/i.test(raw)) {
+    const pct = clamp(parseInt(accAll[1], 10), 0, 95);
+    const turns = accAll[2] ? clamp(parseInt(accAll[2], 10), 1, 6) : 2;
+    return { kind: "blind_all_enemies", missChance: pct / 100, duration: turns };
+  }
+  const blindAll = d.match(/blinds?\s+all\s+enemies\s+for\s+(\d+)\s*turn/i);
+  if (blindAll) {
+    const turns = clamp(parseInt(blindAll[1], 10), 1, 6);
+    return { kind: "blind_all_enemies", missChance: 0.5, duration: turns };
+  }
+  if (/blinds?\b/.test(d) && /target|strongest enemy|highest hp|most hp|weakest enemy|lowest hp/i.test(d)) {
+    const turns = (() => {
+      const tm = d.match(/for\s+(\d+)\s*turn/i);
+      return tm ? clamp(parseInt(tm[1], 10), 1, 6) : 1;
+    })();
+    const pct = (() => {
+      const pm = d.match(/(\d+)%\s*(?:miss|accuracy)/i) || d.match(/accuracy.*?(\d+)%/i);
+      return pm ? clamp(parseInt(pm[1], 10), 0, 95) / 100 : 0.5;
+    })();
+    const which = /weakest|lowest/.test(d) ? "lowest_hp" : "highest_hp";
+    return { kind: "blind_enemy", which, missChance: pct, duration: turns };
+  }
+  const burnAll = d.match(/burns?\s+all\s+enemies\s+for\s+(\d+)\s+damage\s+per\s+turn\s+for\s+(\d+)\s*turn/i);
+  if (burnAll) {
+    return {
+      kind: "burn_all_enemies",
+      damagePerTurn: clamp(parseInt(burnAll[1], 10), 1, 20),
+      duration: clamp(parseInt(burnAll[2], 10), 1, 6)
+    };
+  }
+  const burnPerTurn = d.match(/burn(?:ing|s)?\s+for\s+(\d+)\s*\/\s*turn/i);
+  if (burnPerTurn && /strongest|target|weakest/.test(d)) {
+    const which = /weakest|lowest/.test(d) ? "lowest_hp" : "highest_hp";
+    const turns = (() => {
+      const tm = d.match(/for\s+(\d+)\s*turn/i);
+      return tm ? clamp(parseInt(tm[1], 10), 1, 6) : 2;
+    })();
+    return { kind: "burn_enemy", which, damagePerTurn: clamp(parseInt(burnPerTurn[1], 10), 1, 20), duration: turns };
+  }
+  const burnTurnsOnly = d.match(/burns?\s+for\s+(\d+)\s*turn/i);
+  if (burnTurnsOnly && /\ball enemies\b/.test(d)) {
+    return { kind: "burn_all_enemies", damagePerTurn: 3, duration: clamp(parseInt(burnTurnsOnly[1], 10), 1, 6) };
+  }
+  const burnOver = d.match(/burns?\b.*?(\d+)\s*damage\s+over\s+(\d+)\s*turn/i);
+  if (burnOver && /strongest|highest hp|most hp|weakest|lowest hp|target/i.test(d)) {
+    const total = clamp(parseInt(burnOver[1], 10), 1, 40);
+    const turns = clamp(parseInt(burnOver[2], 10), 1, 6);
+    const per = Math.max(1, Math.floor(total / turns));
+    const which = /weakest|lowest/.test(d) ? "lowest_hp" : "highest_hp";
+    const steps = [];
+    if (/blind/.test(d)) steps.push({ kind: "blind_enemy", which, missChance: 0.5, duration: turns });
+    steps.push({ kind: "burn_enemy", which, damagePerTurn: per, duration: turns });
+    return steps.length === 1 ? steps[0] : { kind: "sequence", steps };
+  }
   const healAllMatch = d.match(/heals?\s+all\s+allies\s+for\s+(\d+)\s*hp/);
   if (healAllMatch) {
     const h = parseInt(healAllMatch[1], 10);
@@ -7677,6 +7738,21 @@ function startTurn(state) {
       side.field[pi] = null;
     }
   }
+  for (let bi = 0; bi < side.field.length; bi++) {
+    const fc = side.field[bi];
+    if (!fc?.burn || fc.burn.turnsRemaining <= 0) continue;
+    const bd = fc.burn.damagePerTurn;
+    fc.currentHp = Math.max(0, fc.currentHp - bd);
+    fc.burn.turnsRemaining -= 1;
+    if (fc.burn.turnsRemaining <= 0) delete fc.burn;
+    addLog(state, `\u{1F525} ${fc.card.name} suffers ${bd} burn damage!`, "info");
+    if (fc.currentHp <= 0) {
+      addLog(state, `\u{1F480} ${fc.card.name} was destroyed!`, "defeat");
+      side.graveyard.push(fc.card);
+      if (fc.equippedWeapon) side.graveyard.push(fc.equippedWeapon);
+      side.field[bi] = null;
+    }
+  }
   checkWinCondition(state);
   if (state.phase === "game-over") return state;
   if (side.deck.length > 0) {
@@ -7912,6 +7988,15 @@ function attackTarget(state, attackerFieldIndex, targetFieldIndex) {
   if (!attacker || attacker.stunned || attacker.attackedThisTurn) return state;
   if (!canSpendAp(newState, 1)) return state;
   const sideLabel = newState.turn === "player" ? "You" : "Enemy";
+  if (attacker.blind && attacker.blind.turnsRemaining > 0) {
+    const missChance = Math.max(0, Math.min(0.95, attacker.blind.missChance));
+    if (newState.rng() < missChance) {
+      addLog(newState, `\u{1F32B}\uFE0F ${attacker.card.name} misses the attack!`, "attack");
+      spendAp(newState, 1);
+      attacker.attackedThisTurn = true;
+      return maybeAutoEndTurn(recalcFieldStats(checkWinCondition(newState)));
+    }
+  }
   if (targetFieldIndex === "direct") {
     const hasFieldCards = otherSide.field.some((fc) => fc !== null);
     if (hasFieldCards) {
@@ -8321,6 +8406,54 @@ function applyResolvedAbility(newState, fc, fieldIndex, effect) {
         );
         break;
       }
+      case "burn_enemy": {
+        const pidx = pickEnemyFieldIndex(otherSide.field, e.which);
+        if (pidx < 0) break;
+        const t = otherSide.field[pidx];
+        t.burn = { damagePerTurn: e.damagePerTurn, turnsRemaining: e.duration };
+        addLog(
+          newState,
+          `\u2728 ${fc.card.name} uses ${ability.name}! Burns ${t.card.name} (${e.damagePerTurn}/turn, ${e.duration} turns).`,
+          "ability"
+        );
+        break;
+      }
+      case "burn_all_enemies": {
+        for (const t of otherSide.field) {
+          if (!t) continue;
+          t.burn = { damagePerTurn: e.damagePerTurn, turnsRemaining: e.duration };
+        }
+        addLog(
+          newState,
+          `\u2728 ${fc.card.name} uses ${ability.name}! Burns all enemies (${e.damagePerTurn}/turn, ${e.duration} turns).`,
+          "ability"
+        );
+        break;
+      }
+      case "blind_enemy": {
+        const pidx = pickEnemyFieldIndex(otherSide.field, e.which);
+        if (pidx < 0) break;
+        const t = otherSide.field[pidx];
+        t.blind = { missChance: e.missChance, turnsRemaining: e.duration };
+        addLog(
+          newState,
+          `\u2728 ${fc.card.name} uses ${ability.name}! Blinds ${t.card.name} (${Math.round(e.missChance * 100)}% miss, ${e.duration} turns).`,
+          "ability"
+        );
+        break;
+      }
+      case "blind_all_enemies": {
+        for (const t of otherSide.field) {
+          if (!t) continue;
+          t.blind = { missChance: e.missChance, turnsRemaining: e.duration };
+        }
+        addLog(
+          newState,
+          `\u2728 ${fc.card.name} uses ${ability.name}! Blinds all enemies (${Math.round(e.missChance * 100)}% miss, ${e.duration} turns).`,
+          "ability"
+        );
+        break;
+      }
       default:
         break;
     }
@@ -8360,6 +8493,10 @@ function endTurn(state) {
     fc.tempBuffs = fc.tempBuffs.map((b) => ({ ...b, turnsRemaining: b.turnsRemaining - 1 })).filter((b) => b.turnsRemaining > 0);
     if (fc.tauntTurnsRemaining && fc.tauntTurnsRemaining > 0) {
       fc.tauntTurnsRemaining -= 1;
+    }
+    if (fc.blind && fc.blind.turnsRemaining > 0) {
+      fc.blind.turnsRemaining -= 1;
+      if (fc.blind.turnsRemaining <= 0) delete fc.blind;
     }
     fc.stunned = false;
   }
