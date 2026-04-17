@@ -36,6 +36,8 @@ type SortBy =
 
 interface DeckBuilderProps {
   onStartBattle?: (deckIds: string[]) => void;
+  /** Shown above the deck when launching from Combat Hall for a special mode */
+  pendingCombatHint?: string | null;
   playerState: PlayerState;
   onStateChange: (state: PlayerState) => void;
 }
@@ -96,7 +98,7 @@ function getDeckWarnings(deckCards: typeof allGameCards): string[] {
   return warnings;
 }
 
-export default function DeckBuilder({ onStartBattle, playerState, onStateChange }: DeckBuilderProps) {
+export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerState, onStateChange }: DeckBuilderProps) {
   const [step, setStep] = useState<WizardStep>("manage");
   const [deckIds, setDeckIds] = useState<string[]>([]);
   const [editingPresetId, setEditingPresetId] = useState<string | null>(null); // null = new deck
@@ -704,6 +706,11 @@ export default function DeckBuilder({ onStartBattle, playerState, onStateChange 
 
   return (
     <div>
+      {pendingCombatHint ? (
+        <div className="mb-4 p-3 rounded-xl border border-primary/30 bg-primary/5 text-sm text-foreground">
+          {pendingCombatHint}
+        </div>
+      ) : null}
       {step === "manage" && manageView}
       {step === "pick" && pickView}
       {step === "review" && reviewView}

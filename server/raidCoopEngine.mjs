@@ -7516,23 +7516,8 @@ function createSide(deckIds, rng, heroStats) {
     hasCastSpellThisTurn: false
   };
 }
-function initBattle(playerDeckIds, enemyDeckIds, opts) {
-  const rng = opts?.rng ?? (opts?.seed !== void 0 ? createSeededRng(opts.seed) : Math.random);
-  const state = {
-    player: createSide(playerDeckIds, rng),
-    enemy: createSide(enemyDeckIds, rng, opts?.enemyHero),
-    turn: "player",
-    turnPhase: "start",
-    phase: "select-action",
-    logs: [{ message: "\u2694\uFE0F Battle begins! Draw your weapons!", type: "info", timestamp: 0 }],
-    winner: null,
-    turnNumber: 1,
-    activeSynergies: { player: [], enemy: [] },
-    pendingAction: null,
-    rng,
-    rngSeed: opts?.seed
-  };
-  return startTurn(state);
+function createPlayerSideFromDeck(deckIds, rng, heroStats) {
+  return createSide(deckIds, rng, heroStats);
 }
 function getFieldCardIds(side) {
   return side.field.filter(Boolean).map((fc) => fc.card.id);
@@ -7781,9 +7766,26 @@ function maybeAutoEndTurn(state) {
   if (side.ap > 0) return state;
   return endTurn(state);
 }
-function endTurnAction(state) {
-  const newState = deepCopy(state);
-  return endTurn(newState);
+function applyEndOfTurnCleanupForActiveSide(state) {
+  if (state.phase === "game-over") return state;
+  const side = getActiveSide(state);
+  state.turnPhase = "end";
+  for (const fc of side.field) {
+    if (!fc) continue;
+    fc.tempBuffs = fc.tempBuffs.map((b) => ({ ...b, turnsRemaining: b.turnsRemaining - 1 })).filter((b) => b.turnsRemaining > 0);
+    if (fc.tauntTurnsRemaining && fc.tauntTurnsRemaining > 0) {
+      fc.tauntTurnsRemaining -= 1;
+    }
+    if (fc.blind && fc.blind.turnsRemaining > 0) {
+      fc.blind.turnsRemaining -= 1;
+      if (fc.blind.turnsRemaining <= 0) delete fc.blind;
+    }
+    fc.stunned = false;
+  }
+  tickTokenDurations(side);
+  state.phase = "select-action";
+  state.pendingAction = null;
+  return checkWinCondition(state);
 }
 function checkWinCondition(state) {
   const playerDead = state.player.hp <= 0;
@@ -8607,174 +8609,284 @@ function deepCopy(obj) {
   }
   return copy;
 }
-function simulateBattle(params) {
-  const seed = params.seed ?? 12345;
-  const maxTurns = params.maxTurns ?? 60;
-  let s = initBattle(params.playerDeckIds, params.enemyDeckIds, { seed });
-  const performAutoPlayerTurn = (state) => {
-    let st = state;
-    const MAX_ACTIONS = 6;
-    for (let i = 0; i < MAX_ACTIONS; i++) {
-      if (st.phase === "game-over") return st;
-      if (st.turn !== "player") return st;
-      if (st.player.ap <= 0) return endTurn(deepCopy(st));
-      const side = st.player;
-      const emptySlot = side.field.findIndex((slot) => slot === null);
-      if (emptySlot !== -1) {
-        const unitIdx = side.hand.findIndex((c) => c.type === "hero" || c.type === "god");
-        if (unitIdx !== -1) {
-          const next = playCard(st, unitIdx);
-          if (next !== st) {
-            st = next;
-            continue;
-          }
-        }
-      }
-      const weaponIdx = side.hand.findIndex((c) => c.type === "weapon");
-      if (weaponIdx !== -1) {
-        const unequipped = side.field.findIndex((fc) => fc !== null && !fc.equippedWeapon);
-        if (unequipped !== -1) {
-          const next = equipWeapon(st, weaponIdx, unequipped);
-          if (next !== st) {
-            st = next;
-            continue;
-          }
-        }
-      }
-      const spellIdx = side.hand.findIndex((c) => c.type === "spell");
-      if (spellIdx !== -1 && !side.hasCastSpellThisTurn) {
-        const spell = side.hand[spellIdx];
-        if (spell.spellEffect) {
-          if (spell.spellEffect.type === "damage") {
-            const targetIdx = st.enemy.field.findIndex((fc) => fc !== null);
-            const next = castSpell(st, spellIdx, targetIdx >= 0 ? targetIdx : void 0);
-            if (next !== st) {
-              st = next;
-              continue;
-            }
-          } else {
-            const allyIdx = side.field.findIndex((fc) => fc !== null);
-            const next = castSpell(st, spellIdx, allyIdx >= 0 ? allyIdx : void 0);
-            if (next !== st) {
-              st = next;
-              continue;
-            }
-          }
-        }
-      }
-      const attackerIdx = side.field.findIndex((fc) => fc !== null && !fc.stunned && !fc.attackedThisTurn);
-      if (attackerIdx !== -1) {
-        const fc = side.field[attackerIdx];
-        if (!fc.abilityUsed && st.rng() < 0.3) {
-          const next = activateAbility(st, attackerIdx);
-          if (next !== st) {
-            st = next;
-            continue;
-          }
-        }
-        const enemyFieldCards = st.enemy.field.map((fc2, idx) => fc2 ? { fc: fc2, idx } : null).filter(Boolean);
-        if (enemyFieldCards.length > 0) {
-          const weakest = enemyFieldCards.sort((a, b) => a.fc.currentHp - b.fc.currentHp)[0];
-          const next = attackTarget(st, attackerIdx, weakest.idx);
-          if (next !== st) {
-            st = next;
-            continue;
-          }
-        } else {
-          const next = attackTarget(st, attackerIdx, "direct");
-          if (next !== st) {
-            st = next;
-            continue;
-          }
-        }
-      }
-      const trapIdx = side.hand.findIndex((c) => c.type === "trap");
-      if (trapIdx !== -1) {
-        const next = playCard(st, trapIdx);
-        if (next !== st) {
-          st = next;
-          continue;
-        }
-      }
-      return endTurn(deepCopy(st));
-    }
-    return endTurn(deepCopy(st));
-  };
-  while (s.phase !== "game-over" && !s.winner && s.turnNumber <= maxTurns) {
-    if (s.turn === "enemy") {
-      const next = performAITurn(deepCopy(s));
-      s = next.turn === "enemy" && next.phase !== "game-over" ? endTurn(deepCopy(next)) : next;
-    } else {
-      s = performAutoPlayerTurn(deepCopy(s));
-    }
+function generateEnemyDeck(size = 10, rng = Math.random) {
+  const heroes = allCards.filter((c) => c.type === "hero");
+  const gods = allCards.filter((c) => c.type === "god");
+  const weapons = allCards.filter((c) => c.type === "weapon");
+  const spells = allCards.filter((c) => c.type === "spell");
+  const traps = allCards.filter((c) => c.type === "trap");
+  const shuffled = (arr) => shuffleDeck(arr, rng);
+  const picked = [];
+  const heroCount = Math.min(4, Math.ceil(size * 0.4));
+  const godCount = Math.min(2, Math.ceil(size * 0.2));
+  const weaponCount = Math.min(2, Math.ceil(size * 0.2));
+  const spellCount = Math.min(1, Math.ceil(size * 0.1));
+  const trapCount = Math.min(1, Math.ceil(size * 0.1));
+  for (const c of shuffled(heroes).slice(0, heroCount)) picked.push(c.id);
+  for (const c of shuffled(gods).slice(0, godCount)) picked.push(c.id);
+  for (const c of shuffled(weapons).slice(0, weaponCount)) picked.push(c.id);
+  for (const c of shuffled(spells).slice(0, spellCount)) picked.push(c.id);
+  for (const c of shuffled(traps).slice(0, trapCount)) picked.push(c.id);
+  while (picked.length < size) {
+    const pool = [...heroes, ...gods].filter((c) => !picked.includes(c.id));
+    if (pool.length === 0) break;
+    picked.push(pool[Math.floor(rng() * pool.length)].id);
   }
-  return { winner: s.winner, turnCount: s.turnNumber, finalState: s };
+  return picked.slice(0, size);
 }
 
-// src/lib/battleLockstep.ts
-var MAX_REPLAY_STEPS = 16e3;
-var MAX_ENEMY_SUBSTEPS = 64;
-function replayRankedFromPlayerActions(seed, deckA, deckB, playerActions) {
-  let s = initBattle(deckA, deckB, { seed });
-  let qi = 0;
-  let steps = 0;
-  while (s.phase !== "game-over" && steps++ < MAX_REPLAY_STEPS) {
-    if (s.turn === "player") {
-      if (qi >= playerActions.length) break;
-      s = applyBattleLockstepIntent(s, playerActions[qi++]);
-    } else {
-      let sub = 0;
-      while (s.turn === "enemy" && s.phase !== "game-over" && sub++ < MAX_ENEMY_SUBSTEPS) {
-        s = performAITurn(s);
-      }
-    }
+// src/lib/raid/bosses.ts
+function resolveBossDeck(boss, deckSize, seed) {
+  if (boss.deckCardIds && boss.deckCardIds.length > 0) {
+    const ids = boss.deckCardIds.filter(Boolean);
+    if (ids.length >= deckSize) return ids.slice(0, deckSize);
+    const rng = createSeededRng(seed);
+    const pad = generateEnemyDeck(deckSize - ids.length, rng);
+    return [...ids, ...pad].slice(0, deckSize);
   }
-  return s;
+  return generateEnemyDeck(deckSize, createSeededRng(seed));
 }
-function applyBattleLockstepIntent(state, intent) {
-  switch (intent.kind) {
-    case "play-card":
-      return playCard(state, intent.handIndex);
-    case "equip-weapon":
-      return equipWeapon(state, intent.handIndex, intent.fieldIndex);
-    case "cast-spell":
-      return castSpell(state, intent.handIndex, intent.targetFieldIndex);
-    case "attack":
-      return attackTarget(state, intent.attackerFieldIndex, intent.targetFieldIndex);
-    case "ability":
-      return activateAbility(state, intent.fieldIndex);
-    case "end-turn":
-      return endTurnAction(state);
-    default:
-      return state;
+
+// src/lib/raid/raidCoopEngine.ts
+function deepCopyBattle(obj) {
+  const copy = JSON.parse(JSON.stringify(obj));
+  if (obj && typeof obj === "object" && copy && typeof copy === "object") {
+    const src = obj;
+    const dst = copy;
+    if (typeof src.rng === "function") dst.rng = src.rng;
+    if (src.rngSeed !== void 0) dst.rngSeed = src.rngSeed;
   }
+  return copy;
 }
-function replayBattleFromActions(seed, deckA, deckB, actions) {
-  let s = initBattle(deckA, deckB, { seed });
-  for (const a of actions) {
-    s = applyBattleLockstepIntent(s, a);
-  }
-  return s;
-}
-function toViewerBattleState(state, viewerIsA) {
-  if (viewerIsA) return state;
+function buildRaidLive(raid) {
+  const ally = raid.subPhase === "allyA" ? raid.allyA : raid.subPhase === "allyB" ? raid.allyB : raid.allyA;
+  const turn = raid.subPhase === "boss" ? "enemy" : "player";
   return {
-    ...state,
-    player: state.enemy,
-    enemy: state.player,
-    turn: state.turn === "enemy" ? "player" : "enemy",
-    winner: state.winner === "player" ? "enemy" : state.winner === "enemy" ? "player" : state.winner,
-    activeSynergies: {
-      player: state.activeSynergies.enemy,
-      enemy: state.activeSynergies.player
+    player: {
+      hp: raid.partyHp,
+      shield: raid.partyShield,
+      hand: ally.hand,
+      field: raid.partyField,
+      tokens: raid.partyTokens,
+      traps: raid.partyTraps,
+      deck: ally.deck,
+      graveyard: ally.graveyard,
+      ap: 0,
+      fatigue: ally.fatigue,
+      hasCastSpellThisTurn: false
     },
-    pendingAction: null
+    enemy: raid.enemy,
+    turn,
+    turnPhase: "start",
+    phase: "select-action",
+    logs: raid.live?.logs ?? [],
+    winner: raid.live?.winner ?? null,
+    turnNumber: raid.live?.turnNumber ?? 1,
+    activeSynergies: { player: [], enemy: [] },
+    pendingAction: null,
+    rng: raid.rng,
+    rngSeed: raid.rngSeed,
+    skipPlayerWipeCheck: true
   };
 }
+function syncEnemyFromLive(raid) {
+  raid.enemy = raid.live.enemy;
+}
+function syncFatigueFromLive(raid) {
+  if (raid.subPhase === "allyA") raid.allyA.fatigue = raid.live.player.fatigue;
+  else if (raid.subPhase === "allyB") raid.allyB.fatigue = raid.live.player.fatigue;
+}
+function syncPartyFromLive(raid) {
+  raid.partyHp = raid.live.player.hp;
+  raid.partyShield = raid.live.player.shield;
+}
+function tagRaidOwnerOnPlay(raid, prevField) {
+  const owner = raid.subPhase === "allyA" ? "allyA" : "allyB";
+  for (let i = 0; i < raid.partyField.length; i++) {
+    const prev = prevField[i];
+    const next = raid.partyField[i];
+    if (!next || prev === next) continue;
+    if (!prev || prev.card.id !== next.card.id) {
+      next.raidOwner = owner === "allyA" ? "allyA" : "allyB";
+    }
+  }
+}
+function initRaidCoopBattle(deckAIds, deckBIds, boss, seed) {
+  const rng = seed !== void 0 ? createSeededRng(seed) : Math.random;
+  const deckSize = Math.max(10, deckAIds.length);
+  const bossDeck = resolveBossDeck(boss, deckSize, seed ?? 90210);
+  const a = createPlayerSideFromDeck(deckAIds, rng);
+  const b = createPlayerSideFromDeck(deckBIds, rng);
+  const en = createPlayerSideFromDeck(bossDeck, rng, { hp: boss.enemyHp, shield: boss.enemyShield });
+  const raid = {
+    partyHp: 50,
+    partyShield: 10,
+    partyField: [null, null, null, null],
+    partyTokens: [null, null],
+    partyTraps: [null, null],
+    allyA: { hand: a.hand, deck: a.deck, graveyard: a.graveyard, fatigue: a.fatigue },
+    allyB: { hand: b.hand, deck: b.deck, graveyard: b.graveyard, fatigue: b.fatigue },
+    enemy: en,
+    subPhase: "allyA",
+    bossId: boss.id,
+    bossName: boss.name,
+    goldRewardMultiplier: boss.goldRewardMultiplier,
+    live: {},
+    rng,
+    rngSeed: seed
+  };
+  raid.live = buildRaidLive(raid);
+  raid.live = startTurn(raid.live);
+  syncEnemyFromLive(raid);
+  syncFatigueFromLive(raid);
+  syncPartyFromLive(raid);
+  return raid;
+}
+function raidGetBattleView(raid) {
+  return raid.live;
+}
+function raidCheckCombinedPartyWipe(raid) {
+  const live = raid.live;
+  if (live.phase === "game-over") return;
+  const aOut = raid.allyA.hand.length === 0 && raid.allyA.deck.length === 0;
+  const bOut = raid.allyB.hand.length === 0 && raid.allyB.deck.length === 0;
+  const fieldEmpty = !raid.partyField.some(Boolean);
+  if (aOut && bOut && fieldEmpty) {
+    live.phase = "game-over";
+    live.winner = "enemy";
+    live.logs.push({
+      message: "\u{1F480} The party has no cards left! Total wipe!",
+      type: "defeat",
+      timestamp: live.logs.length
+    });
+  }
+}
+function raidRunBossTurn(raid) {
+  raid.subPhase = "boss";
+  raid.live = buildRaidLive(raid);
+  raid.live.player.hand = raid.allyA.hand;
+  raid.live.player.deck = raid.allyA.deck;
+  raid.live.player.graveyard = raid.allyA.graveyard;
+  raid.live.player.fatigue = raid.allyA.fatigue;
+  raid.live = startTurn(raid.live);
+  syncEnemyFromLive(raid);
+  syncPartyFromLive(raid);
+  let guard = 0;
+  while (raid.live.turn === "enemy" && raid.live.phase !== "game-over" && guard++ < 400) {
+    if (raid.live.enemy.ap <= 0) {
+      raid.live = endTurn(deepCopyBattle(raid.live));
+      syncEnemyFromLive(raid);
+      syncPartyFromLive(raid);
+      break;
+    }
+    raid.live = performAITurn(deepCopyBattle(raid.live));
+    syncEnemyFromLive(raid);
+    syncPartyFromLive(raid);
+    if (raid.live.phase === "game-over") return;
+    if (raid.live.turn === "player") break;
+  }
+  if (raid.live.turn === "enemy" && raid.live.phase !== "game-over" && raid.live.enemy.ap <= 0) {
+    raid.live = endTurn(deepCopyBattle(raid.live));
+    syncEnemyFromLive(raid);
+    syncPartyFromLive(raid);
+  }
+  raid.subPhase = "allyA";
+  raidCheckCombinedPartyWipe(raid);
+}
+function raidEndCurrentAllyTurn(raid) {
+  if (raid.live.phase === "game-over") return;
+  if (raid.subPhase !== "allyA" && raid.subPhase !== "allyB") return;
+  raid.live = applyEndOfTurnCleanupForActiveSide(deepCopyBattle(raid.live));
+  syncPartyFromLive(raid);
+  syncFatigueFromLive(raid);
+  syncEnemyFromLive(raid);
+  if (raid.subPhase === "allyA") {
+    raid.subPhase = "allyB";
+    raid.live = buildRaidLive(raid);
+    raid.live = startTurn(raid.live);
+    syncEnemyFromLive(raid);
+    syncFatigueFromLive(raid);
+    syncPartyFromLive(raid);
+    return;
+  }
+  raidRunBossTurn(raid);
+}
+function wrap(raid, fn, prevFieldSnapshot) {
+  raid.live = fn(deepCopyBattle(raid.live));
+  syncPartyFromLive(raid);
+  syncFatigueFromLive(raid);
+  syncEnemyFromLive(raid);
+  tagRaidOwnerOnPlay(raid, prevFieldSnapshot);
+  raidCheckCombinedPartyWipe(raid);
+}
+function raidPlayCard(raid, handIndex) {
+  const prev = [...raid.partyField];
+  wrap(raid, (s) => playCard(s, handIndex), prev);
+}
+function raidEquipWeapon(raid, handIndex, fieldIndex) {
+  const prev = [...raid.partyField];
+  wrap(raid, (s) => equipWeapon(s, handIndex, fieldIndex), prev);
+}
+function raidCastSpell(raid, handIndex, targetFieldIndex) {
+  const prev = [...raid.partyField];
+  wrap(raid, (s) => castSpell(s, handIndex, targetFieldIndex), prev);
+}
+function raidAttack(raid, attackerFieldIndex, targetFieldIndex) {
+  const prev = [...raid.partyField];
+  wrap(raid, (s) => attackTarget(s, attackerFieldIndex, targetFieldIndex), prev);
+}
+function raidActivateAbility(raid, fieldIndex) {
+  const prev = [...raid.partyField];
+  wrap(raid, (s) => activateAbility(s, fieldIndex), prev);
+}
+function raidApplyLockstepIntent(raid, intent) {
+  switch (intent.kind) {
+    case "play-card":
+      return raidPlayCard(raid, intent.handIndex);
+    case "equip-weapon":
+      return raidEquipWeapon(raid, intent.handIndex, intent.fieldIndex);
+    case "cast-spell":
+      return raidCastSpell(raid, intent.handIndex, intent.targetFieldIndex);
+    case "attack":
+      return raidAttack(raid, intent.attackerFieldIndex, intent.targetFieldIndex);
+    case "ability":
+      return raidActivateAbility(raid, intent.fieldIndex);
+    case "end-turn":
+      return raidEndCurrentAllyTurn(raid);
+    default:
+      return;
+  }
+}
+function raidReplayFromLog(deckAIds, deckBIds, boss, seed, log) {
+  const raid = initRaidCoopBattle(deckAIds, deckBIds, boss, seed);
+  for (const intent of log) {
+    if (raid.live.phase === "game-over") break;
+    raidApplyLockstepIntent(raid, intent);
+  }
+  return raid;
+}
+function raidPartyWon(raid) {
+  return raid.live.winner === "player";
+}
+function raidBossWon(raid) {
+  return raid.live.winner === "enemy";
+}
+function raidIsDraw(raid) {
+  return raid.live.winner === "draw";
+}
 export {
-  applyBattleLockstepIntent,
-  replayBattleFromActions,
-  replayRankedFromPlayerActions,
-  simulateBattle,
-  toViewerBattleState
+  initRaidCoopBattle,
+  raidActivateAbility,
+  raidApplyLockstepIntent,
+  raidAttack,
+  raidBossWon,
+  raidCastSpell,
+  raidEndCurrentAllyTurn,
+  raidEquipWeapon,
+  raidGetBattleView,
+  raidIsDraw,
+  raidPartyWon,
+  raidPlayCard,
+  raidReplayFromLog,
+  raidRunBossTurn
 };

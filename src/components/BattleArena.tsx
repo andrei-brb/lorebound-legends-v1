@@ -18,7 +18,8 @@ import BattleInfoPanel from "./BattleInfoPanel";
 import CardLevelUp from "./CardLevelUp";
 import { type PlayerState, getCardProgress } from "@/lib/playerState";
 import { awardXp, type LevelUpResult } from "@/lib/progressionEngine";
-import { getBattleGoldReward } from "@/lib/gachaEngine";
+import { getBattleGoldReward, getRaidGoldReward } from "@/lib/gachaEngine";
+import { getRaidBoss, resolveBossDeck } from "@/lib/raid/bosses";
 import { loadDailyQuests, progressQuest, saveDailyQuests } from "@/lib/questEngine";
 import { toast } from "@/hooks/use-toast";
 import { awardBattlePassXp } from "@/lib/battlePassEngine";
@@ -51,6 +52,7 @@ interface BattleArenaProps {
     draw?: boolean;
     turnCount: number;
     deckCardIds: string[];
+    raidBossId?: string;
   }) => Promise<{
     goldReward: number;
     levelUps: Array<{ cardId: string; oldLevel: number; newLevel: number }>;
@@ -59,6 +61,8 @@ interface BattleArenaProps {
   livePvP?: LivePvPBattleConfig;
   /** When online, sync gold/stardust after local-only bonuses (first win, mystery tally). */
   syncEconomyApi?: (gold: number, stardust: number) => Promise<void>;
+  /** Solo raid vs scripted boss (inflated enemy HP / reward multiplier). */
+  soloRaidBossId?: string | null;
 }
 
 type ActionMode = "none" | "select-attack-target" | "select-equip-target" | "select-spell-target";
@@ -76,6 +80,7 @@ export default function BattleArena({
   submitBattleResultApi,
   livePvP,
   syncEconomyApi,
+  soloRaidBossId,
 }: BattleArenaProps) {
   const [soloState, setSoloState] = useState<BattleState | null>(null);
   const liveDisplayState = useMemo(() => {
@@ -106,17 +111,31 @@ export default function BattleArena({
     if (onRankedSubmit && !livePvP) rankedActionLogRef.current.push(intent);
   };
 
+  const soloBoss = soloRaidBossId ? getRaidBoss(soloRaidBossId) : undefined;
+
   useEffect(() => {
     if (livePvP) return;
-    const enemyIds =
-      opponentDeckIds && opponentDeckIds.length > 0 ? opponentDeckIds : generateEnemyDeck(playerDeckIds.length);
     rankedActionLogRef.current = [];
-    setSoloState(initBattle(playerDeckIds, enemyIds, battleSeed != null ? { seed: battleSeed } : undefined));
+    let enemyIds: string[];
+    let initOpts: Parameters<typeof initBattle>[2];
+    if (soloBoss) {
+      const deckSeed = battleSeed ?? Math.floor(Math.random() * 1_000_000_000);
+      enemyIds = resolveBossDeck(soloBoss, Math.max(10, playerDeckIds.length), deckSeed);
+      initOpts = {
+        seed: deckSeed,
+        enemyHero: { hp: soloBoss.enemyHp, shield: soloBoss.enemyShield },
+      };
+    } else {
+      enemyIds =
+        opponentDeckIds && opponentDeckIds.length > 0 ? opponentDeckIds : generateEnemyDeck(playerDeckIds.length);
+      initOpts = battleSeed != null ? { seed: battleSeed } : undefined;
+    }
+    setSoloState(initBattle(playerDeckIds, enemyIds, initOpts));
     setRewardsGiven(false);
     setGoldEarned(0);
     setLevelUps([]);
     cardsPlayedRef.current = 0;
-  }, [playerDeckIds, opponentDeckIds, livePvP, battleSeed]);
+  }, [playerDeckIds, opponentDeckIds, livePvP, battleSeed, soloRaidBossId, soloBoss?.id]);
 
   // Enemy AI turn
   useEffect(() => {
@@ -212,6 +231,7 @@ export default function BattleArena({
           draw: isDraw,
           turnCount: turnNumber,
           deckCardIds: playerDeckIds,
+          raidBossId: soloRaidBossId ?? undefined,
         });
         if (result) {
           setGoldEarned(result.goldReward);
@@ -251,7 +271,10 @@ export default function BattleArena({
       }
 
       onStateChange((prev) => {
-        const gold = getBattleGoldReward(won, turnNumber);
+        const gold =
+          soloBoss != null
+            ? getRaidGoldReward(won, turnNumber, soloBoss.goldRewardMultiplier)
+            : getBattleGoldReward(won, turnNumber);
         setGoldEarned(gold);
         let newState = { ...prev, cardProgress: { ...prev.cardProgress }, gold: prev.gold + gold };
         const allLevelUps: (LevelUpResult & { cardId: string })[] = [];
@@ -299,6 +322,8 @@ export default function BattleArena({
     onStateChange,
     isOnline,
     syncEconomyApi,
+    soloRaidBossId,
+    soloBoss,
   ]);
 
   const handleHandCardClick = (index: number) => {
@@ -524,9 +549,9 @@ export default function BattleArena({
             >
               <ArrowLeft className="w-3 h-3" /> Retreat
             </button>
-            {rankedSubtitle ? (
+            {rankedSubtitle || soloBoss ? (
               <span className="text-[9px] text-muted-foreground font-heading leading-tight bg-background/70 px-2 py-1 rounded-md border border-border/50">
-                {rankedSubtitle}
+                {rankedSubtitle ?? (soloBoss ? `Raid — ${soloBoss.name}` : "")}
               </span>
             ) : null}
           </div>
@@ -542,7 +567,7 @@ export default function BattleArena({
               <HeroPortrait
                 side="enemy"
                 hp={state.enemy.hp}
-                maxHp={30}
+                maxHp={soloBoss?.enemyHp ?? 30}
                 shield={state.enemy.shield}
                 ap={state.enemy.ap}
                 maxAp={2}

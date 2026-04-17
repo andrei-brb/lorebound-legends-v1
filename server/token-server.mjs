@@ -35,6 +35,8 @@ import {
   replayRankedFromPlayerActions,
   simulateBattle,
 } from "./battleLockstep.mjs";
+import * as raidCoop from "./raidCoopEngine.mjs";
+import { RAID_BOSS_GOLD_MULTIPLIER } from "./lib/raidBossGold.mjs";
 import { pickRandomDropCard, buildDropEmbed, processCardClaim } from "./lib/cardDrop.mjs";
 import { SEASONAL_EVENTS, getSeasonalEventById, isEventActive } from "./lib/seasonalEvents.mjs";
 
@@ -2019,6 +2021,259 @@ async function handleLiveBattleTx(tx, match, me, body) {
   return updated;
 }
 
+async function handleRaidLiveBattleTx(tx, match, me, body) {
+  const intent = body.intent;
+  if (!intent || typeof intent.kind !== "string") {
+    const err = new Error("intent required");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const seed = match.seed;
+  const s = match.state || {};
+  const deckA = s.deckA || [];
+  const deckB = s.deckB || [];
+  const bossId = String(s.bossId || "ember-tyrant");
+  const prevLog = Array.isArray(match.actionLog) ? match.actionLog : [];
+
+  const boss = raidCoop.getRaidBoss(bossId);
+  if (!boss) {
+    const err = new Error("Invalid boss");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const raid = raidCoop.raidReplayFromLog(deckA, deckB, boss, seed, prevLog);
+
+  const expectedId =
+    raid.subPhase === "allyA" ? match.playerAId : raid.subPhase === "allyB" ? match.playerBId : null;
+  if (raid.subPhase === "boss" || expectedId == null) {
+    const err = new Error("Not your turn");
+    err.statusCode = 400;
+    throw err;
+  }
+  if (expectedId !== me.id) {
+    const err = new Error("Not your turn");
+    err.statusCode = 400;
+    throw err;
+  }
+
+  raidCoop.raidApplyLockstepIntent(raid, intent);
+
+  const nextLog = [...prevLog, intent].slice(-500);
+
+  let nextResult = match.result;
+  let nextStatus = match.status;
+  let nextTurnPlayerId = match.turnPlayerId;
+
+  if (raid.live.phase === "game-over") {
+    nextStatus = "completed";
+    const partyWin = raidCoop.raidPartyWon(raid);
+    nextResult = {
+      winner: partyWin ? "party" : raidCoop.raidBossWon(raid) ? "boss" : null,
+      resolvedAt: Date.now(),
+      kind: "raid_battle",
+      seed: match.seed ?? null,
+    };
+    nextTurnPlayerId = null;
+  } else {
+    nextTurnPlayerId =
+      raid.subPhase === "allyA"
+        ? match.playerAId
+        : raid.subPhase === "allyB"
+          ? match.playerBId
+          : match.playerAId;
+  }
+
+  const updated = await tx.pvPMatch.update({
+    where: { id: match.id },
+    data: {
+      status: nextStatus,
+      result: nextResult,
+      actionLog: nextLog,
+      turnPlayerId: nextTurnPlayerId,
+      lastActionAt: new Date(),
+    },
+  });
+
+  return updated;
+}
+
+async function handleRaidLiveCreate(req, res) {
+  const user = await requireAuth(req, res);
+  if (!user) return;
+
+  const body = await readJsonBody(req);
+  const opponentId = Number(body.opponentPlayerId);
+  const bossId = String(body.bossId || "ember-tyrant");
+  const deckCardIds = sanitizeDeckIds(body.deckCardIds);
+  if (!Number.isFinite(opponentId)) return sendJson(res, 400, { error: "opponentPlayerId required" });
+
+  const me = await prisma.player.findUnique({ where: { discordId: user.id } });
+  if (!me) return sendJson(res, 404, { error: "Player not found" });
+  if (me.id === opponentId) return sendJson(res, 400, { error: "Cannot challenge yourself" });
+
+  const opp = await prisma.player.findUnique({ where: { id: opponentId } });
+  if (!opp) return sendJson(res, 404, { error: "Opponent not found" });
+
+  if (deckCardIds.length === 0) return sendJson(res, 400, { error: "deckCardIds required" });
+
+  const seed = Math.floor(Math.random() * 2 ** 31);
+  const state = {
+    version: 1,
+    engine: "raid",
+    bossId,
+    deckA: deckCardIds,
+    deckB: [],
+  };
+
+  const match = await prisma.$transaction(async (tx) => {
+    const created = await tx.pvPMatch.create({
+      data: {
+        type: "raid_live",
+        status: "pending",
+        playerAId: me.id,
+        playerBId: opp.id,
+        seed,
+        state,
+        actionLog: [],
+        turnPlayerId: me.id,
+        lastActionAt: new Date(),
+      },
+    });
+
+    await createNotification(
+      tx,
+      opp.id,
+      "pvp_live_invite",
+      `Raid invite from ${me.username}`,
+      "Open Arena to join the co-op raid.",
+      { matchId: created.id, raid: true, bossId },
+    );
+
+    return created;
+  });
+
+  return sendJson(res, 200, { ok: true, matchId: match.id });
+}
+
+async function handleRaidLiveJoin(req, res, matchId) {
+  const user = await requireAuth(req, res);
+  if (!user) return;
+
+  const me = await prisma.player.findUnique({ where: { discordId: user.id } });
+  if (!me) return sendJson(res, 404, { error: "Player not found" });
+
+  const body = await readJsonBody(req);
+  const match = await prisma.pvPMatch.findUnique({ where: { id: matchId } });
+  if (!match) return sendJson(res, 404, { error: "Match not found" });
+  if (match.type !== "raid_live") return sendJson(res, 400, { error: "Not a raid match" });
+  if (me.id !== match.playerAId && me.id !== match.playerBId) return sendJson(res, 403, { error: "Not your match" });
+  if (match.status === "cancelled") return sendJson(res, 400, { error: "Match was declined/cancelled" });
+  if (match.status === "completed") return sendJson(res, 200, { ok: true, status: match.status });
+
+  let nextState = match.state || {};
+  if (me.id === match.playerBId) {
+    let deckB = sanitizeDeckIds(body.deckCardIds);
+    if (deckB.length === 0) {
+      const seasonId = match.seasonId || DEFAULT_PVP_SEASON_ID;
+      const snap = await prisma.pvPDeckSnapshot.findUnique({
+        where: { playerId_seasonId: { playerId: me.id, seasonId } },
+      });
+      deckB = snap ? sanitizeDeckIds(snap.deckCardIds) : [];
+    }
+    if (deckB.length === 0) return sendJson(res, 400, { error: "Provide deckCardIds or set ranked deck first" });
+    nextState = { ...nextState, deckB };
+  }
+
+  const updated = await prisma.pvPMatch.update({
+    where: { id: match.id },
+    data: {
+      status: "active",
+      state: nextState,
+      turnPlayerId: match.playerAId,
+      lastActionAt: new Date(),
+    },
+  });
+  void broadcastLiveMatchRefresh(matchId);
+  return sendJson(res, 200, { ok: true, status: updated.status });
+}
+
+async function handleRaidLiveGet(req, res, matchId) {
+  const user = await requireAuth(req, res);
+  if (!user) return;
+
+  const me = await prisma.player.findUnique({ where: { discordId: user.id } });
+  if (!me) return sendJson(res, 404, { error: "Player not found" });
+
+  const match = await prisma.pvPMatch.findUnique({
+    where: { id: matchId },
+    include: { playerA: true, playerB: true },
+  });
+  if (!match) return sendJson(res, 404, { error: "Match not found" });
+  if (match.type !== "raid_live") return sendJson(res, 400, { error: "Not a raid match" });
+  if (me.id !== match.playerAId && me.id !== match.playerBId) return sendJson(res, 403, { error: "Not your match" });
+
+  return sendJson(res, 200, {
+    ok: true,
+    match: {
+      id: match.id,
+      status: match.status,
+      createdAt: match.createdAt.getTime(),
+      playerA: toPublicPlayer(match.playerA),
+      playerB: toPublicPlayer(match.playerB),
+      turnPlayerId: match.turnPlayerId,
+      seed: match.seed,
+      actionLog: match.actionLog || [],
+      state: match.state || null,
+      result: match.result || null,
+    },
+  });
+}
+
+async function handleRaidLiveAction(req, res, matchId) {
+  const user = await requireAuth(req, res);
+  if (!user) return;
+
+  const me = await prisma.player.findUnique({ where: { discordId: user.id } });
+  if (!me) return sendJson(res, 404, { error: "Player not found" });
+
+  const body = await readJsonBody(req);
+
+  try {
+    const out = await prisma.$transaction(async (tx) => {
+      const match = await tx.pvPMatch.findUnique({ where: { id: matchId } });
+      if (!match) {
+        const err = new Error("Match not found");
+        err.statusCode = 404;
+        throw err;
+      }
+      if (match.type !== "raid_live") {
+        const err = new Error("Not a raid match");
+        err.statusCode = 400;
+        throw err;
+      }
+      if (me.id !== match.playerAId && me.id !== match.playerBId) {
+        const err = new Error("Not your match");
+        err.statusCode = 403;
+        throw err;
+      }
+      if (match.status !== "active") {
+        const err = new Error("Match is not active");
+        err.statusCode = 400;
+        throw err;
+      }
+
+      return await handleRaidLiveBattleTx(tx, match, me, body);
+    });
+    void broadcastLiveMatchRefresh(matchId);
+    return sendJson(res, 200, { ok: true, matchId: out.id, status: out.status });
+  } catch (e) {
+    const code = e?.statusCode || 500;
+    return sendJson(res, code, { error: e?.message || "Raid action failed" });
+  }
+}
+
 async function handleLiveCreate(req, res) {
   const user = await requireAuth(req, res);
   if (!user) return;
@@ -2620,7 +2875,11 @@ async function handleBattleResult(req, res) {
   });
   if (!player) return sendJson(res, 404, { error: "Player not found" });
 
-  const goldReward = getBattleGoldReward(won, turnCount);
+  const raidBossId = body.raidBossId != null ? String(body.raidBossId) : null;
+  let goldReward = getBattleGoldReward(won, turnCount);
+  if (won && raidBossId && RAID_BOSS_GOLD_MULTIPLIER[raidBossId]) {
+    goldReward = Math.round(goldReward * RAID_BOSS_GOLD_MULTIPLIER[raidBossId]);
+  }
   const outcome = won ? "win" : body.draw ? "draw" : "loss";
   const xpAmount = won ? 50 : outcome === "draw" ? 35 : 20;
 
@@ -3082,6 +3341,7 @@ const server = http.createServer(async (req, res) => {
     if (method === "POST" && path === "/api/pvp/queue") return await handleQueueAsync(req, res);
     if (method === "GET" && path === "/api/pvp/history") return await handlePvPHistory(req, res);
     if (method === "POST" && path === "/api/pvp/live/create") return await handleLiveCreate(req, res);
+    if (method === "POST" && path === "/api/raid/live/create") return await handleRaidLiveCreate(req, res);
     if (method === "POST" && path === "/api/onboarding/complete") return await handleOnboardingComplete(req, res);
     if (method === "GET" && path === "/api/cards") return await handleGetCards(req, res);
     if (method === "POST" && path === "/api/cards/pull") return await handleCardPull(req, res);
@@ -3205,6 +3465,27 @@ const server = http.createServer(async (req, res) => {
       const matchId = Number(pvpLiveAction[1]);
       if (!Number.isFinite(matchId)) return sendJson(res, 400, { error: "Invalid match id" });
       return await handleLiveAction(req, res, matchId);
+    }
+
+    const raidLiveJoin = path.match(/^\/api\/raid\/live\/(\d+)\/join$/);
+    if (raidLiveJoin && method === "POST") {
+      const matchId = Number(raidLiveJoin[1]);
+      if (!Number.isFinite(matchId)) return sendJson(res, 400, { error: "Invalid match id" });
+      return await handleRaidLiveJoin(req, res, matchId);
+    }
+
+    const raidLiveGet = path.match(/^\/api\/raid\/live\/(\d+)$/);
+    if (raidLiveGet && method === "GET") {
+      const matchId = Number(raidLiveGet[1]);
+      if (!Number.isFinite(matchId)) return sendJson(res, 400, { error: "Invalid match id" });
+      return await handleRaidLiveGet(req, res, matchId);
+    }
+
+    const raidLiveAction = path.match(/^\/api\/raid\/live\/(\d+)\/action$/);
+    if (raidLiveAction && method === "POST") {
+      const matchId = Number(raidLiveAction[1]);
+      if (!Number.isFinite(matchId)) return sendJson(res, 400, { error: "Invalid match id" });
+      return await handleRaidLiveAction(req, res, matchId);
     }
 
     sendJson(res, 404, { error: "Not found" });

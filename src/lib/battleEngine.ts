@@ -111,6 +111,8 @@ export interface BattleState {
   pendingAction: PendingAction | null;
   rng: RNG;
   rngSeed?: number;
+  /** Co-op raid: active player is one ally; skip wipe until both allies are out of cards. */
+  skipPlayerWipeCheck?: boolean;
 }
 
 export type PendingAction =
@@ -500,6 +502,31 @@ export function endTurnAction(state: BattleState): BattleState {
   return endTurn(newState);
 }
 
+/** End-of-turn cleanup for the active side only (no turn flip). Used by raid co-op between ally A and ally B. */
+export function applyEndOfTurnCleanupForActiveSide(state: BattleState): BattleState {
+  if (state.phase === "game-over") return state;
+  const side = getActiveSide(state);
+  state.turnPhase = "end";
+  for (const fc of side.field) {
+    if (!fc) continue;
+    fc.tempBuffs = fc.tempBuffs
+      .map((b) => ({ ...b, turnsRemaining: b.turnsRemaining - 1 }))
+      .filter((b) => b.turnsRemaining > 0);
+    if (fc.tauntTurnsRemaining && fc.tauntTurnsRemaining > 0) {
+      fc.tauntTurnsRemaining -= 1;
+    }
+    if (fc.blind && fc.blind.turnsRemaining > 0) {
+      fc.blind.turnsRemaining -= 1;
+      if (fc.blind.turnsRemaining <= 0) delete fc.blind;
+    }
+    fc.stunned = false;
+  }
+  tickTokenDurations(side);
+  state.phase = "select-action";
+  state.pendingAction = null;
+  return checkWinCondition(state);
+}
+
 function checkWinCondition(state: BattleState): BattleState {
   const playerDead = state.player.hp <= 0;
   const enemyDead = state.enemy.hp <= 0;
@@ -520,6 +547,7 @@ function checkWinCondition(state: BattleState): BattleState {
 
   // Check total wipe condition
   for (const sideKey of ["player", "enemy"] as const) {
+    if (sideKey === "player" && state.skipPlayerWipeCheck) continue;
     const side = state[sideKey];
     const hasField = side.field.some(fc => fc !== null);
     const hasHand = side.hand.length > 0;

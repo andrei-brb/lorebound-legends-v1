@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { BookOpen, Layers, Swords, Coins, Sparkles as SparklesIcon, Grid3X3, Loader2, ScrollText, Hammer, Trophy, ArrowLeftRight, BarChart3, Calendar, Zap, Crown, Shield, Mail, User, Gift, Users, MessageCircle, Eye, Flag, Palette, Flame } from "lucide-react";
 import TabTransition from "@/components/TabTransition";
 import TutorialOverlay from "@/components/TutorialOverlay";
@@ -30,6 +30,10 @@ import ProfileHall from "@/components/halls/ProfileHall";
 import DailyHall from "@/components/halls/DailyHall";
 import CombatHall from "@/components/halls/CombatHall";
 import LivePvPBattleground from "@/components/LivePvPBattleground";
+import RaidCoopArena from "@/components/RaidCoopArena";
+import RaidLiveBattleground from "@/components/RaidLiveBattleground";
+import { initRaidCoopBattle, type RaidCoopState } from "@/lib/raid/raidCoopEngine";
+import { getRaidBoss } from "@/lib/raid/bosses";
 import { cn } from "@/lib/utils";
 import { setSfxVolume } from "@/lib/sfx";
 import { usePlayerApi } from "@/lib/usePlayerApi";
@@ -102,6 +106,13 @@ export default function Index() {
     cards: "collection", combat: "combat-hall", progress: "quests", social: "trade", community: "friends", you: "profile",
   });
   const [battleDeckIds, setBattleDeckIds] = useState<string[]>([]);
+  const [soloRaidBossId, setSoloRaidBossId] = useState<string | null>(null);
+  const [raidHotseat, setRaidHotseat] = useState<{ bossId: string; deckIds: string[] } | null>(null);
+  const [raidState, setRaidState] = useState<RaidCoopState | null>(null);
+  const [pendingCombat, setPendingCombat] = useState<{
+    kind: "raid-solo" | "raid-hotseat";
+    bossId: string;
+  } | null>(null);
   const [rankedBattle, setRankedBattle] = useState<{
     matchId: number;
     opponentName: string;
@@ -255,10 +266,31 @@ export default function Index() {
 
   const startBattle = (deckIds: string[]) => {
     setRankedBattle(null);
+    setSoloRaidBossId(null);
+    setRaidHotseat(null);
+    setRaidState(null);
     setBattleDeckIds(deckIds);
     setActiveCategory("combat");
     setActiveTab("battle");
   };
+
+  const patchRaid = useCallback((fn: (r: RaidCoopState) => void) => {
+    setRaidState((prev) => {
+      if (!prev) return prev;
+      fn(prev);
+      return { ...prev };
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!raidHotseat) {
+      setRaidState(null);
+      return;
+    }
+    const boss = getRaidBoss(raidHotseat.bossId);
+    if (!boss) return;
+    setRaidState(initRaidCoopBattle(raidHotseat.deckIds, raidHotseat.deckIds, boss));
+  }, [raidHotseat]);
 
   const acceptInvitePopup = async () => {
     if (!pvpInvitePopup) return;
@@ -334,9 +366,17 @@ export default function Index() {
   const liveMatchIdFromInbox = typeof window !== "undefined" ? Number(sessionStorage.getItem("pvp.live.matchId") || "") : NaN;
   const hasLiveMatchFromInbox = Number.isFinite(liveMatchIdFromInbox) && liveMatchIdFromInbox > 0;
 
+  const raidLiveMatchIdFromInbox =
+    typeof window !== "undefined" ? Number(sessionStorage.getItem("raid.live.matchId") || "") : NaN;
+  const hasRaidLiveMatchFromInbox = Number.isFinite(raidLiveMatchIdFromInbox) && raidLiveMatchIdFromInbox > 0;
+
   /** Hide top nav (logo, currency, category + sub-tabs) while an active battle UI is shown */
   const hideAppChromeDuringBattle =
-    activeTab === "battle" && (battleDeckIds.length > 0 || hasLiveMatchFromInbox);
+    activeTab === "battle" &&
+    (battleDeckIds.length > 0 ||
+      hasLiveMatchFromInbox ||
+      hasRaidLiveMatchFromInbox ||
+      (raidHotseat != null && raidState != null));
 
   return (
     <TooltipProvider>
@@ -510,18 +550,64 @@ export default function Index() {
             )}
             {activeTab === "catalog" && <CardCatalog playerState={playerState} />}
             {activeTab === "summon" && <PackShop playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} pullCardsApi={pullCards} />}
-            {activeTab === "deck" && <DeckBuilder onStartBattle={startBattle} playerState={playerState} onStateChange={setPlayerState} />}
+            {activeTab === "deck" && (
+              <DeckBuilder
+                onStartBattle={(deckIds) => {
+                  if (pendingCombat?.kind === "raid-solo") {
+                    setSoloRaidBossId(pendingCombat.bossId);
+                    setRaidHotseat(null);
+                    setRaidState(null);
+                    setBattleDeckIds(deckIds);
+                    setPendingCombat(null);
+                    setActiveCategory("combat");
+                    setActiveTab("battle");
+                    return;
+                  }
+                  if (pendingCombat?.kind === "raid-hotseat") {
+                    setRaidHotseat({ bossId: pendingCombat.bossId, deckIds });
+                    setSoloRaidBossId(null);
+                    setBattleDeckIds([]);
+                    setPendingCombat(null);
+                    setActiveCategory("combat");
+                    setActiveTab("battle");
+                    return;
+                  }
+                  startBattle(deckIds);
+                }}
+                pendingCombatHint={
+                  pendingCombat
+                    ? pendingCombat.kind === "raid-solo"
+                      ? `Raid (solo): you're preparing to face ${getRaidBoss(pendingCombat.bossId)?.name ?? "the boss"}. Build a 10-card deck, then Start Battle.`
+                      : `Raid (local co-op): the same deck is used for both allies on one device. Build your deck, then Start Battle.`
+                    : null
+                }
+                playerState={playerState}
+                onStateChange={setPlayerState}
+              />
+            )}
             {activeTab === "combat-hall" && (
               <CombatHall
                 playerState={playerState}
-                onLaunchMode={(mode) => {
+                onLaunchMode={(mode, bossId) => {
                   if (mode === "ranked") setActiveTab("pvp");
                   else if (mode === "tourney") setActiveTab("tournament");
-                  else setActiveTab("deck");
+                  else if (mode === "raid-online") {
+                    toast({
+                      title: "Online co-op raid",
+                      description: "Use Friends → challenge with raid invite, or POST /api/raid/live/create with a friend’s player id. Set session raid.live.matchId after joining.",
+                    });
+                    setActiveCategory("social");
+                    setActiveTab("friends");
+                  } else if (mode === "raid-solo" || mode === "raid-hotseat") {
+                    setPendingCombat({ kind: mode, bossId: bossId ?? "ember-tyrant" });
+                    setActiveTab("deck");
+                  } else {
+                    setActiveTab("deck");
+                  }
                 }}
               />
             )}
-            {activeTab === "battle" && battleDeckIds.length > 0 && (
+            {activeTab === "battle" && battleDeckIds.length > 0 && !raidHotseat && (
               <BattleArena
                 playerDeckIds={battleDeckIds}
                 opponentDeckIds={rankedBattle?.opponentDeckIds ?? null}
@@ -538,12 +624,31 @@ export default function Index() {
                       }
                     : undefined
                 }
+                soloRaidBossId={soloRaidBossId}
                 onExit={() => {
                   setBattleDeckIds([]);
+                  setSoloRaidBossId(null);
                   const wasRanked = rankedBattle != null;
                   setRankedBattle(null);
                   setActiveTab(wasRanked ? "pvp" : "combat-hall");
                 }}
+                playerState={playerState}
+                onStateChange={setPlayerState}
+                isOnline={isOnline}
+                submitBattleResultApi={submitBattleResult}
+                syncEconomyApi={syncEconomy}
+              />
+            )}
+            {activeTab === "battle" && raidHotseat && raidState && (
+              <RaidCoopArena
+                raid={raidState}
+                onRaidPatch={patchRaid}
+                onExit={() => {
+                  setRaidHotseat(null);
+                  setRaidState(null);
+                  setActiveTab("combat-hall");
+                }}
+                playerDeckIds={raidHotseat.deckIds}
                 playerState={playerState}
                 onStateChange={setPlayerState}
                 isOnline={isOnline}
@@ -571,6 +676,9 @@ export default function Index() {
                   sessionStorage.setItem("pvp.live.matchId", String(matchId));
                   setRankedBattle(null);
                   setBattleDeckIds([]);
+                  setSoloRaidBossId(null);
+                  setRaidHotseat(null);
+                  setRaidState(null);
                   setActiveCategory("combat");
                   setActiveTab("battle");
                 }}
@@ -619,7 +727,29 @@ export default function Index() {
                 }}
               />
             )}
-            {activeTab === "battle" && battleDeckIds.length === 0 && !hasLiveMatchFromInbox && (
+            {activeTab === "battle" &&
+              battleDeckIds.length === 0 &&
+              !hasLiveMatchFromInbox &&
+              hasRaidLiveMatchFromInbox &&
+              !raidHotseat && (
+                <RaidLiveBattleground
+                  matchId={raidLiveMatchIdFromInbox}
+                  playerState={playerState}
+                  onStateChange={setPlayerState}
+                  submitBattleResult={submitBattleResult}
+                  syncEconomyApi={syncEconomy}
+                  onExit={() => {
+                    sessionStorage.removeItem("raid.live.matchId");
+                    setActiveCategory("combat");
+                    setActiveTab("combat-hall");
+                  }}
+                />
+              )}
+            {activeTab === "battle" &&
+              battleDeckIds.length === 0 &&
+              !hasLiveMatchFromInbox &&
+              !hasRaidLiveMatchFromInbox &&
+              !(raidHotseat && raidState) && (
               <div className="text-center py-20">
                 <Swords className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
                 <h2 className="font-heading text-xl font-bold text-foreground mb-2">No Deck Selected</h2>

@@ -21,7 +21,7 @@ export function attachLiveMatchWebSocket(server, { prisma, toPublicPlayer }) {
       return;
     }
 
-    const m = url.pathname.match(/^\/api\/pvp\/live\/(\d+)\/ws$/);
+    const m = url.pathname.match(/^\/api\/(?:pvp|raid)\/live\/(\d+)\/ws$/);
     if (!m) {
       socket.destroy();
       return;
@@ -52,7 +52,11 @@ export function attachLiveMatchWebSocket(server, { prisma, toPublicPlayer }) {
           where: { id: matchId },
           include: { playerA: true, playerB: true },
         });
-        if (!match || match.type !== "live" || (me.id !== match.playerAId && me.id !== match.playerBId)) {
+        if (
+          !match ||
+          (match.type !== "live" && match.type !== "raid_live") ||
+          (me.id !== match.playerAId && me.id !== match.playerBId)
+        ) {
           socket.write("HTTP/1.1 403 Forbidden\r\n\r\n");
           socket.destroy();
           return;

@@ -86,3 +86,10 @@ export function getBattleGoldReward(won: boolean, turnCount: number): number {
   const speedBonus = Math.max(0, 100 - turnCount * 5);
   return base + speedBonus;
 }
+
+/** Solo / co-op raid: multiply base PvE reward (e.g. 1.35 for elite bosses). */
+export function getRaidGoldReward(won: boolean, turnCount: number, multiplier: number): number {
+  const base = getBattleGoldReward(won, turnCount);
+  if (!won) return base;
+  return Math.round(base * multiplier);
+}

@@ -22,6 +22,7 @@ interface UsePlayerApiReturn {
     state: PlayerState;
   } | null>;
   submitBattleResult: (data: {
+    raidBossId?: string;
     won: boolean;
     draw?: boolean;
     turnCount: number;

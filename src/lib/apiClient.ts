@@ -19,6 +19,17 @@ export function getLivePvpWebSocketUrl(matchId: number): string | null {
   return `${proto}//${window.location.host}${path}?access_token=${encodeURIComponent(token)}`;
 }
 
+export function getLiveRaidWebSocketUrl(matchId: number): string | null {
+  if (typeof window === "undefined") return null;
+  const auth = getDiscordAuth();
+  const token = auth?.access_token;
+  if (!token) return null;
+  const base = getApiBase();
+  const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+  const path = `${base}/api/raid/live/${matchId}/ws`;
+  return `${proto}//${window.location.host}${path}?access_token=${encodeURIComponent(token)}`;
+}
+
 function getHeaders(): Record<string, string> {
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   const auth = getDiscordAuth();
@@ -140,6 +151,7 @@ export const api = {
     draw?: boolean;
     turnCount: number;
     deckCardIds: string[];
+    raidBossId?: string;
   }) {
     const res = await fetch(`${getApiBase()}/api/battle/result`, {
       method: "POST",
@@ -468,6 +480,38 @@ export const api = {
       body: JSON.stringify(action),
     });
     return handleResponse<{ ok: true; status: string; state: unknown; result: unknown; turnPlayerId: number }>(res);
+  },
+
+  async raidLiveCreate(opponentPlayerId: number, bossId: string, deckCardIds: string[]) {
+    const res = await fetch(`${getApiBase()}/api/raid/live/create`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({ opponentPlayerId, bossId, deckCardIds }),
+    });
+    return handleResponse<{ ok: true; matchId: number }>(res);
+  },
+
+  async raidLiveJoin(matchId: number, deckCardIds?: string[]) {
+    const res = await fetch(`${getApiBase()}/api/raid/live/${matchId}/join`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({ deckCardIds: deckCardIds ?? [] }),
+    });
+    return handleResponse<{ ok: true; status: string }>(res);
+  },
+
+  async raidLiveGet(matchId: number) {
+    const res = await fetch(`${getApiBase()}/api/raid/live/${matchId}`, { headers: getHeaders() });
+    return handleResponse<{ ok: true; match: unknown }>(res);
+  },
+
+  async raidLiveAction(matchId: number, intent: import("./battleLockstep").BattleLockstepIntent) {
+    const res = await fetch(`${getApiBase()}/api/raid/live/${matchId}/action`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({ intent }),
+    });
+    return handleResponse<{ ok: true; matchId: number; status: string }>(res);
   },
 
   async adminGrant(delta: { gold?: number; stardust?: number; pityCounter?: number; totalPulls?: number }) {

@@ -1,26 +1,39 @@
 import { useMemo, useState } from "react";
-import { Swords, Crown, Shield, Trophy, Flame, Zap } from "lucide-react";
+import { Swords, Crown, Shield, Trophy, Flame, Zap, Users } from "lucide-react";
 import type { PlayerState } from "@/lib/playerState";
 import HallLayout, { HallSection, HallStat } from "@/components/scene/HallLayout";
 import GlassPanel from "@/components/scene/GlassPanel";
 import HexAvatar from "@/components/scene/HexAvatar";
 import { cn } from "@/lib/utils";
 import { loadAchievementState } from "@/lib/achievementEngine";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { RAID_BOSSES } from "@/lib/raid/bosses";
+
+export type CombatLaunchMode =
+  | "skirmish"
+  | "ranked"
+  | "tourney"
+  | "raid-solo"
+  | "raid-hotseat"
+  | "raid-online";
 
 interface Props {
   playerState: PlayerState;
-  onLaunchMode?: (mode: "skirmish" | "ranked" | "tourney" | "raid") => void;
+  onLaunchMode?: (mode: CombatLaunchMode, bossId?: string) => void;
 }
 
 const MODES = [
-  { id: "skirmish", label: "Skirmish", desc: "Quick PvE battle vs the realm", icon: <Swords className="w-4 h-4" />, hue: "var(--primary)" },
-  { id: "ranked", label: "Ranked PvP", desc: "Climb the leaderboard ladder", icon: <Crown className="w-4 h-4" />, hue: "var(--legendary)" },
-  { id: "tourney", label: "Tournament", desc: "Bracketed bouts for great rewards", icon: <Trophy className="w-4 h-4" />, hue: "var(--rare)" },
-  { id: "raid", label: "Raid", desc: "Co-op vs an elite boss", icon: <Flame className="w-4 h-4" />, hue: "var(--destructive)" },
+  { id: "skirmish" as const, label: "Skirmish", desc: "Quick PvE battle vs the realm", icon: <Swords className="w-4 h-4" />, hue: "var(--primary)" },
+  { id: "ranked" as const, label: "Ranked PvP", desc: "Climb the leaderboard ladder", icon: <Crown className="w-4 h-4" />, hue: "var(--legendary)" },
+  { id: "tourney" as const, label: "Tournament", desc: "Bracketed bouts for great rewards", icon: <Trophy className="w-4 h-4" />, hue: "var(--rare)" },
+  { id: "raid-solo" as const, label: "Raid (Solo)", desc: "Solo vs an elite boss deck", icon: <Flame className="w-4 h-4" />, hue: "var(--destructive)" },
+  { id: "raid-hotseat" as const, label: "Raid (Co-op local)", desc: "Two players, one device — shared party vs boss", icon: <Users className="w-4 h-4" />, hue: "var(--destructive)" },
+  { id: "raid-online" as const, label: "Raid (Online)", desc: "Invite a friend — co-op vs boss (Discord)", icon: <Users className="w-4 h-4" />, hue: "var(--rare)" },
 ] as const;
 
 export default function CombatHall({ playerState, onLaunchMode }: Props) {
   const [selected, setSelected] = useState<(typeof MODES)[number]["id"]>("skirmish");
+  const [bossId, setBossId] = useState(RAID_BOSSES[0]?.id ?? "ember-tyrant");
   const ach = useMemo(() => loadAchievementState(), []);
   const wins = ach.stats.totalWins;
   const battles = ach.stats.totalBattles;
@@ -109,15 +122,39 @@ export default function CombatHall({ playerState, onLaunchMode }: Props) {
         })}
       </div>
 
+      {(selected === "raid-solo" || selected === "raid-hotseat" || selected === "raid-online") && (
+        <GlassPanel hue="var(--destructive)" glow={0.35} padding="md">
+          <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-2">Boss</p>
+          <Select value={bossId} onValueChange={setBossId}>
+            <SelectTrigger className="w-full max-w-md">
+              <SelectValue placeholder="Choose boss" />
+            </SelectTrigger>
+            <SelectContent>
+              {RAID_BOSSES.map((b) => (
+                <SelectItem key={b.id} value={b.id}>
+                  {b.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-[10px] text-muted-foreground mt-2">
+            {RAID_BOSSES.find((b) => b.id === bossId)?.description}
+          </p>
+        </GlassPanel>
+      )}
+
       <GlassPanel hue="var(--primary)" glow={0.4} padding="md">
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
             <h3 className="font-heading text-sm text-foreground">Ready to march?</h3>
-            <p className="text-xs text-muted-foreground">Selected mode: <span className="text-foreground capitalize">{selected}</span></p>
+            <p className="text-xs text-muted-foreground">Selected mode: <span className="text-foreground capitalize">{selected.replace(/-/g, " ")}</span></p>
           </div>
           <button
             type="button"
-            onClick={() => onLaunchMode?.(selected)}
+            onClick={() => {
+              const raid = selected === "raid-solo" || selected === "raid-hotseat" || selected === "raid-online";
+              onLaunchMode?.(selected, raid ? bossId : undefined);
+            }}
             className="px-5 py-2.5 rounded-xl font-heading text-sm text-primary-foreground transition-transform hover:scale-[1.02]"
             style={{ background: `linear-gradient(135deg, hsl(var(--destructive)), hsl(var(--primary)))`, boxShadow: `0 0 20px hsl(var(--destructive)/0.4)` }}
           >
