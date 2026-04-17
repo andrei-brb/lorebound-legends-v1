@@ -2620,6 +2620,31 @@ const server = http.createServer(async (req, res) => {
     if (method === "GET" && path === "/api/leaderboard") return await handleLeaderboard(req, res);
     if (method === "POST" && path === "/api/admin/grant") return await handleAdminGrant(req, res);
 
+    // Social: presence + chat + guilds + spectate
+    if (method === "POST" && path === "/api/presence/heartbeat") return await handlePresenceHeartbeat(req, res);
+    if (method === "GET"  && path === "/api/friends/online")     return await handleGetFriendsWithPresence(req, res);
+    if (method === "GET"  && path === "/api/chat/global")        return await handleGetChat(req, res, "global");
+    if (method === "POST" && path === "/api/chat/post")          return await handlePostChat(req, res);
+    if (method === "GET"  && path === "/api/guilds")             return await handleListGuilds(req, res);
+    if (method === "GET"  && path === "/api/guilds/me")          return await handleGetMyGuild(req, res);
+    if (method === "POST" && path === "/api/guilds")             return await handleCreateGuild(req, res);
+    if (method === "POST" && path === "/api/guilds/leave")       return await handleLeaveGuild(req, res);
+    if (method === "GET"  && path === "/api/spectate/active")    return await handleSpectateList(req, res);
+
+    const guildJoinMatch = path.match(/^\/api\/guilds\/(\d+)\/join$/);
+    if (guildJoinMatch && method === "POST") {
+      const gid = Number(guildJoinMatch[1]);
+      if (!Number.isFinite(gid)) return sendJson(res, 400, { error: "Invalid guild id" });
+      return await handleJoinGuild(req, res, gid);
+    }
+
+    const guildChatMatch = path.match(/^\/api\/chat\/guild\/(\d+)$/);
+    if (guildChatMatch && method === "GET") {
+      const gid = Number(guildChatMatch[1]);
+      if (!Number.isFinite(gid)) return sendJson(res, 400, { error: "Invalid guild id" });
+      return await handleGetChat(req, res, `guild:${gid}`);
+    }
+
     // /api/cards/:cardId
     const cardMatch = path.match(/^\/api\/cards\/([^/]+)$/);
     if (cardMatch && method === "PATCH") return await handlePatchCard(req, res, cardMatch[1]);
