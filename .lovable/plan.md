@@ -1,72 +1,66 @@
 
 
-User picked from Q1-Q4 (Player Profile, Daily Engagement, UX & QoL, Social). Q5 (Meta Progression) deferred. Let me decode picks:
+User wants me to design **new** Chat and Trade tabs (don't touch the old `ChatPanel`/`TradeUI`) so they can preview the new "no-boxes, seamless, scene-based" aesthetic before committing to a full redesign. Two new tabs in the nav, parallel to the existing ones.
 
-**Q1 Player Profile**: a (Profile page), e (Custom unlockable avatars), f (Player titles from achievements)
-**Q2 Daily Engagement**: a (Daily login calendar), b (Hourly free chest), c (First-win-of-day bonus), d (Daily mystery box drops)
-**Q3 UX & QoL**: a (Settings panel), c (Smooth page transitions), d (Interactive tutorials per tab)
-**Q4 Social**: a (Friends list with online status), b (Spectate top PvP), c (Guilds/clans + chat), e (Global/regional chat)
+Let me check what exists for trade and the nav structure to make sure I plug in cleanly.
 
-That's 14 features across 4 areas — a substantial chunk. I'll group into a phased build plan so we don't break the existing app.
+I'll plan two pilot scenes that demonstrate the design language from my last message:
+- **Chat → Tavern Hearth scene** (parchment notes, fire glow, no rectangles)
+- **Trade → Moonlit Bazaar scene** (two facing pedestals, mist between, items float)
 
-## Build Plan — Polish & Feature Pack (14 features)
-
-### Phase 1 — Foundations (touch shared state once)
-Add to `playerState.ts` + Prisma schema:
-- `profile`: `{ avatarId, titleId, bannerId }`
-- `unlockedAvatars: string[]`, `unlockedTitles: string[]`
-- `dailyLogin`: `{ streak, lastClaimDate, claimedDays[] }`
-- `lastChestClaimAt`, `firstWinDate`, `mysteryBoxesPending`
-- `settings`: `{ musicVol, sfxVol, reduceMotion, animationsOn }`
-- `tutorialsCompleted: string[]`
-- `friends[]`, `friendRequests[]`, `guildId`
-
-One DB migration covers all new columns.
-
-### Phase 2 — Player Profile (Q1: a, e, f)
-- **`ProfilePage.tsx`** — new route/tab. Shows avatar, title, equipped banner, win/loss, total cards, BP level
-- **Avatar picker modal** — grid of unlocked avatars (locked ones grayed with unlock condition)
-- **Title selector** — dropdown of unlocked titles, auto-unlocked from achievements
-- Seed ~12 avatars + ~15 titles tied to existing achievements
-
-### Phase 3 — Daily Engagement (Q2: a, b, c, d)
-- **`DailyHub.tsx`** — single panel with 4 widgets:
-  - **Login calendar** — 7-day grid, claim today's reward, streak counter
-  - **Hourly chest** — countdown timer + claim button (gold/dust)
-  - **First win banner** — shows "+200 gold +500 BP XP" until claimed via battle
-  - **Mystery box inbox** — shows pending boxes from battle drops, click to open
-- Hook into `BattleArena` win handler: 5% drop chance + first-win flag
-
-### Phase 4 — UX & Quality of Life (Q3: a, c, d)
-- **`SettingsPanel.tsx`** — modal with sliders (music/sfx) + toggles (reduce motion, animations). Persist to playerState. Wire `sfx.ts` to volume
-- **Page transitions** — wrap tab content in `framer-motion AnimatePresence` with fade+slide (respects reduce-motion setting)
-- **Interactive tutorials** — `TutorialOverlay.tsx` shown first time each tab opens (Collection, Deck Builder, Battle, Shop, etc). 3-5 step spotlight tour per tab. Tracked in `tutorialsCompleted`
-
-### Phase 5 — Social (Q4: a, b, c, e)
-- **Friends list** — `FriendsPanel.tsx` with add-by-username, online status (last-seen heartbeat), accept/reject requests. New API routes
-- **Spectate mode** — list of currently-active PvP matches, click to view read-only `BattleArena` with live state polling
-- **Guilds/clans** — create/join guild, member list, weekly goal tracker (e.g. "win 50 battles as a guild"), guild chat
-- **Global chat** — single global channel + per-guild channel. Polling-based (3s) or SSE
-- Backend: 4-5 new tables (`friends`, `friend_requests`, `guilds`, `guild_members`, `chat_messages`), routes in `server/token-server.mjs`
-
-### Phase 6 — Wire it up
-- New top-nav entries: **Profile**, **Daily**, **Friends**, **Guild**
-- Settings gear icon top-right
-- Tutorial spotlight triggers via `useEffect` on tab mount
+Both will be self-contained components, dropped into nav as **"Chat (new)"** and **"Trade (new)"** so the originals stay untouched for comparison.
 
 ---
 
-### Order of build (3 chunks to keep things shippable)
+## Plan — Pilot redesign: new Chat + Trade scenes
 
-1. **Chunk A — Profile + Daily + Settings** (Phases 1, 2, 3, settings part of 4) — fully client/local, fastest, biggest visible win
-2. **Chunk B — Tutorials + Page transitions** (rest of Phase 4) — pure UI polish
-3. **Chunk C — Social stack** (Phase 5) — needs backend, longest. Build friends → chat → guilds → spectate
+### What I'll build
 
-I'll do all 3 chunks unless you want to pause between them.
+**1. Shared primitives** (`src/components/scene/`)
+- `SceneBackdrop.tsx` — full-bleed gradient + animated particle/ember layer + radial vignette. Props: `mood` (`hearth` | `moonlit` | `forge` | `vault`).
+- `MistEdge.tsx` — SVG turbulence + radial mask used to dissolve content edges into the backdrop instead of using borders.
+- `FloatingLabel.tsx` — inline carved/inked text for in-world labels (no chip/badge boxes).
+- `GlowOrb.tsx` — round, pulsing element used for avatars, currencies, statuses.
+
+These replace `<Card>` for the new tabs only. Existing tabs untouched.
+
+**2. New tab: `ChatScene.tsx` — "The Hearth"**
+- Scene: warm ember backdrop, hearth glow bottom-center, soft smoke drifting up.
+- Channel switch (Global / Guild) = two **lanterns** hanging top-left; the lit one is active. Click to swap, the other fades.
+- Messages = **parchment notes** drifting gently upward like embers from the fire. Each note has:
+  - Torn-paper SVG edge (no rectangle)
+  - Sender avatar = small `GlowOrb` with portrait
+  - Inked handwriting-style text
+  - Older notes fade and shrink toward the top, newest at the bottom near the fire
+- Composer = a **quill resting on parchment** at the bottom. The input has no box — just an underline of ink that grows as you type. Send = the parchment curls and flies up into the message stream.
+- Empty state = "The hearth is quiet…" floating above the flames.
+- Uses existing `api.getChat` / `api.postChat` so it works immediately.
+
+**3. New tab: `TradeScene.tsx` — "Moonlit Bazaar"**
+- Scene: deep indigo night sky backdrop, moon top-center casting a vertical light beam, faint stars, mist on the floor.
+- Two **stone pedestals** facing each other across the moonbeam: left = "Your Offer", right = "Their Offer". No card containers — just the pedestals carved into the scene with their tops glowing.
+- Cards offered = float slightly above each pedestal, gently bobbing. Drag from your collection drawer (a **curtain that pulls up from the bottom** when you click a hanging tassel) onto your pedestal.
+- Partner picker = three **silhouetted travellers** standing in the mist on the right; click one to open trade. (Wired to `api.listFriends` so it's real data.)
+- Status indicator = the moonbeam **brightens** when both sides have locked their offer; a rune circle ignites on the floor when the trade is sealed.
+- Confirm/Cancel = **two glowing runes** etched into the floor between the pedestals, not buttons.
+- Uses existing trade endpoints (whatever `TradeUI` currently calls) — I'll mirror them.
+
+**4. Nav integration** (`src/pages/Index.tsx`)
+- Add two entries to the **Community** category sub-tabs: `chat-new` (label "Hearth ✨") and `trade-new` (label "Bazaar ✨").
+- Keep existing Chat/Trade entries so user can compare side-by-side.
+- Each new tab still wrapped in `TabTransition` for the camera-pan feel.
+
+**5. Motion & accessibility**
+- All ambient animation (ember drift, message float, pedestal bob) gated behind `settings.reduceMotion`. When off → static composition that still looks scene-like.
+- Keyboard support: chat input focus, trade pedestals tab-navigable.
+- Performance: SVG filters are static; only transform-based animations run in rAF.
 
 ### What stays untouched
-Battle engine, card data, deck builder, packs, crafting, achievements, leaderboard, trade, mail, PvP matchmaking, tournaments, battle pass, events. We only add — no rewrites.
+Old `ChatPanel`, `TradeUI`, all other tabs, backend, schema, data. Pure additive UI experiment.
 
-### Open question for later
-Q5 Meta Progression — answer it whenever, I'll layer it on top.
+### Open question
+Trade backend: I haven't re-read `TradeUI.tsx` yet to confirm exact API calls. If the existing trade flow turns out to need extra wiring (offer-locking, etc.) I'll match it exactly when I implement — no schema changes either way.
+
+### After you see them
+You tell me which feels right (or what to tweak: colors, motion, layout, scene metaphor). Once one direction is approved I'll roll the same primitives out to Friends, Guild, Profile, Daily, Collection, etc.
 
