@@ -100,7 +100,11 @@ export default function GuildPanel({ isOnline }: GuildPanelProps) {
   useEffect(() => {
     if (!inviteOpen || !isOnline) return;
     const q = inviteQuery;
-    if (q.length < 2) { setInviteSuggestions([]); return; }
+    if (q.length < 2) {
+      setInviteSuggestions([]);
+      setInviteSuggestLoading(false);
+      return;
+    }
 
     let cancelled = false;
     setInviteSuggestLoading(true);
@@ -109,10 +113,17 @@ export default function GuildPanel({ isOnline }: GuildPanelProps) {
       try {
         const r = await api.searchUsers(q);
         if (cancelled) return;
-        const users = (r.users || []).filter((u) => u.username.toLowerCase() !== q.toLowerCase());
+        const users = r.users || [];
         setInviteSuggestions(users.slice(0, 8).map((u) => ({ id: u.id, username: u.username, avatar: u.avatar })));
-      } catch {
+      } catch (e: any) {
         if (!cancelled) setInviteSuggestions([]);
+        if (!cancelled) {
+          toast({
+            title: "Search failed",
+            description: e instanceof Error ? e.message : "Could not search users",
+            variant: "destructive",
+          });
+        }
       } finally {
         if (!cancelled) setInviteSuggestLoading(false);
       }
