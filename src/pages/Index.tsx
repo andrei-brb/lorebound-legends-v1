@@ -96,6 +96,12 @@ export default function Index() {
     })), []
   );
 
+  // Sync sfx volume from settings on every change
+  useEffect(() => {
+    const v = playerState.settings?.sfxVol;
+    if (typeof v === "number") setSfxVolume(v);
+  }, [playerState.settings?.sfxVol]);
+
   useEffect(() => {
     if (!playerState.hasCompletedOnboarding) return;
     const achieveState = loadAchievementState();
