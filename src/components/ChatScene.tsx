@@ -72,9 +72,23 @@ export default function ChatScene({ isOnline, playerState }: ChatSceneProps) {
     if (!body) return;
     setSending(true);
     try {
-      const r = await api.postChat(activeChannel, body);
+      if (isOnline) {
+        const r = await api.postChat(activeChannel, body);
+        setMessages((prev) => [...prev, r.message]);
+      } else {
+        // Offline preview — append locally so the design can be tested
+        const localMsg: ChatMessage = {
+          id: Date.now(),
+          channel: activeChannel,
+          playerId: 0,
+          username: "You",
+          avatar: null,
+          body,
+          createdAt: Date.now(),
+        };
+        setMessages((prev) => [...prev, localMsg]);
+      }
       setText("");
-      setMessages((prev) => [...prev, r.message]);
     } catch (e: any) {
       toast({ title: "Could not send", description: e?.message || "", variant: "destructive" });
     } finally { setSending(false); }
