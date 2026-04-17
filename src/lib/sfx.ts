@@ -4,6 +4,19 @@
  */
 
 let ctx: AudioContext | null = null;
+let masterVolume = 0.8;
+
+export function setSfxVolume(v: number) {
+  masterVolume = Math.max(0, Math.min(1, v));
+}
+
+export function getSfxVolume(): number {
+  return masterVolume;
+}
+
+function v(x: number): number {
+  return x * masterVolume;
+}
 
 function getCtx(): AudioContext {
   if (!ctx) ctx = new AudioContext();
