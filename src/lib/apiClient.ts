@@ -477,4 +477,81 @@ export const api = {
     });
     return handleResponse<{ cardIds: string[]; state: import("./playerState").PlayerState }>(res);
   },
+
+  // ── Social: presence ──
+  async presenceHeartbeat() {
+    const res = await fetch(`${getApiBase()}/api/presence/heartbeat`, { method: "POST", headers: getHeaders() });
+    return handleResponse<{ ok: true }>(res);
+  },
+  async getFriendsOnline() {
+    const res = await fetch(`${getApiBase()}/api/friends/online`, { headers: getHeaders() });
+    return handleResponse<{
+      friends: Array<{ id: number; discordId: string; username: string; avatar?: string | null; online: boolean; lastSeenAt: number | null; friendshipId: number }>;
+    }>(res);
+  },
+
+  // ── Chat ──
+  async getChat(channel: "global" | `guild:${number}`, limit = 50) {
+    const path = channel === "global" ? "/api/chat/global" : `/api/chat/guild/${channel.split(":")[1]}`;
+    const res = await fetch(`${getApiBase()}${path}?limit=${limit}`, { headers: getHeaders() });
+    return handleResponse<{
+      messages: Array<{ id: number; channel: string; playerId: number; username: string; avatar: string | null; body: string; createdAt: number }>;
+    }>(res);
+  },
+  async postChat(channel: string, body: string) {
+    const res = await fetch(`${getApiBase()}/api/chat/post`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({ channel, body }),
+    });
+    return handleResponse<{ message: { id: number; channel: string; playerId: number; username: string; avatar: string | null; body: string; createdAt: number } }>(res);
+  },
+
+  // ── Guilds ──
+  async listGuilds() {
+    const res = await fetch(`${getApiBase()}/api/guilds`, { headers: getHeaders() });
+    return handleResponse<{ guilds: GuildPublic[] }>(res);
+  },
+  async getMyGuild() {
+    const res = await fetch(`${getApiBase()}/api/guilds/me`, { headers: getHeaders() });
+    return handleResponse<{ guild: GuildPublic | null; members: Array<{ id: number; discordId: string; username: string; avatar?: string | null; online: boolean; lastSeenAt: number | null }> }>(res);
+  },
+  async createGuild(data: { name: string; tag: string; description?: string }) {
+    const res = await fetch(`${getApiBase()}/api/guilds`, { method: "POST", headers: getHeaders(), body: JSON.stringify(data) });
+    return handleResponse<{ ok: true; guild: GuildPublic }>(res);
+  },
+  async joinGuild(guildId: number) {
+    const res = await fetch(`${getApiBase()}/api/guilds/${guildId}/join`, { method: "POST", headers: getHeaders() });
+    return handleResponse<{ ok: true }>(res);
+  },
+  async leaveGuild() {
+    const res = await fetch(`${getApiBase()}/api/guilds/leave`, { method: "POST", headers: getHeaders() });
+    return handleResponse<{ ok: true; disbanded?: boolean }>(res);
+  },
+
+  // ── Spectate ──
+  async getSpectateActive() {
+    const res = await fetch(`${getApiBase()}/api/spectate/active`, { headers: getHeaders() });
+    return handleResponse<{
+      matches: Array<{
+        id: number;
+        playerA: { id: number; discordId: string; username: string; avatar?: string | null };
+        playerB: { id: number; discordId: string; username: string; avatar?: string | null };
+        turnPlayerId: number | null;
+        lastActionAt: number | null;
+        createdAt: number;
+      }>;
+    }>(res);
+  },
 };
+
+export interface GuildPublic {
+  id: number;
+  name: string;
+  tag: string;
+  description: string | null;
+  ownerPlayerId: number;
+  memberCount: number;
+  weeklyGoal: { key: string; target: number; progress: number; resetAt: number };
+  createdAt: number;
+}
