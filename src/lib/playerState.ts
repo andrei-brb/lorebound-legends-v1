@@ -26,6 +26,37 @@ export interface PlayerState {
   cosmeticsEquipped?: CosmeticsEquipped;
   battlePassXpBoostExpiresAt?: number | null; // epoch ms; doubles BP XP while active
   deckPresets?: DeckPreset[];
+  // Profile
+  profile?: PlayerProfile;
+  unlockedAvatars?: string[];
+  unlockedTitles?: string[];
+  // Daily engagement
+  dailyLogin?: DailyLoginState;
+  lastChestClaimAt?: number | null;
+  firstWinDate?: string | null; // YYYY-MM-DD of last claimed first-win bonus
+  mysteryBoxesPending?: number;
+  // QoL
+  settings?: AppSettings;
+  tutorialsCompleted?: string[];
+}
+
+export interface PlayerProfile {
+  avatarId: string;
+  titleId: string | null;
+  bannerId: string | null;
+}
+
+export interface DailyLoginState {
+  streak: number;
+  lastClaimDate: string | null; // YYYY-MM-DD
+  claimedDays: number[]; // 1..7 within current cycle
+}
+
+export interface AppSettings {
+  musicVol: number; // 0..1
+  sfxVol: number;   // 0..1
+  reduceMotion: boolean;
+  animationsOn: boolean;
 }
 
 export interface DeckPreset {
