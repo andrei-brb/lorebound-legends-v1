@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Shield, Plus, LogOut, Loader2, Users, Trophy, Circle, UserPlus } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,10 +21,14 @@ export default function GuildPanel({ isOnline }: GuildPanelProps) {
   const [createOpen, setCreateOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteUsername, setInviteUsername] = useState("");
+  const [inviteSuggestions, setInviteSuggestions] = useState<Array<{ id: number; username: string; avatar?: string | null }>>([]);
+  const [inviteSuggestLoading, setInviteSuggestLoading] = useState(false);
   const [name, setName] = useState("");
   const [tag, setTag] = useState("");
   const [description, setDescription] = useState("");
   const [busy, setBusy] = useState(false);
+
+  const inviteQuery = useMemo(() => inviteUsername.trim(), [inviteUsername]);
 
   const refresh = async () => {
     if (!isOnline) { setLoading(false); return; }
@@ -87,10 +91,35 @@ export default function GuildPanel({ isOnline }: GuildPanelProps) {
       toast({ title: "Invite sent", description: `Sent an invite to ${u}.` });
       setInviteOpen(false);
       setInviteUsername("");
+      setInviteSuggestions([]);
     } catch (e: any) {
       toast({ title: "Could not invite", description: e?.message || "", variant: "destructive" });
     } finally { setBusy(false); }
   };
+
+  useEffect(() => {
+    if (!inviteOpen || !isOnline) return;
+    const q = inviteQuery;
+    if (q.length < 2) { setInviteSuggestions([]); return; }
+
+    let cancelled = false;
+    setInviteSuggestLoading(true);
+
+    const t = window.setTimeout(async () => {
+      try {
+        const r = await api.searchUsers(q);
+        if (cancelled) return;
+        const users = (r.users || []).filter((u) => u.username.toLowerCase() !== q.toLowerCase());
+        setInviteSuggestions(users.slice(0, 8).map((u) => ({ id: u.id, username: u.username, avatar: u.avatar })));
+      } catch {
+        if (!cancelled) setInviteSuggestions([]);
+      } finally {
+        if (!cancelled) setInviteSuggestLoading(false);
+      }
+    }, 250);
+
+    return () => { cancelled = true; window.clearTimeout(t); };
+  }, [inviteOpen, inviteQuery, isOnline]);
 
   if (!isOnline) {
     return (
@@ -153,6 +182,26 @@ export default function GuildPanel({ isOnline }: GuildPanelProps) {
                       maxLength={32}
                       onKeyDown={(e) => { if (e.key === "Enter") invite(); }}
                     />
+                    {inviteSuggestLoading && (
+                      <div className="mt-2 text-xs text-muted-foreground flex items-center gap-2">
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" /> searching…
+                      </div>
+                    )}
+                    {inviteSuggestions.length > 0 && (
+                      <div className="mt-2 rounded-md border border-border bg-background overflow-hidden">
+                        {inviteSuggestions.map((u) => (
+                          <button
+                            key={u.id}
+                            type="button"
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-secondary/50 flex items-center justify-between"
+                            onClick={() => { setInviteUsername(u.username); setInviteSuggestions([]); }}
+                          >
+                            <span className="text-foreground">{u.username}</span>
+                            <span className="text-[10px] text-muted-foreground">select</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <Button onClick={invite} disabled={busy || !inviteUsername.trim()} className="w-full">
                     {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "Send invite"}
