@@ -38,6 +38,7 @@ export default function SacrificeAnimation({ cardIds, totalStardust, onComplete 
 
   // Pre-generate shard + dust particle seeds once per mount (keeps animation stable and cheaper)
   const shards = useMemo(() => {
+    void cardIds;
     return Array.from({ length: SHARD_COUNT }, (_, i) => {
       const angle = (i / SHARD_COUNT) * Math.PI * 2;
       return {
@@ -50,16 +51,18 @@ export default function SacrificeAnimation({ cardIds, totalStardust, onComplete 
         h: 8 + Math.random() * 14,
       };
     });
-  }, [cardIds.join("|")]);
+  }, [cardIds]);
 
   const dustParticles = useMemo(
-    () =>
-      Array.from({ length: DUST_COUNT }).map(() => ({
+    () => {
+      void cardIds;
+      return Array.from({ length: DUST_COUNT }).map(() => ({
         startX: (Math.random() - 0.5) * 200,
         startY: (Math.random() - 0.5) * 200,
         delay: 0.1 + Math.random() * 0.5,
-      })),
-    [cardIds.join("|")]
+      }));
+    },
+    [cardIds]
   );
 
   return (

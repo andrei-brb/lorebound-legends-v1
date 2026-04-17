@@ -54,7 +54,7 @@ export function awardBattlePassXp(state: PlayerState, baseXp: number): { state: 
   if (!state.battlePass) return { state, awarded: 0, capped: false };
   if (baseXp <= 0) return { state, awarded: 0, capped: false };
 
-  let s = normalizeBattlePassDaily(state);
+  const s = normalizeBattlePassDaily(state);
   const bp = s.battlePass!;
   const seasonId = bp.activeSeasonId;
   const season = getBattlePassSeasonProgress(s, seasonId);

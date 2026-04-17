@@ -42,7 +42,7 @@ export default function TradeHall({ playerState, onStateChange }: TradeHallProps
   useEffect(() => {
     let alive = true;
     api.getFriends()
-      .then((r) => { if (alive) setFriends((r.accepted || []).map((f: any) => f.friend)); })
+      .then((r) => { if (alive) setFriends(r.accepted.map((f) => f.friend)); })
       .catch(() => {})
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
@@ -82,8 +82,9 @@ export default function TradeHall({ playerState, onStateChange }: TradeHallProps
       toast({ title: "Offer sent", description: `Pact sealed with ${partner.username}.` });
       setOffered([]);
       setRequested([]);
-    } catch (e: any) {
-      toast({ title: "Trade refused", description: e?.message || "", variant: "destructive" });
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "";
+      toast({ title: "Trade refused", description: message, variant: "destructive" });
     } finally { setSubmitting(false); }
   };
 

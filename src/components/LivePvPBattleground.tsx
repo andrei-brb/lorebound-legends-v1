@@ -21,7 +21,17 @@ type Props = {
 
 export default function LivePvPBattleground({ matchId, onExit, playerState, onStateChange, syncEconomyApi }: Props) {
   const [me, setMe] = useState<{ id: number; username: string } | null>(null);
-  const [liveMatch, setLiveMatch] = useState<any | null>(null);
+  const [liveMatch, setLiveMatch] = useState<{
+    id?: number;
+    status?: "pending" | "active" | "completed" | "cancelled" | string;
+    playerA?: { id: number; username: string; deckCardIds?: string[] | null };
+    playerB?: { id: number; username: string; deckCardIds?: string[] | null };
+    turnPlayerId?: number | null;
+    serverActionLog?: unknown;
+    seed?: number | null;
+    result?: unknown;
+    state?: unknown;
+  } | null>(null);
   const [acting, setActing] = useState(false);
   /** Last intent applied locally before the server confirms; cleared after sync or on error (rollback). */
   const [pendingIntent, setPendingIntent] = useState<BattleLockstepIntent | null>(null);
@@ -104,7 +114,7 @@ export default function LivePvPBattleground({ matchId, onExit, playerState, onSt
       ws?.close();
       setLiveWsConnected(false);
     };
-  }, [matchId, liveMatch?.status, liveMatch?.id]);
+  }, [matchId, liveMatch]);
 
   useEffect(() => {
     if (!liveMatch) return;
@@ -112,20 +122,23 @@ export default function LivePvPBattleground({ matchId, onExit, playerState, onSt
     const intervalMs = liveWsConnected ? 30_000 : 1200;
     const id = window.setInterval(() => refresh(), intervalMs);
     return () => window.clearInterval(id);
-  }, [liveMatch?.status, liveMatch?.id, refresh, liveWsConnected]);
+  }, [liveMatch, refresh, liveWsConnected]);
 
   useEffect(() => {
     if (!liveMatch) return;
     if (liveMatch.status !== "active") setPendingIntent(null);
-  }, [liveMatch?.status, liveMatch?.id]);
+  }, [liveMatch]);
 
-  const serverActionLog = (liveMatch?.actionLog as BattleLockstepIntent[]) || [];
+  const serverActionLog = useMemo(
+    () => (liveMatch?.actionLog as BattleLockstepIntent[]) || [],
+    [liveMatch?.actionLog]
+  );
   const optimisticActionLog = useMemo(() => {
     if (!pendingIntent) return serverActionLog;
     const last = serverActionLog[serverActionLog.length - 1];
     if (last && intentsEqual(last, pendingIntent)) return serverActionLog;
     return [...serverActionLog, pendingIntent];
-  }, [liveMatch?.actionLog, pendingIntent]);
+  }, [serverActionLog, pendingIntent]);
 
   if (!liveMatch || !me) {
     return (
@@ -208,8 +221,9 @@ export default function LivePvPBattleground({ matchId, onExit, playerState, onSt
           try {
             await api.pvpLiveAction(matchId, { type: "battle", intent });
             await refresh();
-          } catch (e: any) {
-            toast({ title: "Action failed", description: e?.message || "Could not apply action" });
+          } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : "Could not apply action";
+            toast({ title: "Action failed", description: message });
           } finally {
             setPendingIntent(null);
             setActing(false);

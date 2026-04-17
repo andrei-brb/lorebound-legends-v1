@@ -1,6 +1,6 @@
 /**
  * Data-driven hero/god special abilities (resolved from card text + optional overrides).
- * Executed by battleEngine `useAbility` — not cosmetic.
+ * Executed by battleEngine `activateAbility` — not cosmetic.
  */
 
 export type AbilityTarget = "highest_hp" | "lowest_hp";

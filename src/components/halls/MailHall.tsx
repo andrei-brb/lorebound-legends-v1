@@ -29,8 +29,8 @@ export default function MailHall({ onNavigate }: Props) {
   const load = async () => {
     setLoading(true);
     try {
-      const r: any = await api.getNotifications();
-      setRows(r?.items || r || []);
+      const r = await api.getNotifications();
+      setRows(r.notifications as Notif[]);
     } catch { /* offline ok */ }
     finally { setLoading(false); }
   };
@@ -47,11 +47,14 @@ export default function MailHall({ onNavigate }: Props) {
 
   const markAll = async () => {
     try {
-      await api.markNotificationsRead();
+      const ids = rows.filter((r) => !r.readAt).map((r) => r.id);
+      if (ids.length === 0) return;
+      await api.markNotificationsRead(ids);
       setRows((r) => r.map((x) => ({ ...x, readAt: x.readAt || Date.now() })));
       toast({ title: "All marked as read" });
-    } catch (e: any) {
-      toast({ title: "Couldn't mark all", description: e?.message, variant: "destructive" });
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : undefined;
+      toast({ title: "Couldn't mark all", description: message, variant: "destructive" });
     }
   };
 
@@ -123,7 +126,7 @@ export default function MailHall({ onNavigate }: Props) {
             return (
               <GlassPanel key={n.id} hue={hue} glow={n.readAt ? 0.2 : 0.45} padding="sm">
                 <button
-                  onClick={() => target && onNavigate?.(target as any)}
+                  onClick={() => target && onNavigate?.(target)}
                   className="w-full flex items-start gap-3 text-left"
                 >
                   <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: `hsl(${hue}/0.15)`, color: `hsl(${hue})` }}>

@@ -24,9 +24,9 @@ export default function FriendsHall({ isOnline }: Props) {
   const load = async () => {
     setLoading(true);
     try {
-      const r: any = await api.getFriends();
-      setFriends((r.accepted || []).map((f: any) => f.friend));
-      setPending((r.incoming || []).map((p: any) => ({ id: p.id, from: p.from })));
+      const r = await api.getFriends();
+      setFriends(r.accepted.map((f) => f.friend));
+      setPending(r.incoming.map((p) => ({ id: p.id, from: p.from })));
     } catch { /* offline ok */ }
     finally { setLoading(false); }
   };
@@ -39,16 +39,25 @@ export default function FriendsHall({ isOnline }: Props) {
 
   const accept = async (id: number) => {
     try { await api.friendRespond(id, true); toast({ title: "Friend added" }); load(); }
-    catch (e: any) { toast({ title: "Failed", description: e?.message, variant: "destructive" }); }
+    catch (e: unknown) {
+      const message = e instanceof Error ? e.message : undefined;
+      toast({ title: "Failed", description: message, variant: "destructive" });
+    }
   };
   const decline = async (id: number) => {
     try { await api.friendRespond(id, false); load(); }
-    catch (e: any) { toast({ title: "Failed", description: e?.message, variant: "destructive" }); }
+    catch (e: unknown) {
+      const message = e instanceof Error ? e.message : undefined;
+      toast({ title: "Failed", description: message, variant: "destructive" });
+    }
   };
   const addFriend = async () => {
     if (!addQuery.trim()) return;
     try { await api.friendRequest(addQuery.trim()); toast({ title: "Request sent" }); setAddQuery(""); }
-    catch (e: any) { toast({ title: "Failed", description: e?.message, variant: "destructive" }); }
+    catch (e: unknown) {
+      const message = e instanceof Error ? e.message : undefined;
+      toast({ title: "Failed", description: message, variant: "destructive" });
+    }
   };
 
   return (

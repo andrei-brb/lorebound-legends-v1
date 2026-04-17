@@ -24,7 +24,7 @@ export default function JourneyBegins({ path, onEnter }: JourneyBeginsProps) {
         const delay = 1.5 + Math.random() * 1.5;
         return { left, top, x, y, delay };
       }),
-    [path]
+    []
   );
 
   useEffect(() => {

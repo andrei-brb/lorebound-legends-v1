@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Trophy, Skull, Coins, Sparkles, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { BattleState } from "@/lib/battleEngine";
-import { initBattle, playCard, equipWeapon, castSpell, attackTarget, useAbility, performAITurn, generateEnemyDeck, endTurnAction } from "@/lib/battleEngine";
+import { initBattle, playCard, equipWeapon, castSpell, attackTarget, activateAbility, performAITurn, generateEnemyDeck, endTurnAction } from "@/lib/battleEngine";
 import {
   replayBattleFromActions,
   toViewerBattleState,
@@ -78,7 +78,6 @@ export default function BattleArena({
   syncEconomyApi,
 }: BattleArenaProps) {
   const [soloState, setSoloState] = useState<BattleState | null>(null);
-  const actionLogKey = livePvP ? JSON.stringify(livePvP.actionLog) : "";
   const liveDisplayState = useMemo(() => {
     if (!livePvP) return null;
     const canonical = replayBattleFromActions(
@@ -88,7 +87,7 @@ export default function BattleArena({
       livePvP.actionLog
     );
     return toViewerBattleState(canonical, livePvP.viewerIsA);
-  }, [livePvP?.seed, livePvP?.viewerIsA, actionLogKey, livePvP?.deckA, livePvP?.deckB]);
+  }, [livePvP]);
 
   const state = livePvP ? liveDisplayState : soloState;
   const [animating, setAnimating] = useState(false);
@@ -131,7 +130,7 @@ export default function BattleArena({
       }, 500);
     }, 350);
     return () => clearTimeout(timer);
-  }, [state?.turn, state?.turnNumber, animating, livePvP]);
+  }, [state, animating, livePvP]);
 
   const handleEndTurn = () => {
     if (!state || state.phase === "game-over" || animating) return;
@@ -289,7 +288,18 @@ export default function BattleArena({
         return newState;
       });
     })();
-  }, [state?.phase, livePvP]);
+  }, [
+    state,
+    rewardsGiven,
+    livePvP,
+    onRankedSubmit,
+    battleSeed,
+    submitBattleResultApi,
+    playerDeckIds,
+    onStateChange,
+    isOnline,
+    syncEconomyApi,
+  ]);
 
   const handleHandCardClick = (index: number) => {
     if (!state || state.turn !== "player" || animating || state.phase === "game-over") return;
@@ -477,7 +487,7 @@ export default function BattleArena({
     queueRankedIntent({ kind: "ability", fieldIndex });
     setAnimating(true);
     setTimeout(() => {
-      setSoloState(prev => prev ? useAbility(prev, fieldIndex) : prev);
+      setSoloState(prev => prev ? activateAbility(prev, fieldIndex) : prev);
       setAnimating(false);
       setActionMode("none");
       setSelectedFieldIndex(null);

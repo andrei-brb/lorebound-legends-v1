@@ -8,6 +8,7 @@ import HexAvatar from "@/components/scene/HexAvatar";
 import { cn } from "@/lib/utils";
 
 type Row = { rank: number; username: string; score: number; discordId?: string; avatar?: string | null; isMe?: boolean };
+type LeaderboardEntry = { rank: number; name: string; avatar?: string | null; playerId: number; value: number };
 
 interface Props { playerState: PlayerState; isOnline: boolean }
 
@@ -31,7 +32,17 @@ export default function RanksHall({ playerState, isOnline }: Props) {
     let alive = true;
     setLoading(true);
     api.getLeaderboard(board)
-      .then((r: any) => { if (alive) setRows(r?.entries || r || MOCK); })
+      .then((r) => {
+        if (!alive) return;
+        const entries = r.entries as LeaderboardEntry[];
+        setRows(entries.map((e) => ({
+          rank: e.rank,
+          username: e.name,
+          score: e.value,
+          avatar: e.avatar ?? null,
+          isMe: false,
+        })));
+      })
       .catch(() => { if (alive) setRows(MOCK); })
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };

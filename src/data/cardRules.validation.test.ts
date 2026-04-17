@@ -25,6 +25,10 @@ const ABILITY_KINDS = new Set([
   "revive_from_graveyard",
   "taunt_self",
   "poison_enemy",
+  "burn_enemy",
+  "burn_all_enemies",
+  "blind_enemy",
+  "blind_all_enemies",
 ]);
 
 const TOKEN_ID_SET = new Set<string>(TOKEN_IDS as unknown as string[]);

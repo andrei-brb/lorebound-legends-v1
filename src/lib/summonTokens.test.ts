@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { initBattle, playCard, useAbility } from "./battleEngine";
+import { initBattle, playCard, activateAbility } from "./battleEngine";
 
 describe("token summon (Phase B)", () => {
   it("Mortuus Grave Call places skeleton-warrior tokens", () => {
@@ -11,7 +11,7 @@ describe("token summon (Phase B)", () => {
     s = playCard(s, handIdx);
     const fi = s.player.field.findIndex((f) => f !== null);
     expect(fi).toBeGreaterThanOrEqual(0);
-    s = useAbility(s, fi);
+    s = activateAbility(s, fi);
     expect(s.player.tokens.some((t) => t?.tokenId === "skeleton-warrior")).toBe(true);
   });
 
@@ -24,7 +24,7 @@ describe("token summon (Phase B)", () => {
     expect(healer).toBeDefined();
     s.player.graveyard.push(healer!);
     s.player.hand = s.player.hand.filter((c) => c.id !== "healer");
-    s = useAbility(s, 0);
+    s = activateAbility(s, 0);
     expect(s.logs.some((l) => l.message.includes("raises"))).toBe(true);
   });
 });

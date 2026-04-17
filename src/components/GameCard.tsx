@@ -196,11 +196,11 @@ export default function GameCard({ card, onClick, selected, showSynergy, size = 
       style={{
         perspective: "800px",
         // CSS vars for smooth tilt/holo without React rerenders
-        ["--tilt-x" as any]: "0deg",
-        ["--tilt-y" as any]: "0deg",
-        ["--holo-x" as any]: "50%",
-        ["--holo-y" as any]: "50%",
-      }}
+        "--tilt-x": "0deg",
+        "--tilt-y": "0deg",
+        "--holo-x": "50%",
+        "--holo-y": "50%",
+      } as React.CSSProperties}
     >
       {/* 3D tilt wrapper */}
       <div

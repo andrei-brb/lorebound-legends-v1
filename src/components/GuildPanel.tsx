@@ -40,8 +40,9 @@ export default function GuildPanel({ isOnline }: GuildPanelProps) {
         const list = await api.listGuilds();
         setBrowseList(list.guilds);
       }
-    } catch (e: any) {
-      toast({ title: "Failed to load guilds", description: e?.message || "", variant: "destructive" });
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "";
+      toast({ title: "Failed to load guilds", description: message, variant: "destructive" });
     } finally { setLoading(false); }
   };
 
@@ -54,8 +55,9 @@ export default function GuildPanel({ isOnline }: GuildPanelProps) {
       toast({ title: "Guild founded! 🛡️" });
       setCreateOpen(false); setName(""); setTag(""); setDescription("");
       refresh();
-    } catch (e: any) {
-      toast({ title: "Could not create", description: e?.message || "", variant: "destructive" });
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "";
+      toast({ title: "Could not create", description: message, variant: "destructive" });
     } finally { setBusy(false); }
   };
 
@@ -65,8 +67,9 @@ export default function GuildPanel({ isOnline }: GuildPanelProps) {
       await api.joinGuild(id);
       toast({ title: "Joined guild" });
       refresh();
-    } catch (e: any) {
-      toast({ title: "Could not join", description: e?.message || "", variant: "destructive" });
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "";
+      toast({ title: "Could not join", description: message, variant: "destructive" });
     } finally { setBusy(false); }
   };
 
@@ -77,8 +80,9 @@ export default function GuildPanel({ isOnline }: GuildPanelProps) {
       const r = await api.leaveGuild();
       toast({ title: r.disbanded ? "Guild disbanded" : "Left the guild" });
       refresh();
-    } catch (e: any) {
-      toast({ title: "Failed", description: e?.message || "", variant: "destructive" });
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "";
+      toast({ title: "Failed", description: message, variant: "destructive" });
     } finally { setBusy(false); }
   };
 
@@ -92,8 +96,9 @@ export default function GuildPanel({ isOnline }: GuildPanelProps) {
       setInviteOpen(false);
       setInviteUsername("");
       setInviteSuggestions([]);
-    } catch (e: any) {
-      toast({ title: "Could not invite", description: e?.message || "", variant: "destructive" });
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "";
+      toast({ title: "Could not invite", description: message, variant: "destructive" });
     } finally { setBusy(false); }
   };
 
@@ -115,7 +120,7 @@ export default function GuildPanel({ isOnline }: GuildPanelProps) {
         if (cancelled) return;
         const users = r.users || [];
         setInviteSuggestions(users.slice(0, 8).map((u) => ({ id: u.id, username: u.username, avatar: u.avatar })));
-      } catch (e: any) {
+      } catch (e: unknown) {
         if (!cancelled) setInviteSuggestions([]);
         if (!cancelled) {
           toast({

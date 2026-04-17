@@ -23,7 +23,17 @@ export default function SpectateHall({ isOnline }: Props) {
     let alive = true;
     setLoading(true);
     api.getSpectateActive()
-      .then((r: any) => { if (alive) setMatches(r?.matches?.length ? r.matches.map((m: any) => ({ id: String(m.id), player1: m.playerA?.username || "?", player2: m.playerB?.username || "?", turn: 0, viewers: 0 })) : MOCK); })
+      .then((r: Awaited<ReturnType<typeof api.getSpectateActive>>) => {
+        if (!alive) return;
+        const mapped = r.matches.map((m) => ({
+          id: String(m.id),
+          player1: m.playerA?.username || "?",
+          player2: m.playerB?.username || "?",
+          turn: 0,
+          viewers: 0,
+        }));
+        setMatches(mapped.length ? mapped : MOCK);
+      })
       .catch(() => { if (alive) setMatches(MOCK); })
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };

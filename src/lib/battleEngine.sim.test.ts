@@ -7,7 +7,7 @@ import {
   equipWeapon,
   castSpell,
   attackTarget,
-  useAbility,
+  activateAbility,
   generateEnemyDeck,
   endTurnAction,
   type BattleState,
@@ -57,7 +57,7 @@ function playerHeuristicTurn(state: BattleState): BattleState {
   // 4) Use ability sometimes
   const abilIdx = side.field.findIndex((fc) => fc !== null && !fc.abilityUsed && !fc.stunned);
   if (abilIdx !== -1 && Math.random() < 0.25) {
-    return useAbility(state, abilIdx);
+    return activateAbility(state, abilIdx);
   }
 
   // 5) Attack with first available attacker; target weakest enemy or direct
@@ -103,7 +103,6 @@ function runOneBattle(seedLabel: string): BattleState {
 
   // High-signal summary for the test output
   const lastLogs = state.logs.slice(-12).map((l) => l.message).join("\n");
-  // eslint-disable-next-line no-console
   console.log(
     [
       `\n[sim:${seedLabel}] winner=${state.winner} turns=${state.turnNumber} playerHP=${state.player.hp} enemyHP=${state.enemy.hp}`,

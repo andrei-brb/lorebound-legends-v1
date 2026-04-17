@@ -96,7 +96,15 @@ function PlayedZone({ usedIds, side }: { usedIds: string[]; side: "player" | "en
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function LegacyLivePvPBattleground({ matchId, onExit }: Props) {
   const [me, setMe] = useState<{ id: number; username: string } | null>(null);
-  const [liveMatch, setLiveMatch] = useState<any | null>(null);
+  const [liveMatch, setLiveMatch] = useState<{
+    id?: number;
+    status?: "pending" | "active" | "completed" | "cancelled" | string;
+    playerA?: { id: number; username: string };
+    playerB?: { id: number; username: string };
+    turnPlayerId?: number | null;
+    state?: Record<string, unknown>;
+    result?: Record<string, unknown> | null;
+  } | null>(null);
   const [loading, setLoading] = useState(false);
   const [acting, setActing] = useState(false);
 
@@ -120,7 +128,7 @@ export default function LegacyLivePvPBattleground({ matchId, onExit }: Props) {
     if (liveMatch.status !== "pending" && liveMatch.status !== "active") return;
     const id = window.setInterval(() => refresh(), 2500);
     return () => window.clearInterval(id);
-  }, [liveMatch?.status, liveMatch?.id, refresh]);
+  }, [liveMatch, refresh]);
 
   const isA = useMemo(() => (me && liveMatch ? liveMatch.playerA?.id === me.id : true), [me, liveMatch]);
   const myKey = isA ? "A" : "B";
@@ -152,8 +160,9 @@ export default function LegacyLivePvPBattleground({ matchId, onExit }: Props) {
     try {
       await api.pvpLiveAction(matchId, { type: "play", cardId });
       await refresh();
-    } catch (e: any) {
-      toast({ title: "Play failed", description: e?.message || "Could not play card" });
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Could not play card";
+      toast({ title: "Play failed", description: message });
     } finally { setActing(false); }
   }
 
@@ -163,8 +172,9 @@ export default function LegacyLivePvPBattleground({ matchId, onExit }: Props) {
     try {
       await api.pvpLiveAction(matchId, { type: "end" });
       await refresh();
-    } catch (e: any) {
-      toast({ title: "End turn failed", description: e?.message || String(e) });
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : String(e);
+      toast({ title: "End turn failed", description: message });
     } finally { setActing(false); }
   }
 

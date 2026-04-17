@@ -1245,7 +1245,7 @@ function applyResolvedAbility(
   }
 }
 
-export function useAbility(state: BattleState, fieldIndex: number): BattleState {
+export function activateAbility(state: BattleState, fieldIndex: number): BattleState {
   const newState = deepCopy(state);
   const side = getActiveSide(newState);
   const fc = side.field[fieldIndex];
@@ -1362,7 +1362,7 @@ export function performAITurn(state: BattleState): BattleState {
     if (attackerIdx !== -1) {
       const fc = side.field[attackerIdx]!;
       if (!fc.abilityUsed && s.rng() < 0.3) {
-        const next = useAbility(s, attackerIdx);
+        const next = activateAbility(s, attackerIdx);
         if (next !== s) { s = next; continue; }
       }
 
@@ -1399,8 +1399,8 @@ function deepCopy<T>(obj: T): T {
   const copy = JSON.parse(JSON.stringify(obj)) as T;
   // Preserve non-serializable function refs (RNG) for deterministic simulation.
   if (obj && typeof obj === "object" && copy && typeof copy === "object") {
-    const src = obj as any;
-    const dst = copy as any;
+    const src = obj as unknown as Record<string, unknown>;
+    const dst = copy as unknown as Record<string, unknown>;
     if (typeof src.rng === "function") dst.rng = src.rng;
     if (src.rngSeed !== undefined) dst.rngSeed = src.rngSeed;
   }
@@ -1465,7 +1465,7 @@ export function simulateBattle(params: {
       if (attackerIdx !== -1) {
         const fc = side.field[attackerIdx]!;
         if (!fc.abilityUsed && st.rng() < 0.3) {
-          const next = useAbility(st, attackerIdx);
+          const next = activateAbility(st, attackerIdx);
           if (next !== st) { st = next; continue; }
         }
 

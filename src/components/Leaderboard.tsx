@@ -158,7 +158,7 @@ export default function Leaderboard({ playerState, isOnline }: LeaderboardProps)
   }, [tab, isOnline]);
 
   // Memoize per tab so it doesn't re-randomize on every render (offline fallback)
-  const mockEntries = useMemo(() => generateMockLeaderboard(playerState, tab), [tab, playerState.ownedCardIds.length]);
+  const mockEntries = useMemo(() => generateMockLeaderboard(playerState, tab), [tab, playerState]);
   const entries = serverEntries ?? mockEntries;
 
   return (

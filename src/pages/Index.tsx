@@ -157,12 +157,16 @@ export default function Index() {
         if (next > 0 && (prev === null || next > prev)) {
           try {
             const latest = await api.getNotifications(5);
-            const notifs: any[] = latest.notifications || [];
+            const notifs = latest.notifications || [];
             const liveInvite = notifs.find(
-              (n: any) => n.type === "pvp_live_invite" && !n.readAt && !shownInviteIdsRef.current.has(n.id)
+              (n) => n.type === "pvp_live_invite" && !n.readAt && !shownInviteIdsRef.current.has(n.id)
             );
             if (liveInvite) {
-              const matchId = Number(liveInvite.data?.matchId);
+              const matchId = Number(
+                typeof liveInvite.data === "object" && liveInvite.data !== null && "matchId" in liveInvite.data
+                  ? (liveInvite.data as Record<string, unknown>).matchId
+                  : NaN
+              );
               if (Number.isFinite(matchId) && matchId > 0) {
                 shownInviteIdsRef.current.add(liveInvite.id);
                 if (alive) setPvpInvitePopup({ notifId: liveInvite.id, matchId, title: liveInvite.title, body: liveInvite.body });
@@ -268,8 +272,9 @@ export default function Index() {
       setActiveCategory("combat");
       setActiveTab("battle");
       toast({ title: "⚔ Match accepted!", description: `Joining match #${matchId}` });
-    } catch (e: any) {
-      toast({ title: "Accept failed", description: e?.message || "Could not accept invite" });
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Could not accept invite";
+      toast({ title: "Accept failed", description: message });
     }
   };
 
@@ -281,8 +286,9 @@ export default function Index() {
       await api.markNotificationsRead([notifId]);
       setPvpInvitePopup(null);
       toast({ title: "Invite declined" });
-    } catch (e: any) {
-      toast({ title: "Decline failed", description: e?.message || "Could not decline invite" });
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Could not decline invite";
+      toast({ title: "Decline failed", description: message });
     }
   };
 
@@ -295,8 +301,9 @@ export default function Index() {
       toast({ title: "Joined guild", description: `Welcome to ${guildName} [${guildTag}] — invited by ${fromUsername}.` });
       setActiveCategory("community");
       setActiveTab("guild");
-    } catch (e: any) {
-      toast({ title: "Accept failed", description: e?.message || "Could not accept invite", variant: "destructive" });
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Could not accept invite";
+      toast({ title: "Accept failed", description: message, variant: "destructive" });
     }
   };
 
@@ -307,8 +314,9 @@ export default function Index() {
       await api.respondGuildInvite(inviteId, false);
       setGuildInvitePopup(null);
       toast({ title: "Invite declined" });
-    } catch (e: any) {
-      toast({ title: "Decline failed", description: e?.message || "Could not decline invite", variant: "destructive" });
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Could not decline invite";
+      toast({ title: "Decline failed", description: message, variant: "destructive" });
     }
   };
 

@@ -23,7 +23,7 @@ const MOCK_EVENTS: Event[] = [
 
 interface Props { playerState: PlayerState; onStateChange: (s: PlayerState) => void }
 
-export default function EventsHall({}: Props) {
+export default function EventsHall(_: Props) {
   return (
     <HallLayout
       sidebar={

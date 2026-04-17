@@ -8462,7 +8462,7 @@ function applyResolvedAbility(newState, fc, fieldIndex, effect) {
     run(ex);
   }
 }
-function useAbility(state, fieldIndex) {
+function activateAbility(state, fieldIndex) {
   const newState = deepCopy(state);
   const side = getActiveSide(newState);
   const fc = side.field[fieldIndex];
@@ -8562,7 +8562,7 @@ function performAITurn(state) {
     if (attackerIdx !== -1) {
       const fc = side.field[attackerIdx];
       if (!fc.abilityUsed && s.rng() < 0.3) {
-        const next = useAbility(s, attackerIdx);
+        const next = activateAbility(s, attackerIdx);
         if (next !== s) {
           s = next;
           continue;
@@ -8665,7 +8665,7 @@ function simulateBattle(params) {
       if (attackerIdx !== -1) {
         const fc = side.field[attackerIdx];
         if (!fc.abilityUsed && st.rng() < 0.3) {
-          const next = useAbility(st, attackerIdx);
+          const next = activateAbility(st, attackerIdx);
           if (next !== st) {
             st = next;
             continue;
@@ -8741,7 +8741,7 @@ function applyBattleLockstepIntent(state, intent) {
     case "attack":
       return attackTarget(state, intent.attackerFieldIndex, intent.targetFieldIndex);
     case "ability":
-      return useAbility(state, intent.fieldIndex);
+      return activateAbility(state, intent.fieldIndex);
     case "end-turn":
       return endTurnAction(state);
     default:

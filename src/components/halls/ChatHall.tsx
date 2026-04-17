@@ -25,7 +25,7 @@ export default function ChatHall({ isOnline, playerState }: Props) {
     let alive = true;
     setLoading(true);
     api.getChat(channel)
-      .then((r: any) => { if (alive) setMsgs(r?.messages || []); })
+      .then((r) => { if (alive) setMsgs(r.messages || []); })
       .catch(() => {})
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
@@ -41,8 +41,8 @@ export default function ChatHall({ isOnline, playerState }: Props) {
     try {
       await api.postChat(channel, text.trim());
       setText("");
-      const r: any = await api.getChat(channel);
-      setMsgs(r?.messages || []);
+      const r = await api.getChat(channel);
+      setMsgs(r.messages || []);
     } catch { /* swallow */ }
     finally { setSending(false); }
   };

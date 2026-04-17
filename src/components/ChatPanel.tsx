@@ -31,9 +31,10 @@ export default function ChatPanel({ isOnline }: ChatPanelProps) {
     try {
       const data = await api.getChat(activeChannel, 60);
       setMessages(data.messages);
-    } catch (e: any) {
+    } catch (e: unknown) {
       // Silent on poll, but show first error
-      if (loading) toast({ title: "Chat unavailable", description: e?.message || "", variant: "destructive" });
+      const message = e instanceof Error ? e.message : "";
+      if (loading) toast({ title: "Chat unavailable", description: message, variant: "destructive" });
     } finally { setLoading(false); }
   };
 
@@ -58,8 +59,9 @@ export default function ChatPanel({ isOnline }: ChatPanelProps) {
       const r = await api.postChat(activeChannel, body);
       setText("");
       setMessages((prev) => [...prev, r.message]);
-    } catch (e: any) {
-      toast({ title: "Could not send", description: e?.message || "", variant: "destructive" });
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "";
+      toast({ title: "Could not send", description: message, variant: "destructive" });
     } finally { setSending(false); }
   };
 

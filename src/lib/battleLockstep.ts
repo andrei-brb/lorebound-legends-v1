@@ -5,7 +5,7 @@ import {
   equipWeapon,
   castSpell,
   attackTarget,
-  useAbility,
+  activateAbility,
   endTurnAction,
   performAITurn,
   simulateBattle,
@@ -63,7 +63,7 @@ export function applyBattleLockstepIntent(state: BattleState, intent: BattleLock
     case "attack":
       return attackTarget(state, intent.attackerFieldIndex, intent.targetFieldIndex);
     case "ability":
-      return useAbility(state, intent.fieldIndex);
+      return activateAbility(state, intent.fieldIndex);
     case "end-turn":
       return endTurnAction(state);
     default:

@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 
 type NotificationRow = {
   id: number; type: string; title: string; body?: string | null;
-  data?: any; createdAt: number; readAt?: number | null;
+  data?: unknown; createdAt: number; readAt?: number | null;
 };
 
 type Props = { onNavigate?: (tab: "trade" | "pvp" | "battle") => void };
@@ -55,22 +55,38 @@ export default function InboxPanel({ onNavigate }: Props) {
 
   async function refresh() {
     try { setLoading(true); const data = await api.getNotifications(50); setRows(data.notifications || []); }
-    catch (e: any) { toast({ title: "Inbox failed", description: e?.message || "Could not load notifications" }); }
+    catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Could not load notifications";
+      toast({ title: "Inbox failed", description: message });
+    }
     finally { setLoading(false); }
   }
 
   async function markAllRead() {
-    try { await api.markNotificationsRead([]); setRows((prev) => prev.map((r) => (r.readAt ? r : { ...r, readAt: Date.now() }))); }
-    catch (e: any) { toast({ title: "Mark read failed", description: e?.message || "Could not update notifications" }); }
+    try {
+      if (unreadIds.length === 0) return;
+      await api.markNotificationsRead(unreadIds);
+      setRows((prev) => prev.map((r) => (r.readAt ? r : { ...r, readAt: Date.now() })));
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Could not update notifications";
+      toast({ title: "Mark read failed", description: message });
+    }
   }
 
   async function markOneRead(id: number) {
     try { await api.markNotificationsRead([id]); setRows((prev) => prev.map((r) => (r.id === id ? { ...r, readAt: Date.now() } : r))); }
-    catch (e: any) { toast({ title: "Mark read failed", description: e?.message || "Could not update notifications" }); }
+    catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Could not update notifications";
+      toast({ title: "Mark read failed", description: message });
+    }
   }
 
   async function acceptLiveInvite(n: NotificationRow) {
-    const matchId = Number(n.data?.matchId);
+    const matchId = Number(
+      typeof n.data === "object" && n.data !== null && "matchId" in n.data
+        ? (n.data as Record<string, unknown>).matchId
+        : NaN
+    );
     if (!Number.isFinite(matchId)) return toast({ title: "Invalid invite", description: "Missing match id" });
     try {
       await api.pvpLiveJoin(matchId); await api.markNotificationsRead([n.id]);
@@ -78,17 +94,27 @@ export default function InboxPanel({ onNavigate }: Props) {
       sessionStorage.setItem("pvp.live.matchId", String(matchId));
       onNavigate?.("battle");
       toast({ title: "Invite accepted", description: `Joining match #${matchId}` });
-    } catch (e: any) { toast({ title: "Accept failed", description: e?.message || "Could not accept invite" }); }
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Could not accept invite";
+      toast({ title: "Accept failed", description: message });
+    }
   }
 
   async function declineLiveInvite(n: NotificationRow) {
-    const matchId = Number(n.data?.matchId);
+    const matchId = Number(
+      typeof n.data === "object" && n.data !== null && "matchId" in n.data
+        ? (n.data as Record<string, unknown>).matchId
+        : NaN
+    );
     if (!Number.isFinite(matchId)) return toast({ title: "Invalid invite", description: "Missing match id" });
     try {
       await api.pvpLiveDecline(matchId); await api.markNotificationsRead([n.id]);
       setRows((prev) => prev.map((r) => (r.id === n.id ? { ...r, readAt: Date.now() } : r)));
       toast({ title: "Invite declined" });
-    } catch (e: any) { toast({ title: "Decline failed", description: e?.message || "Could not decline invite" }); }
+    } catch (e: unknown) {
+      const message = e instanceof Error ? e.message : "Could not decline invite";
+      toast({ title: "Decline failed", description: message });
+    }
   }
 
   useEffect(() => { refresh(); }, []);

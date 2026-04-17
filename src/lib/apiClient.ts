@@ -221,7 +221,7 @@ export const api = {
       type: string;
       title: string;
       body?: string | null;
-      data?: any;
+      data?: unknown;
       createdAt: number;
       readAt?: number | null;
     }> }>(res);
@@ -377,7 +377,7 @@ export const api = {
       method: "POST",
       headers: getHeaders(),
     });
-    return handleResponse<{ ok: true; result: any }>(res);
+    return handleResponse<{ ok: true; result: unknown }>(res);
   },
 
   /** Queue starter: load decks for Battle vs AI (opponent's ranked deck). */
@@ -409,7 +409,7 @@ export const api = {
       headers: getHeaders(),
       body: JSON.stringify(body),
     });
-    return handleResponse<{ ok: true; result: any }>(res);
+    return handleResponse<{ ok: true; result: unknown }>(res);
   },
 
   async pvpHistory() {
@@ -419,7 +419,7 @@ export const api = {
         id: number;
         createdAt: number;
         opponent: { id: number; discordId: string; username: string; avatar?: string | null };
-        result: any;
+        result: unknown;
         youWon: boolean | null;
         youArePlayerA: boolean;
       }>;
@@ -453,7 +453,7 @@ export const api = {
 
   async pvpLiveGet(matchId: number) {
     const res = await fetch(`${getApiBase()}/api/pvp/live/${matchId}`, { headers: getHeaders() });
-    return handleResponse<{ ok: true; match: any }>(res);
+    return handleResponse<{ ok: true; match: unknown }>(res);
   },
 
   async pvpLiveAction(
@@ -467,7 +467,7 @@ export const api = {
       headers: getHeaders(),
       body: JSON.stringify(action),
     });
-    return handleResponse<{ ok: true; status: string; state: any; result: any; turnPlayerId: number }>(res);
+    return handleResponse<{ ok: true; status: string; state: unknown; result: unknown; turnPlayerId: number }>(res);
   },
 
   async adminGrant(delta: { gold?: number; stardust?: number; pityCounter?: number; totalPulls?: number }) {
