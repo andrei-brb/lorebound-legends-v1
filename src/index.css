@@ -482,3 +482,13 @@
 .animate-slide-in-up {
   animation: slide-in-up 0.3s ease-out both;
 }
+
+/* Settings: reduce motion (class toggled on <html> by SettingsPanel) */
+html.reduce-motion *,
+html.reduce-motion *::before,
+html.reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}

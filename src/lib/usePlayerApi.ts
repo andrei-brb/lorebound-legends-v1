@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { type PlayerState, loadPlayerState, savePlayerState, normalizePlayerState } from "./playerState";
+import { type PlayerState, loadPlayerState, savePlayerState, normalizePlayerState, mergeClientOnlyPlayerState } from "./playerState";
 import { api, isAuthenticated } from "./apiClient";
 
 type LoadingStatus = "loading" | "ready" | "error";
@@ -57,10 +57,12 @@ export function usePlayerApi(): UsePlayerApiReturn {
 
         if (!migrated && localState.totalPulls > 0) {
           try {
-            const imported = normalizePlayerState(await api.importLocalState(localState) as PlayerState);
+            const raw = await api.importLocalState(localState) as PlayerState;
+            const imported = mergeClientOnlyPlayerState(normalizePlayerState(raw), localState);
             localStorage.setItem(MIGRATION_KEY, "1");
             if (!cancelled) {
               setPlayerStateInternal(imported);
+              savePlayerState(imported);
               setStatus("ready");
             }
             return;
@@ -70,10 +72,12 @@ export function usePlayerApi(): UsePlayerApiReturn {
         }
 
         localStorage.setItem(MIGRATION_KEY, "1");
+        const freshLocal = loadPlayerState();
         const serverState = normalizePlayerState(await api.getPlayer() as PlayerState);
+        const merged = mergeClientOnlyPlayerState(serverState, freshLocal);
         if (!cancelled) {
-          setPlayerStateInternal(serverState);
-          savePlayerState(serverState);
+          setPlayerStateInternal(merged);
+          savePlayerState(merged);
           setStatus("ready");
         }
       } catch (err) {
@@ -117,9 +121,11 @@ export function usePlayerApi(): UsePlayerApiReturn {
       if (!online) return null;
       try {
         const state = normalizePlayerState((await api.completeOnboarding(path)) as PlayerState);
-        setPlayerStateInternal(state);
-        savePlayerState(state);
-        return state;
+        const prev = loadPlayerState();
+        const merged = mergeClientOnlyPlayerState(state, prev);
+        setPlayerStateInternal(merged);
+        savePlayerState(merged);
+        return merged;
       } catch (err) {
         console.error("[usePlayerApi] completeOnboarding failed:", err);
         return null;
@@ -133,10 +139,14 @@ export function usePlayerApi(): UsePlayerApiReturn {
       if (!online) return null;
       try {
         const result = await api.pullCards(packId);
-        result.state = normalizePlayerState(result.state);
-        setPlayerStateInternal(result.state);
-        savePlayerState(result.state);
-        return { pullResults: result.pullResults, state: result.state };
+        const server = normalizePlayerState(result.state);
+        let merged: PlayerState | undefined;
+        setPlayerStateInternal((prev) => {
+          merged = mergeClientOnlyPlayerState(server, prev);
+          savePlayerState(merged);
+          return merged;
+        });
+        return { pullResults: result.pullResults, state: merged! };
       } catch (err) {
         console.error("[usePlayerApi] pullCards failed:", err);
         return null;
@@ -150,9 +160,12 @@ export function usePlayerApi(): UsePlayerApiReturn {
       if (!online) return null;
       try {
         const result = await api.submitBattleResult(data);
-        result.state = normalizePlayerState(result.state);
-        setPlayerStateInternal(result.state);
-        savePlayerState(result.state);
+        const server = normalizePlayerState(result.state);
+        setPlayerStateInternal((prev) => {
+          const merged = mergeClientOnlyPlayerState(server, prev);
+          savePlayerState(merged);
+          return merged;
+        });
         return { goldReward: result.goldReward, levelUps: result.levelUps };
       } catch (err) {
         console.error("[usePlayerApi] submitBattleResult failed:", err);
@@ -179,8 +192,12 @@ export function usePlayerApi(): UsePlayerApiReturn {
       if (!online) return null;
       try {
         const result = await api.craftFuse(inputRarity, selectedCardIds);
-        setPlayerStateInternal(result.state);
-        savePlayerState(result.state);
+        const server = normalizePlayerState(result.state);
+        setPlayerStateInternal((prev) => {
+          const merged = mergeClientOnlyPlayerState(server, prev);
+          savePlayerState(merged);
+          return merged;
+        });
         return { resultCardId: result.resultCardId };
       } catch (err) {
         console.error("[usePlayerApi] craftFuse failed:", err);
@@ -195,8 +212,12 @@ export function usePlayerApi(): UsePlayerApiReturn {
       if (!online) return null;
       try {
         const result = await api.craftSacrifice(cardIds);
-        setPlayerStateInternal(result.state);
-        savePlayerState(result.state);
+        const server = normalizePlayerState(result.state);
+        setPlayerStateInternal((prev) => {
+          const merged = mergeClientOnlyPlayerState(server, prev);
+          savePlayerState(merged);
+          return merged;
+        });
         return { totalStardust: result.totalStardust };
       } catch (err) {
         console.error("[usePlayerApi] craftSacrifice failed:", err);
@@ -211,9 +232,14 @@ export function usePlayerApi(): UsePlayerApiReturn {
       if (!online) return null;
       try {
         const result = await api.pullSeasonalPack(eventId);
-        setPlayerStateInternal(result.state);
-        savePlayerState(result.state);
-        return { cardIds: result.cardIds, state: result.state };
+        const server = normalizePlayerState(result.state);
+        let merged: PlayerState | undefined;
+        setPlayerStateInternal((prev) => {
+          merged = mergeClientOnlyPlayerState(server, prev);
+          savePlayerState(merged);
+          return merged;
+        });
+        return { cardIds: result.cardIds, state: merged! };
       } catch (err) {
         console.error("[usePlayerApi] pullSeasonalPack failed:", err);
         return null;

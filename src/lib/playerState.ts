@@ -10,6 +10,25 @@ export interface CardProgress {
 
 export type FactionPath = "fire" | "nature" | "shadow";
 
+export interface PlayerProfile {
+  avatarId: string;
+  titleId: string | null;
+  bannerId: string | null;
+}
+
+export interface DailyLoginState {
+  streak: number;
+  lastClaimDate: string | null;
+  claimedDays: number[];
+}
+
+export interface AppSettings {
+  musicVol: number;
+  sfxVol: number;
+  reduceMotion: boolean;
+  animationsOn: boolean;
+}
+
 export interface PlayerState {
   gold: number;
   stardust: number;
@@ -27,6 +46,15 @@ export interface PlayerState {
   cosmeticsEquipped?: CosmeticsEquipped;
   battlePassXpBoostExpiresAt?: number | null; // epoch ms; doubles BP XP while active
   deckPresets?: DeckPreset[];
+  profile?: PlayerProfile;
+  unlockedAvatars?: string[];
+  unlockedTitles?: string[];
+  dailyLogin?: DailyLoginState;
+  lastChestClaimAt?: number | null;
+  firstWinDate?: string | null;
+  mysteryBoxesPending?: number;
+  settings?: AppSettings;
+  tutorialsCompleted?: string[];
 }
 
 export interface DeckPreset {
@@ -117,6 +145,44 @@ function normalizeCosmeticsEquipped(eq: CosmeticsEquipped | undefined): Cosmetic
   };
 }
 
+function getDefaultProfile(): PlayerProfile {
+  return { avatarId: "default", titleId: null, bannerId: null };
+}
+
+function getDefaultDailyLogin(): DailyLoginState {
+  return { streak: 0, lastClaimDate: null, claimedDays: [] };
+}
+
+function getDefaultSettings(): AppSettings {
+  return { musicVol: 0.7, sfxVol: 0.8, reduceMotion: false, animationsOn: true };
+}
+
+function normalizeProfile(p: PlayerProfile | undefined): PlayerProfile {
+  return {
+    avatarId: p?.avatarId || "default",
+    titleId: p?.titleId ?? null,
+    bannerId: p?.bannerId ?? null,
+  };
+}
+
+function normalizeDailyLogin(d: DailyLoginState | undefined): DailyLoginState {
+  return {
+    streak: Number(d?.streak) || 0,
+    lastClaimDate: d?.lastClaimDate ?? null,
+    claimedDays: Array.isArray(d?.claimedDays) ? d!.claimedDays.map((n) => Number(n)).filter((n) => n >= 1 && n <= 7) : [],
+  };
+}
+
+function normalizeSettings(s: AppSettings | undefined): AppSettings {
+  const def = getDefaultSettings();
+  return {
+    musicVol: typeof s?.musicVol === "number" ? Math.max(0, Math.min(1, s.musicVol)) : def.musicVol,
+    sfxVol: typeof s?.sfxVol === "number" ? Math.max(0, Math.min(1, s.sfxVol)) : def.sfxVol,
+    reduceMotion: !!s?.reduceMotion,
+    animationsOn: s?.animationsOn !== false,
+  };
+}
+
 function createDefaultState(): PlayerState {
   return {
     gold: 500,
@@ -133,6 +199,15 @@ function createDefaultState(): PlayerState {
     cosmeticsEquipped: normalizeCosmeticsEquipped(undefined),
     battlePassXpBoostExpiresAt: null,
     deckPresets: [],
+    profile: getDefaultProfile(),
+    unlockedAvatars: ["default"],
+    unlockedTitles: [],
+    dailyLogin: getDefaultDailyLogin(),
+    lastChestClaimAt: null,
+    firstWinDate: null,
+    mysteryBoxesPending: 0,
+    settings: getDefaultSettings(),
+    tutorialsCompleted: [],
   };
 }
 
@@ -179,6 +254,31 @@ function normalizeCardProgress(raw: unknown): CardProgress {
   };
 }
 
+/** Keys the API does not persist — keep from local state when merging server responses. */
+export const CLIENT_ONLY_PLAYER_KEYS: (keyof PlayerState)[] = [
+  "profile",
+  "unlockedAvatars",
+  "unlockedTitles",
+  "dailyLogin",
+  "lastChestClaimAt",
+  "firstWinDate",
+  "mysteryBoxesPending",
+  "settings",
+  "tutorialsCompleted",
+];
+
+/** Merge server-authoritative `server` with client-only fields from `local` (previous / localStorage). */
+export function mergeClientOnlyPlayerState(server: PlayerState, local: PlayerState): PlayerState {
+  const merged = { ...server };
+  for (const key of CLIENT_ONLY_PLAYER_KEYS) {
+    const v = local[key];
+    if (v !== undefined) {
+      (merged as Record<string, unknown>)[key as string] = v as unknown;
+    }
+  }
+  return normalizePlayerState(merged);
+}
+
 export function normalizePlayerState(state: PlayerState): PlayerState {
   const rawCp = (state.cardProgress && typeof state.cardProgress === "object" && !Array.isArray(state.cardProgress))
     ? state.cardProgress
@@ -206,6 +306,17 @@ export function normalizePlayerState(state: PlayerState): PlayerState {
     cosmeticsEquipped: normalizeCosmeticsEquipped(state.cosmeticsEquipped),
     battlePassXpBoostExpiresAt: state.battlePassXpBoostExpiresAt ?? null,
     deckPresets: Array.isArray(state.deckPresets) ? state.deckPresets : [],
+    profile: normalizeProfile(state.profile),
+    unlockedAvatars: Array.isArray(state.unlockedAvatars) && state.unlockedAvatars.length > 0
+      ? Array.from(new Set([...state.unlockedAvatars, "default"]))
+      : ["default"],
+    unlockedTitles: Array.isArray(state.unlockedTitles) ? state.unlockedTitles : [],
+    dailyLogin: normalizeDailyLogin(state.dailyLogin),
+    lastChestClaimAt: typeof state.lastChestClaimAt === "number" ? state.lastChestClaimAt : null,
+    firstWinDate: state.firstWinDate ?? null,
+    mysteryBoxesPending: Number(state.mysteryBoxesPending) || 0,
+    settings: normalizeSettings(state.settings),
+    tutorialsCompleted: Array.isArray(state.tutorialsCompleted) ? state.tutorialsCompleted : [],
   };
 }
 

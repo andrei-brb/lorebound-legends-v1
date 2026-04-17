@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { BookOpen, Layers, Swords, Coins, Sparkles as SparklesIcon, Grid3X3, Loader2, ScrollText, Hammer, Trophy, ArrowLeftRight, BarChart3, Calendar, Zap, Crown, Shield, Mail } from "lucide-react";
+import { BookOpen, Layers, Swords, Coins, Sparkles as SparklesIcon, Grid3X3, Loader2, ScrollText, Hammer, Trophy, ArrowLeftRight, BarChart3, Calendar, Zap, Crown, Shield, Mail, User, Gift } from "lucide-react";
 import CollectionView from "@/components/CollectionView";
 import DeckBuilder from "@/components/DeckBuilder";
 import BattleArena from "@/components/BattleArena";
@@ -18,15 +18,19 @@ import Onboarding from "@/components/Onboarding";
 import PvPPanel from "@/components/PvPPanel";
 import InboxPanel from "@/components/InboxPanel";
 import LivePvPBattleground from "@/components/LivePvPBattleground";
+import ProfilePage from "@/components/ProfilePage";
+import DailyHub from "@/components/DailyHub";
+import SettingsPanel from "@/components/SettingsPanel";
 import { cn } from "@/lib/utils";
+import { setSfxVolume } from "@/lib/sfx";
 import { usePlayerApi } from "@/lib/usePlayerApi";
 import { loadAchievementState, checkNewAchievements, saveAchievementState } from "@/lib/achievementEngine";
 import { toast } from "@/hooks/use-toast";
 import { api } from "@/lib/apiClient";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 
-type Tab = "collection" | "catalog" | "deck" | "battle" | "pvp" | "summon" | "quests" | "workshop" | "achievements" | "leaderboard" | "trade" | "mail" | "events" | "tournament" | "boost" | "pass";
-type Category = "cards" | "combat" | "progress" | "social";
+type Tab = "collection" | "catalog" | "deck" | "battle" | "pvp" | "summon" | "quests" | "workshop" | "achievements" | "leaderboard" | "trade" | "mail" | "events" | "tournament" | "boost" | "pass" | "profile" | "daily";
+type Category = "cards" | "combat" | "progress" | "social" | "you";
 
 const categories: { id: Category; label: string; icon: React.ReactNode; tabs: { id: Tab; label: string; icon: React.ReactNode }[] }[] = [
   {
@@ -65,13 +69,20 @@ const categories: { id: Category; label: string; icon: React.ReactNode; tabs: { 
       { id: "leaderboard", label: "Ranks", icon: <BarChart3 className="w-4 h-4" /> },
     ],
   },
+  {
+    id: "you", label: "You", icon: <User className="w-4 h-4" />,
+    tabs: [
+      { id: "profile", label: "Profile", icon: <User className="w-4 h-4" /> },
+      { id: "daily", label: "Daily", icon: <Gift className="w-4 h-4" /> },
+    ],
+  },
 ];
 
 export default function Index() {
   const [activeCategory, setActiveCategory] = useState<Category>("cards");
   const [activeTab, setActiveTab] = useState<Tab>("collection");
   const [lastTabPerCategory, setLastTabPerCategory] = useState<Record<Category, Tab>>({
-    cards: "collection", combat: "battle", progress: "quests", social: "trade",
+    cards: "collection", combat: "battle", progress: "quests", social: "trade", you: "profile",
   });
   const [battleDeckIds, setBattleDeckIds] = useState<string[]>([]);
   const [rankedBattle, setRankedBattle] = useState<{
@@ -95,6 +106,11 @@ export default function Index() {
       animationDelay: `${Math.random() * 8}s`, animationDuration: `${6 + Math.random() * 8}s`,
     })), []
   );
+
+  useEffect(() => {
+    const v = playerState.settings?.sfxVol;
+    if (typeof v === "number") setSfxVolume(v);
+  }, [playerState.settings?.sfxVol]);
 
   useEffect(() => {
     if (!playerState.hasCompletedOnboarding) return;
@@ -250,11 +266,13 @@ export default function Index() {
       )}
       <div className="min-h-screen bg-background" style={{ paddingTop: isDiscordActivityHost ? discordOverlayInset : "env(safe-area-inset-top)" }}>
         {/* Ambient particles */}
-        <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-          {ambientParticles.map((p, i) => (
-            <div key={i} className="absolute w-1 h-1 rounded-full bg-primary/20 animate-float" style={{ left: p.left, top: p.top, animationDelay: p.animationDelay, animationDuration: p.animationDuration }} />
-          ))}
-        </div>
+        {playerState.settings?.animationsOn !== false && (
+          <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
+            {ambientParticles.map((p, i) => (
+              <div key={i} className="absolute w-1 h-1 rounded-full bg-primary/20 animate-float" style={{ left: p.left, top: p.top, animationDelay: p.animationDelay, animationDuration: p.animationDuration }} />
+            ))}
+          </div>
+        )}
 
         {!hideAppChromeDuringBattle && (
           <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky z-50" style={{ top: 0 }}>
@@ -272,6 +290,7 @@ export default function Index() {
                   <span className="text-sm">💎</span>
                   <span className="font-heading font-bold text-sm text-foreground">{Number(playerState.stardust) || 0}</span>
                 </div>
+                <SettingsPanel playerState={playerState} onStateChange={setPlayerState} />
                 <nav className="flex gap-0.5">
                   {categories.map((cat) => (
                     <Tooltip key={cat.id}>
@@ -366,6 +385,7 @@ export default function Index() {
                 onStateChange={setPlayerState}
                 isOnline={isOnline}
                 submitBattleResultApi={submitBattleResult}
+                syncEconomyApi={syncEconomy}
               />
             )}
             {activeTab === "quests" && <DailyQuests playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} syncEconomyApi={syncEconomy} />}
@@ -413,11 +433,21 @@ export default function Index() {
             {activeTab === "tournament" && <Tournament playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} syncEconomyApi={syncEconomy} />}
             {activeTab === "boost" && <BoostRewards />}
             {activeTab === "pass" && <BattlePass playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} />}
+            {activeTab === "profile" && <ProfilePage playerState={playerState} onStateChange={setPlayerState} />}
+            {activeTab === "daily" && (
+              <DailyHub
+                playerState={playerState}
+                onStateChange={setPlayerState}
+                isOnline={isOnline}
+                syncEconomyApi={syncEconomy}
+              />
+            )}
             {activeTab === "battle" && battleDeckIds.length === 0 && hasLiveMatchFromInbox && (
               <LivePvPBattleground
                 matchId={liveMatchIdFromInbox}
                 playerState={playerState}
                 onStateChange={setPlayerState}
+                syncEconomyApi={syncEconomy}
                 onExit={() => {
                   sessionStorage.removeItem("pvp.live.matchId");
                   setActiveCategory("social");

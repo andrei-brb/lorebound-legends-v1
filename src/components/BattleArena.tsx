@@ -16,12 +16,13 @@ import BattleRadialMenu from "./BattleRadialMenu";
 import HeroPortrait from "./HeroPortrait";
 import BattleInfoPanel from "./BattleInfoPanel";
 import CardLevelUp from "./CardLevelUp";
-import { type PlayerState, getCardProgress, savePlayerState } from "@/lib/playerState";
+import { type PlayerState, getCardProgress } from "@/lib/playerState";
 import { awardXp, type LevelUpResult } from "@/lib/progressionEngine";
 import { getBattleGoldReward } from "@/lib/gachaEngine";
 import { loadDailyQuests, progressQuest, saveDailyQuests } from "@/lib/questEngine";
 import { toast } from "@/hooks/use-toast";
 import { awardBattlePassXp } from "@/lib/battlePassEngine";
+import { rollMysteryBox, claimFirstWin, FIRST_WIN_GOLD, FIRST_WIN_BP_XP } from "@/lib/dailyEngine";
 import { getCosmeticById } from "@/data/cosmetics";
 import { useIsMobile } from "@/hooks/use-mobile";
 
@@ -56,6 +57,8 @@ interface BattleArenaProps {
   } | null>;
   /** Live friend PvP: same rules as vs AI; actions sync via server action log. */
   livePvP?: LivePvPBattleConfig;
+  /** When online, sync gold/stardust after local-only bonuses (first win, mystery tally). */
+  syncEconomyApi?: (gold: number, stardust: number) => Promise<void>;
 }
 
 type ActionMode = "none" | "select-attack-target" | "select-equip-target" | "select-spell-target";
@@ -72,6 +75,7 @@ export default function BattleArena({
   isOnline,
   submitBattleResultApi,
   livePvP,
+  syncEconomyApi,
 }: BattleArenaProps) {
   const [soloState, setSoloState] = useState<BattleState | null>(null);
   const actionLogKey = livePvP ? JSON.stringify(livePvP.actionLog) : "";
@@ -149,8 +153,35 @@ export default function BattleArena({
 
   // Award rewards on game over (ranked MMR submit first when applicable)
   useEffect(() => {
-    if (livePvP) return;
     if (!state || state.phase !== "game-over" || rewardsGiven) return;
+
+    if (livePvP) {
+      setRewardsGiven(true);
+      const won = state.winner === "player";
+      onStateChange((prev) => {
+        let s = prev;
+        const prevPending = s.mysteryBoxesPending ?? 0;
+        s = rollMysteryBox(s);
+        if ((s.mysteryBoxesPending ?? 0) > prevPending) {
+          toast({ title: "Mystery box earned!", description: "Open it in You → Daily." });
+        }
+        if (won) {
+          const fw = claimFirstWin(s);
+          if (fw) {
+            s = fw.state;
+            s = awardBattlePassXp(s, FIRST_WIN_BP_XP).state;
+            toast({
+              title: "First win of the day!",
+              description: `+${FIRST_WIN_GOLD} gold & +${FIRST_WIN_BP_XP} Battle Pass XP`,
+            });
+          }
+        }
+        if (isOnline && syncEconomyApi) void syncEconomyApi(s.gold, s.stardust);
+        return s;
+      });
+      return;
+    }
+
     setRewardsGiven(true);
     const won = state.winner === "player";
     const isDraw = state.winner === "draw";
@@ -196,31 +227,67 @@ export default function BattleArena({
             saveDailyQuests(qs);
           }
         }
-        const bp = awardBattlePassXp(playerState, won ? 120 : isDraw ? 80 : 60);
-        onStateChange(bp.state);
+        onStateChange((prev) => {
+          let s = awardBattlePassXp(prev, won ? 120 : isDraw ? 80 : 60).state;
+          const prevPending = s.mysteryBoxesPending ?? 0;
+          s = rollMysteryBox(s);
+          if ((s.mysteryBoxesPending ?? 0) > prevPending) {
+            toast({ title: "Mystery box earned!", description: "Open it in You → Daily." });
+          }
+          if (won) {
+            const fw = claimFirstWin(s);
+            if (fw) {
+              s = fw.state;
+              s = awardBattlePassXp(s, FIRST_WIN_BP_XP).state;
+              toast({
+                title: "First win of the day!",
+                description: `+${FIRST_WIN_GOLD} gold & +${FIRST_WIN_BP_XP} Battle Pass XP`,
+              });
+            }
+          }
+          if (isOnline && syncEconomyApi) void syncEconomyApi(s.gold, s.stardust);
+          return s;
+        });
         return;
       }
 
-      const gold = getBattleGoldReward(won, turnNumber);
-      setGoldEarned(gold);
-      let newState = { ...playerState, cardProgress: { ...playerState.cardProgress }, gold: playerState.gold + gold };
-      const allLevelUps: (LevelUpResult & { cardId: string })[] = [];
-      const xpAmount = won ? 50 : isDraw ? 35 : 20;
-      for (const id of playerDeckIds) {
-        const progress = getCardProgress(newState, id);
-        const result = awardXp(progress, xpAmount);
-        newState.cardProgress[id] = result.progress;
-        for (const lu of result.levelUps) allLevelUps.push({ ...lu, cardId: id });
-      }
-      setLevelUps(allLevelUps);
-      if (allLevelUps.length > 0) {
-        setShowLevelUps(true);
-        const qs = progressQuest(loadDailyQuests(), "level_up_card", allLevelUps.length);
-        saveDailyQuests(qs);
-      }
-      newState = awardBattlePassXp(newState, won ? 120 : isDraw ? 80 : 60).state;
-      onStateChange(newState);
-      savePlayerState(newState);
+      onStateChange((prev) => {
+        const gold = getBattleGoldReward(won, turnNumber);
+        setGoldEarned(gold);
+        let newState = { ...prev, cardProgress: { ...prev.cardProgress }, gold: prev.gold + gold };
+        const allLevelUps: (LevelUpResult & { cardId: string })[] = [];
+        const xpAmount = won ? 50 : isDraw ? 35 : 20;
+        for (const id of playerDeckIds) {
+          const progress = getCardProgress(newState, id);
+          const result = awardXp(progress, xpAmount);
+          newState.cardProgress[id] = result.progress;
+          for (const lu of result.levelUps) allLevelUps.push({ ...lu, cardId: id });
+        }
+        setLevelUps(allLevelUps);
+        if (allLevelUps.length > 0) {
+          setShowLevelUps(true);
+          const qs = progressQuest(loadDailyQuests(), "level_up_card", allLevelUps.length);
+          saveDailyQuests(qs);
+        }
+        newState = awardBattlePassXp(newState, won ? 120 : isDraw ? 80 : 60).state;
+        const prevPending = newState.mysteryBoxesPending ?? 0;
+        newState = rollMysteryBox(newState);
+        if ((newState.mysteryBoxesPending ?? 0) > prevPending) {
+          toast({ title: "Mystery box earned!", description: "Open it in You → Daily." });
+        }
+        if (won) {
+          const fw = claimFirstWin(newState);
+          if (fw) {
+            newState = fw.state;
+            newState = awardBattlePassXp(newState, FIRST_WIN_BP_XP).state;
+            toast({
+              title: "First win of the day!",
+              description: `+${FIRST_WIN_GOLD} gold & +${FIRST_WIN_BP_XP} Battle Pass XP`,
+            });
+          }
+        }
+        return newState;
+      });
     })();
   }, [state?.phase, livePvP]);
 

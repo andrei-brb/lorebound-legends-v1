@@ -16,9 +16,10 @@ type Props = {
   onExit: () => void;
   playerState: PlayerState;
   onStateChange: (s: PlayerState) => void;
+  syncEconomyApi?: (gold: number, stardust: number) => Promise<void>;
 };
 
-export default function LivePvPBattleground({ matchId, onExit, playerState, onStateChange }: Props) {
+export default function LivePvPBattleground({ matchId, onExit, playerState, onStateChange, syncEconomyApi }: Props) {
   const [me, setMe] = useState<{ id: number; username: string } | null>(null);
   const [liveMatch, setLiveMatch] = useState<any | null>(null);
   const [acting, setActing] = useState(false);
@@ -158,6 +159,7 @@ export default function LivePvPBattleground({ matchId, onExit, playerState, onSt
         onStateChange={onStateChange}
         onExit={onExit}
         isOnline={true}
+        syncEconomyApi={syncEconomyApi}
         livePvP={{
           seed,
           deckA,
@@ -192,6 +194,7 @@ export default function LivePvPBattleground({ matchId, onExit, playerState, onSt
       onStateChange={onStateChange}
       onExit={onExit}
       isOnline={true}
+      syncEconomyApi={syncEconomyApi}
       livePvP={{
         seed,
         deckA,
