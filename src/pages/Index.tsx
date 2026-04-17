@@ -76,6 +76,7 @@ const categories: { id: Category; label: string; icon: React.ReactNode; tabs: { 
     tabs: [
       { id: "trade", label: "Trade", icon: <ArrowLeftRight className="w-4 h-4" /> },
       { id: "trade-new", label: "Bazaar ✨", icon: <SparklesIcon className="w-4 h-4" /> },
+      { id: "trade-hall", label: "Trade Hall ✨", icon: <SparklesIcon className="w-4 h-4" /> },
       { id: "mail", label: "Mail", icon: <Mail className="w-4 h-4" /> },
       { id: "leaderboard", label: "Ranks", icon: <BarChart3 className="w-4 h-4" /> },
     ],
