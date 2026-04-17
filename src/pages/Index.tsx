@@ -27,6 +27,8 @@ import GuildHall from "@/components/halls/GuildHall";
 import SpectateHall from "@/components/halls/SpectateHall";
 import ProfileHall from "@/components/halls/ProfileHall";
 import DailyHall from "@/components/halls/DailyHall";
+import CardsHall from "@/components/halls/CardsHall";
+import CombatHall from "@/components/halls/CombatHall";
 import { cn } from "@/lib/utils";
 import { usePlayerApi } from "@/lib/usePlayerApi";
 import { loadAchievementState, checkNewAchievements, saveAchievementState } from "@/lib/achievementEngine";
@@ -35,7 +37,7 @@ import { api } from "@/lib/apiClient";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { setSfxVolume } from "@/lib/sfx";
 
-type Tab = "collection" | "catalog" | "deck" | "battle" | "pvp" | "summon" | "quests" | "workshop" | "achievements" | "leaderboard" | "trade" | "mail" | "events" | "tournament" | "boost" | "pass" | "profile" | "daily" | "friends" | "chat" | "guild" | "spectate";
+type Tab = "collection" | "catalog" | "deck" | "battle" | "pvp" | "summon" | "quests" | "workshop" | "achievements" | "leaderboard" | "trade" | "mail" | "events" | "tournament" | "boost" | "pass" | "profile" | "daily" | "friends" | "chat" | "guild" | "spectate" | "cards-hall" | "combat-hall";
 type Category = "cards" | "combat" | "progress" | "social" | "community" | "you";
 
 const categories: { id: Category; label: string; icon: React.ReactNode; tabs: { id: Tab; label: string; icon: React.ReactNode }[] }[] = [
@@ -46,6 +48,7 @@ const categories: { id: Category; label: string; icon: React.ReactNode; tabs: { 
       { id: "catalog", label: "Catalog", icon: <Grid3X3 className="w-4 h-4" /> },
       { id: "summon", label: "Summon", icon: <SparklesIcon className="w-4 h-4" /> },
       { id: "deck", label: "Deck", icon: <Layers className="w-4 h-4" /> },
+      { id: "cards-hall", label: "Hall ✨", icon: <SparklesIcon className="w-4 h-4" /> },
     ],
   },
   {
@@ -54,6 +57,7 @@ const categories: { id: Category; label: string; icon: React.ReactNode; tabs: { 
       { id: "battle", label: "Battle", icon: <Swords className="w-4 h-4" /> },
       { id: "pvp", label: "PvP", icon: <Crown className="w-4 h-4" /> },
       { id: "tournament", label: "Tourney", icon: <Crown className="w-4 h-4" /> },
+      { id: "combat-hall", label: "Hall ✨", icon: <SparklesIcon className="w-4 h-4" /> },
     ],
   },
   {
@@ -311,6 +315,8 @@ export default function Index() {
             {activeTab === "chat" && <ChatHall isOnline={isOnline} playerState={playerState} />}
             {activeTab === "guild" && <GuildHall isOnline={isOnline} playerState={playerState} />}
             {activeTab === "spectate" && <SpectateHall isOnline={isOnline} />}
+            {activeTab === "cards-hall" && <CardsHall playerState={playerState} />}
+            {activeTab === "combat-hall" && <CombatHall playerState={playerState} />}
             {activeTab === "battle" && battleDeckIds.length === 0 && (
               <div className="text-center py-20">
                 <Swords className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
