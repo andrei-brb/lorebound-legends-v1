@@ -1,5 +1,11 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { BookOpen, Layers, Swords, Coins, Sparkles as SparklesIcon, Grid3X3, Loader2, ScrollText, Hammer, Trophy, ArrowLeftRight, BarChart3, Calendar, Zap, Crown, Shield, Mail, User, Gift } from "lucide-react";
+import { BookOpen, Layers, Swords, Coins, Sparkles as SparklesIcon, Grid3X3, Loader2, ScrollText, Hammer, Trophy, ArrowLeftRight, BarChart3, Calendar, Zap, Crown, Shield, Mail, User, Gift, Users, MessageCircle, Eye, Flag } from "lucide-react";
+import TabTransition from "@/components/TabTransition";
+import TutorialOverlay from "@/components/TutorialOverlay";
+import FriendsPanel from "@/components/FriendsPanel";
+import ChatPanel from "@/components/ChatPanel";
+import GuildPanel from "@/components/GuildPanel";
+import SpectatePanel from "@/components/SpectatePanel";
 import CollectionView from "@/components/CollectionView";
 import DeckBuilder from "@/components/DeckBuilder";
 import BattleArena from "@/components/BattleArena";
@@ -28,8 +34,8 @@ import { api } from "@/lib/apiClient";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { setSfxVolume } from "@/lib/sfx";
 
-type Tab = "collection" | "catalog" | "deck" | "battle" | "pvp" | "summon" | "quests" | "workshop" | "achievements" | "leaderboard" | "trade" | "mail" | "events" | "tournament" | "boost" | "pass" | "profile" | "daily";
-type Category = "cards" | "combat" | "progress" | "social" | "you";
+type Tab = "collection" | "catalog" | "deck" | "battle" | "pvp" | "summon" | "quests" | "workshop" | "achievements" | "leaderboard" | "trade" | "mail" | "events" | "tournament" | "boost" | "pass" | "profile" | "daily" | "friends" | "chat" | "guild" | "spectate";
+type Category = "cards" | "combat" | "progress" | "social" | "community" | "you";
 
 const categories: { id: Category; label: string; icon: React.ReactNode; tabs: { id: Tab; label: string; icon: React.ReactNode }[] }[] = [
   {
@@ -69,6 +75,15 @@ const categories: { id: Category; label: string; icon: React.ReactNode; tabs: { 
     ],
   },
   {
+    id: "community", label: "Community", icon: <Users className="w-4 h-4" />,
+    tabs: [
+      { id: "friends", label: "Friends", icon: <Users className="w-4 h-4" /> },
+      { id: "chat", label: "Chat", icon: <MessageCircle className="w-4 h-4" /> },
+      { id: "guild", label: "Guild", icon: <Flag className="w-4 h-4" /> },
+      { id: "spectate", label: "Spectate", icon: <Eye className="w-4 h-4" /> },
+    ],
+  },
+  {
     id: "you", label: "You", icon: <User className="w-4 h-4" />,
     tabs: [
       { id: "profile", label: "Profile", icon: <User className="w-4 h-4" /> },
@@ -81,7 +96,7 @@ export default function Index() {
   const [activeCategory, setActiveCategory] = useState<Category>("cards");
   const [activeTab, setActiveTab] = useState<Tab>("collection");
   const [lastTabPerCategory, setLastTabPerCategory] = useState<Record<Category, Tab>>({
-    cards: "collection", combat: "battle", progress: "quests", social: "trade", you: "profile",
+    cards: "collection", combat: "battle", progress: "quests", social: "trade", community: "friends", you: "profile",
   });
   const [battleDeckIds, setBattleDeckIds] = useState<string[]>([]);
   const [unreadMail, setUnreadMail] = useState(0);
@@ -133,6 +148,16 @@ export default function Index() {
     };
     tick();
     const id = window.setInterval(tick, 8000);
+    return () => { alive = false; window.clearInterval(id); };
+  }, [isOnline]);
+
+  // Presence heartbeat — keeps friends/guild members "online"
+  useEffect(() => {
+    if (!isOnline) return;
+    let alive = true;
+    const beat = () => { api.presenceHeartbeat().catch(() => {}); };
+    beat();
+    const id = window.setInterval(() => { if (alive) beat(); }, 60000);
     return () => { alive = false; window.clearInterval(id); };
   }, [isOnline]);
 
@@ -251,7 +276,8 @@ export default function Index() {
 
         {/* Content */}
         <main className="container py-8 relative z-10 max-w-7xl">
-          <div key={activeTab} className="tab-content-enter">
+          <TutorialOverlay tabId={activeTab} playerState={playerState} onStateChange={setPlayerState} />
+          <TabTransition tabKey={activeTab} reduceMotion={!!playerState.settings?.reduceMotion}>
             {activeTab === "collection" && (
               <div>
                 <div className="mb-6">
@@ -280,6 +306,10 @@ export default function Index() {
             {activeTab === "pass" && <BattlePass playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} />}
             {activeTab === "profile" && <ProfilePage playerState={playerState} onStateChange={setPlayerState} />}
             {activeTab === "daily" && <DailyHub playerState={playerState} onStateChange={setPlayerState} />}
+            {activeTab === "friends" && <FriendsPanel isOnline={isOnline} />}
+            {activeTab === "chat" && <ChatPanel isOnline={isOnline} />}
+            {activeTab === "guild" && <GuildPanel isOnline={isOnline} />}
+            {activeTab === "spectate" && <SpectatePanel isOnline={isOnline} />}
             {activeTab === "battle" && battleDeckIds.length === 0 && (
               <div className="text-center py-20">
                 <Swords className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
@@ -288,7 +318,7 @@ export default function Index() {
                 <button onClick={() => setActiveTab("deck")} className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-heading font-bold text-sm">Go to Deck Builder</button>
               </div>
             )}
-          </div>
+          </TabTransition>
         </main>
       </div>
     </TooltipProvider>
