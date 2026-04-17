@@ -90,41 +90,44 @@ export default function ChatScene({ isOnline, playerState }: ChatSceneProps) {
 
   return (
     <SceneBackdrop mood="hearth" reduceMotion={reduceMotion}>
-      <div className="relative px-4 sm:px-8 pt-8 pb-32 min-h-[calc(100vh-12rem)]">
-        {/* Two hanging lanterns — channel switch */}
-        <div className="absolute left-6 top-2 flex flex-col gap-10 sm:gap-14">
-          <Lantern
-            label="Common Room"
-            lit={activeChannel === "global"}
-            onClick={() => switchChannel("global")}
-            reduceMotion={reduceMotion}
-          />
-          <Lantern
-            label="Guild Hearth"
-            lit={activeChannel.startsWith("guild")}
-            dimmed={!guildId}
-            onClick={() => guildId && switchChannel(`guild:${guildId}`)}
-            reduceMotion={reduceMotion}
-          />
+      <div className="relative px-4 sm:px-8 pt-6 pb-10 min-h-[calc(100vh-12rem)] flex flex-col">
+        {/* Top row — lanterns + title share the same band so nothing overlaps */}
+        <div className="relative flex items-center justify-center mb-6">
+          {/* Lanterns on the left */}
+          <div className="absolute left-0 top-0 flex gap-3 sm:gap-5">
+            <Lantern
+              label="Common"
+              lit={activeChannel === "global"}
+              onClick={() => switchChannel("global")}
+              reduceMotion={reduceMotion}
+            />
+            <Lantern
+              label="Guild"
+              lit={activeChannel.startsWith("guild")}
+              dimmed={!guildId}
+              onClick={() => guildId && switchChannel(`guild:${guildId}`)}
+              reduceMotion={reduceMotion}
+            />
+          </div>
+
+          {/* Title etched in the air */}
+          <div className="text-center">
+            <FloatingLabel variant="ember" className="text-[10px] sm:text-xs">
+              {activeChannel === "global" ? "— The Common Room —" : "— Guild Hearth —"}
+            </FloatingLabel>
+            <h1 className="font-heading text-2xl sm:text-3xl text-foreground mt-1 drop-shadow-[0_0_20px_hsl(var(--legendary)/0.4)]">
+              The Hearth
+            </h1>
+          </div>
         </div>
 
-        {/* Title etched in the air */}
-        <div className="text-center mb-10">
-          <FloatingLabel variant="ember" className="text-[10px] sm:text-xs">
-            {activeChannel === "global" ? "— The Common Room —" : "— Guild Hearth —"}
-          </FloatingLabel>
-          <h1 className="font-heading text-3xl sm:text-4xl text-foreground mt-3 drop-shadow-[0_0_20px_hsl(var(--legendary)/0.4)]">
-            The Hearth
-          </h1>
-        </div>
-
-        {/* Message stream */}
+        {/* Message stream — flexes to fill, leaves room for composer */}
         <div
           ref={scrollerRef}
-          className="relative max-w-2xl mx-auto h-[55vh] overflow-y-auto scrollbar-none"
+          className="relative flex-1 min-h-[40vh] max-w-2xl w-full mx-auto overflow-y-auto scrollbar-none"
           style={{
-            WebkitMaskImage: "linear-gradient(180deg, transparent 0%, black 18%, black 88%, transparent 100%)",
-            maskImage: "linear-gradient(180deg, transparent 0%, black 18%, black 88%, transparent 100%)",
+            WebkitMaskImage: "linear-gradient(180deg, transparent 0%, black 12%, black 88%, transparent 100%)",
+            maskImage: "linear-gradient(180deg, transparent 0%, black 12%, black 88%, transparent 100%)",
           }}
         >
           {loading ? (
@@ -132,14 +135,14 @@ export default function ChatScene({ isOnline, playerState }: ChatSceneProps) {
               <Loader2 className="w-6 h-6 text-primary animate-spin" />
             </div>
           ) : messages.length === 0 ? (
-            <div className="flex flex-col items-center justify-center pt-20 gap-2">
+            <div className="flex flex-col items-center justify-center pt-16 gap-2">
               <FloatingLabel variant="inked" className="text-muted-foreground">
                 The hearth is quiet…
               </FloatingLabel>
               <FloatingLabel className="text-[10px]">be the first to speak</FloatingLabel>
             </div>
           ) : (
-            <div className="flex flex-col gap-5 px-4 py-8">
+            <div className="flex flex-col gap-5 px-4 py-6">
               {messages.map((m, i) => (
                 <ParchmentNote
                   key={m.id}
@@ -152,47 +155,57 @@ export default function ChatScene({ isOnline, playerState }: ChatSceneProps) {
           )}
         </div>
 
-        {/* Hearth glow at the bottom */}
-        <div
-          className="pointer-events-none absolute bottom-0 left-1/2 -translate-x-1/2 w-[60vw] h-32"
-          style={{
-            background: "radial-gradient(ellipse at center bottom, hsl(var(--legendary)/0.6), transparent 70%)",
-            filter: "blur(20px)",
-          }}
-        />
+        {/* Hearth glow behind the composer */}
+        <div className="relative">
+          <div
+            className="pointer-events-none absolute inset-x-0 -top-8 h-32 mx-auto w-[80%]"
+            style={{
+              background:
+                "radial-gradient(ellipse at center bottom, hsl(var(--legendary)/0.55), transparent 70%)",
+              filter: "blur(24px)",
+            }}
+          />
 
-        {/* Composer — quill on parchment */}
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[min(640px,calc(100vw-2rem))] z-20">
-          <div className="flex items-end gap-3 px-6 py-3">
-            <input
-              type="text"
-              value={text}
-              onChange={(e) => setText(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); } }}
-              placeholder={isOnline ? "speak into the fire…" : "the hearth is offline"}
-              disabled={!isOnline || sending}
-              className={cn(
-                "flex-1 bg-transparent border-0 outline-none px-2 py-2 text-foreground italic font-heading",
-                "placeholder:text-muted-foreground/60 placeholder:italic",
-                "border-b-2 border-[hsl(var(--legendary)/0.4)] focus:border-[hsl(var(--legendary)/0.9)] transition-colors",
-                "shadow-[0_8px_30px_hsl(var(--legendary)/0.15)]"
-              )}
-              style={{ caretColor: "hsl(var(--legendary))" }}
-            />
-            <GlowOrb
-              size={42}
-              hue="var(--legendary)"
-              intensity={text.trim() ? 0.9 : 0.3}
-              pulse={!!text.trim() && !reduceMotion}
-              onClick={send}
-              title="send"
-            >
-              {sending ? (
-                <Loader2 className="w-4 h-4 text-background animate-spin" />
-              ) : (
-                <span className="text-background text-lg leading-none">✦</span>
-              )}
-            </GlowOrb>
+          {/* Composer — quill on parchment (inline, always visible) */}
+          <div className="relative z-10 max-w-2xl w-full mx-auto mt-4">
+            <div className="flex items-end gap-3 px-4 sm:px-6 py-3">
+              <input
+                type="text"
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    send();
+                  }
+                }}
+                placeholder={isOnline ? "speak into the fire…" : "the hearth is offline"}
+                disabled={!isOnline || sending}
+                className={cn(
+                  "flex-1 bg-transparent border-0 outline-none px-2 py-2 text-foreground italic font-heading",
+                  "placeholder:text-muted-foreground/60 placeholder:italic",
+                  "border-b-2 border-[hsl(var(--legendary)/0.4)] focus:border-[hsl(var(--legendary)/0.9)] transition-colors"
+                )}
+                style={{ caretColor: "hsl(var(--legendary))" }}
+              />
+              <GlowOrb
+                size={42}
+                hue="var(--legendary)"
+                intensity={text.trim() ? 0.9 : 0.3}
+                pulse={!!text.trim() && !reduceMotion}
+                onClick={send}
+                title="send"
+              >
+                {sending ? (
+                  <Loader2 className="w-4 h-4 text-background animate-spin" />
+                ) : (
+                  <span className="text-background text-lg leading-none">✦</span>
+                )}
+              </GlowOrb>
+            </div>
+            <div className="text-center -mt-1">
+              <FloatingLabel className="text-[9px] opacity-60">press enter to send</FloatingLabel>
+            </div>
           </div>
         </div>
       </div>
