@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Sparkles, Flame, Plus, X, ChevronDown, Filter, ArrowRight } from "lucide-react";
 import type { PlayerState } from "@/lib/playerState";
-import HallLayout from "@/components/scene/HallLayout";
 import GlassPanel from "@/components/scene/GlassPanel";
 import GameCard from "@/components/GameCard";
 import { allGameCards } from "@/data/cardIndex";
@@ -90,7 +89,7 @@ export default function WorkshopHallTest({ playerState }: Props) {
   const outputHue = resultRarity ? RARITY_HUE[resultRarity] : "var(--epic)";
 
   return (
-    <HallLayout sidebarWidth="md" sidebar={null}>
+    <div className="px-4 sm:px-6 py-6 max-w-4xl mx-auto">
       <GlassPanel hue="var(--epic)" glow={0.4} padding="lg">
         {/* Mode toggle — top center */}
         <div className="flex justify-center mb-6">
@@ -299,6 +298,6 @@ export default function WorkshopHallTest({ playerState }: Props) {
           </div>
         )}
       </GlassPanel>
-    </HallLayout>
+    </div>
   );
 }
