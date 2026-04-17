@@ -8,7 +8,7 @@ nixPkgs = ["nodejs_20"]
 cmds = ["npm ci"]
 
 [phases.build]
-cmds = ["npx prisma generate"]
+cmds = ["DATABASE_URL=\"postgresql://postgres:postgres@localhost:5432/postgres?schema=public\" npx prisma generate"]
 
 [start]
 cmd = "npx prisma migrate deploy && npm start"
