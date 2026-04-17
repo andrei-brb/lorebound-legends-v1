@@ -60,29 +60,16 @@ export default function ChatHall({ isOnline, playerState }: Props) {
             <HallStat label="Status" value={isOnline ? "live" : "offline"} hue={isOnline ? "var(--synergy)" : "var(--muted-foreground)"} />
           </HallSection>
 
-          <HallSection title="Channels" hue="var(--primary)" glow={0.3}>
-            <div className="space-y-1">
-              {(["global", "trade", "help"] as const).map((r) => (
-                <button
-                  key={r}
-                  onClick={() => setRoom(r)}
-                  className={cn(
-                    "w-full text-left px-2.5 py-1.5 rounded-lg text-xs capitalize transition-colors",
-                    room === r ? "bg-primary/15 text-foreground ring-1 ring-primary/40" : "text-muted-foreground hover:bg-foreground/5"
-                  )}
-                >
-                  # {r}
-                </button>
-              ))}
-            </div>
+          <HallSection title="Channel" hue="var(--primary)" glow={0.3}>
+            <div className="px-2.5 py-1.5 rounded-lg text-xs bg-primary/15 text-foreground ring-1 ring-primary/40"># global</div>
           </HallSection>
         </>
       }
       header={
         <GlassPanel hue="var(--primary)" glow={0.4} padding="md">
           <div>
-            <p className="text-[10px] uppercase tracking-widest text-muted-foreground"># {room}</p>
-            <h1 className="font-heading text-lg text-foreground capitalize">The {room} Hearth</h1>
+            <p className="text-[10px] uppercase tracking-widest text-muted-foreground"># global</p>
+            <h1 className="font-heading text-lg text-foreground">The Common Hearth</h1>
           </div>
         </GlassPanel>
       }
@@ -96,7 +83,7 @@ export default function ChatHall({ isOnline, playerState }: Props) {
           ) : (
             msgs.map((m) => (
               <div key={m.id} className="flex items-start gap-2.5">
-                <HexAvatar size={32} hue="var(--primary)" src={m.avatar && m.discordId ? `https://cdn.discordapp.com/avatars/${m.discordId}/${m.avatar}.png?size=64` : null}>
+                <HexAvatar size={32} hue="var(--primary)">
                   {m.username.slice(0, 1).toUpperCase()}
                 </HexAvatar>
                 <div className="flex-1 min-w-0">
@@ -104,7 +91,7 @@ export default function ChatHall({ isOnline, playerState }: Props) {
                     <span className="font-heading text-xs text-foreground">{m.username}</span>
                     <span className="text-[10px] text-muted-foreground">{new Date(m.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
                   </div>
-                  <p className="text-sm text-foreground/90 break-words">{m.content}</p>
+                  <p className="text-sm text-foreground/90 break-words">{m.body}</p>
                 </div>
               </div>
             ))

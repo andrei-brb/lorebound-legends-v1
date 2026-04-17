@@ -23,14 +23,14 @@ const MOCK: Row[] = [
 ];
 
 export default function RanksHall({ playerState, isOnline }: Props) {
-  const [board, setBoard] = useState<"battles" | "collection" | "trades">("battles");
+  const [board, setBoard] = useState<"wins" | "collection" | "rarest">("wins");
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let alive = true;
     setLoading(true);
-    api.getLeaderboard?.(board)
+    api.getLeaderboard(board)
       .then((r: any) => { if (alive) setRows(r?.entries || r || MOCK); })
       .catch(() => { if (alive) setRows(MOCK); })
       .finally(() => { if (alive) setLoading(false); });
@@ -55,7 +55,7 @@ export default function RanksHall({ playerState, isOnline }: Props) {
 
           <HallSection title="Board" hue="var(--legendary)" glow={0.3}>
             <div className="space-y-1">
-              {(["battles", "collection", "trades"] as const).map((b) => (
+              {(["wins", "collection", "rarest"] as const).map((b) => (
                 <button
                   key={b}
                   onClick={() => setBoard(b)}

@@ -22,8 +22,8 @@ export default function SpectateHall({ isOnline }: Props) {
   useEffect(() => {
     let alive = true;
     setLoading(true);
-    api.getLiveMatches?.()
-      .then((r: any) => { if (alive) setMatches(r?.matches || r || MOCK); })
+    api.getSpectateActive()
+      .then((r: any) => { if (alive) setMatches(r?.matches?.length ? r.matches.map((m: any) => ({ id: String(m.id), player1: m.playerA?.username || "?", player2: m.playerB?.username || "?", turn: 0, viewers: 0 })) : MOCK); })
       .catch(() => { if (alive) setMatches(MOCK); })
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };

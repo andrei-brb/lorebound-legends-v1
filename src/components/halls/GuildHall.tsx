@@ -35,15 +35,29 @@ export default function GuildHall({ isOnline }: Props) {
   useEffect(() => {
     let alive = true;
     setLoading(true);
-    Promise.all([
-      api.getMyGuild?.().catch(() => null),
-      api.getGuildMessages?.().catch(() => null),
-    ]).then(([g, m]: any[]) => {
-      if (!alive) return;
-      if (g?.guild) setGuild(g.guild);
-      if (g?.members) setMembers(g.members);
-      if (m?.messages || Array.isArray(m)) setMsgs(m.messages || m);
-    }).finally(() => alive && setLoading(false));
+    (async () => {
+      try {
+        const g: any = await api.getMyGuild().catch(() => null);
+        if (g?.guild) {
+          setGuild({
+            id: g.guild.id,
+            name: g.guild.name,
+            tag: g.guild.tag,
+            level: g.guild.level ?? 1,
+            xp: g.guild.xp ?? 0,
+            xpNext: g.guild.xpNext ?? 1000,
+            memberCount: g.guild.memberCount ?? MOCK_GUILD.memberCount,
+            description: g.guild.description ?? undefined,
+          });
+          if (g.members) setMembers(g.members);
+          if (g.guild.id) {
+            const m: any = await api.getChat(`guild:${g.guild.id}` as any).catch(() => null);
+            if (alive && m?.messages) setMsgs(m.messages.map((x: any) => ({ id: x.id, userId: x.playerId, username: x.username, content: x.body, createdAt: x.createdAt })));
+          }
+        }
+      } catch {}
+      finally { if (alive) setLoading(false); }
+    })();
     return () => { alive = false; };
   }, []);
 
@@ -51,9 +65,9 @@ export default function GuildHall({ isOnline }: Props) {
     if (!text.trim() || sending) return;
     setSending(true);
     try {
-      await api.sendGuildMessage?.(text.trim());
-      const m: any = await api.getGuildMessages?.();
-      setMsgs(m?.messages || m || []);
+      await api.postChat(`guild:${guild.id}`, text.trim());
+      const m: any = await api.getChat(`guild:${guild.id}` as any);
+      setMsgs((m?.messages || []).map((x: any) => ({ id: x.id, userId: x.playerId, username: x.username, content: x.body, createdAt: x.createdAt })));
       setText("");
     } catch {}
     finally { setSending(false); }
