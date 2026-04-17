@@ -6,7 +6,10 @@ import GlassPanel from "@/components/scene/GlassPanel";
 import HexAvatar from "@/components/scene/HexAvatar";
 import { cn } from "@/lib/utils";
 
-interface Props { playerState: PlayerState }
+interface Props {
+  playerState: PlayerState;
+  onLaunchMode?: (mode: "skirmish" | "ranked" | "tourney" | "raid") => void;
+}
 
 const MODES = [
   { id: "skirmish", label: "Skirmish", desc: "Quick PvE battle vs the realm", icon: <Swords className="w-4 h-4" />, hue: "var(--primary)" },
@@ -15,8 +18,8 @@ const MODES = [
   { id: "raid", label: "Raid", desc: "Co-op vs an elite boss", icon: <Flame className="w-4 h-4" />, hue: "var(--destructive)" },
 ];
 
-export default function CombatHall({ playerState }: Props) {
-  const [selected, setSelected] = useState<string>("skirmish");
+export default function CombatHall({ playerState, onLaunchMode }: Props) {
+  const [selected, setSelected] = useState<"skirmish" | "ranked" | "tourney" | "raid">("skirmish");
   const wins = 0;
   const losses = 0;
   const winrate = 0;
@@ -78,7 +81,7 @@ export default function CombatHall({ playerState }: Props) {
           return (
             <button
               key={m.id}
-              onClick={() => setSelected(m.id)}
+              onClick={() => setSelected(m.id as "skirmish" | "ranked" | "tourney" | "raid")}
               className="text-left"
             >
               <GlassPanel hue={m.hue} glow={active ? 0.7 : 0.35} padding="md" className={cn("transition-transform", active && "scale-[1.01]")}>
@@ -109,6 +112,7 @@ export default function CombatHall({ playerState }: Props) {
             <p className="text-xs text-muted-foreground">Selected mode: <span className="text-foreground capitalize">{selected}</span></p>
           </div>
           <button
+            onClick={() => onLaunchMode?.(selected)}
             className="px-5 py-2.5 rounded-xl font-heading text-sm text-primary-foreground transition-transform hover:scale-[1.02]"
             style={{ background: `linear-gradient(135deg, hsl(var(--destructive)), hsl(var(--primary)))`, boxShadow: `0 0 20px hsl(var(--destructive)/0.4)` }}
           >
