@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { allCards } from "@/data/cards";
 import { cn } from "@/lib/utils";
 import { playWhoosh, playShatter, playCollect } from "@/lib/sfx";
+import { StardustCurrencyIcon } from "@/components/CurrencyIcons";
 
 interface SacrificeAnimationProps {
   cardIds: string[];
@@ -203,7 +204,7 @@ export default function SacrificeAnimation({ cardIds, totalStardust, onComplete 
               transition={{ duration: 0.5, delay: 1.2, type: "spring", bounce: 0.4 }}
               className="absolute flex items-center gap-2 px-6 py-3 rounded-2xl bg-card border-2 border-primary shadow-[0_0_30px_10px_hsl(var(--primary)/0.3)]"
             >
-              <span className="text-2xl">💎</span>
+              <StardustCurrencyIcon className="w-8 h-8" />
               <motion.span
                 className="font-heading text-3xl font-bold text-primary"
                 initial={{ opacity: 0 }}
@@ -230,9 +231,9 @@ export default function SacrificeAnimation({ cardIds, totalStardust, onComplete 
               initial={{ scale: 0 }}
               animate={{ scale: [0, 1.2, 1] }}
               transition={{ type: "spring", bounce: 0.5 }}
-              className="text-5xl mb-4"
+              className="mb-4 flex justify-center"
             >
-              💎
+              <StardustCurrencyIcon className="w-16 h-16" />
             </motion.div>
             <h3 className="font-heading text-2xl font-bold text-foreground mb-1">
               Sacrifice Complete

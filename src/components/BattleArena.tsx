@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import battleBg from "@/assets/battle-bg.jpg";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trophy, Skull, Coins, Sparkles, ArrowLeft } from "lucide-react";
+import { Trophy, Skull, Sparkles, ArrowLeft } from "lucide-react";
+import { GoldCurrencyIcon } from "@/components/CurrencyIcons";
 import { cn } from "@/lib/utils";
 import type { BattleState } from "@/lib/battleEngine";
 import { initBattle, playCard, equipWeapon, castSpell, attackTarget, activateAbility, performAITurn, generateEnemyDeck, endTurnAction } from "@/lib/battleEngine";
@@ -874,7 +875,7 @@ export default function BattleArena({
               {!livePvP && (
                 <div className="mt-4 p-3 rounded-xl bg-secondary space-y-2">
                   <div className="flex items-center justify-center gap-2">
-                    <Coins className="w-4 h-4 text-legendary" />
+                    <GoldCurrencyIcon className="w-4 h-4" />
                     <span className="font-heading font-bold text-foreground">+{goldEarned} Gold</span>
                   </div>
                   <p className="text-[10px] text-muted-foreground">

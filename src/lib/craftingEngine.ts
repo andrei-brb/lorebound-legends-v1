@@ -20,7 +20,8 @@ export const FUSION_RECIPES: FusionRecipe[] = [
   { inputRarity: "rare", inputCount: 3, outputRarity: "legendary", goldCost: 500 },
 ];
 
-const SACRIFICE_STARDUST: Record<Rarity, number> = {
+/** Stardust granted per card when sacrificing (by rarity). */
+export const SACRIFICE_STARDUST: Record<Rarity, number> = {
   common: 10,
   rare: 30,
   legendary: 100,

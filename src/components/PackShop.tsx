@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
-import { Gift, Clock, Coins, Sparkles } from "lucide-react";
+import { Gift, Clock, Sparkles } from "lucide-react";
+import { GoldCurrencyIcon, StardustCurrencyIcon } from "@/components/CurrencyIcons";
 import { PACK_DEFINITIONS, FREE_PACK_CARD_COUNT, canAffordPack, pullCards, type PackDefinition } from "@/lib/gachaEngine";
 import { canClaimFreePack, freePackTimeRemaining, addCardToCollection, savePlayerState, type PlayerState } from "@/lib/playerState";
 import PackOpening from "./PackOpening";
@@ -160,12 +161,12 @@ export default function PackShop({ playerState, onStateChange, isOnline, pullCar
           <CardContent className="p-4">
             <div className="flex flex-wrap items-center gap-6 divide-x divide-border">
               <div className="flex items-center gap-2">
-                <Coins className="w-4 h-4 text-[hsl(var(--legendary))]" />
+                <GoldCurrencyIcon className="w-[18px] h-[18px]" />
                 <span className="font-heading font-bold text-foreground">{Number(playerState.gold) || 0}</span>
                 <span className="text-xs text-muted-foreground">Gold</span>
               </div>
               <div className="flex items-center gap-2 pl-6">
-                <span className="text-sm">💎</span>
+                <StardustCurrencyIcon className="w-[18px] h-[18px]" />
                 <span className="font-heading font-bold text-foreground">{Number(playerState.stardust) || 0}</span>
                 <span className="text-xs text-muted-foreground">Stardust</span>
               </div>
@@ -274,7 +275,7 @@ export default function PackShop({ playerState, onStateChange, isOnline, pullCar
                           : "bg-secondary text-muted-foreground cursor-not-allowed"
                       }`}
                     >
-                      <Coins className="w-4 h-4" />
+                      <GoldCurrencyIcon className="w-[18px] h-[18px]" />
                       {pack.cost} Gold
                     </button>
                   </div>

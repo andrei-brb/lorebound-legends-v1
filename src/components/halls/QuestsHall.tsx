@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
-import { ScrollText, CheckCircle2, Clock, Coins, Sparkles } from "lucide-react";
+import { ScrollText, CheckCircle2, Clock } from "lucide-react";
 import type { PlayerState } from "@/lib/playerState";
+import { GoldCurrencyIcon, StardustCurrencyIcon } from "@/components/CurrencyIcons";
 import HallLayout, { HallSection, HallStat } from "@/components/scene/HallLayout";
 import GlassPanel from "@/components/scene/GlassPanel";
 import { cn } from "@/lib/utils";
@@ -114,10 +115,14 @@ function QuestCard({ quest }: { quest: Quest }) {
       </div>
       <div className="flex items-center gap-3 mt-3 pt-3 border-t border-border/30">
         {quest.reward.gold && (
-          <span className="flex items-center gap-1 text-xs text-[hsl(var(--legendary))]"><Coins className="w-3 h-3" /> {quest.reward.gold}</span>
+          <span className="flex items-center gap-1 text-xs text-[hsl(var(--legendary))]">
+            <GoldCurrencyIcon className="w-3.5 h-3.5" /> {quest.reward.gold}
+          </span>
         )}
         {quest.reward.stardust && (
-          <span className="flex items-center gap-1 text-xs text-[hsl(var(--rare))]"><Sparkles className="w-3 h-3" /> {quest.reward.stardust}</span>
+          <span className="flex items-center gap-1 text-xs text-[hsl(var(--rare))]">
+            <StardustCurrencyIcon className="w-3.5 h-3.5" /> {quest.reward.stardust}
+          </span>
         )}
       </div>
     </GlassPanel>

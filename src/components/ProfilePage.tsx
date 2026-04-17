@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
-import { Trophy, Edit3, Lock, Coins, Sparkles, Swords, BookOpen, Shield } from "lucide-react";
+import { Trophy, Edit3, Lock, Sparkles, Swords, BookOpen, Shield } from "lucide-react";
+import { GoldCurrencyIcon, StardustCurrencyIcon } from "@/components/CurrencyIcons";
 import { Card } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
@@ -217,10 +218,10 @@ export default function ProfilePage({ playerState, onStateChange }: ProfilePageP
             </Dialog>
             <div className="mt-3 flex flex-wrap gap-2 justify-center sm:justify-start">
               <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-secondary/60 text-xs">
-                <Coins className="w-3 h-3 text-[hsl(var(--legendary))]" /> {playerState.gold}
+                <GoldCurrencyIcon className="w-4 h-4" /> {playerState.gold}
               </span>
               <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-secondary/60 text-xs">
-                💎 {playerState.stardust}
+                <StardustCurrencyIcon className="w-4 h-4" /> {playerState.stardust}
               </span>
               <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-secondary/60 text-xs">
                 <Shield className="w-3 h-3 text-primary" /> BP Lv {bpLevel}

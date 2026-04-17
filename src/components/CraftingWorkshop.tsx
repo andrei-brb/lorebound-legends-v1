@@ -2,7 +2,8 @@ import { useState } from "react";
 import { AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Coins, Sparkles, ArrowRight, Trash2 } from "lucide-react";
+import { Sparkles, ArrowRight, Trash2 } from "lucide-react";
+import { GoldCurrencyIcon } from "@/components/CurrencyIcons";
 import { allCards, type Rarity } from "@/data/cards";
 import { FUSION_RECIPES, performFusion, performSacrifice, canFuse, type FusionRecipe } from "@/lib/craftingEngine";
 import type { PlayerState } from "@/lib/playerState";
@@ -151,7 +152,7 @@ export default function CraftingWorkshop({ playerState, onStateChange, isOnline,
                     1× {rarityLabel(recipe.outputRarity)}
                   </p>
                   <p className="text-xs text-muted-foreground mt-2 flex items-center justify-center gap-1">
-                    <Coins className="w-3 h-3 text-legendary" /> {recipe.goldCost}
+                    <GoldCurrencyIcon className="w-3.5 h-3.5" /> {recipe.goldCost}
                   </p>
                 </CardContent>
               </Card>

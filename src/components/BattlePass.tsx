@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Shield, Lock, Check, Coins, Star, Sparkles, Crown, Zap, Package, Award, Palette, Frame, SmilePlus, X, Eye, RotateCcw } from "lucide-react";
+import { Shield, Lock, Check, Star, Sparkles, Crown, Zap, Package, Award, Palette, Frame, SmilePlus, X, Eye, RotateCcw } from "lucide-react";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -18,14 +18,15 @@ import { toast } from "@/hooks/use-toast";
 import { getCosmeticById } from "@/data/cosmetics";
 import { getCardById } from "@/data/cardIndex";
 import GameCard from "@/components/GameCard";
+import { GoldCurrencyIcon, StardustCurrencyIcon } from "@/components/CurrencyIcons";
 
 const MILESTONES = new Set([5, 10, 15, 20, 25, 30]);
 
 function RewardIcon({ kind, className }: { kind: RewardKind; className?: string }) {
   const c = className ?? "w-5 h-5";
   switch (kind) {
-    case "gold": return <Coins className={cn(c, "text-[hsl(var(--legendary))]")} />;
-    case "dust": return <span className={cn("inline-block", c)}>💎</span>;
+    case "gold": return <GoldCurrencyIcon className={cn(c)} />;
+    case "dust": return <StardustCurrencyIcon className={cn(c)} />;
     case "xp_boost": return <Zap className={cn(c, "text-emerald-400")} />;
     case "bronze_pack": return <Package className={cn(c, "text-amber-600")} />;
     case "silver_pack": return <Package className={cn(c, "text-slate-300")} />;

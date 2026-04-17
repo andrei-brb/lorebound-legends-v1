@@ -2,7 +2,8 @@ import { useState, useEffect } from "react";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Coins, Clock } from "lucide-react";
+import { Clock } from "lucide-react";
+import { GoldCurrencyIcon, StardustCurrencyIcon } from "@/components/CurrencyIcons";
 import {
   loadDailyQuests,
   claimQuestReward,
@@ -107,11 +108,12 @@ export default function DailyQuests({ playerState, onStateChange, isOnline, sync
                       <h3 className="font-heading font-bold text-foreground">{def.title}</h3>
                       <div className="flex items-center gap-3 text-xs">
                         <span className="flex items-center gap-1">
-                          <Coins className="w-3 h-3 text-legendary" />
+                          <GoldCurrencyIcon className="w-3.5 h-3.5" />
                           {def.goldReward}
                         </span>
                         <span className="flex items-center gap-1">
-                          💎 {def.stardustReward}
+                          <StardustCurrencyIcon className="w-3.5 h-3.5" />
+                          {def.stardustReward}
                         </span>
                       </div>
                     </div>

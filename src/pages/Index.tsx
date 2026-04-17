@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { BookOpen, Layers, Swords, Coins, Sparkles as SparklesIcon, Grid3X3, Loader2, ScrollText, Hammer, Trophy, ArrowLeftRight, BarChart3, Calendar, Zap, Crown, Shield, Mail, User, Gift, Users, MessageCircle, Eye, Flag, Palette, Flame } from "lucide-react";
+import { BookOpen, Layers, Swords, Sparkles as SparklesIcon, Grid3X3, Loader2, ScrollText, Hammer, Trophy, ArrowLeftRight, BarChart3, Calendar, Zap, Crown, Shield, Mail, User, Gift, Users, MessageCircle, Eye, Flag, Palette, Flame } from "lucide-react";
 import TabTransition from "@/components/TabTransition";
 import TutorialOverlay from "@/components/TutorialOverlay";
 import CollectionView from "@/components/CollectionView";
@@ -41,6 +41,7 @@ import { loadAchievementState, checkNewAchievements, saveAchievementState } from
 import { toast } from "@/hooks/use-toast";
 import { api } from "@/lib/apiClient";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
+import { GoldCurrencyIcon, StardustCurrencyIcon } from "@/components/CurrencyIcons";
 
 type Tab = "collection" | "cosmetics" | "catalog" | "deck" | "combat-hall" | "battle" | "pvp" | "summon" | "quests" | "workshop" | "achievements" | "leaderboard" | "trade" | "mail" | "events" | "tournament" | "boost" | "pass" | "profile" | "daily" | "friends" | "chat" | "guild" | "spectate";
 type Category = "cards" | "combat" | "progress" | "social" | "community" | "you";
@@ -461,11 +462,11 @@ export default function Index() {
               </div>
               <div className="flex items-center gap-2 sm:gap-4">
                 <div className="flex items-center gap-1.5 bg-secondary/80 rounded-lg px-2.5 py-1.5">
-                  <Coins className="w-4 h-4 text-[hsl(var(--legendary))]" />
+                  <GoldCurrencyIcon className="w-[18px] h-[18px]" />
                   <span className="font-heading font-bold text-sm text-foreground">{Number(playerState.gold) || 0}</span>
                 </div>
                 <div className="flex items-center gap-1.5 bg-secondary/80 rounded-lg px-2.5 py-1.5">
-                  <span className="text-sm">💎</span>
+                  <StardustCurrencyIcon className="w-[18px] h-[18px]" />
                   <span className="font-heading font-bold text-sm text-foreground">{Number(playerState.stardust) || 0}</span>
                 </div>
                 <SettingsPanel playerState={playerState} onStateChange={setPlayerState} />
@@ -657,7 +658,15 @@ export default function Index() {
               />
             )}
             {activeTab === "quests" && <QuestsHall playerState={playerState} onStateChange={setPlayerState} />}
-            {activeTab === "workshop" && <WorkshopHall playerState={playerState} onStateChange={setPlayerState} />}
+            {activeTab === "workshop" && (
+              <WorkshopHall
+                playerState={playerState}
+                onStateChange={setPlayerState}
+                isOnline={isOnline}
+                craftFuseApi={craftFuse}
+                craftSacrificeApi={craftSacrifice}
+              />
+            )}
             {activeTab === "achievements" && <BadgesHall playerState={playerState} />}
             {activeTab === "leaderboard" && <RanksHall playerState={playerState} isOnline={isOnline} />}
             {activeTab === "trade" && <TradeHall playerState={playerState} onStateChange={setPlayerState} />}

@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import battleBg from "@/assets/battle-bg.jpg";
 import { motion } from "framer-motion";
-import { ArrowLeft, Coins } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { GoldCurrencyIcon } from "@/components/CurrencyIcons";
 import { cn } from "@/lib/utils";
 import type { BattleLockstepIntent } from "@/lib/battleLockstep";
 import {
@@ -386,7 +387,11 @@ export default function RaidCoopArena({
             <h3 className="font-heading text-lg">
               {won ? "Raid cleared!" : lost ? "Defeat" : "Draw"}
             </h3>
-            {won && <p className="text-sm text-legendary flex items-center justify-center gap-1"><Coins className="w-4 h-4" /> +{goldEarned} gold</p>}
+            {won && (
+              <p className="text-sm text-legendary flex items-center justify-center gap-1">
+                <GoldCurrencyIcon className="w-4 h-4" /> +{goldEarned} gold
+              </p>
+            )}
             <button type="button" onClick={onExit} className="px-4 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-heading">
               Continue
             </button>

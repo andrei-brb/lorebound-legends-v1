@@ -84,13 +84,13 @@ export function HallStat({
   value,
   hue = "var(--primary)",
 }: {
-  label: string;
+  label: ReactNode;
   value: ReactNode;
   hue?: string;
 }) {
   return (
     <div className="flex items-center justify-between py-1.5 border-b border-border/30 last:border-0">
-      <span className="text-[11px] uppercase tracking-wider text-muted-foreground">{label}</span>
+      <span className="text-[11px] uppercase tracking-wider text-muted-foreground inline-flex items-center gap-1.5">{label}</span>
       <span className="font-heading text-sm" style={{ color: `hsl(${hue})` }}>{value}</span>
     </div>
   );

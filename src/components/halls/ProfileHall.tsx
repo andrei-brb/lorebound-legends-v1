@@ -1,6 +1,6 @@
 import { useMemo } from "react";
-import { User, Coins, Sparkles, Trophy, BookOpen } from "lucide-react";
 import type { PlayerState } from "@/lib/playerState";
+import { GoldCurrencyIcon, StardustCurrencyIcon } from "@/components/CurrencyIcons";
 import HallLayout, { HallSection, HallStat } from "@/components/scene/HallLayout";
 import GlassPanel from "@/components/scene/GlassPanel";
 import HexAvatar from "@/components/scene/HexAvatar";
@@ -77,8 +77,24 @@ export default function ProfileHall({ playerState, onStateChange }: Props) {
           </HallSection>
 
           <HallSection title="Stats" hue="var(--primary)" glow={0.35}>
-            <HallStat label="Gold" value={playerState.gold.toLocaleString()} hue="var(--legendary)" />
-            <HallStat label="Stardust" value={playerState.stardust.toLocaleString()} hue="var(--rare)" />
+            <HallStat
+              label={
+                <>
+                  <GoldCurrencyIcon className="h-3.5 w-3.5 shrink-0" /> Gold
+                </>
+              }
+              value={playerState.gold.toLocaleString()}
+              hue="var(--legendary)"
+            />
+            <HallStat
+              label={
+                <>
+                  <StardustCurrencyIcon className="h-3.5 w-3.5 shrink-0" /> Stardust
+                </>
+              }
+              value={playerState.stardust.toLocaleString()}
+              hue="var(--rare)"
+            />
             <HallStat label="Cards owned" value={playerState.ownedCardIds.length} />
             <HallStat label="Total pulls" value={playerState.totalPulls} />
             <HallStat label="Streak" value={`${playerState.dailyLogin?.streak ?? 0}d`} />
