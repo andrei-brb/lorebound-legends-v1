@@ -276,15 +276,14 @@ function Tray({
                 <>
                   <div
                     className={cn(
-                      "absolute inset-0 flex items-center justify-center",
+                      "absolute inset-0 flex items-center justify-center pointer-events-none",
                       !reduceMotion && "animate-float-slow"
                     )}
                     style={{ animationDelay: `${i * 0.6}s` }}
                   >
-                    <div className="w-[88%] h-[88%] flex items-center justify-center">
-                      <div className="scale-[0.55] sm:scale-[0.62] origin-center">
-                        <GameCard card={card} />
-                      </div>
+                    {/* GameCard sm = 11rem × 16rem (176×256). Scale to fit slot. */}
+                    <div className="w-44 h-64 origin-center scale-[0.42] sm:scale-[0.5] md:scale-[0.55] pointer-events-auto">
+                      <GameCard card={card} size="sm" />
                     </div>
                   </div>
                   <button
