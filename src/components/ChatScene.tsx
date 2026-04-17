@@ -180,9 +180,21 @@ export default function ChatScene({ isOnline, playerState }: ChatSceneProps) {
             }}
           />
 
-          {/* Composer — quill on parchment (inline, always visible) */}
+          {/* Composer — glowing parchment surface (always typeable) */}
           <div className="relative z-10 max-w-2xl w-full mx-auto mt-4">
-            <div className="flex items-end gap-3 px-4 sm:px-6 py-3">
+            <div
+              className="flex items-end gap-3 px-4 sm:px-5 py-2 rounded-full"
+              style={{
+                background:
+                  "radial-gradient(ellipse at center, hsl(var(--card) / 0.85) 0%, hsl(var(--card) / 0.55) 70%, hsl(var(--card) / 0.2) 100%)",
+                boxShadow:
+                  "0 0 30px hsl(var(--legendary) / 0.25), inset 0 0 20px hsl(var(--legendary) / 0.08)",
+                WebkitMaskImage:
+                  "radial-gradient(ellipse at center, black 65%, transparent 100%)",
+                maskImage:
+                  "radial-gradient(ellipse at center, black 65%, transparent 100%)",
+              }}
+            >
               <input
                 type="text"
                 value={text}
@@ -193,19 +205,18 @@ export default function ChatScene({ isOnline, playerState }: ChatSceneProps) {
                     send();
                   }
                 }}
-                placeholder={isOnline ? "speak into the fire…" : "the hearth is offline"}
-                disabled={!isOnline || sending}
+                placeholder={isOnline ? "speak into the fire…" : "speak into the fire… (preview)"}
+                disabled={sending}
                 className={cn(
-                  "flex-1 bg-transparent border-0 outline-none px-2 py-2 text-foreground italic font-heading",
-                  "placeholder:text-muted-foreground/60 placeholder:italic",
-                  "border-b-2 border-[hsl(var(--legendary)/0.4)] focus:border-[hsl(var(--legendary)/0.9)] transition-colors"
+                  "flex-1 bg-transparent border-0 outline-none px-3 py-2 text-foreground italic font-heading",
+                  "placeholder:text-foreground/50 placeholder:italic"
                 )}
                 style={{ caretColor: "hsl(var(--legendary))" }}
               />
               <GlowOrb
-                size={42}
+                size={40}
                 hue="var(--legendary)"
-                intensity={text.trim() ? 0.9 : 0.3}
+                intensity={text.trim() ? 0.9 : 0.4}
                 pulse={!!text.trim() && !reduceMotion}
                 onClick={send}
                 title="send"
@@ -217,7 +228,7 @@ export default function ChatScene({ isOnline, playerState }: ChatSceneProps) {
                 )}
               </GlowOrb>
             </div>
-            <div className="text-center -mt-1">
+            <div className="text-center mt-1">
               <FloatingLabel className="text-[9px] opacity-60">press enter to send</FloatingLabel>
             </div>
           </div>
