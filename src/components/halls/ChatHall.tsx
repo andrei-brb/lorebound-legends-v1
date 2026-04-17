@@ -9,27 +9,27 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-type Msg = { id: number; userId: number; username: string; avatar?: string | null; discordId?: string; content: string; createdAt: number };
+type Msg = { id: number; channel: string; playerId: number; username: string; avatar: string | null; body: string; createdAt: number };
 
 interface Props { isOnline: boolean; playerState: PlayerState }
 
 export default function ChatHall({ isOnline, playerState }: Props) {
-  const [room, setRoom] = useState<"global" | "trade" | "help">("global");
   const [msgs, setMsgs] = useState<Msg[]>([]);
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const channel = "global";
 
   useEffect(() => {
     let alive = true;
     setLoading(true);
-    api.getChatMessages?.(room)
-      .then((r: any) => { if (alive) setMsgs(r?.messages || r || []); })
+    api.getChat(channel)
+      .then((r: any) => { if (alive) setMsgs(r?.messages || []); })
       .catch(() => {})
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
-  }, [room]);
+  }, []);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -39,10 +39,10 @@ export default function ChatHall({ isOnline, playerState }: Props) {
     if (!text.trim() || sending) return;
     setSending(true);
     try {
-      await api.sendChatMessage?.(room, text.trim());
+      await api.postChat(channel, text.trim());
       setText("");
-      const r: any = await api.getChatMessages?.(room);
-      setMsgs(r?.messages || r || []);
+      const r: any = await api.getChat(channel);
+      setMsgs(r?.messages || []);
     } catch { /* swallow */ }
     finally { setSending(false); }
   };

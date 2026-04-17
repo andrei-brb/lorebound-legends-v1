@@ -29,7 +29,7 @@ export default function MailHall({ onNavigate }: Props) {
   const load = async () => {
     setLoading(true);
     try {
-      const r: any = await api.getNotifications?.();
+      const r: any = await api.getNotifications();
       setRows(r?.items || r || []);
     } catch { /* offline ok */ }
     finally { setLoading(false); }
@@ -47,7 +47,7 @@ export default function MailHall({ onNavigate }: Props) {
 
   const markAll = async () => {
     try {
-      await api.markAllNotificationsRead?.();
+      await api.markNotificationsRead();
       setRows((r) => r.map((x) => ({ ...x, readAt: x.readAt || Date.now() })));
       toast({ title: "All marked as read" });
     } catch (e: any) {

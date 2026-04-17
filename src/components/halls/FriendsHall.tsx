@@ -26,7 +26,7 @@ export default function FriendsHall({ isOnline }: Props) {
     try {
       const r: any = await api.getFriends();
       setFriends((r.accepted || []).map((f: any) => f.friend));
-      setPending(r.pending || []);
+      setPending((r.incoming || []).map((p: any) => ({ id: p.id, from: p.from })));
     } catch { /* offline ok */ }
     finally { setLoading(false); }
   };
@@ -38,16 +38,16 @@ export default function FriendsHall({ isOnline }: Props) {
   }, [friends, query]);
 
   const accept = async (id: number) => {
-    try { await api.acceptFriend?.(id); toast({ title: "Friend added" }); load(); }
+    try { await api.friendRespond(id, true); toast({ title: "Friend added" }); load(); }
     catch (e: any) { toast({ title: "Failed", description: e?.message, variant: "destructive" }); }
   };
   const decline = async (id: number) => {
-    try { await api.declineFriend?.(id); load(); }
+    try { await api.friendRespond(id, false); load(); }
     catch (e: any) { toast({ title: "Failed", description: e?.message, variant: "destructive" }); }
   };
   const addFriend = async () => {
     if (!addQuery.trim()) return;
-    try { await api.sendFriendRequest?.(addQuery.trim()); toast({ title: "Request sent" }); setAddQuery(""); }
+    try { await api.friendRequest(addQuery.trim()); toast({ title: "Request sent" }); setAddQuery(""); }
     catch (e: any) { toast({ title: "Failed", description: e?.message, variant: "destructive" }); }
   };
 
