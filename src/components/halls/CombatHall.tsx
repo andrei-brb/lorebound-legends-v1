@@ -17,9 +17,9 @@ const MODES = [
 
 export default function CombatHall({ playerState }: Props) {
   const [selected, setSelected] = useState<string>("skirmish");
-  const wins = playerState.battlesWon ?? 0;
-  const losses = (playerState.battlesPlayed ?? 0) - wins;
-  const winrate = playerState.battlesPlayed ? Math.round((wins / playerState.battlesPlayed) * 100) : 0;
+  const wins = 0;
+  const losses = 0;
+  const winrate = 0;
   const pathHue = playerState.selectedPath === "fire" ? "var(--destructive)" : playerState.selectedPath === "nature" ? "var(--synergy)" : playerState.selectedPath === "shadow" ? "var(--secondary)" : "var(--primary)";
 
   return (

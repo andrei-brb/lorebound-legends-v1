@@ -12,12 +12,10 @@ interface Props { playerState: PlayerState }
 const RARITY_HUE: Record<Rarity, string> = {
   common: "var(--muted-foreground)",
   rare: "var(--rare)",
-  epic: "var(--epic)",
   legendary: "var(--legendary)",
-  mythic: "var(--mythic)",
 };
 
-const RARITY_ORDER: Rarity[] = ["mythic", "legendary", "epic", "rare", "common"];
+const RARITY_ORDER: Rarity[] = ["legendary", "rare", "common"];
 
 export default function CardsHall({ playerState }: Props) {
   const [filter, setFilter] = useState<"all" | "owned" | "missing">("all");
