@@ -239,6 +239,24 @@ export default function Index() {
     return () => { alive = false; window.clearInterval(id); };
   }, [isOnline, guildInvitePopup]);
 
+  const patchRaid = useCallback((fn: (r: RaidCoopState) => void) => {
+    setRaidState((prev) => {
+      if (!prev) return prev;
+      fn(prev);
+      return { ...prev };
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!raidHotseat) {
+      setRaidState(null);
+      return;
+    }
+    const boss = getRaidBoss(raidHotseat.bossId);
+    if (!boss) return;
+    setRaidState(initRaidCoopBattle(raidHotseat.deckIds, raidHotseat.deckIds, boss));
+  }, [raidHotseat]);
+
   if (status === "loading") {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -273,24 +291,6 @@ export default function Index() {
     setActiveCategory("combat");
     setActiveTab("battle");
   };
-
-  const patchRaid = useCallback((fn: (r: RaidCoopState) => void) => {
-    setRaidState((prev) => {
-      if (!prev) return prev;
-      fn(prev);
-      return { ...prev };
-    });
-  }, []);
-
-  useEffect(() => {
-    if (!raidHotseat) {
-      setRaidState(null);
-      return;
-    }
-    const boss = getRaidBoss(raidHotseat.bossId);
-    if (!boss) return;
-    setRaidState(initRaidCoopBattle(raidHotseat.deckIds, raidHotseat.deckIds, boss));
-  }, [raidHotseat]);
 
   const acceptInvitePopup = async () => {
     if (!pvpInvitePopup) return;
