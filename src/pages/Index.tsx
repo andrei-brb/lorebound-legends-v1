@@ -177,6 +177,16 @@ export default function Index() {
     return () => { alive = false; window.clearInterval(id); };
   }, [isOnline]);
 
+  // Presence heartbeat — keeps friends/guild members "online"
+  useEffect(() => {
+    if (!isOnline) return;
+    let alive = true;
+    const beat = () => { api.presenceHeartbeat().catch(() => {}); };
+    beat();
+    const id = window.setInterval(() => { if (alive) beat(); }, 60000);
+    return () => { alive = false; window.clearInterval(id); };
+  }, [isOnline]);
+
   if (status === "loading") {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -359,8 +369,14 @@ export default function Index() {
         )}
 
         {/* Content */}
-        <main className={cn("relative z-10", hideAppChromeDuringBattle ? "w-full max-w-none px-0 py-0" : "container py-8 max-w-7xl")}>
-          <div key={activeTab} className="tab-content-enter">
+        <main
+          className={cn(
+            "relative z-10",
+            hideAppChromeDuringBattle ? "w-full max-w-none px-0 py-0" : "container py-8 max-w-7xl"
+          )}
+        >
+          <TutorialOverlay tabId={activeTab} playerState={playerState} onStateChange={setPlayerState} />
+          <TabTransition tabKey={activeTab} reduceMotion={!!playerState.settings?.reduceMotion}>
             {activeTab === "collection" && (
               <div>
                 <div className="mb-6">
@@ -457,6 +473,10 @@ export default function Index() {
                 syncEconomyApi={syncEconomy}
               />
             )}
+            {activeTab === "friends" && <FriendsPanel isOnline={isOnline} />}
+            {activeTab === "chat" && <ChatPanel isOnline={isOnline} />}
+            {activeTab === "guild" && <GuildPanel isOnline={isOnline} />}
+            {activeTab === "spectate" && <SpectatePanel isOnline={isOnline} />}
             {activeTab === "battle" && battleDeckIds.length === 0 && hasLiveMatchFromInbox && (
               <LivePvPBattleground
                 matchId={liveMatchIdFromInbox}
@@ -478,7 +498,7 @@ export default function Index() {
                 <button onClick={() => setActiveTab("deck")} className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-heading font-bold text-sm">Go to Deck Builder</button>
               </div>
             )}
-          </div>
+          </TabTransition>
         </main>
       </div>
     </TooltipProvider>
