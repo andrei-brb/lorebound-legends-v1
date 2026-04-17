@@ -36,6 +36,8 @@ import { toast } from "@/hooks/use-toast";
 import { api } from "@/lib/apiClient";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { setSfxVolume } from "@/lib/sfx";
+import iconGold from "@/assets/icon-gold.png";
+import iconStardust from "@/assets/icon-stardust.png";
 
 type Tab = "collection" | "catalog" | "deck" | "battle" | "pvp" | "summon" | "quests" | "workshop" | "achievements" | "leaderboard" | "trade" | "mail" | "events" | "tournament" | "boost" | "pass" | "profile" | "daily" | "friends" | "chat" | "guild" | "spectate" | "cards-hall" | "combat-hall";
 type Category = "cards" | "combat" | "progress" | "social" | "community" | "you";
@@ -217,11 +219,11 @@ export default function Index() {
             </div>
             <div className="flex items-center gap-2 sm:gap-4">
               <div className="flex items-center gap-1.5 bg-secondary/80 rounded-lg px-2.5 py-1.5">
-                <Coins className="w-4 h-4 text-[hsl(var(--legendary))]" />
+                <img src={iconGold} alt="Gold" loading="lazy" width={512} height={512} className="w-5 h-5 drop-shadow-[0_0_6px_hsl(var(--legendary)/0.6)]" />
                 <span className="font-heading font-bold text-sm text-foreground">{Number(playerState.gold) || 0}</span>
               </div>
               <div className="flex items-center gap-1.5 bg-secondary/80 rounded-lg px-2.5 py-1.5">
-                <span className="text-sm">💎</span>
+                <img src={iconStardust} alt="Stardust" loading="lazy" width={512} height={512} className="w-5 h-5 drop-shadow-[0_0_6px_hsl(var(--primary)/0.7)]" />
                 <span className="font-heading font-bold text-sm text-foreground">{Number(playerState.stardust) || 0}</span>
               </div>
               <nav className="flex gap-0.5">
