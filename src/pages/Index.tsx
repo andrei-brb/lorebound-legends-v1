@@ -16,7 +16,7 @@ import TradeHall from "@/components/TradeHall";
 import QuestsHall from "@/components/halls/QuestsHall";
 import WorkshopHall from "@/components/halls/WorkshopHall";
 import BadgesHall from "@/components/halls/BadgesHall";
-import PassHall from "@/components/halls/PassHall";
+import BattlePass from "@/components/BattlePass";
 import BoostHall from "@/components/halls/BoostHall";
 import EventsHall from "@/components/halls/EventsHall";
 import MailHall from "@/components/halls/MailHall";
@@ -570,7 +570,7 @@ export default function Index() {
             {activeTab === "events" && <EventsHall playerState={playerState} onStateChange={setPlayerState} />}
             {activeTab === "tournament" && <Tournament playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} syncEconomyApi={syncEconomy} />}
             {activeTab === "boost" && <BoostHall playerState={playerState} />}
-            {activeTab === "pass" && <PassHall playerState={playerState} onStateChange={setPlayerState} />}
+            {activeTab === "pass" && <BattlePass playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} />}
             {activeTab === "profile" && <ProfileHall playerState={playerState} onStateChange={setPlayerState} />}
             {activeTab === "daily" && <DailyHall playerState={playerState} onStateChange={setPlayerState} />}
             {activeTab === "friends" && <FriendsHall isOnline={isOnline} />}
