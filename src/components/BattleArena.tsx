@@ -94,6 +94,23 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
     if (cardsPlayedRef.current > 0) questState = progressQuest(questState, "play_cards_in_battle", cardsPlayedRef.current);
     saveDailyQuests(questState);
 
+    // Apply daily-engine bonuses (mystery box drop + first-win bonus) — works online and offline.
+    let stateAfterDaily = rollMysteryBox(playerState);
+    let firstWinResult: ReturnType<typeof claimFirstWin> = null;
+    if (won) {
+      firstWinResult = claimFirstWin(stateAfterDaily);
+      if (firstWinResult) {
+        stateAfterDaily = firstWinResult.state;
+        toast({
+          title: "🏆 First win of the day!",
+          description: `+${FIRST_WIN_GOLD} gold + ${FIRST_WIN_BP_XP} BP XP bonus`,
+        });
+      }
+    }
+    if (stateAfterDaily.mysteryBoxesPending !== playerState.mysteryBoxesPending) {
+      toast({ title: "📦 Mystery box dropped!", description: "Open it from the Daily tab." });
+    }
+
     if (isOnline && submitBattleResultApi) {
       submitBattleResultApi({
         won,
@@ -115,14 +132,16 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
           }
         }
       });
-      const bp = awardBattlePassXp(playerState, won ? 120 : isDraw ? 80 : 60);
+      const baseBpXp = won ? 120 : isDraw ? 80 : 60;
+      const bpBonus = firstWinResult ? FIRST_WIN_BP_XP : 0;
+      const bp = awardBattlePassXp(stateAfterDaily, baseBpXp + bpBonus);
       onStateChange(bp.state);
       return;
     }
 
     const gold = getBattleGoldReward(won, state.turnNumber);
     setGoldEarned(gold);
-    let newState = { ...playerState, cardProgress: { ...playerState.cardProgress }, gold: playerState.gold + gold };
+    let newState = { ...stateAfterDaily, cardProgress: { ...stateAfterDaily.cardProgress }, gold: stateAfterDaily.gold + gold };
     const allLevelUps: (LevelUpResult & { cardId: string })[] = [];
     const xpAmount = won ? 50 : isDraw ? 35 : 20;
     for (const id of playerDeckIds) {
@@ -137,7 +156,9 @@ export default function BattleArena({ playerDeckIds, onExit, playerState, onStat
       const qs = progressQuest(loadDailyQuests(), "level_up_card", allLevelUps.length);
       saveDailyQuests(qs);
     }
-    newState = awardBattlePassXp(newState, won ? 120 : isDraw ? 80 : 60).state;
+    const baseBpXp = won ? 120 : isDraw ? 80 : 60;
+    const bpBonus = firstWinResult ? FIRST_WIN_BP_XP : 0;
+    newState = awardBattlePassXp(newState, baseBpXp + bpBonus).state;
     onStateChange(newState);
     savePlayerState(newState);
   }, [state?.phase]);
