@@ -254,51 +254,62 @@ function Tray({
         <h3 className="font-heading text-xs uppercase tracking-wider text-foreground/90">{label}</h3>
         <span className="text-[10px] text-muted-foreground">{cards.length}/3</span>
       </div>
-      <div className="grid grid-cols-3 gap-2 sm:gap-3">
+      <div className="grid grid-cols-3 gap-3 sm:gap-4">
         {slots.map((i) => {
           const card = cards[i];
-          if (card) {
-            return (
-              <div
-                key={card.id}
-                className={cn(
-                  "relative group",
-                  !reduceMotion && "animate-float-slow"
-                )}
-                style={{ animationDelay: `${i * 0.6}s` }}
-              >
-                <div className="scale-[0.78] origin-top -mb-12">
-                  <GameCard card={card} />
-                </div>
-                <button
-                  onClick={() => onRemove(card.id)}
-                  className="absolute top-0 right-0 w-6 h-6 rounded-full bg-destructive/90 text-destructive-foreground flex items-center justify-center hover:bg-destructive transition-colors z-10 shadow-lg"
-                  aria-label="Remove"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </div>
-            );
-          }
           return (
-            <button
+            <div
               key={i}
-              type="button"
-              onClick={onAdd}
-              disabled={disabled}
-              className={cn(
-                "aspect-[3/4] rounded-xl border border-dashed flex items-center justify-center transition-all",
-                "border-foreground/15 hover:border-[hsl(var(--primary)/0.6)] hover:bg-primary/5",
-                disabled && "opacity-30 cursor-not-allowed hover:border-foreground/15 hover:bg-transparent"
-              )}
+              className="relative aspect-[3/4] rounded-xl overflow-hidden"
               style={{
-                background: !disabled
-                  ? `radial-gradient(ellipse at center, hsl(${hue} / 0.06) 0%, transparent 70%)`
-                  : undefined,
+                background: card
+                  ? `radial-gradient(ellipse at center, hsl(${hue} / 0.12) 0%, transparent 70%)`
+                  : !disabled
+                    ? `radial-gradient(ellipse at center, hsl(${hue} / 0.06) 0%, transparent 70%)`
+                    : undefined,
+                border: card
+                  ? `1px solid hsl(${hue} / 0.35)`
+                  : "1px dashed hsl(var(--foreground) / 0.15)",
               }}
             >
-              <span className="text-2xl text-foreground/30">+</span>
-            </button>
+              {card ? (
+                <>
+                  <div
+                    className={cn(
+                      "absolute inset-0 flex items-center justify-center",
+                      !reduceMotion && "animate-float-slow"
+                    )}
+                    style={{ animationDelay: `${i * 0.6}s` }}
+                  >
+                    <div className="w-[88%] h-[88%] flex items-center justify-center">
+                      <div className="scale-[0.55] sm:scale-[0.62] origin-center">
+                        <GameCard card={card} />
+                      </div>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => onRemove(card.id)}
+                    className="absolute top-1 right-1 w-6 h-6 rounded-full bg-destructive/90 text-destructive-foreground flex items-center justify-center hover:bg-destructive transition-colors z-10 shadow-lg"
+                    aria-label="Remove"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={onAdd}
+                  disabled={disabled}
+                  className={cn(
+                    "absolute inset-0 flex items-center justify-center transition-colors",
+                    "hover:bg-primary/5",
+                    disabled && "opacity-30 cursor-not-allowed hover:bg-transparent"
+                  )}
+                >
+                  <span className="text-2xl text-foreground/30">+</span>
+                </button>
+              )}
+            </div>
           );
         })}
       </div>
