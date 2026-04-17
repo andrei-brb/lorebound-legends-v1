@@ -2690,6 +2690,224 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
+// ─── Social: presence, chat, guilds, spectate ──────────────────────────────────
+
+const PRESENCE_ONLINE_WINDOW_MS = 90 * 1000;
+
+async function getMePlayer(user) {
+  return prisma.player.findUnique({ where: { discordId: user.id } });
+}
+
+function publicPlayerWithPresence(p) {
+  const lastSeen = p.lastSeenAt ? new Date(p.lastSeenAt).getTime() : 0;
+  const online = lastSeen > 0 && Date.now() - lastSeen < PRESENCE_ONLINE_WINDOW_MS;
+  return { id: p.id, discordId: p.discordId, username: p.username, avatar: p.avatar || null, online, lastSeenAt: lastSeen || null };
+}
+
+async function handlePresenceHeartbeat(req, res) {
+  const user = await requireAuth(req, res); if (!user) return;
+  const me = await getMePlayer(user); if (!me) return sendJson(res, 404, { error: "Player not found" });
+  await prisma.player.update({ where: { id: me.id }, data: { lastSeenAt: new Date() } });
+  return sendJson(res, 200, { ok: true });
+}
+
+async function handleGetFriendsWithPresence(req, res) {
+  const user = await requireAuth(req, res); if (!user) return;
+  const me = await getMePlayer(user); if (!me) return sendJson(res, 404, { error: "Player not found" });
+  const accepted = await prisma.friendship.findMany({
+    where: { playerId: me.id, status: "accepted" },
+    include: { friend: true },
+    orderBy: { updatedAt: "desc" },
+  });
+  return sendJson(res, 200, {
+    friends: accepted.map((f) => ({ ...publicPlayerWithPresence(f.friend), friendshipId: f.id })),
+  });
+}
+
+// ── Chat ──────────────────────────────────────────────────────────────────────
+
+const ALLOWED_GLOBAL = "global";
+
+function sanitizeChatBody(s) {
+  const trimmed = String(s || "").trim().slice(0, 280);
+  return trimmed;
+}
+
+async function handleGetChat(req, res, channel) {
+  const user = await requireAuth(req, res); if (!user) return;
+  const me = await getMePlayer(user); if (!me) return sendJson(res, 404, { error: "Player not found" });
+
+  if (channel.startsWith("guild:")) {
+    const guildId = Number(channel.slice("guild:".length));
+    if (!Number.isFinite(guildId)) return sendJson(res, 400, { error: "Bad guild channel" });
+    if (me.guildId !== guildId) return sendJson(res, 403, { error: "Not a member of that guild" });
+  } else if (channel !== ALLOWED_GLOBAL) {
+    return sendJson(res, 400, { error: "Unknown channel" });
+  }
+
+  const url = new URL(`http://localhost${req.url}`);
+  const limit = Math.min(100, Math.max(1, Number(url.searchParams.get("limit") || 50)));
+  const rows = await prisma.chatMessage.findMany({
+    where: { channel },
+    orderBy: { createdAt: "desc" },
+    take: limit,
+  });
+  return sendJson(res, 200, {
+    messages: rows.reverse().map((m) => ({
+      id: m.id, channel: m.channel, playerId: m.playerId, username: m.username,
+      avatar: m.avatar || null, body: m.body, createdAt: m.createdAt.getTime(),
+    })),
+  });
+}
+
+async function handlePostChat(req, res) {
+  const user = await requireAuth(req, res); if (!user) return;
+  const me = await getMePlayer(user); if (!me) return sendJson(res, 404, { error: "Player not found" });
+  let body; try { body = await readJsonBody(req); } catch { return sendJson(res, 400, { error: "Invalid JSON" }); }
+  const channel = String(body.channel || "");
+  const text = sanitizeChatBody(body.body);
+  if (!text) return sendJson(res, 400, { error: "Empty message" });
+
+  if (channel.startsWith("guild:")) {
+    const guildId = Number(channel.slice("guild:".length));
+    if (!Number.isFinite(guildId) || me.guildId !== guildId) return sendJson(res, 403, { error: "Not a member" });
+  } else if (channel !== ALLOWED_GLOBAL) {
+    return sendJson(res, 400, { error: "Unknown channel" });
+  }
+
+  const created = await prisma.chatMessage.create({
+    data: { channel, playerId: me.id, username: me.username, avatar: me.avatar || null, body: text },
+  });
+  return sendJson(res, 200, {
+    message: {
+      id: created.id, channel: created.channel, playerId: created.playerId, username: created.username,
+      avatar: created.avatar, body: created.body, createdAt: created.createdAt.getTime(),
+    },
+  });
+}
+
+// ── Guilds ────────────────────────────────────────────────────────────────────
+
+const GUILD_NAME_RE = /^[A-Za-z0-9 _\-]{3,24}$/;
+const GUILD_TAG_RE = /^[A-Z0-9]{2,5}$/;
+const GUILD_MAX_MEMBERS = 30;
+
+function publicGuild(g) {
+  return {
+    id: g.id, name: g.name, tag: g.tag, description: g.description || null,
+    ownerPlayerId: g.ownerPlayerId, memberCount: g.memberCount,
+    weeklyGoal: { key: g.weeklyGoalKey, target: g.weeklyGoalTarget, progress: g.weeklyGoalProgress, resetAt: g.weeklyResetAt.getTime() },
+    createdAt: g.createdAt.getTime(),
+  };
+}
+
+async function handleListGuilds(req, res) {
+  const user = await requireAuth(req, res); if (!user) return;
+  const guilds = await prisma.guild.findMany({ orderBy: { memberCount: "desc" }, take: 50 });
+  return sendJson(res, 200, { guilds: guilds.map(publicGuild) });
+}
+
+async function handleGetMyGuild(req, res) {
+  const user = await requireAuth(req, res); if (!user) return;
+  const me = await getMePlayer(user); if (!me) return sendJson(res, 404, { error: "Player not found" });
+  if (!me.guildId) return sendJson(res, 200, { guild: null, members: [] });
+  const guild = await prisma.guild.findUnique({ where: { id: me.guildId } });
+  if (!guild) return sendJson(res, 200, { guild: null, members: [] });
+  const members = await prisma.player.findMany({
+    where: { guildId: guild.id },
+    orderBy: { lastSeenAt: "desc" },
+    take: GUILD_MAX_MEMBERS,
+  });
+  return sendJson(res, 200, {
+    guild: publicGuild(guild),
+    members: members.map(publicPlayerWithPresence),
+  });
+}
+
+async function handleCreateGuild(req, res) {
+  const user = await requireAuth(req, res); if (!user) return;
+  const me = await getMePlayer(user); if (!me) return sendJson(res, 404, { error: "Player not found" });
+  if (me.guildId) return sendJson(res, 400, { error: "Already in a guild" });
+  let body; try { body = await readJsonBody(req); } catch { return sendJson(res, 400, { error: "Invalid JSON" }); }
+  const name = String(body.name || "").trim();
+  const tag = String(body.tag || "").trim().toUpperCase();
+  const description = body.description ? String(body.description).slice(0, 200) : null;
+  if (!GUILD_NAME_RE.test(name)) return sendJson(res, 400, { error: "Name must be 3-24 letters/numbers" });
+  if (!GUILD_TAG_RE.test(tag)) return sendJson(res, 400, { error: "Tag must be 2-5 uppercase letters/numbers" });
+
+  const taken = await prisma.guild.findFirst({ where: { OR: [{ name }, { tag }] } });
+  if (taken) return sendJson(res, 409, { error: "Name or tag already taken" });
+
+  const guild = await prisma.$transaction(async (tx) => {
+    const g = await tx.guild.create({ data: { name, tag, description, ownerPlayerId: me.id } });
+    await tx.player.update({ where: { id: me.id }, data: { guildId: g.id } });
+    return g;
+  });
+  return sendJson(res, 200, { ok: true, guild: publicGuild(guild) });
+}
+
+async function handleJoinGuild(req, res, guildId) {
+  const user = await requireAuth(req, res); if (!user) return;
+  const me = await getMePlayer(user); if (!me) return sendJson(res, 404, { error: "Player not found" });
+  if (me.guildId) return sendJson(res, 400, { error: "Leave your current guild first" });
+  const guild = await prisma.guild.findUnique({ where: { id: guildId } });
+  if (!guild) return sendJson(res, 404, { error: "Guild not found" });
+  if (guild.memberCount >= GUILD_MAX_MEMBERS) return sendJson(res, 400, { error: "Guild is full" });
+
+  await prisma.$transaction(async (tx) => {
+    await tx.player.update({ where: { id: me.id }, data: { guildId: guild.id } });
+    await tx.guild.update({ where: { id: guild.id }, data: { memberCount: { increment: 1 } } });
+  });
+  return sendJson(res, 200, { ok: true });
+}
+
+async function handleLeaveGuild(req, res) {
+  const user = await requireAuth(req, res); if (!user) return;
+  const me = await getMePlayer(user); if (!me) return sendJson(res, 404, { error: "Player not found" });
+  if (!me.guildId) return sendJson(res, 400, { error: "Not in a guild" });
+  const guild = await prisma.guild.findUnique({ where: { id: me.guildId } });
+  if (!guild) {
+    await prisma.player.update({ where: { id: me.id }, data: { guildId: null } });
+    return sendJson(res, 200, { ok: true });
+  }
+  if (guild.ownerPlayerId === me.id) {
+    // Disband the guild
+    await prisma.$transaction(async (tx) => {
+      await tx.player.updateMany({ where: { guildId: guild.id }, data: { guildId: null } });
+      await tx.chatMessage.deleteMany({ where: { channel: `guild:${guild.id}` } });
+      await tx.guild.delete({ where: { id: guild.id } });
+    });
+    return sendJson(res, 200, { ok: true, disbanded: true });
+  }
+  await prisma.$transaction(async (tx) => {
+    await tx.player.update({ where: { id: me.id }, data: { guildId: null } });
+    await tx.guild.update({ where: { id: guild.id }, data: { memberCount: { decrement: 1 } } });
+  });
+  return sendJson(res, 200, { ok: true });
+}
+
+// ── Spectate (list active live PvP matches) ───────────────────────────────────
+
+async function handleSpectateList(req, res) {
+  const user = await requireAuth(req, res); if (!user) return;
+  const matches = await prisma.pvPMatch.findMany({
+    where: { type: "live", status: "active" },
+    include: { playerA: true, playerB: true },
+    orderBy: { lastActionAt: "desc" },
+    take: 25,
+  });
+  return sendJson(res, 200, {
+    matches: matches.map((m) => ({
+      id: m.id,
+      playerA: toPublicPlayer(m.playerA),
+      playerB: toPublicPlayer(m.playerB),
+      turnPlayerId: m.turnPlayerId,
+      lastActionAt: m.lastActionAt ? m.lastActionAt.getTime() : null,
+      createdAt: m.createdAt.getTime(),
+    })),
+  });
+}
+
 server.listen(PORT, () => {
   console.log(`Lorebound API listening on http://127.0.0.1:${PORT}`);
 });
