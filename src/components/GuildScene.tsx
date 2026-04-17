@@ -16,19 +16,19 @@ interface GuildSceneProps {
 interface GuildMember { id: number; username: string; avatar?: string | null; online: boolean; lastSeenAt: number | null; level?: number; role?: string; }
 interface ChatMsg { id: number; channel: string; playerId: number; username: string; avatar: string | null; body: string; createdAt: number; role?: string; }
 
-const MOCK_GUILD: GuildPublic = {
+const MOCK_GUILD: GuildPublic & { level?: number; xp?: number; totalPower?: number } = {
   id: 0,
   name: "The Lorebound Circle",
   tag: "LBC",
   description: "Founded by the seekers of forgotten lore.",
-  ownerId: 1,
+  ownerPlayerId: 1,
   memberCount: 88,
-  weeklyGoalProgress: 6420,
-  weeklyGoalTarget: 10000,
+  weeklyGoal: { key: "wins", target: 10000, progress: 6420, resetAt: Date.now() + 86400000 },
+  createdAt: Date.now(),
   level: 14,
   xp: 20000,
   totalPower: 3450000,
-} as any;
+};
 
 const MOCK_MEMBERS: GuildMember[] = [
   { id: 1, username: "Elara, Shadowseer", avatar: null, online: true, lastSeenAt: Date.now(), level: 14, role: "Initiate" },
