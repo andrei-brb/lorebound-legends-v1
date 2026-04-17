@@ -852,7 +852,7 @@ async function handleSearchUsers(req, res) {
 
   const url = new URL(`http://localhost${req.url}`);
   const q = (url.searchParams.get("q") || "").trim();
-  if (q.length < 2) return sendJson(res, 200, { users: [] });
+  if (q.length < 1) return sendJson(res, 200, { users: [] });
 
   const me = await prisma.player.findUnique({ where: { discordId: user.id } });
   if (!me) return sendJson(res, 404, { error: "Player not found" });

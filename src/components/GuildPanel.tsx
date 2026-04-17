@@ -100,7 +100,7 @@ export default function GuildPanel({ isOnline }: GuildPanelProps) {
   useEffect(() => {
     if (!inviteOpen || !isOnline) return;
     const q = inviteQuery;
-    if (q.length < 2) {
+    if (q.length < 1) {
       setInviteSuggestions([]);
       setInviteSuggestLoading(false);
       return;
