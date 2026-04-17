@@ -28,6 +28,7 @@ import DailyHub from "@/components/DailyHub";
 import SettingsPanel from "@/components/SettingsPanel";
 import ChatScene from "@/components/ChatScene";
 import TradeScene from "@/components/TradeScene";
+import TradeHall from "@/components/TradeHall";
 import GuildScene from "@/components/GuildScene";
 import CommunityHallScene from "@/components/CommunityHallScene";
 import { cn } from "@/lib/utils";
