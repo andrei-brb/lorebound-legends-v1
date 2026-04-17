@@ -1,5 +1,11 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { BookOpen, Layers, Swords, Coins, Sparkles as SparklesIcon, Grid3X3, Loader2, ScrollText, Hammer, Trophy, ArrowLeftRight, BarChart3, Calendar, Zap, Crown, Shield, Mail, User, Gift } from "lucide-react";
+import { BookOpen, Layers, Swords, Coins, Sparkles as SparklesIcon, Grid3X3, Loader2, ScrollText, Hammer, Trophy, ArrowLeftRight, BarChart3, Calendar, Zap, Crown, Shield, Mail, User, Gift, Users, MessageCircle, Eye, Flag } from "lucide-react";
+import TabTransition from "@/components/TabTransition";
+import TutorialOverlay from "@/components/TutorialOverlay";
+import FriendsPanel from "@/components/FriendsPanel";
+import ChatPanel from "@/components/ChatPanel";
+import GuildPanel from "@/components/GuildPanel";
+import SpectatePanel from "@/components/SpectatePanel";
 import CollectionView from "@/components/CollectionView";
 import DeckBuilder from "@/components/DeckBuilder";
 import BattleArena from "@/components/BattleArena";
@@ -29,8 +35,8 @@ import { toast } from "@/hooks/use-toast";
 import { api } from "@/lib/apiClient";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 
-type Tab = "collection" | "catalog" | "deck" | "battle" | "pvp" | "summon" | "quests" | "workshop" | "achievements" | "leaderboard" | "trade" | "mail" | "events" | "tournament" | "boost" | "pass" | "profile" | "daily";
-type Category = "cards" | "combat" | "progress" | "social" | "you";
+type Tab = "collection" | "catalog" | "deck" | "battle" | "pvp" | "summon" | "quests" | "workshop" | "achievements" | "leaderboard" | "trade" | "mail" | "events" | "tournament" | "boost" | "pass" | "profile" | "daily" | "friends" | "chat" | "guild" | "spectate";
+type Category = "cards" | "combat" | "progress" | "social" | "community" | "you";
 
 const categories: { id: Category; label: string; icon: React.ReactNode; tabs: { id: Tab; label: string; icon: React.ReactNode }[] }[] = [
   {
@@ -70,6 +76,15 @@ const categories: { id: Category; label: string; icon: React.ReactNode; tabs: { 
     ],
   },
   {
+    id: "community", label: "Community", icon: <Users className="w-4 h-4" />,
+    tabs: [
+      { id: "friends", label: "Friends", icon: <Users className="w-4 h-4" /> },
+      { id: "chat", label: "Chat", icon: <MessageCircle className="w-4 h-4" /> },
+      { id: "guild", label: "Guild", icon: <Flag className="w-4 h-4" /> },
+      { id: "spectate", label: "Spectate", icon: <Eye className="w-4 h-4" /> },
+    ],
+  },
+  {
     id: "you", label: "You", icon: <User className="w-4 h-4" />,
     tabs: [
       { id: "profile", label: "Profile", icon: <User className="w-4 h-4" /> },
@@ -82,7 +97,7 @@ export default function Index() {
   const [activeCategory, setActiveCategory] = useState<Category>("cards");
   const [activeTab, setActiveTab] = useState<Tab>("collection");
   const [lastTabPerCategory, setLastTabPerCategory] = useState<Record<Category, Tab>>({
-    cards: "collection", combat: "battle", progress: "quests", social: "trade", you: "profile",
+    cards: "collection", combat: "battle", progress: "quests", social: "trade", community: "friends", you: "profile",
   });
   const [battleDeckIds, setBattleDeckIds] = useState<string[]>([]);
   const [rankedBattle, setRankedBattle] = useState<{
