@@ -28,6 +28,8 @@ import DailyHub from "@/components/DailyHub";
 import SettingsPanel from "@/components/SettingsPanel";
 import ChatScene from "@/components/ChatScene";
 import TradeScene from "@/components/TradeScene";
+import GuildScene from "@/components/GuildScene";
+import CommunityHallScene from "@/components/CommunityHallScene";
 import { cn } from "@/lib/utils";
 import { usePlayerApi } from "@/lib/usePlayerApi";
 import { loadAchievementState, checkNewAchievements, saveAchievementState } from "@/lib/achievementEngine";
