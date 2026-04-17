@@ -2,35 +2,31 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { BookOpen, Layers, Swords, Coins, Sparkles as SparklesIcon, Grid3X3, Loader2, ScrollText, Hammer, Trophy, ArrowLeftRight, BarChart3, Calendar, Zap, Crown, Shield, Mail, User, Gift, Users, MessageCircle, Eye, Flag } from "lucide-react";
 import TabTransition from "@/components/TabTransition";
 import TutorialOverlay from "@/components/TutorialOverlay";
-import FriendsPanel from "@/components/FriendsPanel";
-import ChatPanel from "@/components/ChatPanel";
-import GuildPanel from "@/components/GuildPanel";
-import SpectatePanel from "@/components/SpectatePanel";
 import CollectionView from "@/components/CollectionView";
 import DeckBuilder from "@/components/DeckBuilder";
 import BattleArena from "@/components/BattleArena";
 import PackShop from "@/components/PackShop";
 import CardCatalog from "@/components/CardCatalog";
-import DailyQuests from "@/components/DailyQuests";
-import CraftingWorkshop from "@/components/CraftingWorkshop";
-import AchievementPanel from "@/components/AchievementPanel";
-import Leaderboard from "@/components/Leaderboard";
-import TradeUI from "@/components/TradeUI";
-import SeasonalEvents from "@/components/SeasonalEvents";
 import Tournament from "@/components/Tournament";
-import BoostRewards from "@/components/BoostRewards";
-import BattlePass from "@/components/BattlePass";
 import Onboarding from "@/components/Onboarding";
 import PvPPanel from "@/components/PvPPanel";
-import InboxPanel from "@/components/InboxPanel";
-import ProfilePage from "@/components/ProfilePage";
-import DailyHub from "@/components/DailyHub";
 import SettingsPanel from "@/components/SettingsPanel";
-import ChatScene from "@/components/ChatScene";
-import TradeScene from "@/components/TradeScene";
+// New glass+hex hall tabs
 import TradeHall from "@/components/TradeHall";
-import GuildScene from "@/components/GuildScene";
-import CommunityHallScene from "@/components/CommunityHallScene";
+import QuestsHall from "@/components/halls/QuestsHall";
+import WorkshopHall from "@/components/halls/WorkshopHall";
+import BadgesHall from "@/components/halls/BadgesHall";
+import PassHall from "@/components/halls/PassHall";
+import BoostHall from "@/components/halls/BoostHall";
+import EventsHall from "@/components/halls/EventsHall";
+import MailHall from "@/components/halls/MailHall";
+import RanksHall from "@/components/halls/RanksHall";
+import FriendsHall from "@/components/halls/FriendsHall";
+import ChatHall from "@/components/halls/ChatHall";
+import GuildHall from "@/components/halls/GuildHall";
+import SpectateHall from "@/components/halls/SpectateHall";
+import ProfileHall from "@/components/halls/ProfileHall";
+import DailyHall from "@/components/halls/DailyHall";
 import { cn } from "@/lib/utils";
 import { usePlayerApi } from "@/lib/usePlayerApi";
 import { loadAchievementState, checkNewAchievements, saveAchievementState } from "@/lib/achievementEngine";
@@ -39,7 +35,7 @@ import { api } from "@/lib/apiClient";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { setSfxVolume } from "@/lib/sfx";
 
-type Tab = "collection" | "catalog" | "deck" | "battle" | "pvp" | "summon" | "quests" | "workshop" | "achievements" | "leaderboard" | "trade" | "trade-new" | "trade-hall" | "mail" | "events" | "tournament" | "boost" | "pass" | "profile" | "daily" | "friends" | "chat" | "chat-new" | "guild" | "guild-new" | "hall-new" | "spectate";
+type Tab = "collection" | "catalog" | "deck" | "battle" | "pvp" | "summon" | "quests" | "workshop" | "achievements" | "leaderboard" | "trade" | "mail" | "events" | "tournament" | "boost" | "pass" | "profile" | "daily" | "friends" | "chat" | "guild" | "spectate";
 type Category = "cards" | "combat" | "progress" | "social" | "community" | "you";
 
 const categories: { id: Category; label: string; icon: React.ReactNode; tabs: { id: Tab; label: string; icon: React.ReactNode }[] }[] = [
@@ -75,8 +71,6 @@ const categories: { id: Category; label: string; icon: React.ReactNode; tabs: { 
     id: "social", label: "Social", icon: <ArrowLeftRight className="w-4 h-4" />,
     tabs: [
       { id: "trade", label: "Trade", icon: <ArrowLeftRight className="w-4 h-4" /> },
-      { id: "trade-new", label: "Bazaar ✨", icon: <SparklesIcon className="w-4 h-4" /> },
-      { id: "trade-hall", label: "Trade Hall ✨", icon: <SparklesIcon className="w-4 h-4" /> },
       { id: "mail", label: "Mail", icon: <Mail className="w-4 h-4" /> },
       { id: "leaderboard", label: "Ranks", icon: <BarChart3 className="w-4 h-4" /> },
     ],
@@ -86,10 +80,7 @@ const categories: { id: Category; label: string; icon: React.ReactNode; tabs: { 
     tabs: [
       { id: "friends", label: "Friends", icon: <Users className="w-4 h-4" /> },
       { id: "chat", label: "Chat", icon: <MessageCircle className="w-4 h-4" /> },
-      { id: "chat-new", label: "Hearth ✨", icon: <SparklesIcon className="w-4 h-4" /> },
-      { id: "hall-new", label: "Hall ✨", icon: <SparklesIcon className="w-4 h-4" /> },
       { id: "guild", label: "Guild", icon: <Flag className="w-4 h-4" /> },
-      { id: "guild-new", label: "Hall of Banners ✨", icon: <SparklesIcon className="w-4 h-4" /> },
       { id: "spectate", label: "Spectate", icon: <Eye className="w-4 h-4" /> },
     ],
   },
