@@ -2,31 +2,32 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { BookOpen, Layers, Swords, Coins, Sparkles as SparklesIcon, Grid3X3, Loader2, ScrollText, Hammer, Trophy, ArrowLeftRight, BarChart3, Calendar, Zap, Crown, Shield, Mail, User, Gift, Users, MessageCircle, Eye, Flag } from "lucide-react";
 import TabTransition from "@/components/TabTransition";
 import TutorialOverlay from "@/components/TutorialOverlay";
-import FriendsPanel from "@/components/FriendsPanel";
-import ChatPanel from "@/components/ChatPanel";
-import GuildPanel from "@/components/GuildPanel";
-import SpectatePanel from "@/components/SpectatePanel";
 import CollectionView from "@/components/CollectionView";
 import DeckBuilder from "@/components/DeckBuilder";
 import BattleArena from "@/components/BattleArena";
 import PackShop from "@/components/PackShop";
 import CardCatalog from "@/components/CardCatalog";
-import DailyQuests from "@/components/DailyQuests";
-import CraftingWorkshop from "@/components/CraftingWorkshop";
-import AchievementPanel from "@/components/AchievementPanel";
-import Leaderboard from "@/components/Leaderboard";
-import TradeUI from "@/components/TradeUI";
-import SeasonalEvents from "@/components/SeasonalEvents";
 import Tournament from "@/components/Tournament";
-import BoostRewards from "@/components/BoostRewards";
-import BattlePass from "@/components/BattlePass";
 import Onboarding from "@/components/Onboarding";
 import PvPPanel from "@/components/PvPPanel";
-import InboxPanel from "@/components/InboxPanel";
-import LivePvPBattleground from "@/components/LivePvPBattleground";
-import ProfilePage from "@/components/ProfilePage";
-import DailyHub from "@/components/DailyHub";
 import SettingsPanel from "@/components/SettingsPanel";
+// New glass+hex hall tabs
+import TradeHall from "@/components/TradeHall";
+import QuestsHall from "@/components/halls/QuestsHall";
+import WorkshopHall from "@/components/halls/WorkshopHall";
+import BadgesHall from "@/components/halls/BadgesHall";
+import PassHall from "@/components/halls/PassHall";
+import BoostHall from "@/components/halls/BoostHall";
+import EventsHall from "@/components/halls/EventsHall";
+import MailHall from "@/components/halls/MailHall";
+import RanksHall from "@/components/halls/RanksHall";
+import FriendsHall from "@/components/halls/FriendsHall";
+import ChatHall from "@/components/halls/ChatHall";
+import GuildHall from "@/components/halls/GuildHall";
+import SpectateHall from "@/components/halls/SpectateHall";
+import ProfileHall from "@/components/halls/ProfileHall";
+import DailyHall from "@/components/halls/DailyHall";
+import LivePvPBattleground from "@/components/LivePvPBattleground";
 import { cn } from "@/lib/utils";
 import { setSfxVolume } from "@/lib/sfx";
 import { usePlayerApi } from "@/lib/usePlayerApi";
@@ -513,15 +514,19 @@ export default function Index() {
                 syncEconomyApi={syncEconomy}
               />
             )}
-            {activeTab === "quests" && <DailyQuests playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} syncEconomyApi={syncEconomy} />}
-            {activeTab === "workshop" && <CraftingWorkshop playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} craftFuseApi={craftFuse} craftSacrificeApi={craftSacrifice} />}
-            {activeTab === "achievements" && <AchievementPanel playerState={playerState} />}
-            {activeTab === "leaderboard" && <Leaderboard playerState={playerState} isOnline={isOnline} />}
-            {activeTab === "trade" && <TradeUI playerState={playerState} onStateChange={setPlayerState} />}
-            {activeTab === "mail" && <InboxPanel onNavigate={(tab) => {
-              if (tab === "trade" || tab === "pvp") { setActiveCategory("social"); setActiveTab(tab); return; }
-              if (tab === "battle") { setActiveCategory("combat"); setActiveTab("battle"); return; }
-            }} />}
+            {activeTab === "quests" && <QuestsHall playerState={playerState} onStateChange={setPlayerState} />}
+            {activeTab === "workshop" && <WorkshopHall playerState={playerState} onStateChange={setPlayerState} />}
+            {activeTab === "achievements" && <BadgesHall playerState={playerState} />}
+            {activeTab === "leaderboard" && <RanksHall playerState={playerState} isOnline={isOnline} />}
+            {activeTab === "trade" && <TradeHall playerState={playerState} onStateChange={setPlayerState} />}
+            {activeTab === "mail" && (
+              <MailHall
+                onNavigate={(tab) => {
+                  setActiveCategory("social");
+                  setActiveTab(tab);
+                }}
+              />
+            )}
             {activeTab === "pvp" && (
               <PvPPanel
                 playerState={playerState}
@@ -554,23 +559,16 @@ export default function Index() {
                 }}
               />
             )}
-            {activeTab === "events" && <SeasonalEvents playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} pullSeasonalPackApi={pullSeasonalPack} />}
+            {activeTab === "events" && <EventsHall playerState={playerState} onStateChange={setPlayerState} />}
             {activeTab === "tournament" && <Tournament playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} syncEconomyApi={syncEconomy} />}
-            {activeTab === "boost" && <BoostRewards />}
-            {activeTab === "pass" && <BattlePass playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} />}
-            {activeTab === "profile" && <ProfilePage playerState={playerState} onStateChange={setPlayerState} />}
-            {activeTab === "daily" && (
-              <DailyHub
-                playerState={playerState}
-                onStateChange={setPlayerState}
-                isOnline={isOnline}
-                syncEconomyApi={syncEconomy}
-              />
-            )}
-            {activeTab === "friends" && <FriendsPanel isOnline={isOnline} />}
-            {activeTab === "chat" && <ChatPanel isOnline={isOnline} />}
-            {activeTab === "guild" && <GuildPanel isOnline={isOnline} />}
-            {activeTab === "spectate" && <SpectatePanel isOnline={isOnline} />}
+            {activeTab === "boost" && <BoostHall playerState={playerState} />}
+            {activeTab === "pass" && <PassHall playerState={playerState} onStateChange={setPlayerState} />}
+            {activeTab === "profile" && <ProfileHall playerState={playerState} onStateChange={setPlayerState} />}
+            {activeTab === "daily" && <DailyHall playerState={playerState} onStateChange={setPlayerState} />}
+            {activeTab === "friends" && <FriendsHall isOnline={isOnline} />}
+            {activeTab === "chat" && <ChatHall isOnline={isOnline} playerState={playerState} />}
+            {activeTab === "guild" && <GuildHall isOnline={isOnline} playerState={playerState} />}
+            {activeTab === "spectate" && <SpectateHall isOnline={isOnline} />}
             {activeTab === "battle" && battleDeckIds.length === 0 && hasLiveMatchFromInbox && (
               <LivePvPBattleground
                 matchId={liveMatchIdFromInbox}
