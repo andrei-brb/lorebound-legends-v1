@@ -106,7 +106,7 @@ export default function CommunityHallScene({ isOnline, playerState }: CommunityH
       return;
     }
     try {
-      await api.sendFriendRequest(u);
+      await api.friendRequest(u);
       toast({ title: "Request sent" });
       setAddQuery("");
     } catch (e: any) {
@@ -120,7 +120,7 @@ export default function CommunityHallScene({ isOnline, playerState }: CommunityH
       return;
     }
     try {
-      if (accept) await api.acceptFriendRequest(id); else await api.declineFriendRequest(id);
+      await api.friendRespond(id, accept);
       setPending((p) => p.filter((x) => x.id !== id));
     } catch (e: any) {
       toast({ title: "Failed", description: e?.message || "" });
