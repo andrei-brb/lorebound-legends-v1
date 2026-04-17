@@ -28,6 +28,7 @@ import DailyHub from "@/components/DailyHub";
 import SettingsPanel from "@/components/SettingsPanel";
 import ChatScene from "@/components/ChatScene";
 import TradeScene from "@/components/TradeScene";
+import TradeHall from "@/components/TradeHall";
 import GuildScene from "@/components/GuildScene";
 import CommunityHallScene from "@/components/CommunityHallScene";
 import { cn } from "@/lib/utils";
@@ -38,7 +39,7 @@ import { api } from "@/lib/apiClient";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { setSfxVolume } from "@/lib/sfx";
 
-type Tab = "collection" | "catalog" | "deck" | "battle" | "pvp" | "summon" | "quests" | "workshop" | "achievements" | "leaderboard" | "trade" | "trade-new" | "mail" | "events" | "tournament" | "boost" | "pass" | "profile" | "daily" | "friends" | "chat" | "chat-new" | "guild" | "guild-new" | "hall-new" | "spectate";
+type Tab = "collection" | "catalog" | "deck" | "battle" | "pvp" | "summon" | "quests" | "workshop" | "achievements" | "leaderboard" | "trade" | "trade-new" | "trade-hall" | "mail" | "events" | "tournament" | "boost" | "pass" | "profile" | "daily" | "friends" | "chat" | "chat-new" | "guild" | "guild-new" | "hall-new" | "spectate";
 type Category = "cards" | "combat" | "progress" | "social" | "community" | "you";
 
 const categories: { id: Category; label: string; icon: React.ReactNode; tabs: { id: Tab; label: string; icon: React.ReactNode }[] }[] = [
@@ -75,6 +76,7 @@ const categories: { id: Category; label: string; icon: React.ReactNode; tabs: { 
     tabs: [
       { id: "trade", label: "Trade", icon: <ArrowLeftRight className="w-4 h-4" /> },
       { id: "trade-new", label: "Bazaar ✨", icon: <SparklesIcon className="w-4 h-4" /> },
+      { id: "trade-hall", label: "Trade Hall ✨", icon: <SparklesIcon className="w-4 h-4" /> },
       { id: "mail", label: "Mail", icon: <Mail className="w-4 h-4" /> },
       { id: "leaderboard", label: "Ranks", icon: <BarChart3 className="w-4 h-4" /> },
     ],
@@ -320,6 +322,7 @@ export default function Index() {
             {activeTab === "spectate" && <SpectatePanel isOnline={isOnline} />}
             {activeTab === "chat-new" && <ChatScene isOnline={isOnline} playerState={playerState} />}
             {activeTab === "trade-new" && <TradeScene playerState={playerState} onStateChange={setPlayerState} />}
+            {activeTab === "trade-hall" && <TradeHall playerState={playerState} onStateChange={setPlayerState} />}
             {activeTab === "guild-new" && <GuildScene isOnline={isOnline} playerState={playerState} />}
             {activeTab === "hall-new" && <CommunityHallScene isOnline={isOnline} playerState={playerState} />}
             {activeTab === "battle" && battleDeckIds.length === 0 && (
