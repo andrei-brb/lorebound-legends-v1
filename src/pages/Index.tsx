@@ -68,13 +68,20 @@ const categories: { id: Category; label: string; icon: React.ReactNode; tabs: { 
       { id: "leaderboard", label: "Ranks", icon: <BarChart3 className="w-4 h-4" /> },
     ],
   },
+  {
+    id: "you", label: "You", icon: <User className="w-4 h-4" />,
+    tabs: [
+      { id: "profile", label: "Profile", icon: <User className="w-4 h-4" /> },
+      { id: "daily", label: "Daily", icon: <Gift className="w-4 h-4" /> },
+    ],
+  },
 ];
 
 export default function Index() {
   const [activeCategory, setActiveCategory] = useState<Category>("cards");
   const [activeTab, setActiveTab] = useState<Tab>("collection");
   const [lastTabPerCategory, setLastTabPerCategory] = useState<Record<Category, Tab>>({
-    cards: "collection", combat: "battle", progress: "quests", social: "trade",
+    cards: "collection", combat: "battle", progress: "quests", social: "trade", you: "profile",
   });
   const [battleDeckIds, setBattleDeckIds] = useState<string[]>([]);
   const [unreadMail, setUnreadMail] = useState(0);
