@@ -15,6 +15,7 @@ import { awardXp, type LevelUpResult } from "@/lib/progressionEngine";
 import { getBattleGoldReward } from "@/lib/gachaEngine";
 import { loadDailyQuests, progressQuest, saveDailyQuests } from "@/lib/questEngine";
 import { toast } from "@/hooks/use-toast";
+import { rollMysteryBox, claimFirstWin, FIRST_WIN_GOLD, FIRST_WIN_BP_XP } from "@/lib/dailyEngine";
 import { awardBattlePassXp } from "@/lib/battlePassEngine";
 import { getCosmeticById } from "@/data/cosmetics";
 import { useIsMobile } from "@/hooks/use-mobile";
