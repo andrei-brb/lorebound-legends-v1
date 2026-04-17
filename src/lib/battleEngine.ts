@@ -41,6 +41,10 @@ export interface FieldCard {
   tauntTurnsRemaining?: number;
   /** Damage at start of this unit's controller's turn. */
   poison?: { damagePerTurn: number; turnsRemaining: number };
+  /** Damage at start of this unit's controller's turn. */
+  burn?: { damagePerTurn: number; turnsRemaining: number };
+  /** Miss chance on attacks while active. */
+  blind?: { missChance: number; turnsRemaining: number };
 }
 
 export interface TempBuff {
@@ -423,6 +427,23 @@ function startTurn(state: BattleState): BattleState {
     }
   }
 
+  // Burn ticks at start of each unit's controller's turn
+  for (let bi = 0; bi < side.field.length; bi++) {
+    const fc = side.field[bi];
+    if (!fc?.burn || fc.burn.turnsRemaining <= 0) continue;
+    const bd = fc.burn.damagePerTurn;
+    fc.currentHp = Math.max(0, fc.currentHp - bd);
+    fc.burn.turnsRemaining -= 1;
+    if (fc.burn.turnsRemaining <= 0) delete fc.burn;
+    addLog(state, `🔥 ${fc.card.name} suffers ${bd} burn damage!`, "info");
+    if (fc.currentHp <= 0) {
+      addLog(state, `💀 ${fc.card.name} was destroyed!`, "defeat");
+      side.graveyard.push(fc.card);
+      if (fc.equippedWeapon) side.graveyard.push(fc.equippedWeapon);
+      side.field[bi] = null;
+    }
+  }
+
   checkWinCondition(state);
   if (state.phase === "game-over") return state;
 
@@ -697,6 +718,17 @@ export function attackTarget(state: BattleState, attackerFieldIndex: number, tar
   if (!canSpendAp(newState, 1)) return state;
 
   const sideLabel = newState.turn === "player" ? "You" : "Enemy";
+
+  // Blind: attacks may miss
+  if (attacker.blind && attacker.blind.turnsRemaining > 0) {
+    const missChance = Math.max(0, Math.min(0.95, attacker.blind.missChance));
+    if (newState.rng() < missChance) {
+      addLog(newState, `🌫️ ${attacker.card.name} misses the attack!`, "attack");
+      spendAp(newState, 1);
+      attacker.attackedThisTurn = true;
+      return maybeAutoEndTurn(recalcFieldStats(checkWinCondition(newState)));
+    }
+  }
 
   if (targetFieldIndex === "direct") {
     // Direct attack — only if enemy has no field cards
@@ -1155,6 +1187,54 @@ function applyResolvedAbility(
         );
         break;
       }
+      case "burn_enemy": {
+        const pidx = pickEnemyFieldIndex(otherSide.field, e.which);
+        if (pidx < 0) break;
+        const t = otherSide.field[pidx]!;
+        t.burn = { damagePerTurn: e.damagePerTurn, turnsRemaining: e.duration };
+        addLog(
+          newState,
+          `✨ ${fc.card.name} uses ${ability.name}! Burns ${t.card.name} (${e.damagePerTurn}/turn, ${e.duration} turns).`,
+          "ability",
+        );
+        break;
+      }
+      case "burn_all_enemies": {
+        for (const t of otherSide.field) {
+          if (!t) continue;
+          t.burn = { damagePerTurn: e.damagePerTurn, turnsRemaining: e.duration };
+        }
+        addLog(
+          newState,
+          `✨ ${fc.card.name} uses ${ability.name}! Burns all enemies (${e.damagePerTurn}/turn, ${e.duration} turns).`,
+          "ability",
+        );
+        break;
+      }
+      case "blind_enemy": {
+        const pidx = pickEnemyFieldIndex(otherSide.field, e.which);
+        if (pidx < 0) break;
+        const t = otherSide.field[pidx]!;
+        t.blind = { missChance: e.missChance, turnsRemaining: e.duration };
+        addLog(
+          newState,
+          `✨ ${fc.card.name} uses ${ability.name}! Blinds ${t.card.name} (${Math.round(e.missChance * 100)}% miss, ${e.duration} turns).`,
+          "ability",
+        );
+        break;
+      }
+      case "blind_all_enemies": {
+        for (const t of otherSide.field) {
+          if (!t) continue;
+          t.blind = { missChance: e.missChance, turnsRemaining: e.duration };
+        }
+        addLog(
+          newState,
+          `✨ ${fc.card.name} uses ${ability.name}! Blinds all enemies (${Math.round(e.missChance * 100)}% miss, ${e.duration} turns).`,
+          "ability",
+        );
+        break;
+      }
       default:
         break;
     }
@@ -1210,6 +1290,10 @@ function endTurn(state: BattleState): BattleState {
       .filter(b => b.turnsRemaining > 0);
     if (fc.tauntTurnsRemaining && fc.tauntTurnsRemaining > 0) {
       fc.tauntTurnsRemaining -= 1;
+    }
+    if (fc.blind && fc.blind.turnsRemaining > 0) {
+      fc.blind.turnsRemaining -= 1;
+      if (fc.blind.turnsRemaining <= 0) delete fc.blind;
     }
     fc.stunned = false;
   }

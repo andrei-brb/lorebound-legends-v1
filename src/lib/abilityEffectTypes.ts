@@ -33,4 +33,8 @@ export type AbilityEffect =
   | { kind: "summon_tokens"; tokenId: string; count: number; duration: number }
   | { kind: "revive_from_graveyard"; hpPercent: number }
   | { kind: "taunt_self"; duration: number }
-  | { kind: "poison_enemy"; which: AbilityTarget; damagePerTurn: number; duration: number };
+  | { kind: "poison_enemy"; which: AbilityTarget; damagePerTurn: number; duration: number }
+  | { kind: "burn_enemy"; which: AbilityTarget; damagePerTurn: number; duration: number }
+  | { kind: "burn_all_enemies"; damagePerTurn: number; duration: number }
+  | { kind: "blind_enemy"; which: AbilityTarget; missChance: number; duration: number }
+  | { kind: "blind_all_enemies"; missChance: number; duration: number };

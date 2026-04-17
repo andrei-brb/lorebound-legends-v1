@@ -32,6 +32,81 @@ export function inferAbilityEffect(card: GameCard): AbilityEffect {
   const raw = card.specialAbility.description;
   const d = raw.toLowerCase();
 
+  // --- Blind / accuracy / miss chance ---
+  // "enemies have 50% miss chance for 2 turns"
+  const missChanceAll = d.match(/(\d+)%\s*miss chance.*?(\d+)\s*turn/i);
+  if (missChanceAll) {
+    const pct = clamp(parseInt(missChanceAll[1], 10), 0, 95);
+    const turns = clamp(parseInt(missChanceAll[2], 10), 1, 6);
+    return { kind: "blind_all_enemies", missChance: pct / 100, duration: turns };
+  }
+  // "accuracy reduced by 40% for 2 turns" / "reducing accuracy by 50%"
+  const accAll = d.match(/accuracy (?:reduced|reducing).*?(\d+)%.*?(\d+)\s*turn/i) || d.match(/reducing accuracy by (\d+)%/i);
+  if (accAll && /all enemies|enemies'/i.test(raw)) {
+    const pct = clamp(parseInt(accAll[1], 10), 0, 95);
+    const turns = accAll[2] ? clamp(parseInt(accAll[2], 10), 1, 6) : 2;
+    return { kind: "blind_all_enemies", missChance: pct / 100, duration: turns };
+  }
+  // "blinds all enemies for 2 turns"
+  const blindAll = d.match(/blinds?\s+all\s+enemies\s+for\s+(\d+)\s*turn/i);
+  if (blindAll) {
+    const turns = clamp(parseInt(blindAll[1], 10), 1, 6);
+    // default 50% miss if not specified
+    return { kind: "blind_all_enemies", missChance: 0.5, duration: turns };
+  }
+  // "blinds the target" / "blinds the strongest enemy for 2 turns"
+  if (/blinds?\b/.test(d) && /target|strongest enemy|highest hp|most hp|weakest enemy|lowest hp/i.test(d)) {
+    const turns = (() => {
+      const tm = d.match(/for\s+(\d+)\s*turn/i);
+      return tm ? clamp(parseInt(tm[1], 10), 1, 6) : 1;
+    })();
+    const pct = (() => {
+      const pm = d.match(/(\d+)%\s*(?:miss|accuracy)/i) || d.match(/accuracy.*?(\d+)%/i);
+      return pm ? clamp(parseInt(pm[1], 10), 0, 95) / 100 : 0.5;
+    })();
+    const which: AbilityTarget = /weakest|lowest/.test(d) ? "lowest_hp" : "highest_hp";
+    return { kind: "blind_enemy", which, missChance: pct, duration: turns };
+  }
+
+  // --- Burn (DoT) ---
+  // "Burns all enemies for 3 damage per turn for 3 turns."
+  const burnAll = d.match(/burns?\s+all\s+enemies\s+for\s+(\d+)\s+damage\s+per\s+turn\s+for\s+(\d+)\s*turn/i);
+  if (burnAll) {
+    return {
+      kind: "burn_all_enemies",
+      damagePerTurn: clamp(parseInt(burnAll[1], 10), 1, 20),
+      duration: clamp(parseInt(burnAll[2], 10), 1, 6),
+    };
+  }
+  // "burning for 2/turn" or "burn for 2 turns"
+  const burnPerTurn = d.match(/burn(?:ing|s)?\s+for\s+(\d+)\s*\/\s*turn/i);
+  if (burnPerTurn && /strongest|target|weakest/.test(d)) {
+    const which: AbilityTarget = /weakest|lowest/.test(d) ? "lowest_hp" : "highest_hp";
+    const turns = (() => {
+      const tm = d.match(/for\s+(\d+)\s*turn/i);
+      return tm ? clamp(parseInt(tm[1], 10), 1, 6) : 2;
+    })();
+    return { kind: "burn_enemy", which, damagePerTurn: clamp(parseInt(burnPerTurn[1], 10), 1, 20), duration: turns };
+  }
+  // "Burns for 2 turns." (applies to all enemies if combined with AoE)
+  const burnTurnsOnly = d.match(/burns?\s+for\s+(\d+)\s*turn/i);
+  if (burnTurnsOnly && /\ball enemies\b/.test(d)) {
+    return { kind: "burn_all_enemies", damagePerTurn: 3, duration: clamp(parseInt(burnTurnsOnly[1], 10), 1, 6) };
+  }
+
+  // "Blinds and burns the strongest enemy for 8 damage over 2 turns."
+  const burnOver = d.match(/burns?\b.*?(\d+)\s*damage\s+over\s+(\d+)\s*turn/i);
+  if (burnOver && /strongest|highest hp|most hp|weakest|lowest hp|target/i.test(d)) {
+    const total = clamp(parseInt(burnOver[1], 10), 1, 40);
+    const turns = clamp(parseInt(burnOver[2], 10), 1, 6);
+    const per = Math.max(1, Math.floor(total / turns));
+    const which: AbilityTarget = /weakest|lowest/.test(d) ? "lowest_hp" : "highest_hp";
+    const steps: AbilityEffect[] = [];
+    if (/blind/.test(d)) steps.push({ kind: "blind_enemy", which, missChance: 0.5, duration: turns });
+    steps.push({ kind: "burn_enemy", which, damagePerTurn: per, duration: turns });
+    return steps.length === 1 ? steps[0]! : { kind: "sequence", steps };
+  }
+
   // --- Composites (heal + something) ---
   const healAllMatch = d.match(/heals?\s+all\s+allies\s+for\s+(\d+)\s*hp/);
   if (healAllMatch) {
