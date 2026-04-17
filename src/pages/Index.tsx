@@ -322,6 +322,7 @@ export default function Index() {
             {activeTab === "spectate" && <SpectatePanel isOnline={isOnline} />}
             {activeTab === "chat-new" && <ChatScene isOnline={isOnline} playerState={playerState} />}
             {activeTab === "trade-new" && <TradeScene playerState={playerState} onStateChange={setPlayerState} />}
+            {activeTab === "trade-hall" && <TradeHall playerState={playerState} onStateChange={setPlayerState} />}
             {activeTab === "guild-new" && <GuildScene isOnline={isOnline} playerState={playerState} />}
             {activeTab === "hall-new" && <CommunityHallScene isOnline={isOnline} playerState={playerState} />}
             {activeTab === "battle" && battleDeckIds.length === 0 && (
