@@ -10,13 +10,9 @@ interface PackOpeningProps {
   cardIds: string[];
   onComplete: (cardIds: string[]) => void;
   playerState?: PlayerState;
+  /** When set (e.g. online pulls), overrides local duplicate detection — required after server merge updates owned cards. */
+  cardIsNew?: boolean[];
 }
-
-const rarityParticleColor: Record<string, string> = {
-  legendary: "bg-legendary",
-  rare: "bg-rare",
-  common: "bg-common",
-};
 
 const rarityGlowBg: Record<string, string> = {
   legendary: "shadow-[0_0_60px_20px_hsl(40,90%,55%,0.6)]",
@@ -24,7 +20,7 @@ const rarityGlowBg: Record<string, string> = {
   common: "shadow-[0_0_20px_10px_hsl(230,10%,50%,0.3)]",
 };
 
-export default function PackOpening({ cardIds, onComplete, playerState }: PackOpeningProps) {
+export default function PackOpening({ cardIds, onComplete, playerState, cardIsNew: cardIsNewProp }: PackOpeningProps) {
   const [phase, setPhase] = useState<"intro" | "spread" | "revealing" | "summary">("intro");
   const [revealedIndices, setRevealedIndices] = useState<Set<number>>(new Set());
   const cardPool = useMemo(() => [...allCards, ...allSeasonalCards], []);
@@ -33,9 +29,17 @@ export default function PackOpening({ cardIds, onComplete, playerState }: PackOp
     [cardIds, cardPool]
   );
 
-  const dupeFlags = useMemo(() => {
-    return cardIds.map(id => playerState ? playerState.ownedCardIds.includes(id) : false);
-  }, [cardIds, playerState]);
+  /** New = first time this pull adds the card; handles multiple copies in one pack via order walk. */
+  const cardNewFlags = useMemo(() => {
+    if (cardIsNewProp && cardIsNewProp.length === cardIds.length) return cardIsNewProp;
+    if (!playerState) return cardIds.map(() => false);
+    const owned = new Set(playerState.ownedCardIds);
+    return cardIds.map((id) => {
+      const isNew = !owned.has(id);
+      owned.add(id);
+      return isNew;
+    });
+  }, [cardIds, playerState, cardIsNewProp]);
 
   const ambientParticles = useMemo(
     () =>
@@ -155,6 +159,7 @@ export default function PackOpening({ cardIds, onComplete, playerState }: PackOp
           <div className="flex gap-4 flex-wrap justify-center">
             {cards.map((card, i) => {
               const revealed = revealedIndices.has(i);
+              const isNewCard = cardNewFlags[i];
               return (
                 <motion.div
                   key={i}
@@ -175,6 +180,16 @@ export default function PackOpening({ cardIds, onComplete, playerState }: PackOp
                       className="w-full h-full rounded-xl border-2 overflow-hidden relative"
                       style={{ borderColor: card.rarity === "legendary" ? "hsl(40 90% 55%)" : card.rarity === "rare" ? "hsl(220 80% 60%)" : "hsl(230 10% 50%)" }}
                     >
+                      {isNewCard && (
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.6, y: -8 }}
+                          animate={{ opacity: 1, scale: 1, y: 0 }}
+                          transition={{ type: "spring", stiffness: 400, damping: 18 }}
+                          className="absolute top-2 left-1/2 -translate-x-1/2 z-10 px-3 py-1 rounded-full font-heading font-extrabold text-[11px] tracking-wide uppercase text-primary-foreground shadow-lg bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400 ring-2 ring-white/40"
+                        >
+                          New
+                        </motion.div>
+                      )}
                       <img src={card.image} alt={card.name} className="w-full h-full object-cover" />
                       <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent p-3">
                         <p className="font-heading text-xs font-bold text-white truncate">{card.name}</p>
@@ -247,7 +262,11 @@ export default function PackOpening({ cardIds, onComplete, playerState }: PackOp
                       {card.rarity} {card.type}
                     </p>
                   </div>
-                  {dupeFlags[i] && (
+                  {cardNewFlags[i] ? (
+                    <span className="text-[9px] font-heading font-extrabold uppercase px-2 py-0.5 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 text-primary-foreground shadow-sm">
+                      New
+                    </span>
+                  ) : (
                     <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-primary/20 text-primary">
                       +⭐ Dupe
                     </span>

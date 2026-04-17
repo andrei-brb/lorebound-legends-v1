@@ -20,7 +20,7 @@ interface SeasonalEventsProps {
 
 export default function SeasonalEvents({ playerState, onStateChange, isOnline, pullSeasonalPackApi }: SeasonalEventsProps) {
   const [selectedEvent, setSelectedEvent] = useState<SeasonalEvent | null>(null);
-  const [packCardIds, setPackCardIds] = useState<string[] | null>(null);
+  const [packOpening, setPackOpening] = useState<{ cardIds: string[]; cardIsNew?: boolean[] } | null>(null);
   const [pendingState, setPendingState] = useState<PlayerState | null>(null);
   const activeEvents = getActiveEvents();
   const upcomingEvents = getUpcomingEvents();
@@ -35,8 +35,14 @@ export default function SeasonalEvents({ playerState, onStateChange, isOnline, p
     if (isOnline && pullSeasonalPackApi) {
       const result = await pullSeasonalPackApi(event.id);
       if (result) {
+        const owned = new Set(playerState.ownedCardIds);
+        const cardIsNew = result.cardIds.map((id) => {
+          const isNew = !owned.has(id);
+          owned.add(id);
+          return isNew;
+        });
         onStateChange(result.state);
-        setPackCardIds(result.cardIds);
+        setPackOpening({ cardIds: result.cardIds, cardIsNew });
         setPendingState(result.state);
       }
       return;
@@ -45,16 +51,20 @@ export default function SeasonalEvents({ playerState, onStateChange, isOnline, p
     let newState = { ...playerState, gold: playerState.gold - event.packCost };
     const pool = allSeasonalCards.filter(c => event.seasonalCardIds.includes(c.id));
     const pulledIds: string[] = [];
+    const ownedSim = new Set(playerState.ownedCardIds);
+    const cardIsNewFlags: boolean[] = [];
 
     for (let i = 0; i < 3; i++) {
       const card = pool[Math.floor(Math.random() * pool.length)];
+      cardIsNewFlags.push(!ownedSim.has(card.id));
+      ownedSim.add(card.id);
       const result = addCardToCollection(newState, card.id);
       newState = result.state;
       pulledIds.push(card.id);
     }
 
     setPendingState(newState);
-    setPackCardIds(pulledIds);
+    setPackOpening({ cardIds: pulledIds, cardIsNew: cardIsNewFlags });
   };
 
   const handlePackComplete = (cardIds: string[]) => {
@@ -62,7 +72,7 @@ export default function SeasonalEvents({ playerState, onStateChange, isOnline, p
       savePlayerState(pendingState);
       onStateChange(pendingState);
     }
-    setPackCardIds(null);
+    setPackOpening(null);
     setPendingState(null);
   };
 
@@ -243,9 +253,10 @@ export default function SeasonalEvents({ playerState, onStateChange, isOnline, p
 
       {/* Pack Opening Overlay */}
       <AnimatePresence>
-        {packCardIds && (
+        {packOpening && (
           <PackOpening
-            cardIds={packCardIds}
+            cardIds={packOpening.cardIds}
+            cardIsNew={packOpening.cardIsNew}
             onComplete={handlePackComplete}
             playerState={playerState}
           />

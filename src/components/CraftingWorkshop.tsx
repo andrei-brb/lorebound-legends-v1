@@ -28,7 +28,7 @@ export default function CraftingWorkshop({ playerState, onStateChange, isOnline,
   const [resultCard, setResultCard] = useState<string | null>(null);
   const [isAnimating, setIsAnimating] = useState(false);
   const [sacrificeAnim, setSacrificeAnim] = useState<{ cardIds: string[]; stardust: number } | null>(null);
-  const [fuseRevealIds, setFuseRevealIds] = useState<string[] | null>(null);
+  const [fuseReveal, setFuseReveal] = useState<{ cardIds: string[]; cardIsNew: boolean[] } | null>(null);
 
   const eligibleCards = playerState.ownedCardIds
     .filter(id => {
@@ -53,10 +53,14 @@ export default function CraftingWorkshop({ playerState, onStateChange, isOnline,
     await new Promise(r => setTimeout(r, 1500));
 
     if (isOnline && craftFuseApi) {
+      const preOwned = new Set(playerState.ownedCardIds);
       const result = await craftFuseApi(selectedRecipe.inputRarity, selectedCards);
       if (result) {
         setResultCard(result.resultCardId);
-        setFuseRevealIds([result.resultCardId]);
+        setFuseReveal({
+          cardIds: [result.resultCardId],
+          cardIsNew: [!preOwned.has(result.resultCardId)],
+        });
         const qs = progressQuest(loadDailyQuests(), "craft_card"); saveDailyQuests(qs);
       } else {
         toast({ title: "Fusion failed", description: "Could not complete fusion. Try again.", variant: "destructive" });
@@ -64,9 +68,10 @@ export default function CraftingWorkshop({ playerState, onStateChange, isOnline,
     } else {
       const result = performFusion(playerState, selectedRecipe, selectedCards);
       if (result) {
+        const wasNew = !playerState.ownedCardIds.includes(result.resultCardId);
         onStateChange(result.playerState);
         setResultCard(result.resultCardId);
-        setFuseRevealIds([result.resultCardId]);
+        setFuseReveal({ cardIds: [result.resultCardId], cardIsNew: [wasNew] });
         const qs = progressQuest(loadDailyQuests(), "craft_card"); saveDailyQuests(qs);
       }
     }
@@ -266,10 +271,11 @@ export default function CraftingWorkshop({ playerState, onStateChange, isOnline,
 
       {/* Fusion Reveal Overlay */}
       <AnimatePresence>
-        {fuseRevealIds && (
+        {fuseReveal && (
           <PackOpening
-            cardIds={fuseRevealIds}
-            onComplete={() => setFuseRevealIds(null)}
+            cardIds={fuseReveal.cardIds}
+            cardIsNew={fuseReveal.cardIsNew}
+            onComplete={() => setFuseReveal(null)}
             playerState={playerState}
           />
         )}

@@ -40,7 +40,7 @@ function formatTime(ms: number): string {
 }
 
 export default function PackShop({ playerState, onStateChange, isOnline, pullCardsApi }: PackShopProps) {
-  const [openingPack, setOpeningPack] = useState<{ cardIds: string[] } | null>(null);
+  const [openingPack, setOpeningPack] = useState<{ cardIds: string[]; cardIsNew?: boolean[] } | null>(null);
   const [freeTimer, setFreeTimer] = useState(freePackTimeRemaining(playerState));
   const [confirmPack, setConfirmPack] = useState<PackDefinition | null>(null);
   const playerStateRef = useRef(playerState);
@@ -64,7 +64,14 @@ export default function PackShop({ playerState, onStateChange, isOnline, pullCar
     if (!canAffordPack(playerState.gold, pack)) return;
     if (isOnline && pullCardsApi) {
       const result = await pullCardsApi(pack.id);
-      if (result) { onStateChange(result.state); setOpeningPack({ cardIds: result.pullResults.map((r) => r.cardId) }); trackPackQuests(false); }
+      if (result) {
+        onStateChange(result.state);
+        setOpeningPack({
+          cardIds: result.pullResults.map((r) => r.cardId),
+          cardIsNew: result.pullResults.map((r) => !r.isDuplicate),
+        });
+        trackPackQuests(false);
+      }
       return;
     }
     const { cardIds, newPityCounter } = pullCards(pack, playerState);
@@ -82,7 +89,14 @@ export default function PackShop({ playerState, onStateChange, isOnline, pullCar
     if (!canClaimFreePack(playerState)) return;
     if (isOnline && pullCardsApi) {
       const result = await pullCardsApi("free");
-      if (result) { onStateChange(result.state); setOpeningPack({ cardIds: result.pullResults.map((r) => r.cardId) }); trackPackQuests(true); }
+      if (result) {
+        onStateChange(result.state);
+        setOpeningPack({
+          cardIds: result.pullResults.map((r) => r.cardId),
+          cardIsNew: result.pullResults.map((r) => !r.isDuplicate),
+        });
+        trackPackQuests(true);
+      }
       return;
     }
     const freePack: PackDefinition = { ...PACK_DEFINITIONS[0], cardCount: FREE_PACK_CARD_COUNT };
@@ -109,7 +123,12 @@ export default function PackShop({ playerState, onStateChange, isOnline, pullCar
     <TooltipProvider>
       <div className="space-y-8">
         {openingPack && (
-          <PackOpening cardIds={openingPack.cardIds} onComplete={handlePackOpeningComplete} playerState={playerState} />
+          <PackOpening
+            cardIds={openingPack.cardIds}
+            cardIsNew={openingPack.cardIsNew}
+            onComplete={handlePackOpeningComplete}
+            playerState={playerState}
+          />
         )}
 
         {/* Confirm dialog for premium packs */}
