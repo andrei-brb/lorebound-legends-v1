@@ -3,6 +3,7 @@ import type { Reward } from "@/data/battlePassSeasons";
 import { BATTLE_PASS_SEASONS } from "@/data/battlePassSeasons";
 import { addCardToCollection } from "@/lib/playerState";
 import { PACK_DEFINITIONS, pullCards } from "@/lib/gachaEngine";
+import type { CosmeticType } from "@/data/cosmetics";
 import { getCosmeticById } from "@/data/cosmetics";
 
 export const BP_MAX_LEVEL = 30;
@@ -226,5 +227,39 @@ export function setCosmeticEquipped(state: PlayerState, cosmeticId: string): Pla
   // Only allow equipping owned cosmetics
   if (!(state.cosmeticsOwned || []).includes(cosmeticId)) return state;
   return equipCosmetic(state, cosmeticId);
+}
+
+/** Clear the equipped slot for a cosmetic category (e.g. unequip board skin). */
+export function clearCosmeticSlot(state: PlayerState, cosmeticType: CosmeticType): PlayerState {
+  const cur = state.cosmeticsEquipped || {};
+  const next = {
+    boardSkinId: cur.boardSkinId ?? null,
+    cardFrameId: cur.cardFrameId ?? null,
+    cardBackId: cur.cardBackId ?? null,
+    borderId: cur.borderId ?? null,
+    titleId: cur.titleId ?? null,
+    emoteId: cur.emoteId ?? null,
+  };
+  switch (cosmeticType) {
+    case "board_skin":
+      next.boardSkinId = null;
+      break;
+    case "card_frame":
+      next.cardFrameId = null;
+      break;
+    case "card_back":
+      next.cardBackId = null;
+      break;
+    case "border":
+      next.borderId = null;
+      break;
+    case "title":
+      next.titleId = null;
+      break;
+    case "emote":
+      next.emoteId = null;
+      break;
+  }
+  return { ...state, cosmeticsEquipped: next };
 }
 

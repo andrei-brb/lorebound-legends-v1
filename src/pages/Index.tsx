@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { BookOpen, Layers, Swords, Coins, Sparkles as SparklesIcon, Grid3X3, Loader2, ScrollText, Hammer, Trophy, ArrowLeftRight, BarChart3, Calendar, Zap, Crown, Shield, Mail, User, Gift, Users, MessageCircle, Eye, Flag } from "lucide-react";
+import { BookOpen, Layers, Swords, Coins, Sparkles as SparklesIcon, Grid3X3, Loader2, ScrollText, Hammer, Trophy, ArrowLeftRight, BarChart3, Calendar, Zap, Crown, Shield, Mail, User, Gift, Users, MessageCircle, Eye, Flag, Palette } from "lucide-react";
 import TabTransition from "@/components/TabTransition";
 import TutorialOverlay from "@/components/TutorialOverlay";
 import CollectionView from "@/components/CollectionView";
+import CosmeticsView from "@/components/CosmeticsView";
 import DeckBuilder from "@/components/DeckBuilder";
 import BattleArena from "@/components/BattleArena";
 import PackShop from "@/components/PackShop";
@@ -36,7 +37,7 @@ import { toast } from "@/hooks/use-toast";
 import { api } from "@/lib/apiClient";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 
-type Tab = "collection" | "catalog" | "deck" | "battle" | "pvp" | "summon" | "quests" | "workshop" | "achievements" | "leaderboard" | "trade" | "mail" | "events" | "tournament" | "boost" | "pass" | "profile" | "daily" | "friends" | "chat" | "guild" | "spectate";
+type Tab = "collection" | "cosmetics" | "catalog" | "deck" | "battle" | "pvp" | "summon" | "quests" | "workshop" | "achievements" | "leaderboard" | "trade" | "mail" | "events" | "tournament" | "boost" | "pass" | "profile" | "daily" | "friends" | "chat" | "guild" | "spectate";
 type Category = "cards" | "combat" | "progress" | "social" | "community" | "you";
 
 const categories: { id: Category; label: string; icon: React.ReactNode; tabs: { id: Tab; label: string; icon: React.ReactNode }[] }[] = [
@@ -44,6 +45,7 @@ const categories: { id: Category; label: string; icon: React.ReactNode; tabs: { 
     id: "cards", label: "Cards", icon: <BookOpen className="w-4 h-4" />,
     tabs: [
       { id: "collection", label: "Collection", icon: <BookOpen className="w-4 h-4" /> },
+      { id: "cosmetics", label: "Cosmetics", icon: <Palette className="w-4 h-4" /> },
       { id: "catalog", label: "Catalog", icon: <Grid3X3 className="w-4 h-4" /> },
       { id: "summon", label: "Summon", icon: <SparklesIcon className="w-4 h-4" /> },
       { id: "deck", label: "Deck", icon: <Layers className="w-4 h-4" /> },
@@ -487,6 +489,15 @@ export default function Index() {
                   <p className="text-sm text-muted-foreground mt-1">Click any card to flip and reveal its lore & synergies</p>
                 </div>
                 <CollectionView playerState={playerState} onStateChange={setPlayerState} />
+              </div>
+            )}
+            {activeTab === "cosmetics" && (
+              <div>
+                <div className="mb-6">
+                  <h2 className="font-heading text-2xl font-bold text-foreground">Cosmetics</h2>
+                  <p className="text-sm text-muted-foreground mt-1">Equip board skins, card frames, backs, borders, titles, and emotes you have unlocked</p>
+                </div>
+                <CosmeticsView playerState={playerState} onStateChange={setPlayerState} />
               </div>
             )}
             {activeTab === "catalog" && <CardCatalog playerState={playerState} />}

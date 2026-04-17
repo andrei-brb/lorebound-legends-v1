@@ -10,6 +10,11 @@ export const TUTORIALS: Record<string, TutorialStep[]> = {
     { icon: "🔄", title: "Flip for details", body: "Click any card to flip it and read its lore, abilities, and synergies." },
     { icon: "⭐", title: "Stars matter", body: "Duplicate pulls grant stars and Stardust. Stars boost a card's stats permanently." },
   ],
+  cosmetics: [
+    { icon: "🎨", title: "Cosmetics locker", body: "Everything you unlock from the Battle Pass and seasons appears here when you own it." },
+    { icon: "✨", title: "Equip per slot", body: "Pick one item per category — board skin, frame, card back, border, title, and emote." },
+    { icon: "🃏", title: "See it in battle", body: "Frames and backs show on cards in your collection and in matches. Board skins appear on the battle board." },
+  ],
   catalog: [
     { icon: "🗺️", title: "Card Catalog", body: "The complete index of every card in the game — owned and unowned." },
     { icon: "🔍", title: "Plan your hunt", body: "Use this to spot which Legendaries you're missing before opening a pack." },
