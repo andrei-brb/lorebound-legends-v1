@@ -238,6 +238,21 @@ export function loadPlayerState(): PlayerState {
   return createDefaultState();
 }
 
+/**
+ * Level-1 free track historically omitted `cosmeticId` for Mossy Hearth, so claims did not add to
+ * cosmeticsOwned. If any season shows level 1 claimed, grant the ID once.
+ */
+function backfillMossyHearthCosmetic(state: PlayerState): PlayerState {
+  const id = "board_mossy_hearth";
+  const owned = state.cosmeticsOwned || [];
+  if (owned.includes(id)) return state;
+  const seasons = state.battlePass?.seasons;
+  if (!seasons) return state;
+  const claimedL1Free = Object.values(seasons).some((sp) => Array.isArray(sp?.claimedFreeLevels) && sp.claimedFreeLevels.includes(1));
+  if (!claimedL1Free) return state;
+  return { ...state, cosmeticsOwned: [...owned, id] };
+}
+
 function normalizeCardProgress(raw: unknown): CardProgress {
   if (!raw || typeof raw !== "object") return { level: 1, xp: 0, prestigeLevel: 0, starProgress: getDefaultStarProgress() };
   const r = raw as Record<string, unknown>;
@@ -289,7 +304,7 @@ export function normalizePlayerState(state: PlayerState): PlayerState {
   }
 
   const lfpt = state.lastFreePackTime;
-  return {
+  const normalized: PlayerState = {
     ...state,
     gold: Number(state.gold) || 0,
     stardust: Number(state.stardust) || 0,
@@ -318,6 +333,7 @@ export function normalizePlayerState(state: PlayerState): PlayerState {
     settings: normalizeSettings(state.settings),
     tutorialsCompleted: Array.isArray(state.tutorialsCompleted) ? state.tutorialsCompleted : [],
   };
+  return backfillMossyHearthCosmetic(normalized);
 }
 
 export function savePlayerState(state: PlayerState): void {

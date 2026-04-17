@@ -95,7 +95,12 @@ export interface BattlePassSeasonDefinition {
 /** Filler rows between milestones — same economy as Season of the Bloom (repeatable per season). */
 const FILL = {
   1: {
-    free: { kind: "board_skin" as const, label: "Mossy Hearth", image: boardMossyHearth },
+    free: {
+      kind: "board_skin" as const,
+      label: "Mossy Hearth",
+      image: boardMossyHearth,
+      cosmeticId: "board_mossy_hearth",
+    },
     elite: { kind: "gold" as const, label: "400 Gold", amount: 400 },
   },
   2: {
