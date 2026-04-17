@@ -26,6 +26,8 @@ import InboxPanel from "@/components/InboxPanel";
 import ProfilePage from "@/components/ProfilePage";
 import DailyHub from "@/components/DailyHub";
 import SettingsPanel from "@/components/SettingsPanel";
+import ChatScene from "@/components/ChatScene";
+import TradeScene from "@/components/TradeScene";
 import { cn } from "@/lib/utils";
 import { usePlayerApi } from "@/lib/usePlayerApi";
 import { loadAchievementState, checkNewAchievements, saveAchievementState } from "@/lib/achievementEngine";
@@ -34,7 +36,7 @@ import { api } from "@/lib/apiClient";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { setSfxVolume } from "@/lib/sfx";
 
-type Tab = "collection" | "catalog" | "deck" | "battle" | "pvp" | "summon" | "quests" | "workshop" | "achievements" | "leaderboard" | "trade" | "mail" | "events" | "tournament" | "boost" | "pass" | "profile" | "daily" | "friends" | "chat" | "guild" | "spectate";
+type Tab = "collection" | "catalog" | "deck" | "battle" | "pvp" | "summon" | "quests" | "workshop" | "achievements" | "leaderboard" | "trade" | "trade-new" | "mail" | "events" | "tournament" | "boost" | "pass" | "profile" | "daily" | "friends" | "chat" | "chat-new" | "guild" | "spectate";
 type Category = "cards" | "combat" | "progress" | "social" | "community" | "you";
 
 const categories: { id: Category; label: string; icon: React.ReactNode; tabs: { id: Tab; label: string; icon: React.ReactNode }[] }[] = [
@@ -70,6 +72,7 @@ const categories: { id: Category; label: string; icon: React.ReactNode; tabs: { 
     id: "social", label: "Social", icon: <ArrowLeftRight className="w-4 h-4" />,
     tabs: [
       { id: "trade", label: "Trade", icon: <ArrowLeftRight className="w-4 h-4" /> },
+      { id: "trade-new", label: "Bazaar ✨", icon: <SparklesIcon className="w-4 h-4" /> },
       { id: "mail", label: "Mail", icon: <Mail className="w-4 h-4" /> },
       { id: "leaderboard", label: "Ranks", icon: <BarChart3 className="w-4 h-4" /> },
     ],
@@ -79,6 +82,7 @@ const categories: { id: Category; label: string; icon: React.ReactNode; tabs: { 
     tabs: [
       { id: "friends", label: "Friends", icon: <Users className="w-4 h-4" /> },
       { id: "chat", label: "Chat", icon: <MessageCircle className="w-4 h-4" /> },
+      { id: "chat-new", label: "Hearth ✨", icon: <SparklesIcon className="w-4 h-4" /> },
       { id: "guild", label: "Guild", icon: <Flag className="w-4 h-4" /> },
       { id: "spectate", label: "Spectate", icon: <Eye className="w-4 h-4" /> },
     ],
@@ -310,6 +314,8 @@ export default function Index() {
             {activeTab === "chat" && <ChatPanel isOnline={isOnline} />}
             {activeTab === "guild" && <GuildPanel isOnline={isOnline} />}
             {activeTab === "spectate" && <SpectatePanel isOnline={isOnline} />}
+            {activeTab === "chat-new" && <ChatScene isOnline={isOnline} playerState={playerState} />}
+            {activeTab === "trade-new" && <TradeScene playerState={playerState} onStateChange={setPlayerState} />}
             {activeTab === "battle" && battleDeckIds.length === 0 && (
               <div className="text-center py-20">
                 <Swords className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
