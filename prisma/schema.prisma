@@ -74,6 +74,8 @@ model Player {
   cosmeticsEquipped          Json?
   battlePassXpBoostExpiresAt DateTime?
   deckPresets                Json?
+  lastSeenAt                 DateTime?
+  guildId                    Int?
   createdAt                  DateTime             @default(now())
   updatedAt                  DateTime             @updatedAt
   cards                      CardProgress[]
@@ -89,6 +91,12 @@ model Player {
   pvpMatchesAsA              PvPMatch[]           @relation("PvPMatchPlayerA")
   pvpMatchesAsB              PvPMatch[]           @relation("PvPMatchPlayerB")
   notifications              Notification[]
+  guild                      Guild?               @relation("GuildMembers", fields: [guildId], references: [id], onDelete: SetNull)
+  guildOwned                 Guild[]              @relation("GuildOwner")
+  chatMessages               ChatMessage[]
+
+  @@index([guildId])
+  @@index([lastSeenAt])
 }
 
 model CardProgress {
@@ -297,4 +305,40 @@ model Notification {
   @@index([type])
   @@index([createdAt])
   @@index([readAt])
+}
+
+model Guild {
+  id                 Int      @id @default(autoincrement())
+  name               String   @unique
+  tag                String   @unique
+  description        String?
+  ownerPlayerId      Int
+  memberCount        Int      @default(1)
+  weeklyGoalKey      String   @default("wins")
+  weeklyGoalTarget   Int      @default(50)
+  weeklyGoalProgress Int      @default(0)
+  weeklyResetAt      DateTime @default(now())
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  owner   Player   @relation("GuildOwner", fields: [ownerPlayerId], references: [id], onDelete: Cascade)
+  members Player[] @relation("GuildMembers")
+
+  @@index([ownerPlayerId])
+  @@index([createdAt])
+}
+
+model ChatMessage {
+  id        Int      @id @default(autoincrement())
+  channel   String // 'global' or 'guild:<id>'
+  playerId  Int
+  username  String
+  avatar    String?
+  body      String
+  createdAt DateTime @default(now())
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@index([channel, createdAt])
+  @@index([playerId])
 }
