@@ -114,6 +114,44 @@ function normalizeCosmeticsEquipped(eq: CosmeticsEquipped | undefined): Cosmetic
   };
 }
 
+function getDefaultProfile(): PlayerProfile {
+  return { avatarId: "default", titleId: null, bannerId: null };
+}
+
+function getDefaultDailyLogin(): DailyLoginState {
+  return { streak: 0, lastClaimDate: null, claimedDays: [] };
+}
+
+function getDefaultSettings(): AppSettings {
+  return { musicVol: 0.7, sfxVol: 0.8, reduceMotion: false, animationsOn: true };
+}
+
+function normalizeProfile(p: PlayerProfile | undefined): PlayerProfile {
+  return {
+    avatarId: p?.avatarId || "default",
+    titleId: p?.titleId ?? null,
+    bannerId: p?.bannerId ?? null,
+  };
+}
+
+function normalizeDailyLogin(d: DailyLoginState | undefined): DailyLoginState {
+  return {
+    streak: Number(d?.streak) || 0,
+    lastClaimDate: d?.lastClaimDate ?? null,
+    claimedDays: Array.isArray(d?.claimedDays) ? d!.claimedDays.map((n) => Number(n)).filter((n) => n >= 1 && n <= 7) : [],
+  };
+}
+
+function normalizeSettings(s: AppSettings | undefined): AppSettings {
+  const def = getDefaultSettings();
+  return {
+    musicVol: typeof s?.musicVol === "number" ? Math.max(0, Math.min(1, s.musicVol)) : def.musicVol,
+    sfxVol: typeof s?.sfxVol === "number" ? Math.max(0, Math.min(1, s.sfxVol)) : def.sfxVol,
+    reduceMotion: !!s?.reduceMotion,
+    animationsOn: s?.animationsOn !== false,
+  };
+}
+
 function createDefaultState(): PlayerState {
   return {
     gold: 500,
@@ -130,6 +168,15 @@ function createDefaultState(): PlayerState {
     cosmeticsEquipped: normalizeCosmeticsEquipped(undefined),
     battlePassXpBoostExpiresAt: null,
     deckPresets: [],
+    profile: getDefaultProfile(),
+    unlockedAvatars: ["default"],
+    unlockedTitles: [],
+    dailyLogin: getDefaultDailyLogin(),
+    lastChestClaimAt: null,
+    firstWinDate: null,
+    mysteryBoxesPending: 0,
+    settings: getDefaultSettings(),
+    tutorialsCompleted: [],
   };
 }
 
@@ -202,6 +249,17 @@ export function normalizePlayerState(state: PlayerState): PlayerState {
     cosmeticsEquipped: normalizeCosmeticsEquipped(state.cosmeticsEquipped),
     battlePassXpBoostExpiresAt: state.battlePassXpBoostExpiresAt ?? null,
     deckPresets: Array.isArray(state.deckPresets) ? state.deckPresets : [],
+    profile: normalizeProfile(state.profile),
+    unlockedAvatars: Array.isArray(state.unlockedAvatars) && state.unlockedAvatars.length > 0
+      ? Array.from(new Set([...state.unlockedAvatars, "default"]))
+      : ["default"],
+    unlockedTitles: Array.isArray(state.unlockedTitles) ? state.unlockedTitles : [],
+    dailyLogin: normalizeDailyLogin(state.dailyLogin),
+    lastChestClaimAt: typeof state.lastChestClaimAt === "number" ? state.lastChestClaimAt : null,
+    firstWinDate: state.firstWinDate ?? null,
+    mysteryBoxesPending: Number(state.mysteryBoxesPending) || 0,
+    settings: normalizeSettings(state.settings),
+    tutorialsCompleted: Array.isArray(state.tutorialsCompleted) ? state.tutorialsCompleted : [],
   };
 }
 
