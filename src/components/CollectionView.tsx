@@ -38,6 +38,11 @@ interface CollectionViewProps {
   synergyPickOnly?: boolean;
   /** Partner card ids that would activate at least one synergy with deckCardIds (typically not already in the deck). */
   synergyPartnerIds?: string[];
+  /** When false, lore arc chips are hidden (e.g. deck builder renders them in the top filter bar). */
+  showLoreArcFilters?: boolean;
+  /** Controlled lore arc filter (use with onArcFilterChange). */
+  arcFilter?: string | null;
+  onArcFilterChange?: (arc: string | null) => void;
 }
 
 const rarityRank: Record<Rarity, number> = { common: 1, rare: 2, legendary: 3 };
@@ -173,11 +178,17 @@ export default function CollectionView({
   highlightCardIds = [],
   synergyPickOnly = false,
   synergyPartnerIds = [],
+  showLoreArcFilters = true,
+  arcFilter: arcFilterProp,
+  onArcFilterChange,
 }: CollectionViewProps) {
   const highlightSet = useMemo(() => new Set(highlightCardIds), [highlightCardIds]);
   const synergyPartnerIdSet = useMemo(() => new Set(synergyPartnerIds), [synergyPartnerIds]);
   const ownedIds = playerState?.ownedCardIds || allGameCards.map(c => c.id);
-  const [arcFilter, setArcFilter] = useState<string | null>(null);
+  const [internalArc, setInternalArc] = useState<string | null>(null);
+  const arcControlled = onArcFilterChange !== undefined;
+  const arcFilter = arcControlled ? (arcFilterProp ?? null) : internalArc;
+  const setArcFilter = arcControlled ? onArcFilterChange! : setInternalArc;
 
   const q = (searchQuery || "").trim();
   const discoveryActive =
@@ -221,29 +232,30 @@ export default function CollectionView({
 
   return (
     <div className="space-y-8">
-      {/* Lore Arcs - clickable */}
-      <div className="flex flex-wrap gap-2">
-        {loreArcs.map((arc) => (
-          <button
-            key={arc.id}
-            onClick={() => setArcFilter(arcFilter === arc.id ? null : arc.id)}
-            className={cn(
-              "px-3 py-1.5 rounded-full border text-xs font-heading transition-colors",
-              arcFilter === arc.id
-                ? "bg-primary text-primary-foreground border-primary"
-                : "bg-secondary border-border text-secondary-foreground hover:bg-secondary/80"
-            )}
-          >
-            {arc.name}
-            <span className="ml-1.5 text-muted-foreground">({arc.cardIds.length})</span>
-          </button>
-        ))}
-        {arcFilter && (
-          <button onClick={() => setArcFilter(null)} className="px-3 py-1.5 rounded-full border border-input text-xs text-muted-foreground hover:text-foreground">
-            Clear arc
-          </button>
-        )}
-      </div>
+      {showLoreArcFilters && (
+        <div className="flex flex-wrap gap-2">
+          {loreArcs.map((arc) => (
+            <button
+              key={arc.id}
+              onClick={() => setArcFilter(arcFilter === arc.id ? null : arc.id)}
+              className={cn(
+                "px-3 py-1.5 rounded-full border text-xs font-heading transition-colors",
+                arcFilter === arc.id
+                  ? "bg-primary text-primary-foreground border-primary"
+                  : "bg-secondary border-border text-secondary-foreground hover:bg-secondary/80"
+              )}
+            >
+              {arc.name}
+              <span className="ml-1.5 text-muted-foreground">({arc.cardIds.length})</span>
+            </button>
+          ))}
+          {arcFilter && (
+            <button onClick={() => setArcFilter(null)} className="px-3 py-1.5 rounded-full border border-input text-xs text-muted-foreground hover:text-foreground">
+              Clear arc
+            </button>
+          )}
+        </div>
+      )}
 
       {discoveryActive ? (
         <div className="animate-fade-in">

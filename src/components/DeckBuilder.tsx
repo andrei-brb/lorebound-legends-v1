@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
-import { allGameCards } from "@/data/cardIndex";
+import { allGameCards, loreArcs } from "@/data/cardIndex";
 import CollectionView from "./CollectionView";
 import {
   X, Swords, Layers, Shield, Zap, Flame, Plus, ChevronRight,
@@ -147,6 +147,7 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
   const [elementFilter, setElementFilter] = useState<"all" | "fire" | "water" | "earth" | "air" | "shadow" | "light" | "neutral">("all");
   const [sortBy, setSortBy] = useState<SortBy>("rarity_desc");
   const [synergyPickOnly, setSynergyPickOnly] = useState(false);
+  const [arcFilter, setArcFilter] = useState<string | null>(null);
 
   const presets = playerState.deckPresets || [];
   const deckCards = deckIds.map(id => allGameCards.find(c => c.id === id)!).filter(Boolean);
@@ -236,6 +237,7 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
     setDeckIds([...preset.cardIds]);
     setDeckName(preset.name);
     setSynergyPickOnly(false);
+    setArcFilter(null);
     setStep("pick");
   };
 
@@ -244,6 +246,7 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
     setDeckIds([]);
     setDeckName("");
     setSynergyPickOnly(false);
+    setArcFilter(null);
     setStep("pick");
   };
 
@@ -416,6 +419,7 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
             setDeckIds([]);
             setEditingPresetId(null);
             setSynergyPickOnly(false);
+            setArcFilter(null);
           }}
           className="text-muted-foreground hover:text-foreground transition-colors"
         >
@@ -425,6 +429,109 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
           {editingPresetId ? `Editing: ${deckName}` : "Build Your Deck"}
         </h2>
         <Badge variant="secondary" className="ml-auto font-heading">{deckIds.length}/{MAX_DECK_SIZE}</Badge>
+      </div>
+
+      {/* Search, sort & categories */}
+      <div className="rounded-xl border border-border bg-card/40 p-3 space-y-3">
+        <p className="text-[10px] font-heading font-bold uppercase tracking-wider text-muted-foreground">Filters</p>
+        <div className="grid grid-cols-1 md:grid-cols-[1fr_200px] gap-2">
+          <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search cards…" />
+          <Select value={sortBy} onValueChange={v => setSortBy(v as SortBy)}>
+            <SelectTrigger><SelectValue placeholder="Sort" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="rarity_desc">Rarity (high → low)</SelectItem>
+              <SelectItem value="rarity_asc">Rarity (low → high)</SelectItem>
+              <SelectItem value="name_asc">Name (A → Z)</SelectItem>
+              <SelectItem value="name_desc">Name (Z → A)</SelectItem>
+              <SelectItem value="level_desc">Level (high → low)</SelectItem>
+              <SelectItem value="attack_desc">Attack (high → low)</SelectItem>
+              <SelectItem value="defense_desc">Defense (high → low)</SelectItem>
+              <SelectItem value="hp_desc">HP (high → low)</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={typeFilter} onValueChange={v => setTypeFilter(v as typeof typeFilter)}>
+            <SelectTrigger className="h-9 w-[130px]"><SelectValue placeholder="All types" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All types</SelectItem>
+              <SelectItem value="hero">Hero</SelectItem>
+              <SelectItem value="god">God</SelectItem>
+              <SelectItem value="weapon">Weapon</SelectItem>
+              <SelectItem value="spell">Spell</SelectItem>
+              <SelectItem value="trap">Trap</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={rarityFilter} onValueChange={v => setRarityFilter(v as typeof rarityFilter)}>
+            <SelectTrigger className="h-9 w-[140px]"><SelectValue placeholder="All rarities" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All rarities</SelectItem>
+              <SelectItem value="legendary">Legendary</SelectItem>
+              <SelectItem value="rare">Rare</SelectItem>
+              <SelectItem value="common">Common</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select value={elementFilter} onValueChange={v => setElementFilter(v as typeof elementFilter)}>
+            <SelectTrigger className="h-9 w-[140px]"><SelectValue placeholder="All elements" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All elements</SelectItem>
+              <SelectItem value="fire">Fire</SelectItem>
+              <SelectItem value="water">Water</SelectItem>
+              <SelectItem value="earth">Earth</SelectItem>
+              <SelectItem value="air">Air</SelectItem>
+              <SelectItem value="shadow">Shadow</SelectItem>
+              <SelectItem value="light">Light</SelectItem>
+              <SelectItem value="neutral">Neutral</SelectItem>
+            </SelectContent>
+          </Select>
+          <div className="flex items-center gap-2 w-full sm:w-auto sm:pl-2 border-t sm:border-t-0 border-border pt-2 sm:pt-0">
+            <Checkbox
+              id="deck-synergy-pick-only"
+              checked={synergyPickOnly}
+              disabled={synergyPartners.size === 0}
+              onCheckedChange={(v) => setSynergyPickOnly(v === true)}
+            />
+            <Label
+              htmlFor="deck-synergy-pick-only"
+              className={cn(
+                "text-xs font-medium leading-none cursor-pointer select-none",
+                synergyPartners.size === 0 ? "text-muted-foreground/50" : "text-foreground",
+              )}
+            >
+              Synergy picks only
+            </Label>
+          </div>
+        </div>
+        <div className="pt-1 border-t border-border/60">
+          <p className="text-[10px] font-heading font-bold uppercase tracking-wider text-muted-foreground mb-2">Lore arcs</p>
+          <div className="flex flex-wrap gap-2">
+            {loreArcs.map((arc) => (
+              <button
+                key={arc.id}
+                type="button"
+                onClick={() => setArcFilter(arcFilter === arc.id ? null : arc.id)}
+                className={cn(
+                  "px-3 py-1.5 rounded-full border text-xs font-heading transition-colors",
+                  arcFilter === arc.id
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-secondary border-border text-secondary-foreground hover:bg-secondary/80"
+                )}
+              >
+                {arc.name}
+                <span className="ml-1.5 text-muted-foreground">({arc.cardIds.length})</span>
+              </button>
+            ))}
+            {arcFilter && (
+              <button
+                type="button"
+                onClick={() => setArcFilter(null)}
+                className="px-3 py-1.5 rounded-full border border-input text-xs text-muted-foreground hover:text-foreground"
+              >
+                Clear arc
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* ── Live Deck Tray ── */}
@@ -556,6 +663,7 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
           <ul className="space-y-2">
             {incompleteSynergyHints.map((h) => {
               const ownedPartner = playerState.ownedCardIds.includes(h.partnerId);
+              const canQuickAdd = ownedPartner && deckIds.length < MAX_DECK_SIZE;
               return (
                 <li
                   key={`${h.synergyName}::${h.partnerId}`}
@@ -574,9 +682,23 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
                       </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2 shrink-0">
-                      <Badge variant={ownedPartner ? "default" : "secondary"} className="text-[10px]">
-                        {ownedPartner ? "Owned" : "Not owned"}
-                      </Badge>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <Badge variant={ownedPartner ? "default" : "secondary"} className="text-[10px]">
+                          {ownedPartner ? "Owned" : "Not owned"}
+                        </Badge>
+                        {ownedPartner && (
+                          <Button
+                            type="button"
+                            size="sm"
+                            className="h-7 text-[10px] px-2 gap-0.5"
+                            disabled={!canQuickAdd}
+                            title={!canQuickAdd ? "Deck is full" : `Add ${h.partnerName} to deck`}
+                            onClick={() => toggleCard(h.partnerId)}
+                          >
+                            <Plus className="w-3 h-3" /> Add
+                          </Button>
+                        )}
+                      </div>
                       <Button
                         type="button"
                         variant="outline"
@@ -609,92 +731,26 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
         </div>
       )}
 
-      {/* Filters */}
+      {/* Collection */}
       <div className="space-y-3">
-        <div className="grid grid-cols-1 md:grid-cols-[1fr_200px] gap-2">
-          <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search cards…" />
-          <Select value={sortBy} onValueChange={v => setSortBy(v as SortBy)}>
-            <SelectTrigger><SelectValue placeholder="Sort" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="rarity_desc">Rarity (high → low)</SelectItem>
-              <SelectItem value="rarity_asc">Rarity (low → high)</SelectItem>
-              <SelectItem value="name_asc">Name (A → Z)</SelectItem>
-              <SelectItem value="name_desc">Name (Z → A)</SelectItem>
-              <SelectItem value="level_desc">Level (high → low)</SelectItem>
-              <SelectItem value="attack_desc">Attack (high → low)</SelectItem>
-              <SelectItem value="defense_desc">Defense (high → low)</SelectItem>
-              <SelectItem value="hp_desc">HP (high → low)</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Select value={typeFilter} onValueChange={v => setTypeFilter(v as typeof typeFilter)}>
-            <SelectTrigger className="h-9 w-[130px]"><SelectValue placeholder="All types" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All types</SelectItem>
-              <SelectItem value="hero">Hero</SelectItem>
-              <SelectItem value="god">God</SelectItem>
-              <SelectItem value="weapon">Weapon</SelectItem>
-              <SelectItem value="spell">Spell</SelectItem>
-              <SelectItem value="trap">Trap</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={rarityFilter} onValueChange={v => setRarityFilter(v as typeof rarityFilter)}>
-            <SelectTrigger className="h-9 w-[140px]"><SelectValue placeholder="All rarities" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All rarities</SelectItem>
-              <SelectItem value="legendary">Legendary</SelectItem>
-              <SelectItem value="rare">Rare</SelectItem>
-              <SelectItem value="common">Common</SelectItem>
-            </SelectContent>
-          </Select>
-          <Select value={elementFilter} onValueChange={v => setElementFilter(v as typeof elementFilter)}>
-            <SelectTrigger className="h-9 w-[140px]"><SelectValue placeholder="All elements" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All elements</SelectItem>
-              <SelectItem value="fire">Fire</SelectItem>
-              <SelectItem value="water">Water</SelectItem>
-              <SelectItem value="earth">Earth</SelectItem>
-              <SelectItem value="air">Air</SelectItem>
-              <SelectItem value="shadow">Shadow</SelectItem>
-              <SelectItem value="light">Light</SelectItem>
-              <SelectItem value="neutral">Neutral</SelectItem>
-            </SelectContent>
-          </Select>
-          <div className="flex items-center gap-2 w-full sm:w-auto sm:pl-2 border-t sm:border-t-0 border-border pt-2 sm:pt-0">
-            <Checkbox
-              id="deck-synergy-pick-only"
-              checked={synergyPickOnly}
-              disabled={synergyPartners.size === 0}
-              onCheckedChange={(v) => setSynergyPickOnly(v === true)}
-            />
-            <Label
-              htmlFor="deck-synergy-pick-only"
-              className={cn(
-                "text-xs font-medium leading-none cursor-pointer select-none",
-                synergyPartners.size === 0 ? "text-muted-foreground/50" : "text-foreground",
-              )}
-            >
-              Synergy picks only
-            </Label>
-          </div>
-        </div>
+        <h3 className="font-heading text-sm font-bold uppercase tracking-wider text-muted-foreground">Collection</h3>
+        <CollectionView
+          onAddToDeck={toggleCard}
+          deckCardIds={deckIds}
+          playerState={playerState}
+          searchQuery={search}
+          typeFilter={typeFilter}
+          rarityFilter={rarityFilter}
+          elementFilter={elementFilter}
+          sortBy={sortBy}
+          highlightCardIds={Array.from(synergyPartners)}
+          synergyPickOnly={synergyPickOnly}
+          synergyPartnerIds={Array.from(synergyPartners)}
+          showLoreArcFilters={false}
+          arcFilter={arcFilter}
+          onArcFilterChange={setArcFilter}
+        />
       </div>
-
-      {/* Card grid */}
-      <CollectionView
-        onAddToDeck={toggleCard}
-        deckCardIds={deckIds}
-        playerState={playerState}
-        searchQuery={search}
-        typeFilter={typeFilter}
-        rarityFilter={rarityFilter}
-        elementFilter={elementFilter}
-        sortBy={sortBy}
-        highlightCardIds={Array.from(synergyPartners)}
-        synergyPickOnly={synergyPickOnly}
-        synergyPartnerIds={Array.from(synergyPartners)}
-      />
     </div>
   );
 
