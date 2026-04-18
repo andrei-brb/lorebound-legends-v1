@@ -34,20 +34,50 @@ interface CollectionViewProps {
   inDeckOnly?: boolean;
   sortBy?: "rarity_desc" | "rarity_asc" | "name_asc" | "name_desc" | "attack_desc" | "defense_desc" | "hp_desc" | "level_desc";
   highlightCardIds?: string[];
+  /** When true, only show owned cards whose id completes a pair synergy with the current deck (see synergyPartnerIds). */
+  synergyPickOnly?: boolean;
+  /** Partner card ids that would activate at least one synergy with deckCardIds (typically not already in the deck). */
+  synergyPartnerIds?: string[];
 }
 
 const rarityRank: Record<Rarity, number> = { common: 1, rare: 2, legendary: 3 };
 
 function applyDiscovery({
-  cards, ownedIds, deckCardIds, playerState, searchQuery, typeFilter, rarityFilter, elementFilter, inDeckOnly, sortBy,
+  cards,
+  ownedIds,
+  deckCardIds,
+  playerState,
+  searchQuery,
+  typeFilter,
+  rarityFilter,
+  elementFilter,
+  inDeckOnly,
+  sortBy,
+  synergyPickOnly,
+  synergyPartnerIdSet,
 }: {
-  cards: GameCardType[]; ownedIds: string[]; deckCardIds: string[]; playerState?: PlayerState;
-  searchQuery?: string; typeFilter?: "all" | CardType; rarityFilter?: "all" | Rarity;
+  cards: GameCardType[];
+  ownedIds: string[];
+  deckCardIds: string[];
+  playerState?: PlayerState;
+  searchQuery?: string;
+  typeFilter?: "all" | CardType;
+  rarityFilter?: "all" | Rarity;
   elementFilter?: "all" | "fire" | "water" | "earth" | "air" | "shadow" | "light" | "neutral";
-  inDeckOnly?: boolean; sortBy?: CollectionViewProps["sortBy"];
+  inDeckOnly?: boolean;
+  sortBy?: CollectionViewProps["sortBy"];
+  synergyPickOnly?: boolean;
+  synergyPartnerIdSet?: Set<string>;
 }): GameCardType[] {
   const q = (searchQuery || "").trim().toLowerCase();
   let out = cards.filter((c) => ownedIds.includes(c.id));
+  if (synergyPickOnly) {
+    if (!synergyPartnerIdSet || synergyPartnerIdSet.size === 0) {
+      out = [];
+    } else {
+      out = out.filter((c) => synergyPartnerIdSet.has(c.id));
+    }
+  }
   if (q) out = out.filter((c) => c.name.toLowerCase().includes(q));
   if (typeFilter && typeFilter !== "all") out = out.filter((c) => c.type === typeFilter);
   if (rarityFilter && rarityFilter !== "all") out = out.filter((c) => c.rarity === rarityFilter);
@@ -130,21 +160,50 @@ function CardGridItem({ card, onAddToDeck, deckCardIds, playerState, onStateChan
 }
 
 export default function CollectionView({
-  onAddToDeck, deckCardIds = [], playerState, onStateChange,
-  searchQuery, typeFilter = "all", rarityFilter = "all", elementFilter = "all", inDeckOnly = false, sortBy = "rarity_desc",
+  onAddToDeck,
+  deckCardIds = [],
+  playerState,
+  onStateChange,
+  searchQuery,
+  typeFilter = "all",
+  rarityFilter = "all",
+  elementFilter = "all",
+  inDeckOnly = false,
+  sortBy = "rarity_desc",
   highlightCardIds = [],
+  synergyPickOnly = false,
+  synergyPartnerIds = [],
 }: CollectionViewProps) {
   const highlightSet = useMemo(() => new Set(highlightCardIds), [highlightCardIds]);
+  const synergyPartnerIdSet = useMemo(() => new Set(synergyPartnerIds), [synergyPartnerIds]);
   const ownedIds = playerState?.ownedCardIds || allGameCards.map(c => c.id);
   const [arcFilter, setArcFilter] = useState<string | null>(null);
 
   const q = (searchQuery || "").trim();
-  const discoveryActive = q.length > 0 || typeFilter !== "all" || rarityFilter !== "all" || elementFilter !== "all" || inDeckOnly || sortBy !== "rarity_desc" || arcFilter !== null;
-  
+  const discoveryActive =
+    q.length > 0 ||
+    typeFilter !== "all" ||
+    rarityFilter !== "all" ||
+    elementFilter !== "all" ||
+    inDeckOnly ||
+    sortBy !== "rarity_desc" ||
+    arcFilter !== null ||
+    synergyPickOnly;
+
   const discoveredCards = discoveryActive
     ? applyDiscovery({
-        cards: arcFilter ? allGameCards.filter(c => c.loreArc === arcFilter) : allGameCards,
-        ownedIds, deckCardIds, playerState, searchQuery, typeFilter, rarityFilter, elementFilter, inDeckOnly, sortBy,
+        cards: arcFilter ? allGameCards.filter((c) => c.loreArc === arcFilter) : allGameCards,
+        ownedIds,
+        deckCardIds,
+        playerState,
+        searchQuery,
+        typeFilter,
+        rarityFilter,
+        elementFilter,
+        inDeckOnly,
+        sortBy,
+        synergyPickOnly,
+        synergyPartnerIdSet,
       })
     : [];
 
@@ -193,7 +252,11 @@ export default function CollectionView({
             <span className="ml-2 text-sm text-muted-foreground font-body">({discoveredCards.length})</span>
           </h2>
           {discoveredCards.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No cards match your filters.</p>
+            <p className="text-sm text-muted-foreground">
+              {synergyPickOnly
+                ? "No owned cards complete a pair synergy with this deck under current filters. Try clearing search or narrowing type/rarity filters."
+                : "No cards match your filters."}
+            </p>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-4 gap-4">
               {discoveredCards.map((card) => (

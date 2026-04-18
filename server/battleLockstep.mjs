@@ -1917,12 +1917,12 @@ var godCards = [
     type: "god",
     rarity: "legendary",
     image: import_moon_goddess.default,
-    attack: 7,
-    defense: 10,
-    hp: 28,
+    attack: 14,
+    defense: 15,
+    hp: 43,
     tags: ["divine", "lunar", "healer"],
     specialAbility: { name: "Moonlight Veil", description: "Heals all allies for 4 HP and grants invisibility for 1 turn.", cost: 5 },
-    passiveAbility: { name: "Moon's Grace", description: "+1 DEF to all healer cards on field", stat: "defense", value: 1, targetTag: "healer" },
+    passiveAbility: { name: "Moon's Grace", description: "+1 DEF to all healer cards on field", stat: "defense", value: 3, targetTag: "healer" },
     lore: "Lunara watches over the night, weaving silver threads of fate. Her tears became the moonstone gems scattered across the realm.",
     synergies: [
       { partnerId: "healer", name: "Blessed Light", description: "Moonlight Veil heals for 8 HP instead of 4.", boostedStat: "defense", boostValue: 4 },
@@ -1939,12 +1939,12 @@ var godCards = [
     type: "god",
     rarity: "legendary",
     image: import_storm_god.default,
-    attack: 11,
-    defense: 9,
-    hp: 30,
+    attack: 17,
+    defense: 13,
+    hp: 47,
     tags: ["divine", "storm", "olympus"],
     specialAbility: { name: "Thunderstrike", description: "Calls lightning on the strongest enemy, dealing 10 damage and stunning for 1 turn.", cost: 5 },
-    passiveAbility: { name: "Storm Aura", description: "+1 ATK to all storm cards on field", stat: "attack", value: 1, targetTag: "storm" },
+    passiveAbility: { name: "Storm Aura", description: "+1 ATK to all storm cards on field", stat: "attack", value: 3, targetTag: "storm" },
     lore: "Volthar rules the skies with an iron fist of lightning. He blessed Tharion's armor centuries ago.",
     synergies: [
       { partnerId: "warrior-king", name: "Divine Mandate", description: "Tharion channels Volthar's storm, gaining lightning damage.", boostedStat: "attack", boostValue: 4 }
@@ -1960,12 +1960,12 @@ var godCards = [
     type: "god",
     rarity: "legendary",
     image: import_pyrothos.default,
-    attack: 12,
-    defense: 7,
-    hp: 26,
+    attack: 18,
+    defense: 12,
+    hp: 40,
     tags: ["divine", "fire", "olympus"],
     specialAbility: { name: "Cataclysm", description: "Engulfs the battlefield in divine fire, dealing 6 damage to all enemies.", cost: 6 },
-    passiveAbility: { name: "Infernal Presence", description: "+1 ATK to all fire cards on field", stat: "attack", value: 1, targetTag: "fire" },
+    passiveAbility: { name: "Infernal Presence", description: "+1 ATK to all fire cards on field", stat: "attack", value: 3, targetTag: "fire" },
     lore: "Born from the first ember of creation, Pyrothos embodies destruction and rebirth. His very presence melts stone.",
     synergies: [
       { partnerId: "pyrra", name: "Flamewarden's Oath", description: "Pyrra gains immunity to fire and +5 attack.", boostedStat: "attack", boostValue: 5 },
@@ -1982,12 +1982,12 @@ var godCards = [
     type: "god",
     rarity: "legendary",
     image: import_thalassia.default,
-    attack: 8,
-    defense: 11,
-    hp: 30,
+    attack: 14,
+    defense: 16,
+    hp: 47,
     tags: ["divine", "water", "olympus"],
     specialAbility: { name: "Tidal Wrath", description: "Summons a massive wave dealing 7 damage and pushing enemies back.", cost: 5 },
-    passiveAbility: { name: "Ocean's Blessing", description: "+1 DEF to all water cards on field", stat: "defense", value: 1, targetTag: "water" },
+    passiveAbility: { name: "Ocean's Blessing", description: "+1 DEF to all water cards on field", stat: "defense", value: 3, targetTag: "water" },
     lore: "Thalassia commands the endless depths. Ships pray to her for safe passage, knowing her fury drowns empires.",
     synergies: [
       { partnerId: "nereus", name: "Ocean's Chosen", description: "Nereus gains +4 defense and water breathing.", boostedStat: "defense", boostValue: 4 },
@@ -2004,12 +2004,12 @@ var godCards = [
     type: "god",
     rarity: "legendary",
     image: import_gaiara.default,
-    attack: 6,
-    defense: 13,
-    hp: 35,
+    attack: 14,
+    defense: 16,
+    hp: 50,
     tags: ["divine", "earth", "nature"],
     specialAbility: { name: "Primordial Growth", description: "Heals all allies for 6 HP and summons vine barriers.", cost: 5 },
-    passiveAbility: { name: "Earth Shield", description: "+1 DEF to all nature cards on field", stat: "defense", value: 1, targetTag: "nature" },
+    passiveAbility: { name: "Earth Shield", description: "+1 DEF to all nature cards on field", stat: "defense", value: 3, targetTag: "nature" },
     lore: "From Gaiara's body grew the first forests. She nurtures all living things, but her wrath shakes continents.",
     synergies: [
       { partnerId: "forest-druid", name: "Mother's Embrace", description: "Oakheart's Nature's Wrath heals allies while damaging foes.", boostedStat: "defense", boostValue: 5 },
@@ -2046,12 +2046,12 @@ var godCards = [
     type: "god",
     rarity: "legendary",
     image: import_nyx.default,
-    attack: 10,
-    defense: 8,
-    hp: 27,
+    attack: 16,
+    defense: 12,
+    hp: 42,
     tags: ["divine", "shadow", "void"],
     specialAbility: { name: "Eternal Night", description: "Blinds all enemies for 2 turns, reducing accuracy by 50%.", cost: 5 },
-    passiveAbility: { name: "Shadow Veil", description: "+1 ATK to all shadow cards on field", stat: "attack", value: 1, targetTag: "shadow" },
+    passiveAbility: { name: "Shadow Veil", description: "+1 ATK to all shadow cards on field", stat: "attack", value: 3, targetTag: "shadow" },
     lore: "Nyx existed before the stars. She is the darkness between worlds, the void that hungers.",
     synergies: [
       { partnerId: "shadow-assassin", name: "Shadow Pact", description: "Vex becomes invisible permanently until attacking.", boostedStat: "attack", boostValue: 5 },
@@ -2068,12 +2068,12 @@ var godCards = [
     type: "god",
     rarity: "legendary",
     image: import_solarius.default,
-    attack: 11,
-    defense: 9,
-    hp: 29,
+    attack: 17,
+    defense: 13,
+    hp: 45,
     tags: ["divine", "light", "olympus"],
     specialAbility: { name: "Solar Flare", description: "Blinds and burns the strongest enemy for 8 damage over 2 turns.", cost: 5 },
-    passiveAbility: { name: "Radiant Aura", description: "+1 ATK to all light cards on field", stat: "attack", value: 1, targetTag: "light" },
+    passiveAbility: { name: "Radiant Aura", description: "+1 ATK to all light cards on field", stat: "attack", value: 3, targetTag: "light" },
     lore: "Solarius rides his golden chariot across the sky. His gaze burns the unworthy and blesses the righteous.",
     synergies: [
       { partnerId: "helios", name: "Sun's Champion", description: "Helios becomes immune to darkness and gains +6 attack.", boostedStat: "attack", boostValue: 6 }
@@ -2089,9 +2089,9 @@ var godCards = [
     type: "god",
     rarity: "legendary",
     image: import_chronos.default,
-    attack: 8,
-    defense: 10,
-    hp: 28,
+    attack: 14,
+    defense: 15,
+    hp: 43,
     tags: ["divine", "arcane", "temporal"],
     specialAbility: { name: "Temporal Rift", description: "Rewinds one ally to their state 2 turns ago, restoring HP and abilities.", cost: 6 },
     lore: "Chronos counts the seconds of every mortal life. Time is his weapon, patience his shield.",
@@ -2131,12 +2131,12 @@ var godCards = [
     type: "god",
     rarity: "legendary",
     image: import_thanatos.default,
-    attack: 10,
-    defense: 9,
-    hp: 28,
+    attack: 16,
+    defense: 13,
+    hp: 43,
     tags: ["divine", "death", "void"],
     specialAbility: { name: "Soul Reap", description: "Instantly kills an enemy below 25% HP. Heals for the damage dealt.", cost: 6 },
-    passiveAbility: { name: "Death's Embrace", description: "+1 ATK to all death cards on field", stat: "attack", value: 1, targetTag: "death" },
+    passiveAbility: { name: "Death's Embrace", description: "+1 ATK to all death cards on field", stat: "attack", value: 3, targetTag: "death" },
     lore: "Thanatos collects souls with patient grace. He is neither cruel nor kind\u2014only inevitable.",
     synergies: [
       { partnerId: "mara", name: "Death's Disciple", description: "Mara can raise fallen enemies as undead allies.", boostedStat: "attack", boostValue: 4 },
@@ -2927,12 +2927,12 @@ var heroCards = [
     type: "hero",
     rarity: "legendary",
     image: import_warrior_king.default,
-    attack: 9,
-    defense: 8,
-    hp: 28,
+    attack: 14,
+    defense: 12,
+    hp: 43,
     tags: ["warrior", "storm"],
     specialAbility: { name: "Royal Command", description: "All allied heroes gain +2 attack for 3 turns.", cost: 4 },
-    passiveAbility: { name: "Commander's Aura", description: "+1 ATK to all warrior cards on field", stat: "attack", value: 1, targetTag: "warrior" },
+    passiveAbility: { name: "Commander's Aura", description: "+1 ATK to all warrior cards on field", stat: "attack", value: 3, targetTag: "warrior" },
     lore: "Once a humble soldier, Tharion rose through the ranks by sheer will. His golden armor was blessed by the Storm God.",
     synergies: [
       { partnerId: "storm-god", name: "Divine Mandate", description: "Royal Command also grants +3 defense and lightning damage.", boostedStat: "defense", boostValue: 3 },
@@ -2949,9 +2949,9 @@ var heroCards = [
     type: "hero",
     rarity: "legendary",
     image: import_fire_dragon.default,
-    attack: 12,
-    defense: 6,
-    hp: 26,
+    attack: 18,
+    defense: 12,
+    hp: 40,
     tags: ["dragon", "fire"],
     specialAbility: { name: "Inferno Breath", description: "Deals 8 fire damage to all enemies. Burns for 2 turns.", cost: 6 },
     lore: "Born in volcanic Mount Ashkaar, Ignathar is the last ancient dragon seeking to protect the balance.",
@@ -4718,9 +4718,9 @@ var weaponCards = [
     type: "weapon",
     rarity: "legendary",
     image: import_dragons_fang.default,
-    attack: 8,
-    defense: 0,
-    hp: 0,
+    attack: 14,
+    defense: 12,
+    hp: 40,
     tags: ["dragon", "fire"],
     weaponBonus: { attack: 8, defense: 0 },
     specialAbility: { name: "Draconic Edge", description: "Adds +8 ATK. Attacks burn for 3 damage per turn.", cost: 0 },
@@ -4808,9 +4808,9 @@ var weaponCards = [
     type: "weapon",
     rarity: "legendary",
     image: import_death_scythe.default,
-    attack: 9,
-    defense: 0,
-    hp: 0,
+    attack: 14,
+    defense: 12,
+    hp: 40,
     tags: ["death", "void"],
     weaponBonus: { attack: 9, defense: 0 },
     specialAbility: { name: "Soul Harvest", description: "Adds +9 ATK. Kills grant +2 permanent ATK.", cost: 0 },
@@ -5078,9 +5078,9 @@ var weaponCards = [
     type: "weapon",
     rarity: "legendary",
     image: import_time_watch.default,
-    attack: 2,
-    defense: 2,
-    hp: 0,
+    attack: 14,
+    defense: 12,
+    hp: 40,
     tags: ["temporal", "arcane"],
     weaponBonus: { attack: 2, defense: 2 },
     specialAbility: { name: "Time Warp", description: "Adds +2 ATK and +2 DEF. Wielder gets 2 actions per turn.", cost: 0 },
@@ -5168,9 +5168,9 @@ var weaponCards = [
     type: "weapon",
     rarity: "legendary",
     image: import_phoenix_plume.default,
-    attack: 4,
-    defense: 4,
-    hp: 0,
+    attack: 14,
+    defense: 12,
+    hp: 40,
     tags: ["fire"],
     weaponBonus: { attack: 4, defense: 4 },
     specialAbility: { name: "Rebirth", description: "Adds +4 ATK and +4 DEF. Wielder revives once with 50% HP.", cost: 0 },
@@ -5748,9 +5748,9 @@ var spellCards = [
     type: "spell",
     rarity: "legendary",
     image: import_void_rift.default,
-    attack: 0,
-    defense: 0,
-    hp: 0,
+    attack: 14,
+    defense: 12,
+    hp: 40,
     tags: ["void", "arcane"],
     spellEffect: { type: "damage", value: 12, target: "single_enemy" },
     specialAbility: { name: "Void Rift", description: "Opens a rift dealing 12 damage to one enemy.", cost: 0 },
@@ -5820,9 +5820,9 @@ var spellCards = [
     type: "spell",
     rarity: "legendary",
     image: import_time_stop.default,
-    attack: 0,
-    defense: 0,
-    hp: 0,
+    attack: 14,
+    defense: 12,
+    hp: 40,
     tags: ["temporal", "arcane"],
     spellEffect: { type: "debuff_attack", value: 99, target: "all_enemies", duration: 1 },
     specialAbility: { name: "Time Stop", description: "Freezes all enemies for 1 turn, preventing all actions.", cost: 0 },
@@ -6129,9 +6129,9 @@ var trapCards = [
     type: "trap",
     rarity: "legendary",
     image: import_void_trap.default,
-    attack: 0,
-    defense: 0,
-    hp: 0,
+    attack: 14,
+    defense: 12,
+    hp: 40,
     tags: ["void"],
     trapEffect: { trigger: "on_attacked", effect: "damage", value: 12 },
     specialAbility: { name: "Void Rift", description: "When attacked, opens a void rift dealing 12 damage to the attacker.", cost: 0 },
@@ -7151,6 +7151,14 @@ function getMilestoneCombatBonuses(level) {
   }
   return { critChance, lifesteal, damageReduction };
 }
+function getStatBonuses(progress) {
+  const levelBonus = progress.level - 1;
+  const prestigeBonus = progress.prestigeLevel * 2;
+  return {
+    attack: levelBonus + prestigeBonus,
+    defense: levelBonus + prestigeBonus
+  };
+}
 
 // src/lib/abilityOverrides.ts
 var ABILITY_OVERRIDES = {
@@ -7591,6 +7599,11 @@ function recalcFieldStats(state) {
       if (passBonus) {
         atk += passBonus.attack;
         def += passBonus.defense;
+      }
+      if (sideKey === "player" && state.playerCardProgress?.[fc.card.id]) {
+        const sb = getStatBonuses(state.playerCardProgress[fc.card.id]);
+        atk += sb.attack;
+        def += sb.defense;
       }
       for (const buff of fc.tempBuffs) {
         if (buff.stat === "attack") atk += buff.value;
@@ -8151,7 +8164,7 @@ function attackTarget(state, attackerFieldIndex, targetFieldIndex) {
   const defenderElement = target.card.element || "neutral";
   const elemMult = getElementMultiplier(attackerElement, defenderElement);
   const elemLabel = getElementAdvantageLabel(attackerElement, defenderElement);
-  const rawDmg = Math.max(1, attacker.attack - Math.floor(target.defense * 0.4));
+  const rawDmg = Math.max(1, attacker.attack - Math.floor(target.defense * 0.25));
   const variance = 0.9 + state.rng() * 0.2;
   let dmg = Math.max(1, Math.round(rawDmg * variance * elemMult));
   if (newState.turn === "player") {

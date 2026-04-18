@@ -17,6 +17,8 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { motion, AnimatePresence } from "framer-motion";
 
 const MAX_DECK_SIZE = 10;
@@ -86,6 +88,38 @@ function getSynergyPartnerIds(deckIds: string[]): Set<string> {
   return partners;
 }
 
+/** Open pair synergies: partner not yet in deck, keyed by synergy name + partner id. */
+function getIncompleteSynergyHints(deckIds: string[]) {
+  const deckSet = new Set(deckIds);
+  const map = new Map<
+    string,
+    { partnerId: string; partnerName: string; synergyName: string; description: string; triggeredBy: string[] }
+  >();
+  for (const did of deckIds) {
+    const card = allGameCards.find((c) => c.id === did);
+    if (!card) continue;
+    for (const syn of card.synergies) {
+      if (!syn.partnerId || deckSet.has(syn.partnerId)) continue;
+      const partner = allGameCards.find((c) => c.id === syn.partnerId);
+      if (!partner) continue;
+      const key = `${syn.name}::${syn.partnerId}`;
+      const existing = map.get(key);
+      if (existing) {
+        if (!existing.triggeredBy.includes(card.name)) existing.triggeredBy.push(card.name);
+      } else {
+        map.set(key, {
+          partnerId: syn.partnerId,
+          partnerName: partner.name,
+          synergyName: syn.name,
+          description: syn.description,
+          triggeredBy: [card.name],
+        });
+      }
+    }
+  }
+  return [...map.values()];
+}
+
 /* ─── Deck Warnings ─── */
 function getDeckWarnings(deckCards: typeof allGameCards): string[] {
   const warnings: string[] = [];
@@ -112,11 +146,13 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
   const [rarityFilter, setRarityFilter] = useState<"all" | "legendary" | "rare" | "common">("all");
   const [elementFilter, setElementFilter] = useState<"all" | "fire" | "water" | "earth" | "air" | "shadow" | "light" | "neutral">("all");
   const [sortBy, setSortBy] = useState<SortBy>("rarity_desc");
+  const [synergyPickOnly, setSynergyPickOnly] = useState(false);
 
   const presets = playerState.deckPresets || [];
   const deckCards = deckIds.map(id => allGameCards.find(c => c.id === id)!).filter(Boolean);
   const synergies = useMemo(() => getActiveSynergies(deckIds), [deckIds]);
   const synergyPartners = useMemo(() => getSynergyPartnerIds(deckIds), [deckIds]);
+  const incompleteSynergyHints = useMemo(() => getIncompleteSynergyHints(deckIds), [deckIds]);
   const strength = getDeckStrength(deckCards);
   const warnings = useMemo(() => getDeckWarnings(deckCards), [deckCards]);
   const sConf = strengthConfig[strength];
@@ -138,6 +174,10 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
       setStep("review");
     }
   }, [deckIds.length, step]);
+
+  useEffect(() => {
+    if (synergyPartners.size === 0 && synergyPickOnly) setSynergyPickOnly(false);
+  }, [synergyPartners.size, synergyPickOnly]);
 
   /** Remove one slot by index (tray order matches deckIds order). */
   const removeCardAtSlot = (index: number) => {
@@ -182,6 +222,7 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
     setDeckIds([]);
     setDeckName("");
     setEditingPresetId(null);
+    setSynergyPickOnly(false);
   };
 
   const deletePreset = (id: string) => {
@@ -194,6 +235,7 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
     setEditingPresetId(preset.id);
     setDeckIds([...preset.cardIds]);
     setDeckName(preset.name);
+    setSynergyPickOnly(false);
     setStep("pick");
   };
 
@@ -201,6 +243,7 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
     setEditingPresetId(null);
     setDeckIds([]);
     setDeckName("");
+    setSynergyPickOnly(false);
     setStep("pick");
   };
 
@@ -366,7 +409,16 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
     <div className="space-y-4">
       {/* Top bar */}
       <div className="flex items-center gap-3">
-        <button onClick={() => { setStep("manage"); setDeckIds([]); setEditingPresetId(null); }} className="text-muted-foreground hover:text-foreground transition-colors">
+        <button
+          type="button"
+          onClick={() => {
+            setStep("manage");
+            setDeckIds([]);
+            setEditingPresetId(null);
+            setSynergyPickOnly(false);
+          }}
+          className="text-muted-foreground hover:text-foreground transition-colors"
+        >
           <ArrowLeft className="w-5 h-5" />
         </button>
         <h2 className="font-heading text-lg font-bold text-foreground">
@@ -480,15 +532,75 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
             </Button>
           )}
           {deckIds.length > 0 && (
-            <Button size="sm" variant="outline" onClick={() => setDeckIds([])}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                setDeckIds([]);
+                setSynergyPickOnly(false);
+              }}
+            >
               Clear All
             </Button>
           )}
         </div>
       </div>
 
-      {/* Synergy hints */}
-      {synergyPartners.size > 0 && deckIds.length > 0 && deckIds.length < MAX_DECK_SIZE && (
+      {/* Synergy helper: explicit missing partners */}
+      {deckIds.length > 0 && deckIds.length < MAX_DECK_SIZE && incompleteSynergyHints.length > 0 && (
+        <div className="rounded-xl border border-synergy/25 bg-synergy/5 p-3 space-y-2">
+          <div className="flex items-center gap-2">
+            <Sparkles className="w-4 h-4 text-synergy shrink-0" />
+            <h3 className="font-heading text-xs font-bold uppercase tracking-wider text-synergy">Add for pair synergies</h3>
+          </div>
+          <ul className="space-y-2">
+            {incompleteSynergyHints.map((h) => {
+              const ownedPartner = playerState.ownedCardIds.includes(h.partnerId);
+              return (
+                <li
+                  key={`${h.synergyName}::${h.partnerId}`}
+                  className="rounded-lg bg-card/80 border border-border/60 px-3 py-2 text-xs"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                    <div className="min-w-0 space-y-0.5">
+                      <p className="text-foreground font-heading font-semibold leading-snug">
+                        Add <span className="text-synergy">{h.partnerName}</span>
+                        <span className="text-muted-foreground font-normal"> · </span>
+                        <span className="text-primary/90">{h.synergyName}</span>
+                      </p>
+                      <p className="text-[11px] text-muted-foreground leading-snug">{h.description}</p>
+                      <p className="text-[10px] text-muted-foreground">
+                        With: {h.triggeredBy.join(", ")}
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2 shrink-0">
+                      <Badge variant={ownedPartner ? "default" : "secondary"} className="text-[10px]">
+                        {ownedPartner ? "Owned" : "Not owned"}
+                      </Badge>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-[10px] px-2"
+                        onClick={() => setSearch(h.partnerName)}
+                      >
+                        Search name
+                      </Button>
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          {synergyPartners.size > 0 && (
+            <p className="text-[10px] text-synergy pt-1 border-t border-synergy/15">
+              Cards with a <span className="font-bold">golden glow</span> in the grid below are synergy partners you can add.
+            </p>
+          )}
+        </div>
+      )}
+
+      {synergyPartners.size > 0 && deckIds.length > 0 && deckIds.length < MAX_DECK_SIZE && incompleteSynergyHints.length === 0 && (
         <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-synergy/10 border border-synergy/20">
           <Sparkles className="w-4 h-4 text-synergy shrink-0" />
           <p className="text-[11px] text-synergy">
@@ -549,6 +661,23 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
               <SelectItem value="neutral">Neutral</SelectItem>
             </SelectContent>
           </Select>
+          <div className="flex items-center gap-2 w-full sm:w-auto sm:pl-2 border-t sm:border-t-0 border-border pt-2 sm:pt-0">
+            <Checkbox
+              id="deck-synergy-pick-only"
+              checked={synergyPickOnly}
+              disabled={synergyPartners.size === 0}
+              onCheckedChange={(v) => setSynergyPickOnly(v === true)}
+            />
+            <Label
+              htmlFor="deck-synergy-pick-only"
+              className={cn(
+                "text-xs font-medium leading-none cursor-pointer select-none",
+                synergyPartners.size === 0 ? "text-muted-foreground/50" : "text-foreground",
+              )}
+            >
+              Synergy picks only
+            </Label>
+          </div>
         </div>
       </div>
 
@@ -563,6 +692,8 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
         elementFilter={elementFilter}
         sortBy={sortBy}
         highlightCardIds={Array.from(synergyPartners)}
+        synergyPickOnly={synergyPickOnly}
+        synergyPartnerIds={Array.from(synergyPartners)}
       />
     </div>
   );
