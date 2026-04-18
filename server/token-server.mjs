@@ -8,7 +8,7 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Prisma } from "@prisma/client";
 import { requireAuth } from "./lib/auth.mjs";
 import { getClientIp, rateLimit } from "./lib/rateLimit.mjs";
 import { attachLiveMatchWebSocket } from "./lib/liveMatchWs.mjs";
@@ -56,6 +56,18 @@ const RATE_LIMIT = {
   },
   api: { max: Math.max(1, Number(process.env.RATE_LIMIT_API_PER_MIN) || 900), windowMs: 60_000 },
 };
+
+const MAX_JSON_BODY_BYTES = Math.min(4 * 1024 * 1024, Math.max(8192, Number(process.env.MAX_JSON_BODY_BYTES) || 524288));
+const MAX_RAW_BODY_BYTES = Math.min(4 * 1024 * 1024, Math.max(8192, Number(process.env.MAX_RAW_BODY_BYTES) || 262144));
+const PVE_BATTLE_DAILY_RESULT_CAP = Math.max(1, Number(process.env.PVE_BATTLE_DAILY_RESULT_CAP) || 50);
+const PVE_SESSION_MAX_AGE_MS = Math.max(5 * 60 * 1000, Number(process.env.PVE_SESSION_MAX_AGE_MS) || 4 * 60 * 60 * 1000);
+const MAX_IMPORT_GOLD = Math.max(1000, Number(process.env.MAX_IMPORT_GOLD) || 100000);
+const MAX_IMPORT_STARDUST = Math.max(0, Number(process.env.MAX_IMPORT_STARDUST) || 50000);
+const MAX_IMPORT_PITY = 10_000;
+const MAX_ADD_XP_PER_CALL = Math.max(50, Number(process.env.MAX_ADD_XP_PER_CALL) || 500);
+const MAX_RANKED_DECK_CARDS = Math.max(10, Number(process.env.MAX_RANKED_DECK_CARDS) || 30);
+const MAX_SACRIFICE_CARDS = Math.max(1, Number(process.env.MAX_SACRIFICE_CARDS) || 40);
+const MAX_DECK_NAME_LEN = 64;
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -113,10 +125,20 @@ async function upsertDiscordCommand(existingCommands, payload, guildId) {
   return { action: "created", id: created?.id, name: payload.name };
 }
 
-function readRawBody(req) {
+function readRawBody(req, maxBytes = MAX_RAW_BODY_BYTES) {
   return new Promise((resolve, reject) => {
     const chunks = [];
-    req.on("data", (c) => chunks.push(c));
+    let size = 0;
+    req.on("data", (c) => {
+      size += c.length;
+      if (size > maxBytes) {
+        const err = new Error("Payload too large");
+        err.statusCode = 413;
+        reject(err);
+        return;
+      }
+      chunks.push(c);
+    });
     req.on("end", () => resolve(Buffer.concat(chunks)));
     req.on("error", reject);
   });
@@ -124,11 +146,25 @@ function readRawBody(req) {
 
 function readJsonBody(req) {
   return new Promise((resolve, reject) => {
-    let body = "";
-    req.on("data", (c) => { body += c; });
+    const chunks = [];
+    let size = 0;
+    req.on("data", (c) => {
+      size += c.length;
+      if (size > MAX_JSON_BODY_BYTES) {
+        const err = new Error("Payload too large");
+        err.statusCode = 413;
+        reject(err);
+        return;
+      }
+      chunks.push(c);
+    });
     req.on("end", () => {
-      try { resolve(body ? JSON.parse(body) : {}); }
-      catch (e) { reject(e); }
+      try {
+        const raw = Buffer.concat(chunks);
+        resolve(raw.length ? JSON.parse(raw.toString("utf8")) : {});
+      } catch (e) {
+        reject(e);
+      }
     });
     req.on("error", reject);
   });
@@ -435,56 +471,74 @@ async function handleMythicProfile(res, userId, username) {
 // ─── /mythic daily ─────────────────────────────────────────────────────────────
 
 async function handleMythicDaily(res, userId, username, avatar) {
-  let player = await prisma.player.findUnique({ where: { discordId: userId } });
-
-  if (!player) {
-    player = await prisma.player.create({
-      data: {
-        discordId: userId,
-        username,
-        avatar: avatar || null,
-        gold: 500,
-        stardust: 0,
-        pityCounter: 0,
-        totalPulls: 0,
-        hasCompletedOnboarding: false,
-        selectedPath: null,
-        battleStats: { create: {} },
-      },
+  try {
+    const outcome = await prisma.$transaction(async (tx) => {
+      let player = await tx.player.findUnique({ where: { discordId: userId } });
+      if (!player) {
+        player = await tx.player.create({
+          data: {
+            discordId: userId,
+            username,
+            avatar: avatar || null,
+            gold: 500,
+            stardust: 0,
+            pityCounter: 0,
+            totalPulls: 0,
+            hasCompletedOnboarding: false,
+            selectedPath: null,
+            battleStats: { create: {} },
+          },
+        });
+      }
+      if (player.lastFreePackTime && !canClaimFreePack(player.lastFreePackTime)) {
+        return { kind: "cooldown", lastFreePackTime: player.lastFreePackTime };
+      }
+      await tx.player.update({
+        where: { id: player.id },
+        data: {
+          gold: { increment: 100 },
+          stardust: { increment: 10 },
+          lastFreePackTime: new Date(),
+        },
+      });
+      return { kind: "granted" };
     });
-  }
 
-  if (player.lastFreePackTime && !canClaimFreePack(player.lastFreePackTime)) {
-    const remaining = 24 * 60 * 60 * 1000 - (Date.now() - player.lastFreePackTime.getTime());
-    const hours = Math.floor(remaining / 3600000);
-    const mins = Math.floor((remaining % 3600000) / 60000);
+    if (outcome.kind === "cooldown") {
+      const remaining = 24 * 60 * 60 * 1000 - (Date.now() - outcome.lastFreePackTime.getTime());
+      const hours = Math.floor(remaining / 3600000);
+      const mins = Math.floor((remaining % 3600000) / 60000);
+      return sendJson(res, 200, {
+        type: 4,
+        data: { content: `⏰ **${username}**, your daily reward refreshes in **${hours}h ${mins}m**!`, flags: 64 },
+      });
+    }
+
     return sendJson(res, 200, {
       type: 4,
-      data: { content: `⏰ **${username}**, your daily reward refreshes in **${hours}h ${mins}m**!`, flags: 64 },
+      data: {
+        content: `🎁 **${username}** claimed their daily reward!\n\n💰 **+100 Gold**\n💎 **+10 Stardust**\n\nCome back tomorrow for more!`,
+      },
+    });
+  } catch (e) {
+    console.error("[mythic daily]", e);
+    return sendJson(res, 200, {
+      type: 4,
+      data: { content: "❌ Could not claim daily reward. Try again.", flags: 64 },
     });
   }
-
-  // Grant daily reward: 100 gold + 10 stardust
-  await prisma.player.update({
-    where: { id: player.id },
-    data: {
-      gold: player.gold + 100,
-      stardust: player.stardust + 10,
-      lastFreePackTime: new Date(),
-    },
-  });
-
-  return sendJson(res, 200, {
-    type: 4,
-    data: {
-      content: `🎁 **${username}** claimed their daily reward!\n\n💰 **+100 Gold**\n💎 **+10 Stardust**\n\nCome back tomorrow for more!`,
-    },
-  });
 }
 
 // ─── /mythic drop ──────────────────────────────────────────────────────────────
 
 async function handleMythicDrop(res, interaction) {
+  const invokerId = interaction.member?.user?.id || interaction.user?.id;
+  if (!invokerId || !isAdminUser(invokerId)) {
+    return sendJson(res, 200, {
+      type: 4,
+      data: { content: "❌ You don't have permission to use this command.", flags: 64 },
+    });
+  }
   // Only allow in guilds (not DMs)
   if (!interaction.guild_id) {
     return sendJson(res, 200, {
@@ -704,13 +758,7 @@ async function handlePatchPlayer(req, res) {
 
   const body = await readJsonBody(req);
   const data = {};
-  if (body.gold !== undefined) data.gold = Number(body.gold);
-  if (body.stardust !== undefined) data.stardust = Number(body.stardust);
-  if (body.pityCounter !== undefined) data.pityCounter = Number(body.pityCounter);
-  if (body.totalPulls !== undefined) data.totalPulls = Number(body.totalPulls);
-  if (body.lastFreePackTime !== undefined) data.lastFreePackTime = body.lastFreePackTime ? new Date(body.lastFreePackTime) : null;
-
-  // Battle pass + cosmetics
+  // Never allow client-controlled economy or pull counters via PATCH (use dedicated endpoints).
   if (body.battlePass !== undefined) data.battlePass = body.battlePass;
   if (body.cosmeticsOwned !== undefined) data.cosmeticsOwned = body.cosmeticsOwned;
   if (body.cosmeticsEquipped !== undefined) data.cosmeticsEquipped = body.cosmeticsEquipped;
@@ -718,6 +766,13 @@ async function handlePatchPlayer(req, res) {
     data.battlePassXpBoostExpiresAt = body.battlePassXpBoostExpiresAt ? new Date(body.battlePassXpBoostExpiresAt) : null;
   }
   if (body.deckPresets !== undefined) data.deckPresets = body.deckPresets;
+  if (typeof body.shareCollectionWithFriends === "boolean") {
+    data.shareCollectionWithFriends = body.shareCollectionWithFriends;
+  }
+
+  if (Object.keys(data).length === 0) {
+    return sendJson(res, 400, { error: "No allowed fields to update" });
+  }
 
   const player = await prisma.player.update({
     where: { discordId: user.id },
@@ -854,7 +909,7 @@ async function handleSearchUsers(req, res) {
 
   const url = new URL(`http://localhost${req.url}`);
   const q = (url.searchParams.get("q") || "").trim();
-  if (q.length < 1) return sendJson(res, 200, { users: [] });
+  if (q.length < 2) return sendJson(res, 200, { users: [] });
 
   const me = await prisma.player.findUnique({ where: { discordId: user.id } });
   if (!me) return sendJson(res, 404, { error: "Player not found" });
@@ -1390,6 +1445,9 @@ async function handleAcceptTrade(req, res, tradeId) {
 // ─── Marketplace API ───────────────────────────────────────────────────────────
 
 async function handleGetMarket(req, res) {
+  const user = await requireAuth(req, res);
+  if (!user) return;
+
   const url = new URL(`http://localhost${req.url}`);
   const status = url.searchParams.get("status") || "open";
 
@@ -1588,6 +1646,9 @@ async function handleSetRankedDeck(req, res) {
   const seasonId = String(body.seasonId || DEFAULT_PVP_SEASON_ID);
   const deckCardIds = Array.isArray(body.deckCardIds) ? body.deckCardIds.map(String) : null;
   if (!deckCardIds || deckCardIds.length === 0) return sendJson(res, 400, { error: "deckCardIds required" });
+  if (deckCardIds.length > MAX_RANKED_DECK_CARDS) {
+    return sendJson(res, 400, { error: `Ranked deck may have at most ${MAX_RANKED_DECK_CARDS} cards` });
+  }
 
   const me = await prisma.player.findUnique({ where: { discordId: user.id } });
   if (!me) return sendJson(res, 404, { error: "Player not found" });
@@ -1819,6 +1880,10 @@ async function handleSubmitAsyncBattle(req, res, matchId) {
     }
   } else if (actionLog && actionLog.length > 0) {
     return sendJson(res, 400, { error: "Battle verification requires matching seed and valid action log" });
+  } else {
+    return sendJson(res, 400, {
+      error: "Ranked async submit requires a non-empty verifiable actionLog and matching server seed",
+    });
   }
 
   const winner = isDraw ? "draw" : won ? "playerA" : "playerB";
@@ -2631,95 +2696,129 @@ async function handleCardPull(req, res) {
   const pack = PACK_DEFINITIONS[packId];
   if (!pack) return sendJson(res, 400, { error: "Unknown pack" });
 
-  const player = await prisma.player.findUnique({
-    where: { discordId: user.id },
-    include: { cards: true },
-  });
-  if (!player) return sendJson(res, 404, { error: "Player not found" });
+  try {
+    const { pullResults, updatedPlayer } = await prisma.$transaction(
+      async (tx) => {
+        const p = await tx.player.findUnique({
+          where: { discordId: user.id },
+          include: { cards: true },
+        });
+        if (!p) {
+          const err = new Error("Player not found");
+          err.statusCode = 404;
+          throw err;
+        }
+        if (packId === "free") {
+          if (!canClaimFreePack(p.lastFreePackTime)) {
+            const err = new Error("Free pack not ready yet");
+            err.statusCode = 400;
+            throw err;
+          }
+        } else if (p.gold < pack.cost) {
+          const err = new Error("Not enough gold");
+          err.statusCode = 400;
+          throw err;
+        }
 
-  if (packId === "free") {
-    if (!canClaimFreePack(player.lastFreePackTime)) {
-      return sendJson(res, 400, { error: "Free pack not ready yet" });
-    }
-  } else if (player.gold < pack.cost) {
-    return sendJson(res, 400, { error: "Not enough gold" });
-  }
+        const { cardIds, newPityCounter } = pullCards(packId, p.pityCounter);
+        const pullResults = [];
+        let totalStardustEarned = 0;
 
-  const { cardIds, newPityCounter } = pullCards(packId, player.pityCounter);
+        for (const cardId of cardIds) {
+          const existing = await tx.cardProgress.findUnique({
+            where: { playerId_cardId: { playerId: p.id, cardId } },
+          });
 
-  const pullResults = [];
-  let totalStardustEarned = 0;
+          if (existing) {
+            const dupeResult = processDuplicatePull(existing, cardId);
+            await tx.cardProgress.update({
+              where: { id: existing.id },
+              data: {
+                dupeCount: dupeResult.dupeCount,
+                goldStars: dupeResult.goldStars,
+                redStars: dupeResult.redStars,
+                xp: existing.xp + dupeResult.xpBonus,
+              },
+            });
+            totalStardustEarned += dupeResult.stardustEarned;
+            pullResults.push({
+              cardId,
+              isDuplicate: true,
+              stardustEarned: dupeResult.stardustEarned,
+              newGoldStar: dupeResult.newGoldStar,
+              newRedStar: dupeResult.newRedStar,
+              rarity: getCardRarity(cardId),
+            });
+          } else {
+            await tx.cardProgress.create({
+              data: {
+                playerId: p.id,
+                cardId,
+                level: 1,
+                xp: 0,
+                prestigeLevel: 0,
+                dupeCount: 0,
+                goldStars: 0,
+                redStars: 0,
+              },
+            });
+            pullResults.push({
+              cardId,
+              isDuplicate: false,
+              stardustEarned: 0,
+              newGoldStar: false,
+              newRedStar: false,
+              rarity: getCardRarity(cardId),
+            });
+          }
+        }
 
-  for (const cardId of cardIds) {
-    const existing = await prisma.cardProgress.findUnique({
-      where: { playerId_cardId: { playerId: player.id, cardId } },
+        if (packId === "free") {
+          await tx.player.update({
+            where: { id: p.id },
+            data: {
+              pityCounter: newPityCounter,
+              totalPulls: { increment: pack.cardCount },
+              stardust: { increment: totalStardustEarned },
+              lastFreePackTime: new Date(),
+            },
+          });
+        } else {
+          const paid = await tx.player.updateMany({
+            where: { id: p.id, gold: { gte: pack.cost } },
+            data: {
+              gold: { decrement: pack.cost },
+              pityCounter: newPityCounter,
+              totalPulls: { increment: pack.cardCount },
+              stardust: { increment: totalStardustEarned },
+            },
+          });
+          if (paid.count !== 1) {
+            const err = new Error("Not enough gold");
+            err.statusCode = 400;
+            throw err;
+          }
+        }
+
+        const updatedPlayer = await tx.player.findUnique({
+          where: { id: p.id },
+          include: { cards: true },
+        });
+        return { pullResults, updatedPlayer };
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 5000, timeout: 15000 },
+    );
+
+    sendJson(res, 200, {
+      pullResults,
+      state: playerToClientState(updatedPlayer, updatedPlayer.cards),
     });
-
-    if (existing) {
-      const dupeResult = processDuplicatePull(existing, cardId);
-      await prisma.cardProgress.update({
-        where: { id: existing.id },
-        data: {
-          dupeCount: dupeResult.dupeCount,
-          goldStars: dupeResult.goldStars,
-          redStars: dupeResult.redStars,
-          xp: existing.xp + dupeResult.xpBonus,
-        },
-      });
-      totalStardustEarned += dupeResult.stardustEarned;
-      pullResults.push({
-        cardId,
-        isDuplicate: true,
-        stardustEarned: dupeResult.stardustEarned,
-        newGoldStar: dupeResult.newGoldStar,
-        newRedStar: dupeResult.newRedStar,
-        rarity: getCardRarity(cardId),
-      });
-    } else {
-      await prisma.cardProgress.create({
-        data: {
-          playerId: player.id,
-          cardId,
-          level: 1,
-          xp: 0,
-          prestigeLevel: 0,
-          dupeCount: 0,
-          goldStars: 0,
-          redStars: 0,
-        },
-      });
-      pullResults.push({
-        cardId,
-        isDuplicate: false,
-        stardustEarned: 0,
-        newGoldStar: false,
-        newRedStar: false,
-        rarity: getCardRarity(cardId),
-      });
-    }
+  } catch (e) {
+    const code = e?.statusCode || 500;
+    if (code === 400 || code === 404) return sendJson(res, code, { error: e.message || "Bad request" });
+    console.error("[cards/pull]", e);
+    return sendJson(res, 500, { error: "Pull failed — try again" });
   }
-
-  const updateData = {
-    pityCounter: newPityCounter,
-    totalPulls: player.totalPulls + pack.cardCount,
-    stardust: player.stardust + totalStardustEarned,
-  };
-  if (packId === "free") {
-    updateData.lastFreePackTime = new Date();
-  } else {
-    updateData.gold = player.gold - pack.cost;
-  }
-
-  const updatedPlayer = await prisma.player.update({
-    where: { id: player.id },
-    data: updateData,
-    include: { cards: true },
-  });
-
-  sendJson(res, 200, {
-    pullResults,
-    state: playerToClientState(updatedPlayer, updatedPlayer.cards),
-  });
 }
 
 // ─── Card Level / Prestige ─────────────────────────────────────────────────────
@@ -2749,7 +2848,9 @@ async function handlePatchCard(req, res, cardId) {
   }
 
   if (body.action === "addXp") {
-    const xpAmount = Number(body.xp) || 0;
+    const rawXp = Number(body.xp) || 0;
+    const xpAmount = Math.min(MAX_ADD_XP_PER_CALL, Math.max(0, Math.floor(rawXp)));
+    if (xpAmount === 0) return sendJson(res, 400, { error: "xp must be a positive number" });
     const result = awardXp(card, xpAmount);
     const updated = await prisma.cardProgress.update({
       where: { id: card.id },
@@ -2819,6 +2920,8 @@ async function handlePostDeck(req, res) {
   if (!body.name || !Array.isArray(body.cardIds)) {
     return sendJson(res, 400, { error: "name and cardIds required" });
   }
+  const deckName = String(body.name).trim().slice(0, MAX_DECK_NAME_LEN);
+  if (!deckName) return sendJson(res, 400, { error: "Invalid deck name" });
 
   const player = await prisma.player.findUnique({ where: { discordId: user.id } });
   if (!player) return sendJson(res, 404, { error: "Player not found" });
@@ -2838,7 +2941,7 @@ async function handlePostDeck(req, res) {
   }
 
   const deck = await prisma.deck.create({
-    data: { playerId: player.id, name: body.name, cardIds: requested },
+    data: { playerId: player.id, name: deckName, cardIds: requested },
   });
   sendJson(res, 201, { deck });
 }
@@ -2859,14 +2962,40 @@ async function handleDeleteDeck(req, res, deckId) {
 
 // ─── Battle Result API ─────────────────────────────────────────────────────────
 
+function utcStartOfToday() {
+  const d = new Date();
+  d.setUTCHours(0, 0, 0, 0);
+  return d;
+}
+
+async function handleBattleStart(req, res) {
+  const user = await requireAuth(req, res);
+  if (!user) return;
+  const me = await prisma.player.findUnique({ where: { discordId: user.id } });
+  if (!me) return sendJson(res, 404, { error: "Player not found" });
+  const session = await prisma.pveBattleSession.create({
+    data: { playerId: me.id },
+  });
+  return sendJson(res, 200, { matchId: session.id });
+}
+
 async function handleBattleResult(req, res) {
   const user = await requireAuth(req, res);
   if (!user) return;
 
   const body = await readJsonBody(req);
-  const { won, turnCount, deckCardIds } = body;
-  if (typeof won !== "boolean" || !turnCount) {
-    return sendJson(res, 400, { error: "won (bool) and turnCount required" });
+  const { won, turnCount, deckCardIds, matchId } = body;
+  if (typeof won !== "boolean" || typeof turnCount !== "number" || turnCount < 1) {
+    return sendJson(res, 400, { error: "won (bool) and positive turnCount required" });
+  }
+  if (!matchId || typeof matchId !== "string") {
+    return sendJson(res, 400, { error: "matchId required — call POST /api/battle/start before reporting results" });
+  }
+
+  const session = await prisma.pveBattleSession.findUnique({ where: { id: matchId } });
+  if (!session) return sendJson(res, 404, { error: "Unknown match" });
+  if (Date.now() - session.createdAt.getTime() > PVE_SESSION_MAX_AGE_MS) {
+    return sendJson(res, 400, { error: "Battle session expired" });
   }
 
   const player = await prisma.player.findUnique({
@@ -2874,6 +3003,22 @@ async function handleBattleResult(req, res) {
     include: { cards: true },
   });
   if (!player) return sendJson(res, 404, { error: "Player not found" });
+  if (session.playerId !== player.id) {
+    return sendJson(res, 403, { error: "This match belongs to another account" });
+  }
+  if (session.resolvedAt) {
+    return sendJson(res, 409, { error: "This battle was already submitted" });
+  }
+
+  const ownedSet = new Set(player.cards.map((c) => c.cardId));
+  if (Array.isArray(deckCardIds) && deckCardIds.length > 0) {
+    for (const id of deckCardIds) {
+      const sid = String(id);
+      if (!ownedSet.has(sid)) {
+        return sendJson(res, 400, { error: `Deck card not in collection: ${sid}` });
+      }
+    }
+  }
 
   const raidBossId = body.raidBossId != null ? String(body.raidBossId) : null;
   let goldReward = getBattleGoldReward(won, turnCount);
@@ -2884,44 +3029,84 @@ async function handleBattleResult(req, res) {
   const xpAmount = won ? 50 : outcome === "draw" ? 35 : 20;
 
   const allLevelUps = [];
-  if (Array.isArray(deckCardIds)) {
-    for (const cardId of deckCardIds) {
-      const card = player.cards.find((c) => c.cardId === cardId);
-      if (card && card.level < 20) {
-        const result = awardXp(card, xpAmount);
-        await prisma.cardProgress.update({
-          where: { id: card.id },
-          data: { level: result.level, xp: result.xp },
-        });
-        for (const lu of result.levelUps) {
-          allLevelUps.push({ cardId, ...lu });
+  const todayStart = utcStartOfToday();
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const s = await tx.pveBattleSession.findFirst({
+        where: { id: matchId, playerId: player.id, resolvedAt: null },
+      });
+      if (!s) {
+        const err = new Error("Battle already submitted");
+        err.statusCode = 409;
+        throw err;
+      }
+
+      const resolvedToday = await tx.pveBattleSession.count({
+        where: { playerId: player.id, resolvedAt: { gte: todayStart } },
+      });
+      if (resolvedToday >= PVE_BATTLE_DAILY_RESULT_CAP) {
+        const err = new Error("Daily battle reward limit reached");
+        err.statusCode = 429;
+        throw err;
+      }
+
+      const p = await tx.player.findUnique({ where: { id: player.id }, include: { cards: true } });
+      if (!p) throw new Error("Player missing");
+
+      if (Array.isArray(deckCardIds)) {
+        for (const cardId of deckCardIds) {
+          const cid = String(cardId);
+          const card = p.cards.find((c) => c.cardId === cid);
+          if (card && card.level < 20) {
+            const result = awardXp(card, xpAmount);
+            await tx.cardProgress.update({
+              where: { id: card.id },
+              data: { level: result.level, xp: result.xp },
+            });
+            for (const lu of result.levelUps) {
+              allLevelUps.push({ cardId: cid, ...lu });
+            }
+          }
         }
       }
+
+      await tx.player.update({
+        where: { id: p.id },
+        data: { gold: { increment: goldReward } },
+      });
+
+      const statsUpdate = { lastBattleAt: new Date(), goldEarned: { increment: goldReward } };
+      if (outcome === "win") statsUpdate.wins = { increment: 1 };
+      else if (outcome === "draw") statsUpdate.draws = { increment: 1 };
+      else statsUpdate.losses = { increment: 1 };
+
+      await tx.battleStat.upsert({
+        where: { playerId: p.id },
+        create: {
+          playerId: p.id,
+          wins: outcome === "win" ? 1 : 0,
+          losses: outcome === "loss" ? 1 : 0,
+          draws: outcome === "draw" ? 1 : 0,
+          goldEarned: goldReward,
+          lastBattleAt: new Date(),
+        },
+        update: statsUpdate,
+      });
+
+      await tx.pveBattleSession.update({
+        where: { id: matchId },
+        data: { resolvedAt: new Date() },
+      });
+    });
+  } catch (e) {
+    const code = e?.statusCode || 500;
+    if (code === 409 || code === 429) {
+      return sendJson(res, code, { error: e.message || "Request rejected" });
     }
+    console.error("[battle/result]", e);
+    return sendJson(res, 500, { error: "Could not apply battle result" });
   }
-
-  await prisma.player.update({
-    where: { id: player.id },
-    data: { gold: player.gold + goldReward },
-  });
-
-  const statsUpdate = { lastBattleAt: new Date(), goldEarned: { increment: goldReward } };
-  if (outcome === "win") statsUpdate.wins = { increment: 1 };
-  else if (outcome === "draw") statsUpdate.draws = { increment: 1 };
-  else statsUpdate.losses = { increment: 1 };
-
-  await prisma.battleStat.upsert({
-    where: { playerId: player.id },
-    create: {
-      playerId: player.id,
-      wins: outcome === "win" ? 1 : 0,
-      losses: outcome === "loss" ? 1 : 0,
-      draws: outcome === "draw" ? 1 : 0,
-      goldEarned: goldReward,
-      lastBattleAt: new Date(),
-    },
-    update: statsUpdate,
-  });
 
   const updatedPlayer = await prisma.player.findUnique({
     where: { id: player.id },
@@ -2962,17 +3147,29 @@ async function handleImport(req, res) {
     deckPresets,
   } = body;
 
-  const cardsToCreate = (ownedCardIds || []).map((cardId) => {
+  const rawIds = Array.isArray(ownedCardIds) ? [...new Set(ownedCardIds.map(String))] : [];
+  const invalidIds = rawIds.filter((id) => !ALL_CARD_IDS.includes(id));
+  if (invalidIds.length > 0) {
+    return sendJson(res, 400, { error: `Unknown card ids: ${invalidIds.slice(0, 12).join(", ")}` });
+  }
+
+  const safeGold = Math.min(MAX_IMPORT_GOLD, Math.max(0, Math.floor(Number(gold) || 0)));
+  const importGold = safeGold > 0 ? safeGold : 500;
+  const importStardust = Math.min(MAX_IMPORT_STARDUST, Math.max(0, Math.floor(Number(stardust) || 0)));
+  const importPity = Math.min(MAX_IMPORT_PITY, Math.max(0, Math.floor(Number(pityCounter) || 0)));
+  const importPulls = Math.min(MAX_IMPORT_PITY, Math.max(0, Math.floor(Number(totalPulls) || 0)));
+
+  const cardsToCreate = rawIds.map((cardId) => {
     const cp = cardProgress?.[cardId] || {};
     const sp = cp.starProgress || {};
     return {
       cardId,
-      level: cp.level || 1,
-      xp: cp.xp || 0,
-      prestigeLevel: cp.prestigeLevel || 0,
-      dupeCount: sp.dupeCount || 0,
-      goldStars: sp.goldStars || 0,
-      redStars: sp.redStars || 0,
+      level: Math.min(20, Math.max(1, Math.floor(Number(cp.level) || 1))),
+      xp: Math.max(0, Math.floor(Number(cp.xp) || 0)),
+      prestigeLevel: Math.min(3, Math.max(0, Math.floor(Number(cp.prestigeLevel) || 0))),
+      dupeCount: Math.min(9999, Math.max(0, Math.floor(Number(sp.dupeCount) || 0))),
+      goldStars: Math.min(99, Math.max(0, Math.floor(Number(sp.goldStars) || 0))),
+      redStars: Math.min(99, Math.max(0, Math.floor(Number(sp.redStars) || 0))),
     };
   });
 
@@ -2981,10 +3178,10 @@ async function handleImport(req, res) {
       discordId: user.id,
       username: user.username,
       avatar: user.avatar || null,
-      gold: gold || 500,
-      stardust: stardust || 0,
-      pityCounter: pityCounter || 0,
-      totalPulls: totalPulls || 0,
+      gold: importGold,
+      stardust: importStardust,
+      pityCounter: importPity,
+      totalPulls: importPulls,
       lastFreePackTime: lastFreePackTime ? new Date(lastFreePackTime) : null,
       battlePass: battlePass || null,
       cosmeticsOwned: Array.isArray(cosmeticsOwned) ? cosmeticsOwned : [],
@@ -3015,50 +3212,96 @@ async function handleCraftFuse(req, res) {
     return sendJson(res, 400, { error: `Must select exactly ${recipe.inputCount} cards` });
   }
 
-  const player = await prisma.player.findUnique({
-    where: { discordId: user.id },
-    include: { cards: true },
-  });
-  if (!player) return sendJson(res, 404, { error: "Player not found" });
-  if (player.gold < recipe.goldCost) return sendJson(res, 400, { error: "Not enough gold" });
+  let resultCardId = "";
+  try {
+    resultCardId = await prisma.$transaction(
+      async (tx) => {
+        const p = await tx.player.findUnique({
+          where: { discordId: user.id },
+          include: { cards: true },
+        });
+        if (!p) {
+          const err = new Error("Player not found");
+          err.statusCode = 404;
+          throw err;
+        }
+        if (p.gold < recipe.goldCost) {
+          const err = new Error("Not enough gold");
+          err.statusCode = 400;
+          throw err;
+        }
 
-  // Verify ownership of all selected cards with correct rarity
-  for (const cardId of selectedCardIds) {
-    const owned = player.cards.find((c) => c.cardId === cardId);
-    if (!owned) return sendJson(res, 400, { error: `Card not owned: ${cardId}` });
-    if (getCardRarity(cardId) !== recipe.inputRarity) {
-      return sendJson(res, 400, { error: `Card ${cardId} is not ${recipe.inputRarity}` });
-    }
+        for (const cardId of selectedCardIds) {
+          const sid = String(cardId);
+          const owned = p.cards.find((c) => c.cardId === sid);
+          if (!owned) {
+            const err = new Error(`Card not owned: ${sid}`);
+            err.statusCode = 400;
+            throw err;
+          }
+          if (getCardRarity(sid) !== recipe.inputRarity) {
+            const err = new Error(`Card ${sid} is not ${recipe.inputRarity}`);
+            err.statusCode = 400;
+            throw err;
+          }
+        }
+
+        const outputPool = ALL_CARD_IDS.filter((id) => {
+          if (getCardRarity(id) !== recipe.outputRarity) return false;
+          return !p.cards.find((c) => c.cardId === id);
+        });
+        const fallbackPool = ALL_CARD_IDS.filter((id) => getCardRarity(id) === recipe.outputRarity);
+        const finalPool = outputPool.length > 0 ? outputPool : fallbackPool;
+        if (finalPool.length === 0) {
+          const err = new Error("No cards available for fusion");
+          err.statusCode = 500;
+          throw err;
+        }
+        const chosen = finalPool[Math.floor(Math.random() * finalPool.length)];
+
+        const paid = await tx.player.updateMany({
+          where: { id: p.id, gold: { gte: recipe.goldCost } },
+          data: { gold: { decrement: recipe.goldCost } },
+        });
+        if (paid.count !== 1) {
+          const err = new Error("Not enough gold");
+          err.statusCode = 400;
+          throw err;
+        }
+
+        for (const cardId of selectedCardIds) {
+          const sid = String(cardId);
+          const card = p.cards.find((c) => c.cardId === sid);
+          if (card) await tx.cardProgress.delete({ where: { id: card.id } });
+        }
+
+        await tx.cardProgress.upsert({
+          where: { playerId_cardId: { playerId: p.id, cardId: chosen } },
+          create: {
+            playerId: p.id,
+            cardId: chosen,
+            level: 1,
+            xp: 0,
+            prestigeLevel: 0,
+            dupeCount: 0,
+            goldStars: 0,
+            redStars: 0,
+          },
+          update: {},
+        });
+
+        return chosen;
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 5000, timeout: 15000 },
+    );
+  } catch (e) {
+    const code = e?.statusCode || 500;
+    if (code === 400 || code === 404) return sendJson(res, code, { error: e.message || "Bad request" });
+    console.error("[craft/fuse]", e);
+    return sendJson(res, 500, { error: "Fusion failed" });
   }
 
-  // Pick random output card of the target rarity (not already owned)
-  const outputPool = ALL_CARD_IDS.filter((id) => {
-    if (getCardRarity(id) !== recipe.outputRarity) return false;
-    // Prefer cards not already owned, fall back to any if needed
-    return !player.cards.find((c) => c.cardId === id);
-  });
-  const fallbackPool = ALL_CARD_IDS.filter((id) => getCardRarity(id) === recipe.outputRarity);
-  const finalPool = outputPool.length > 0 ? outputPool : fallbackPool;
-  if (finalPool.length === 0) return sendJson(res, 500, { error: "No cards available for fusion" });
-  const resultCardId = finalPool[Math.floor(Math.random() * finalPool.length)];
-
-  await prisma.$transaction(async (tx) => {
-    // Remove input cards
-    for (const cardId of selectedCardIds) {
-      const card = player.cards.find((c) => c.cardId === cardId);
-      if (card) await tx.cardProgress.delete({ where: { id: card.id } });
-    }
-    // Add result card
-    await tx.cardProgress.upsert({
-      where: { playerId_cardId: { playerId: player.id, cardId: resultCardId } },
-      create: { playerId: player.id, cardId: resultCardId, level: 1, xp: 0, prestigeLevel: 0, dupeCount: 0, goldStars: 0, redStars: 0 },
-      update: {},
-    });
-    // Deduct gold
-    await tx.player.update({ where: { id: player.id }, data: { gold: player.gold - recipe.goldCost } });
-  });
-
-  const updated = await prisma.player.findUnique({ where: { id: player.id }, include: { cards: true } });
+  const updated = await prisma.player.findUnique({ where: { discordId: user.id }, include: { cards: true } });
   sendJson(res, 200, { resultCardId, state: playerToClientState(updated, updated.cards) });
 }
 
@@ -3070,6 +3313,9 @@ async function handleCraftSacrifice(req, res) {
   const { cardIds } = body;
   if (!Array.isArray(cardIds) || cardIds.length === 0) {
     return sendJson(res, 400, { error: "cardIds array required" });
+  }
+  if (cardIds.length > MAX_SACRIFICE_CARDS) {
+    return sendJson(res, 400, { error: `Sacrifice at most ${MAX_SACRIFICE_CARDS} cards per request` });
   }
 
   const player = await prisma.player.findUnique({
@@ -3102,6 +3348,9 @@ async function handleCraftSacrifice(req, res) {
 // ─── Leaderboard API ───────────────────────────────────────────────────────────
 
 async function handleLeaderboard(req, res) {
+  const user = await requireAuth(req, res);
+  if (!user) return;
+
   const url = new URL(`http://localhost${req.url}`);
   const tab = url.searchParams.get("tab") || "wins";
 
@@ -3181,68 +3430,96 @@ async function handleSeasonalPull(req, res) {
   if (!event) return sendJson(res, 404, { error: "Unknown event" });
   if (!isEventActive(event)) return sendJson(res, 400, { error: "Event not active" });
 
-  const player = await prisma.player.findUnique({
-    where: { discordId: user.id },
-    include: { cards: true },
-  });
-  if (!player) return sendJson(res, 404, { error: "Player not found" });
-  if (player.gold < event.packCost) return sendJson(res, 400, { error: "Not enough gold" });
-
   const pool = event.seasonalCardIds;
   if (!Array.isArray(pool) || pool.length === 0) return sendJson(res, 500, { error: "Empty seasonal pool" });
 
-  const pulledIds = [];
-  // 3-card seasonal pack
-  for (let i = 0; i < 3; i++) {
-    const cardId = pool[Math.floor(Math.random() * pool.length)];
-    pulledIds.push(cardId);
+  let pulledIds = [];
+  try {
+    pulledIds = await prisma.$transaction(
+      async (tx) => {
+        const p = await tx.player.findUnique({
+          where: { discordId: user.id },
+          include: { cards: true },
+        });
+        if (!p) {
+          const err = new Error("Player not found");
+          err.statusCode = 404;
+          throw err;
+        }
+        if (p.gold < event.packCost) {
+          const err = new Error("Not enough gold");
+          err.statusCode = 400;
+          throw err;
+        }
+
+        const ids = [];
+        for (let i = 0; i < 3; i++) {
+          ids.push(pool[Math.floor(Math.random() * pool.length)]);
+        }
+
+        const paid = await tx.player.updateMany({
+          where: { id: p.id, gold: { gte: event.packCost } },
+          data: { gold: { decrement: event.packCost } },
+        });
+        if (paid.count !== 1) {
+          const err = new Error("Not enough gold");
+          err.statusCode = 400;
+          throw err;
+        }
+
+        let totalStardustEarned = 0;
+        for (const cardId of ids) {
+          const existing = await tx.cardProgress.findUnique({
+            where: { playerId_cardId: { playerId: p.id, cardId } },
+          });
+
+          if (existing) {
+            const dupeResult = processDuplicatePull(existing, cardId);
+            totalStardustEarned += dupeResult.stardustEarned;
+            await tx.cardProgress.update({
+              where: { id: existing.id },
+              data: {
+                dupeCount: dupeResult.dupeCount,
+                goldStars: dupeResult.goldStars,
+                redStars: dupeResult.redStars,
+                xp: existing.xp + dupeResult.xpBonus,
+              },
+            });
+          } else {
+            await tx.cardProgress.create({
+              data: {
+                playerId: p.id,
+                cardId,
+                level: 1,
+                xp: 0,
+                prestigeLevel: 0,
+                dupeCount: 0,
+                goldStars: 0,
+                redStars: 0,
+              },
+            });
+          }
+        }
+
+        if (totalStardustEarned > 0) {
+          await tx.player.update({
+            where: { id: p.id },
+            data: { stardust: { increment: totalStardustEarned } },
+          });
+        }
+
+        return ids;
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 5000, timeout: 15000 },
+    );
+  } catch (e) {
+    const code = e?.statusCode || 500;
+    if (code === 400 || code === 404) return sendJson(res, code, { error: e.message || "Bad request" });
+    console.error("[seasonal/pull]", e);
+    return sendJson(res, 500, { error: "Seasonal pull failed" });
   }
 
-  await prisma.$transaction(async (tx) => {
-    await tx.player.update({ where: { id: player.id }, data: { gold: player.gold - event.packCost } });
-    let totalStardustEarned = 0;
-    for (const cardId of pulledIds) {
-      const existing = await tx.cardProgress.findUnique({
-        where: { playerId_cardId: { playerId: player.id, cardId } },
-      });
-
-      if (existing) {
-        const dupeResult = processDuplicatePull(existing, cardId);
-        totalStardustEarned += dupeResult.stardustEarned;
-        await tx.cardProgress.update({
-          where: { id: existing.id },
-          data: {
-            dupeCount: dupeResult.dupeCount,
-            goldStars: dupeResult.goldStars,
-            redStars: dupeResult.redStars,
-            xp: existing.xp + dupeResult.xpBonus,
-          },
-        });
-      } else {
-        await tx.cardProgress.create({
-          data: {
-            playerId: player.id,
-            cardId,
-            level: 1,
-            xp: 0,
-            prestigeLevel: 0,
-            dupeCount: 0,
-            goldStars: 0,
-            redStars: 0,
-          },
-        });
-      }
-    }
-
-    if (totalStardustEarned > 0) {
-      await tx.player.update({
-        where: { id: player.id },
-        data: { stardust: { increment: totalStardustEarned } },
-      });
-    }
-  });
-
-  const updated = await prisma.player.findUnique({ where: { id: player.id }, include: { cards: true } });
+  const updated = await prisma.player.findUnique({ where: { discordId: user.id }, include: { cards: true } });
   return sendJson(res, 200, { cardIds: pulledIds, state: playerToClientState(updated, updated.cards) });
 }
 
@@ -3347,6 +3624,7 @@ const server = http.createServer(async (req, res) => {
     if (method === "POST" && path === "/api/cards/pull") return await handleCardPull(req, res);
     if (method === "GET" && path === "/api/decks") return await handleGetDecks(req, res);
     if (method === "POST" && path === "/api/decks") return await handlePostDeck(req, res);
+    if (method === "POST" && path === "/api/battle/start") return await handleBattleStart(req, res);
     if (method === "POST" && path === "/api/battle/result") return await handleBattleResult(req, res);
     if (method === "POST" && path === "/api/import") return await handleImport(req, res);
     if (method === "POST" && path === "/api/seasonal/pull") return await handleSeasonalPull(req, res);
@@ -3490,6 +3768,9 @@ const server = http.createServer(async (req, res) => {
 
     sendJson(res, 404, { error: "Not found" });
   } catch (err) {
+    if (err?.statusCode === 413) {
+      return sendJson(res, 413, { error: "Payload too large" });
+    }
     console.error("Request error:", err);
     sendJson(res, 500, { error: "Internal server error" });
   }
@@ -3657,12 +3938,34 @@ async function handleJoinGuild(req, res, guildId) {
   if (me.guildId) return sendJson(res, 400, { error: "Leave your current guild first" });
   const guild = await prisma.guild.findUnique({ where: { id: guildId } });
   if (!guild) return sendJson(res, 404, { error: "Guild not found" });
-  if (guild.memberCount >= GUILD_MAX_MEMBERS) return sendJson(res, 400, { error: "Guild is full" });
 
-  await prisma.$transaction(async (tx) => {
-    await tx.player.update({ where: { id: me.id }, data: { guildId: guild.id } });
-    await tx.guild.update({ where: { id: guild.id }, data: { memberCount: { increment: 1 } } });
-  });
+  try {
+    await prisma.$transaction(async (tx) => {
+      const bump = await tx.guild.updateMany({
+        where: { id: guildId, memberCount: { lt: GUILD_MAX_MEMBERS } },
+        data: { memberCount: { increment: 1 } },
+      });
+      if (bump.count !== 1) {
+        const err = new Error("Guild is full");
+        err.statusCode = 400;
+        throw err;
+      }
+      const joined = await tx.player.updateMany({
+        where: { id: me.id, guildId: null },
+        data: { guildId },
+      });
+      if (joined.count !== 1) {
+        await tx.guild.update({ where: { id: guildId }, data: { memberCount: { decrement: 1 } } });
+        const err = new Error("Could not join guild");
+        err.statusCode = 400;
+        throw err;
+      }
+    });
+  } catch (e) {
+    if (e?.statusCode === 400) return sendJson(res, 400, { error: e.message });
+    console.error("[guild/join]", e);
+    return sendJson(res, 500, { error: "Could not join guild" });
+  }
   return sendJson(res, 200, { ok: true });
 }
 

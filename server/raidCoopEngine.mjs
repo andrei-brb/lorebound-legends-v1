@@ -7133,6 +7133,25 @@ function calculatePassiveBonuses(fieldCardIds) {
   return bonusMap;
 }
 
+// src/lib/progressionEngine.ts
+var PASSIVE_DEFINITIONS = [
+  { level: 3, effect: "crit", name: "Critical Eye", description: "+10% critical hit chance", value: 0.1 },
+  { level: 7, effect: "lifesteal", name: "Soul Siphon", description: "Heal 15% of damage dealt", value: 0.15 },
+  { level: 12, effect: "damage_reduction", name: "Iron Skin", description: "Reduce incoming damage by 15%", value: 0.15 }
+];
+function getMilestoneCombatBonuses(level) {
+  let critChance = 0;
+  let lifesteal = 0;
+  let damageReduction = 0;
+  for (const p of PASSIVE_DEFINITIONS) {
+    if (level < p.level) continue;
+    if (p.effect === "crit") critChance = p.value;
+    else if (p.effect === "lifesteal") lifesteal = p.value;
+    else if (p.effect === "damage_reduction") damageReduction = p.value;
+  }
+  return { critChance, lifesteal, damageReduction };
+}
+
 // src/lib/abilityOverrides.ts
 var ABILITY_OVERRIDES = {
   // Examples (add as needed):
@@ -8039,7 +8058,27 @@ function attackTarget(state, attackerFieldIndex, targetFieldIndex) {
       attacker.attackedThisTurn = true;
       return maybeAutoEndTurn(recalcFieldStats(checkWinCondition(newState)));
     }
-    const dmg2 = attacker.attack;
+    let dmg2 = attacker.attack;
+    if (newState.turn === "player") {
+      const lv = newState.playerCardProgress?.[attacker.card.id]?.level ?? 1;
+      const ms = getMilestoneCombatBonuses(lv);
+      if (ms.critChance > 0 && newState.rng() < ms.critChance) {
+        dmg2 = Math.round(dmg2 * 1.5);
+        addLog(newState, `\u2B50 Critical strike!`, "attack");
+      }
+    } else {
+      let dr = 0;
+      const map = newState.playerCardProgress;
+      if (map) {
+        for (const p of Object.values(map)) {
+          dr = Math.max(dr, getMilestoneCombatBonuses(p.level).damageReduction);
+        }
+      }
+      if (dr > 0) {
+        dmg2 = Math.max(1, Math.round(dmg2 * (1 - dr)));
+        addLog(newState, `\u{1F6E1}\uFE0F Iron Skin reduces direct damage!`, "direct");
+      }
+    }
     let hpDealt = 0;
     if (otherSide.shield > 0) {
       const absorbed = Math.min(otherSide.shield, dmg2);
@@ -8053,10 +8092,17 @@ function attackTarget(state, attackerFieldIndex, targetFieldIndex) {
       otherSide.hp = Math.max(0, otherSide.hp - dmg2);
       addLog(newState, `\u{1F4A5} ${attacker.card.name} attacks directly for ${dmg2} damage!`, "direct");
     }
+    const passiveLs = newState.turn === "player" ? getMilestoneCombatBonuses(newState.playerCardProgress?.[attacker.card.id]?.level ?? 1).lifesteal : 0;
     if (cardHasKeyword(attacker.card, "lifesteal") && hpDealt > 0 && attacker.currentHp > 0) {
       const healed = Math.min(hpDealt, attacker.maxHp - attacker.currentHp);
       attacker.currentHp += healed;
       addLog(newState, `\u{1F49A} ${attacker.card.name} lifesteals ${healed} HP!`, "attack");
+    } else if (passiveLs > 0 && hpDealt > 0 && attacker.currentHp > 0) {
+      const healed = Math.min(Math.round(hpDealt * passiveLs), attacker.maxHp - attacker.currentHp);
+      if (healed > 0) {
+        attacker.currentHp += healed;
+        addLog(newState, `\u{1F49A} ${attacker.card.name} siphons ${healed} HP!`, "attack");
+      }
     }
     spendAp(newState, 1);
     attacker.attackedThisTurn = true;
@@ -8108,17 +8154,39 @@ function attackTarget(state, attackerFieldIndex, targetFieldIndex) {
   const elemLabel = getElementAdvantageLabel(attackerElement, defenderElement);
   const rawDmg = Math.max(1, attacker.attack - Math.floor(target.defense * 0.4));
   const variance = 0.9 + state.rng() * 0.2;
-  const dmg = Math.max(1, Math.round(rawDmg * variance * elemMult));
+  let dmg = Math.max(1, Math.round(rawDmg * variance * elemMult));
+  if (newState.turn === "player") {
+    const lv = newState.playerCardProgress?.[attacker.card.id]?.level ?? 1;
+    const ms = getMilestoneCombatBonuses(lv);
+    if (ms.critChance > 0 && newState.rng() < ms.critChance) {
+      dmg = Math.max(1, Math.round(dmg * 1.5));
+      addLog(newState, `\u2B50 Critical strike!`, "attack");
+    }
+  } else {
+    const defLv = newState.playerCardProgress?.[target.card.id]?.level ?? 1;
+    const defMs = getMilestoneCombatBonuses(defLv);
+    if (defMs.damageReduction > 0) {
+      dmg = Math.max(1, Math.round(dmg * (1 - defMs.damageReduction)));
+      addLog(newState, `\u{1F6E1}\uFE0F ${target.card.name}'s Iron Skin softens the blow!`, "attack");
+    }
+  }
   target.currentHp = Math.max(0, target.currentHp - dmg);
   let attackMsg = `\u2694\uFE0F ${attacker.card.name} attacks ${target.card.name} for ${dmg} damage!`;
   if (elemLabel) {
     attackMsg += ` ${elementEmoji[attackerElement]} ${elemLabel}`;
   }
   addLog(newState, attackMsg, "attack");
+  const passiveLsField = newState.turn === "player" ? getMilestoneCombatBonuses(newState.playerCardProgress?.[attacker.card.id]?.level ?? 1).lifesteal : 0;
   if (cardHasKeyword(attacker.card, "lifesteal") && dmg > 0 && attacker.currentHp > 0) {
     const healed = Math.min(dmg, attacker.maxHp - attacker.currentHp);
     attacker.currentHp += healed;
     addLog(newState, `\u{1F49A} ${attacker.card.name} lifesteals ${healed} HP!`, "attack");
+  } else if (passiveLsField > 0 && dmg > 0 && attacker.currentHp > 0) {
+    const healed = Math.min(Math.round(dmg * passiveLsField), attacker.maxHp - attacker.currentHp);
+    if (healed > 0) {
+      attacker.currentHp += healed;
+      addLog(newState, `\u{1F49A} ${attacker.card.name} siphons ${healed} HP!`, "attack");
+    }
   }
   if (target.currentHp <= 0) {
     addLog(newState, `\u{1F480} ${target.card.name} was destroyed!`, "defeat");
@@ -8606,6 +8674,7 @@ function deepCopy(obj) {
     const dst = copy;
     if (typeof src.rng === "function") dst.rng = src.rng;
     if (src.rngSeed !== void 0) dst.rngSeed = src.rngSeed;
+    if (src.playerCardProgress !== void 0) dst.playerCardProgress = src.playerCardProgress;
   }
   return copy;
 }

@@ -75,6 +75,7 @@ model Player {
   pityCounter                Int                  @default(0)
   totalPulls                 Int                  @default(0)
   lastFreePackTime           DateTime?
+  shareCollectionWithFriends Boolean              @default(false)
   hasCompletedOnboarding     Boolean              @default(true)
   selectedPath               String?
   battlePass                 Json?
@@ -104,6 +105,7 @@ model Player {
   chatMessages               ChatMessage[]
   guildInvitesSent           GuildInvite[]        @relation("GuildInviteFrom")
   guildInvitesReceived       GuildInvite[]        @relation("GuildInviteTo")
+  pveBattleSessions          PveBattleSession[]
 
   @@index([guildId])
   @@index([lastSeenAt])
@@ -144,6 +146,16 @@ model BattleStat {
   goldEarned   Int       @default(0)
   lastBattleAt DateTime?
   player       Player    @relation(fields: [playerId], references: [id], onDelete: Cascade)
+}
+
+model PveBattleSession {
+  id         String    @id @default(cuid())
+  playerId   Int
+  createdAt  DateTime  @default(now())
+  resolvedAt DateTime?
+  player     Player    @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@index([playerId, createdAt])
 }
 
 model Friendship {

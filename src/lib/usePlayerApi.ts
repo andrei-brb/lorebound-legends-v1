@@ -22,6 +22,7 @@ interface UsePlayerApiReturn {
     state: PlayerState;
   } | null>;
   submitBattleResult: (data: {
+    matchId: string;
     raidBossId?: string;
     won: boolean;
     draw?: boolean;
@@ -31,10 +32,11 @@ interface UsePlayerApiReturn {
     goldReward: number;
     levelUps: Array<{ cardId: string; oldLevel: number; newLevel: number }>;
   } | null>;
-  syncEconomy: (gold: number, stardust: number) => Promise<void>;
+  syncEconomy: (gold?: number, stardust?: number) => Promise<void>;
   craftFuse: (inputRarity: string, selectedCardIds: string[]) => Promise<{ resultCardId: string } | null>;
   craftSacrifice: (cardIds: string[]) => Promise<{ totalStardust: number } | null>;
   pullSeasonalPack: (eventId: string) => Promise<{ cardIds: string[]; state: PlayerState } | null>;
+  startPveBattle: () => Promise<{ matchId: string } | null>;
 }
 
 const MIGRATION_KEY = "lorebound-migrated";
@@ -157,7 +159,7 @@ export function usePlayerApi(): UsePlayerApiReturn {
   );
 
   const submitBattleResult = useCallback(
-    async (data: { won: boolean; draw?: boolean; turnCount: number; deckCardIds: string[] }) => {
+    async (data: { matchId: string; won: boolean; draw?: boolean; turnCount: number; deckCardIds: string[] }) => {
       if (!online) return null;
       try {
         const result = await api.submitBattleResult(data);
@@ -177,10 +179,15 @@ export function usePlayerApi(): UsePlayerApiReturn {
   );
 
   const syncEconomy = useCallback(
-    async (gold: number, stardust: number) => {
+    async (_gold?: number, _stardust?: number) => {
       if (!online) return;
       try {
-        await api.syncEconomy({ gold, stardust });
+        const server = normalizePlayerState((await api.syncEconomy()) as import("./playerState").PlayerState);
+        setPlayerStateInternal((prev) => {
+          const merged = mergeClientOnlyPlayerState(server, prev);
+          savePlayerState(merged);
+          return merged;
+        });
       } catch (err) {
         console.error("[usePlayerApi] syncEconomy failed:", err);
       }
@@ -228,6 +235,16 @@ export function usePlayerApi(): UsePlayerApiReturn {
     [online],
   );
 
+  const startPveBattle = useCallback(async () => {
+    if (!online) return null;
+    try {
+      return await api.startPveBattle();
+    } catch (err) {
+      console.error("[usePlayerApi] startPveBattle failed:", err);
+      return null;
+    }
+  }, [online]);
+
   const pullSeasonalPack = useCallback(
     async (eventId: string) => {
       if (!online) return null;
@@ -261,5 +278,6 @@ export function usePlayerApi(): UsePlayerApiReturn {
     craftFuse,
     craftSacrifice,
     pullSeasonalPack,
+    startPveBattle,
   };
 }

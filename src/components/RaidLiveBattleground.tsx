@@ -26,6 +26,7 @@ type Props = {
   playerState: PlayerState;
   onStateChange: (s: PlayerState) => void;
   submitBattleResult: (data: {
+    matchId: string;
     won: boolean;
     draw?: boolean;
     turnCount: number;
@@ -35,7 +36,8 @@ type Props = {
     goldReward: number;
     levelUps: Array<{ cardId: string; oldLevel: number; newLevel: number }>;
   } | null>;
-  syncEconomyApi?: (gold: number, stardust: number) => Promise<void>;
+  startPveBattle: () => Promise<{ matchId: string } | null>;
+  syncEconomyApi?: (gold?: number, stardust?: number) => Promise<void>;
 };
 
 export default function RaidLiveBattleground({
@@ -44,6 +46,7 @@ export default function RaidLiveBattleground({
   playerState,
   onStateChange,
   submitBattleResult,
+  startPveBattle,
   syncEconomyApi,
 }: Props) {
   const [me, setMe] = useState<{ id: number; username: string } | null>(null);
@@ -213,6 +216,7 @@ export default function RaidLiveBattleground({
       onStateChange={onStateChange}
       isOnline={true}
       submitBattleResultApi={submitBattleResult}
+      startPveBattleApi={startPveBattle}
       syncEconomyApi={syncEconomyApi}
     />
   );

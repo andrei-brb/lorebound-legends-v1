@@ -17,7 +17,7 @@ import BattleRadialMenu from "./BattleRadialMenu";
 import HeroPortrait from "./HeroPortrait";
 import BattleInfoPanel from "./BattleInfoPanel";
 import CardLevelUp from "./CardLevelUp";
-import { type PlayerState, getCardProgress } from "@/lib/playerState";
+import { type PlayerState, type CardProgress, getCardProgress } from "@/lib/playerState";
 import { awardXp, type LevelUpResult } from "@/lib/progressionEngine";
 import { getBattleGoldReward, getRaidGoldReward } from "@/lib/gachaEngine";
 import { getRaidBoss, resolveBossDeck } from "@/lib/raid/bosses";
@@ -48,7 +48,9 @@ interface BattleArenaProps {
   playerState: PlayerState;
   onStateChange: (state: PlayerState) => void;
   isOnline?: boolean;
+  startPveBattleApi?: () => Promise<{ matchId: string } | null>;
   submitBattleResultApi?: (data: {
+    matchId: string;
     won: boolean;
     draw?: boolean;
     turnCount: number;
@@ -61,7 +63,7 @@ interface BattleArenaProps {
   /** Live friend PvP: same rules as vs AI; actions sync via server action log. */
   livePvP?: LivePvPBattleConfig;
   /** When online, sync gold/stardust after local-only bonuses (first win, mystery tally). */
-  syncEconomyApi?: (gold: number, stardust: number) => Promise<void>;
+  syncEconomyApi?: (gold?: number, stardust?: number) => Promise<void>;
   /** Solo raid vs scripted boss (inflated enemy HP / reward multiplier). */
   soloRaidBossId?: string | null;
 }
@@ -79,6 +81,7 @@ export default function BattleArena({
   onStateChange,
   isOnline,
   submitBattleResultApi,
+  startPveBattleApi,
   livePvP,
   syncEconomyApi,
   soloRaidBossId,
@@ -106,6 +109,7 @@ export default function BattleArena({
   const [selectedFieldIndex, setSelectedFieldIndex] = useState<number | null>(null);
   const cardsPlayedRef = useRef(0);
   const rankedActionLogRef = useRef<BattleLockstepIntent[]>([]);
+  const pveMatchIdRef = useRef<string | null>(null);
   const isMobile = useIsMobile();
 
   const queueRankedIntent = (intent: BattleLockstepIntent) => {
@@ -117,26 +121,66 @@ export default function BattleArena({
   useEffect(() => {
     if (livePvP) return;
     rankedActionLogRef.current = [];
-    let enemyIds: string[];
-    let initOpts: Parameters<typeof initBattle>[2];
-    if (soloBoss) {
-      const deckSeed = battleSeed ?? Math.floor(Math.random() * 1_000_000_000);
-      enemyIds = resolveBossDeck(soloBoss, Math.max(10, playerDeckIds.length), deckSeed);
-      initOpts = {
-        seed: deckSeed,
-        enemyHero: { hp: soloBoss.enemyHp, shield: soloBoss.enemyShield },
-      };
-    } else {
-      enemyIds =
-        opponentDeckIds && opponentDeckIds.length > 0 ? opponentDeckIds : generateEnemyDeck(playerDeckIds.length);
-      initOpts = battleSeed != null ? { seed: battleSeed } : undefined;
-    }
-    setSoloState(initBattle(playerDeckIds, enemyIds, initOpts));
-    setRewardsGiven(false);
-    setGoldEarned(0);
-    setLevelUps([]);
-    cardsPlayedRef.current = 0;
-  }, [playerDeckIds, opponentDeckIds, livePvP, battleSeed, soloRaidBossId, soloBoss?.id]);
+    pveMatchIdRef.current = null;
+    let cancelled = false;
+
+    (async () => {
+      if (isOnline && submitBattleResultApi && startPveBattleApi && !onRankedSubmit) {
+        try {
+          const started = await startPveBattleApi();
+          if (!cancelled) pveMatchIdRef.current = started?.matchId ?? null;
+        } catch {
+          if (!cancelled) pveMatchIdRef.current = null;
+        }
+      }
+      if (cancelled) return;
+
+      let enemyIds: string[];
+      let initOpts: Parameters<typeof initBattle>[2];
+      if (soloBoss) {
+        const deckSeed = battleSeed ?? Math.floor(Math.random() * 1_000_000_000);
+        enemyIds = resolveBossDeck(soloBoss, Math.max(10, playerDeckIds.length), deckSeed);
+        initOpts = {
+          seed: deckSeed,
+          enemyHero: { hp: soloBoss.enemyHp, shield: soloBoss.enemyShield },
+        };
+      } else {
+        enemyIds =
+          opponentDeckIds && opponentDeckIds.length > 0 ? opponentDeckIds : generateEnemyDeck(playerDeckIds.length);
+        initOpts = battleSeed != null ? { seed: battleSeed } : undefined;
+      }
+      const playerCardProgress: Partial<Record<string, CardProgress>> = {};
+      for (const id of playerDeckIds) {
+        playerCardProgress[id] = getCardProgress(playerState, id);
+      }
+      setSoloState(
+        initBattle(playerDeckIds, enemyIds, {
+          ...initOpts,
+          playerCardProgress: playerCardProgress as Record<string, CardProgress>,
+        }),
+      );
+      setRewardsGiven(false);
+      setGoldEarned(0);
+      setLevelUps([]);
+      cardsPlayedRef.current = 0;
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    playerDeckIds,
+    opponentDeckIds,
+    livePvP,
+    battleSeed,
+    soloRaidBossId,
+    soloBoss?.id,
+    isOnline,
+    submitBattleResultApi,
+    startPveBattleApi,
+    playerState.cardProgress,
+    onRankedSubmit,
+  ]);
 
   // Enemy AI turn
   useEffect(() => {
@@ -226,50 +270,70 @@ export default function BattleArena({
         toast({ title: "Ranked result failed", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
       }
 
-      if (isOnline && submitBattleResultApi) {
-        const result = await submitBattleResultApi({
-          won,
-          draw: isDraw,
-          turnCount: turnNumber,
-          deckCardIds: playerDeckIds,
-          raidBossId: soloRaidBossId ?? undefined,
-        });
-        if (result) {
-          setGoldEarned(result.goldReward);
-          const mapped = result.levelUps.map((lu) => ({
-            ...lu,
-            milestone: null as string | null,
-          }));
-          setLevelUps(mapped);
-          if (mapped.length > 0) {
-            setShowLevelUps(true);
-            const qs = progressQuest(loadDailyQuests(), "level_up_card", mapped.length);
-            saveDailyQuests(qs);
-          }
-        }
-        onStateChange((prev) => {
-          let s = awardBattlePassXp(prev, won ? 120 : isDraw ? 80 : 60).state;
-          const prevPending = s.mysteryBoxesPending ?? 0;
-          s = rollMysteryBox(s);
-          if ((s.mysteryBoxesPending ?? 0) > prevPending) {
-            toast({ title: "Mystery box earned!", description: "Open it in You → Daily." });
-          }
-          if (won) {
-            const fw = claimFirstWin(s);
-            if (fw) {
-              s = fw.state;
-              s = awardBattlePassXp(s, FIRST_WIN_BP_XP).state;
-              toast({
-                title: "First win of the day!",
-                description: `+${FIRST_WIN_GOLD} gold & +${FIRST_WIN_BP_XP} Battle Pass XP`,
-              });
+      let usedOnlinePvE = false;
+      if (isOnline && submitBattleResultApi && !onRankedSubmit) {
+        const mid = pveMatchIdRef.current;
+        if (mid) {
+          try {
+            const result = await submitBattleResultApi({
+              matchId: mid,
+              won,
+              draw: isDraw,
+              turnCount: turnNumber,
+              deckCardIds: playerDeckIds,
+              raidBossId: soloRaidBossId ?? undefined,
+            });
+            if (result) {
+              setGoldEarned(result.goldReward);
+              const mapped = result.levelUps.map((lu) => ({
+                ...lu,
+                milestone: null as string | null,
+              }));
+              setLevelUps(mapped);
+              if (mapped.length > 0) {
+                setShowLevelUps(true);
+                const qs = progressQuest(loadDailyQuests(), "level_up_card", mapped.length);
+                saveDailyQuests(qs);
+              }
             }
+            onStateChange((prev) => {
+              let s = awardBattlePassXp(prev, won ? 120 : isDraw ? 80 : 60).state;
+              const prevPending = s.mysteryBoxesPending ?? 0;
+              s = rollMysteryBox(s);
+              if ((s.mysteryBoxesPending ?? 0) > prevPending) {
+                toast({ title: "Mystery box earned!", description: "Open it in You → Daily." });
+              }
+              if (won) {
+                const fw = claimFirstWin(s);
+                if (fw) {
+                  s = fw.state;
+                  s = awardBattlePassXp(s, FIRST_WIN_BP_XP).state;
+                  toast({
+                    title: "First win of the day!",
+                    description: `+${FIRST_WIN_GOLD} gold & +${FIRST_WIN_BP_XP} Battle Pass XP`,
+                  });
+                }
+              }
+              if (isOnline && syncEconomyApi) void syncEconomyApi(s.gold, s.stardust);
+              return s;
+            });
+            usedOnlinePvE = true;
+          } catch (e) {
+            toast({
+              title: "Online rewards failed",
+              description: e instanceof Error ? e.message : String(e),
+              variant: "destructive",
+            });
           }
-          if (isOnline && syncEconomyApi) void syncEconomyApi(s.gold, s.stardust);
-          return s;
-        });
-        return;
+        } else {
+          toast({
+            title: "Online rewards unavailable",
+            description: "Could not start a server battle session. Rewards use local rules until you reconnect.",
+            variant: "destructive",
+          });
+        }
       }
+      if (usedOnlinePvE) return;
 
       onStateChange((prev) => {
         const gold =
@@ -325,6 +389,7 @@ export default function BattleArena({
     syncEconomyApi,
     soloRaidBossId,
     soloBoss,
+    onRankedSubmit,
   ]);
 
   const handleHandCardClick = (index: number) => {

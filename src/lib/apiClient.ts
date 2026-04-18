@@ -146,7 +146,17 @@ export const api = {
     return handleResponse(res);
   },
 
+  async startPveBattle() {
+    const res = await fetch(`${getApiBase()}/api/battle/start`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({}),
+    });
+    return handleResponse<{ matchId: string }>(res);
+  },
+
   async submitBattleResult(data: {
+    matchId: string;
     won: boolean;
     draw?: boolean;
     turnCount: number;
@@ -198,13 +208,9 @@ export const api = {
     }>(res);
   },
 
-  async syncEconomy(data: { gold: number; stardust: number }) {
-    const res = await fetch(`${getApiBase()}/api/player`, {
-      method: "PATCH",
-      headers: getHeaders(),
-      body: JSON.stringify(data),
-    });
-    return handleResponse(res);
+  /** Re-fetch authoritative economy from server (PATCH no longer accepts gold/stardust). */
+  async syncEconomy() {
+    return this.getPlayer();
   },
 
   async getLeaderboard(tab: "wins" | "collection" | "rarest") {

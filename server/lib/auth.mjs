@@ -48,17 +48,24 @@ export function extractBearerToken(req) {
  * Auth middleware: extracts Bearer token, verifies with Discord, attaches user to req.
  * Returns the Discord user or sends 401 and returns null.
  */
+const corsJsonHeaders = {
+  "Content-Type": "application/json",
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
+};
+
 export async function requireAuth(req, res) {
   const token = extractBearerToken(req);
   if (!token) {
-    res.writeHead(401, { "Content-Type": "application/json" });
+    res.writeHead(401, corsJsonHeaders);
     res.end(JSON.stringify({ error: "Missing Authorization header" }));
     return null;
   }
 
   const user = await verifyDiscordToken(token);
   if (!user) {
-    res.writeHead(401, { "Content-Type": "application/json" });
+    res.writeHead(401, corsJsonHeaders);
     res.end(JSON.stringify({ error: "Invalid or expired Discord token" }));
     return null;
   }

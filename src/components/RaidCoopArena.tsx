@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import battleBg from "@/assets/battle-bg.jpg";
 import { motion } from "framer-motion";
 import { ArrowLeft } from "lucide-react";
@@ -46,7 +46,9 @@ type Props = {
   playerState: PlayerState;
   onStateChange: (state: PlayerState) => void;
   isOnline?: boolean;
+  startPveBattleApi?: () => Promise<{ matchId: string } | null>;
   submitBattleResultApi?: (data: {
+    matchId: string;
     won: boolean;
     draw?: boolean;
     turnCount: number;
@@ -56,7 +58,7 @@ type Props = {
     goldReward: number;
     levelUps: Array<{ cardId: string; oldLevel: number; newLevel: number }>;
   } | null>;
-  syncEconomyApi?: (gold: number, stardust: number) => Promise<void>;
+  syncEconomyApi?: (gold?: number, stardust?: number) => Promise<void>;
 };
 
 export default function RaidCoopArena({
@@ -70,6 +72,7 @@ export default function RaidCoopArena({
   onStateChange,
   isOnline,
   submitBattleResultApi,
+  startPveBattleApi,
   syncEconomyApi,
 }: Props) {
   const state = raidGetBattleView(raid);
@@ -82,7 +85,23 @@ export default function RaidCoopArena({
   const [selectedHandIndex, setSelectedHandIndex] = useState<number | null>(null);
   const [selectedFieldIndex, setSelectedFieldIndex] = useState<number | null>(null);
   const cardsPlayedRef = useRef(0);
+  const pveMatchIdRef = useRef<string | null>(null);
   const bossMeta = getRaidBoss(raid.bossId);
+
+  const startPveSession = useCallback(async () => {
+    pveMatchIdRef.current = null;
+    if (!isOnline || !submitBattleResultApi || !startPveBattleApi) return;
+    try {
+      const started = await startPveBattleApi();
+      pveMatchIdRef.current = started?.matchId ?? null;
+    } catch {
+      pveMatchIdRef.current = null;
+    }
+  }, [isOnline, submitBattleResultApi, startPveBattleApi]);
+
+  useEffect(() => {
+    void startPveSession();
+  }, [raid.bossId, startPveSession]);
 
   const runLocal = (fn: (r: RaidCoopState) => void) => {
     onRaidPatch(fn);
@@ -134,37 +153,59 @@ export default function RaidCoopArena({
     setRewardsGiven(true);
 
     void (async () => {
+      let usedOnline = false;
       if (isOnline && submitBattleResultApi) {
-        const result = await submitBattleResultApi({
-          won,
-          draw: isDraw,
-          turnCount: turnNumber,
-          deckCardIds: playerDeckIds,
-          raidBossId: raid.bossId,
-        });
-        if (result) {
-          setGoldEarned(result.goldReward);
-          setLevelUps(result.levelUps.map((lu) => ({ ...lu, milestone: null as string | null })));
-          if (result.levelUps.length > 0) setShowLevelUps(true);
-        }
-        onStateChange((prev) => {
-          let s = awardBattlePassXp(prev, won ? 120 : isDraw ? 80 : 60).state;
-          const prevPending = s.mysteryBoxesPending ?? 0;
-          s = rollMysteryBox(s);
-          if ((s.mysteryBoxesPending ?? 0) > prevPending) {
-            toast({ title: "Mystery box earned!", description: "Open it in You → Daily." });
-          }
-          if (won) {
-            const fw = claimFirstWin(s);
-            if (fw) {
-              s = fw.state;
-              s = awardBattlePassXp(s, FIRST_WIN_BP_XP).state;
-              toast({ title: "First win of the day!", description: `+${FIRST_WIN_GOLD} gold & +${FIRST_WIN_BP_XP} Battle Pass XP` });
+        const mid = pveMatchIdRef.current;
+        if (mid) {
+          try {
+            const result = await submitBattleResultApi({
+              matchId: mid,
+              won,
+              draw: isDraw,
+              turnCount: turnNumber,
+              deckCardIds: playerDeckIds,
+              raidBossId: raid.bossId,
+            });
+            if (result) {
+              setGoldEarned(result.goldReward);
+              setLevelUps(result.levelUps.map((lu) => ({ ...lu, milestone: null as string | null })));
+              if (result.levelUps.length > 0) setShowLevelUps(true);
             }
+            onStateChange((prev) => {
+              let s = awardBattlePassXp(prev, won ? 120 : isDraw ? 80 : 60).state;
+              const prevPending = s.mysteryBoxesPending ?? 0;
+              s = rollMysteryBox(s);
+              if ((s.mysteryBoxesPending ?? 0) > prevPending) {
+                toast({ title: "Mystery box earned!", description: "Open it in You → Daily." });
+              }
+              if (won) {
+                const fw = claimFirstWin(s);
+                if (fw) {
+                  s = fw.state;
+                  s = awardBattlePassXp(s, FIRST_WIN_BP_XP).state;
+                  toast({ title: "First win of the day!", description: `+${FIRST_WIN_GOLD} gold & +${FIRST_WIN_BP_XP} Battle Pass XP` });
+                }
+              }
+              if (isOnline && syncEconomyApi) void syncEconomyApi(s.gold, s.stardust);
+              return s;
+            });
+            usedOnline = true;
+          } catch (e) {
+            toast({
+              title: "Raid rewards failed",
+              description: e instanceof Error ? e.message : String(e),
+              variant: "destructive",
+            });
           }
-          if (isOnline && syncEconomyApi) void syncEconomyApi(s.gold, s.stardust);
-          return s;
-        });
+        } else {
+          toast({
+            title: "Online raid rewards unavailable",
+            description: "No server battle session. Using local gold and XP.",
+            variant: "destructive",
+          });
+        }
+      }
+      if (usedOnline) {
         let questState = loadDailyQuests();
         if (won) questState = progressQuest(questState, "win_battles");
         if (cardsPlayedRef.current > 0) questState = progressQuest(questState, "play_cards_in_battle", cardsPlayedRef.current);
@@ -210,6 +251,7 @@ export default function RaidCoopArena({
     raid.bossId,
     isOnline,
     submitBattleResultApi,
+    startPveBattleApi,
     playerDeckIds,
     onStateChange,
     syncEconomyApi,

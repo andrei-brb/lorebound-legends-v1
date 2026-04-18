@@ -4,6 +4,8 @@ import { allGameCards } from "@/data/cardIndex";
 import { TOKEN_CATALOG } from "@/data/tokenCatalog";
 import { calculateFieldSynergies, calculatePassiveBonuses, type ActiveSynergy } from "./synergyEngine";
 import { getElementMultiplier, getElementAdvantageLabel, elementEmoji } from "./elementSystem";
+import { getMilestoneCombatBonuses } from "./progressionEngine";
+import type { CardProgress } from "./playerState";
 import { resolveAbilityEffect } from "./abilityInference";
 import type { AbilityEffect, AbilityTarget } from "./abilityEffectTypes";
 import { cardHasKeyword } from "./keywords";
@@ -113,6 +115,8 @@ export interface BattleState {
   rngSeed?: number;
   /** Co-op raid: active player is one ally; skip wipe until both allies are out of cards. */
   skipPlayerWipeCheck?: boolean;
+  /** PvE: collection levels for milestone passives (crit / lifesteal / DR) on player-side units. */
+  playerCardProgress?: Record<string, CardProgress>;
 }
 
 export type PendingAction =
@@ -170,7 +174,12 @@ export function createPlayerSideFromDeck(
 export function initBattle(
   playerDeckIds: string[],
   enemyDeckIds: string[],
-  opts?: { seed?: number; rng?: RNG; enemyHero?: { hp?: number; shield?: number } }
+  opts?: {
+    seed?: number;
+    rng?: RNG;
+    enemyHero?: { hp?: number; shield?: number };
+    playerCardProgress?: Record<string, CardProgress>;
+  },
 ): BattleState {
   const rng = opts?.rng ?? (opts?.seed !== undefined ? createSeededRng(opts.seed) : Math.random);
   const state: BattleState = {
@@ -186,6 +195,7 @@ export function initBattle(
     pendingAction: null,
     rng,
     rngSeed: opts?.seed,
+    playerCardProgress: opts?.playerCardProgress,
   };
   return startTurn(state);
 }
@@ -818,7 +828,27 @@ export function attackTarget(state: BattleState, attackerFieldIndex: number, tar
       return maybeAutoEndTurn(recalcFieldStats(checkWinCondition(newState)));
     }
 
-    const dmg = attacker.attack;
+    let dmg = attacker.attack;
+    if (newState.turn === "player") {
+      const lv = newState.playerCardProgress?.[attacker.card.id]?.level ?? 1;
+      const ms = getMilestoneCombatBonuses(lv);
+      if (ms.critChance > 0 && newState.rng() < ms.critChance) {
+        dmg = Math.round(dmg * 1.5);
+        addLog(newState, `⭐ Critical strike!`, "attack");
+      }
+    } else {
+      let dr = 0;
+      const map = newState.playerCardProgress;
+      if (map) {
+        for (const p of Object.values(map)) {
+          dr = Math.max(dr, getMilestoneCombatBonuses(p.level).damageReduction);
+        }
+      }
+      if (dr > 0) {
+        dmg = Math.max(1, Math.round(dmg * (1 - dr)));
+        addLog(newState, `🛡️ Iron Skin reduces direct damage!`, "direct");
+      }
+    }
     // Shield absorbs first
     let hpDealt = 0;
     if (otherSide.shield > 0) {
@@ -834,10 +864,20 @@ export function attackTarget(state: BattleState, attackerFieldIndex: number, tar
       addLog(newState, `💥 ${attacker.card.name} attacks directly for ${dmg} damage!`, "direct");
     }
 
+    const passiveLs =
+      newState.turn === "player"
+        ? getMilestoneCombatBonuses(newState.playerCardProgress?.[attacker.card.id]?.level ?? 1).lifesteal
+        : 0;
     if (cardHasKeyword(attacker.card, "lifesteal") && hpDealt > 0 && attacker.currentHp > 0) {
       const healed = Math.min(hpDealt, attacker.maxHp - attacker.currentHp);
       attacker.currentHp += healed;
       addLog(newState, `💚 ${attacker.card.name} lifesteals ${healed} HP!`, "attack");
+    } else if (passiveLs > 0 && hpDealt > 0 && attacker.currentHp > 0) {
+      const healed = Math.min(Math.round(hpDealt * passiveLs), attacker.maxHp - attacker.currentHp);
+      if (healed > 0) {
+        attacker.currentHp += healed;
+        addLog(newState, `💚 ${attacker.card.name} siphons ${healed} HP!`, "attack");
+      }
     }
 
     spendAp(newState, 1);
@@ -900,7 +940,23 @@ export function attackTarget(state: BattleState, attackerFieldIndex: number, tar
 
   const rawDmg = Math.max(1, attacker.attack - Math.floor(target.defense * 0.4));
   const variance = 0.9 + state.rng() * 0.2;
-  const dmg = Math.max(1, Math.round(rawDmg * variance * elemMult));
+  let dmg = Math.max(1, Math.round(rawDmg * variance * elemMult));
+
+  if (newState.turn === "player") {
+    const lv = newState.playerCardProgress?.[attacker.card.id]?.level ?? 1;
+    const ms = getMilestoneCombatBonuses(lv);
+    if (ms.critChance > 0 && newState.rng() < ms.critChance) {
+      dmg = Math.max(1, Math.round(dmg * 1.5));
+      addLog(newState, `⭐ Critical strike!`, "attack");
+    }
+  } else {
+    const defLv = newState.playerCardProgress?.[target.card.id]?.level ?? 1;
+    const defMs = getMilestoneCombatBonuses(defLv);
+    if (defMs.damageReduction > 0) {
+      dmg = Math.max(1, Math.round(dmg * (1 - defMs.damageReduction)));
+      addLog(newState, `🛡️ ${target.card.name}'s Iron Skin softens the blow!`, "attack");
+    }
+  }
 
   target.currentHp = Math.max(0, target.currentHp - dmg);
   
@@ -910,10 +966,20 @@ export function attackTarget(state: BattleState, attackerFieldIndex: number, tar
   }
   addLog(newState, attackMsg, "attack");
 
+  const passiveLsField =
+    newState.turn === "player"
+      ? getMilestoneCombatBonuses(newState.playerCardProgress?.[attacker.card.id]?.level ?? 1).lifesteal
+      : 0;
   if (cardHasKeyword(attacker.card, "lifesteal") && dmg > 0 && attacker.currentHp > 0) {
     const healed = Math.min(dmg, attacker.maxHp - attacker.currentHp);
     attacker.currentHp += healed;
     addLog(newState, `💚 ${attacker.card.name} lifesteals ${healed} HP!`, "attack");
+  } else if (passiveLsField > 0 && dmg > 0 && attacker.currentHp > 0) {
+    const healed = Math.min(Math.round(dmg * passiveLsField), attacker.maxHp - attacker.currentHp);
+    if (healed > 0) {
+      attacker.currentHp += healed;
+      addLog(newState, `💚 ${attacker.card.name} siphons ${healed} HP!`, "attack");
+    }
   }
 
   if (target.currentHp <= 0) {
@@ -1446,6 +1512,7 @@ function deepCopy<T>(obj: T): T {
     const dst = copy as unknown as Record<string, unknown>;
     if (typeof src.rng === "function") dst.rng = src.rng;
     if (src.rngSeed !== undefined) dst.rngSeed = src.rngSeed;
+    if (src.playerCardProgress !== undefined) dst.playerCardProgress = src.playerCardProgress;
   }
   return copy;
 }

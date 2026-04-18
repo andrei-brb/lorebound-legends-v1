@@ -132,7 +132,7 @@ export default function Index() {
     guildTag: string;
     fromUsername: string;
   } | null>(null);
-  const { playerState, setPlayerState, status, isOnline, pullCards, submitBattleResult, completeOnboarding, syncEconomy, craftFuse, craftSacrifice, pullSeasonalPack } = usePlayerApi();
+  const { playerState, setPlayerState, status, isOnline, pullCards, submitBattleResult, completeOnboarding, syncEconomy, craftFuse, craftSacrifice, pullSeasonalPack, startPveBattle } = usePlayerApi();
   const isDiscordActivityHost = typeof window !== "undefined" && window.location.hostname.endsWith("discordsays.com");
   const discordOverlayInset = "calc(64px + env(safe-area-inset-top))";
   const ambientParticles = useMemo(
@@ -637,6 +637,7 @@ export default function Index() {
                 onStateChange={setPlayerState}
                 isOnline={isOnline}
                 submitBattleResultApi={submitBattleResult}
+                startPveBattleApi={startPveBattle}
                 syncEconomyApi={syncEconomy}
               />
             )}
@@ -654,6 +655,7 @@ export default function Index() {
                 onStateChange={setPlayerState}
                 isOnline={isOnline}
                 submitBattleResultApi={submitBattleResult}
+                startPveBattleApi={startPveBattle}
                 syncEconomyApi={syncEconomy}
               />
             )}
@@ -746,6 +748,7 @@ export default function Index() {
                   playerState={playerState}
                   onStateChange={setPlayerState}
                   submitBattleResult={submitBattleResult}
+                  startPveBattle={startPveBattle}
                   syncEconomyApi={syncEconomy}
                   onExit={() => {
                     sessionStorage.removeItem("raid.live.matchId");

@@ -1,6 +1,7 @@
 /**
  * Simple in-memory sliding-window rate limiter (per Node process).
- * Behind a reverse proxy, set X-Forwarded-For so getClientIp() is meaningful.
+ * When TRUST_PROXY=1 (or "true"), the client IP is taken from X-Forwarded-For (first hop).
+ * Otherwise only the socket remote address is used so clients cannot spoof IPs without a trusted proxy.
  */
 
 const buckets = new Map();
@@ -36,9 +37,12 @@ export function rateLimit(key, opts) {
 }
 
 export function getClientIp(req) {
-  const xf = req.headers["x-forwarded-for"];
-  if (typeof xf === "string" && xf.length > 0) {
-    return xf.split(",")[0].trim() || "unknown";
+  const trust = process.env.TRUST_PROXY === "1" || process.env.TRUST_PROXY === "true";
+  if (trust) {
+    const xf = req.headers["x-forwarded-for"];
+    if (typeof xf === "string" && xf.length > 0) {
+      return xf.split(",")[0].trim() || "unknown";
+    }
   }
   const rip = req.socket?.remoteAddress;
   return typeof rip === "string" ? rip : "unknown";

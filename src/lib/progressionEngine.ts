@@ -22,6 +22,20 @@ const PASSIVE_DEFINITIONS: { level: number; effect: PassiveAbility["effect"]; na
   { level: 12, effect: "damage_reduction", name: "Iron Skin", description: "Reduce incoming damage by 15%", value: 0.15 },
 ];
 
+/** Milestone combat bonuses for a single card level (used by battleEngine). */
+export function getMilestoneCombatBonuses(level: number): { critChance: number; lifesteal: number; damageReduction: number } {
+  let critChance = 0;
+  let lifesteal = 0;
+  let damageReduction = 0;
+  for (const p of PASSIVE_DEFINITIONS) {
+    if (level < p.level) continue;
+    if (p.effect === "crit") critChance = p.value;
+    else if (p.effect === "lifesteal") lifesteal = p.value;
+    else if (p.effect === "damage_reduction") damageReduction = p.value;
+  }
+  return { critChance, lifesteal, damageReduction };
+}
+
 export function getPassiveAbilities(progress: CardProgress): PassiveAbility[] {
   return PASSIVE_DEFINITIONS.filter(p => progress.level >= p.level).map(p => ({
     name: p.name,

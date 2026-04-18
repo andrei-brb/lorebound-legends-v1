@@ -11,6 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
+import { toast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import bronzePackImg from "@/assets/packs/bronze-pack.jpg";
 import silverPackImg from "@/assets/packs/silver-pack.jpg";
@@ -64,14 +65,22 @@ export default function PackShop({ playerState, onStateChange, isOnline, pullCar
   const buyPack = async (pack: PackDefinition) => {
     if (!canAffordPack(playerState.gold, pack)) return;
     if (isOnline && pullCardsApi) {
-      const result = await pullCardsApi(pack.id);
-      if (result) {
-        onStateChange(result.state);
-        setOpeningPack({
-          cardIds: result.pullResults.map((r) => r.cardId),
-          cardIsNew: result.pullResults.map((r) => !r.isDuplicate),
+      try {
+        const result = await pullCardsApi(pack.id);
+        if (result) {
+          onStateChange(result.state);
+          setOpeningPack({
+            cardIds: result.pullResults.map((r) => r.cardId),
+            cardIsNew: result.pullResults.map((r) => !r.isDuplicate),
+          });
+          trackPackQuests(false);
+        }
+      } catch (e) {
+        toast({
+          title: "Pack pull failed",
+          description: e instanceof Error ? e.message : String(e),
+          variant: "destructive",
         });
-        trackPackQuests(false);
       }
       return;
     }
@@ -89,14 +98,22 @@ export default function PackShop({ playerState, onStateChange, isOnline, pullCar
   const claimFreePack = async () => {
     if (!canClaimFreePack(playerState)) return;
     if (isOnline && pullCardsApi) {
-      const result = await pullCardsApi("free");
-      if (result) {
-        onStateChange(result.state);
-        setOpeningPack({
-          cardIds: result.pullResults.map((r) => r.cardId),
-          cardIsNew: result.pullResults.map((r) => !r.isDuplicate),
+      try {
+        const result = await pullCardsApi("free");
+        if (result) {
+          onStateChange(result.state);
+          setOpeningPack({
+            cardIds: result.pullResults.map((r) => r.cardId),
+            cardIsNew: result.pullResults.map((r) => !r.isDuplicate),
+          });
+          trackPackQuests(true);
+        }
+      } catch (e) {
+        toast({
+          title: "Free pack failed",
+          description: e instanceof Error ? e.message : String(e),
+          variant: "destructive",
         });
-        trackPackQuests(true);
       }
       return;
     }
