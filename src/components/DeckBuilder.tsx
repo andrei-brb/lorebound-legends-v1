@@ -46,8 +46,8 @@ interface DeckBuilderProps {
 function getDeckStrength(deckCards: typeof allGameCards): "weak" | "balanced" | "strong" | "empty" {
   if (deckCards.length === 0) return "empty";
   const avg = deckCards.reduce((a, c) => a + c.attack + c.defense + c.hp, 0) / deckCards.length;
-  if (avg > 180) return "strong";
-  if (avg > 100) return "balanced";
+  if (avg > 65) return "strong";
+  if (avg > 48) return "balanced";
   return "weak";
 }
 

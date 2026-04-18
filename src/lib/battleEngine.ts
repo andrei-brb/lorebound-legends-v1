@@ -4,7 +4,7 @@ import { allGameCards } from "@/data/cardIndex";
 import { TOKEN_CATALOG } from "@/data/tokenCatalog";
 import { calculateFieldSynergies, calculatePassiveBonuses, type ActiveSynergy } from "./synergyEngine";
 import { getElementMultiplier, getElementAdvantageLabel, elementEmoji } from "./elementSystem";
-import { getMilestoneCombatBonuses } from "./progressionEngine";
+import { getMilestoneCombatBonuses, getStatBonuses } from "./progressionEngine";
 import type { CardProgress } from "./playerState";
 import { resolveAbilityEffect } from "./abilityInference";
 import type { AbilityEffect, AbilityTarget } from "./abilityEffectTypes";
@@ -250,6 +250,13 @@ function recalcFieldStats(state: BattleState): BattleState {
       if (passBonus) {
         atk += passBonus.attack;
         def += passBonus.defense;
+      }
+
+      // Level + prestige stat bonus (player side only)
+      if (sideKey === "player" && state.playerCardProgress?.[fc.card.id]) {
+        const sb = getStatBonuses(state.playerCardProgress[fc.card.id]);
+        atk += sb.attack;
+        def += sb.defense;
       }
 
       // Temp buffs
