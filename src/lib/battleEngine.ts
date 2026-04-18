@@ -437,7 +437,8 @@ export function startTurn(state: BattleState): BattleState {
   const otherSide = getOtherSide(state);
   const sideLabel = state.turn === "player" ? "You" : "Enemy";
 
-  side.ap = 2;
+  // AP ramps from 2 up to 6 over the first 5 turns
+  side.ap = Math.min(6, 1 + state.turnNumber);
   side.hasCastSpellThisTurn = false;
   for (const fc of side.field) {
     if (!fc) continue;
