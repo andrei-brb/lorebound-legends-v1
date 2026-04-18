@@ -44,58 +44,53 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/comp
 import { GoldCurrencyIcon, StardustCurrencyIcon } from "@/components/CurrencyIcons";
 
 type Tab = "collection" | "cosmetics" | "catalog" | "deck" | "combat-hall" | "battle" | "pvp" | "summon" | "quests" | "workshop" | "achievements" | "leaderboard" | "trade" | "mail" | "events" | "tournament" | "boost" | "pass" | "profile" | "daily" | "friends" | "chat" | "guild" | "spectate";
-type Category = "cards" | "combat" | "progress" | "social" | "community" | "you";
+type Category = "cards" | "summon" | "combat" | "grow" | "social";
 
 const categories: { id: Category; label: string; icon: React.ReactNode; tabs: { id: Tab; label: string; icon: React.ReactNode }[] }[] = [
   {
     id: "cards", label: "Cards", icon: <BookOpen className="w-4 h-4" />,
     tabs: [
       { id: "collection", label: "Collection", icon: <BookOpen className="w-4 h-4" /> },
-      { id: "cosmetics", label: "Cosmetics", icon: <Palette className="w-4 h-4" /> },
       { id: "catalog", label: "Catalog", icon: <Grid3X3 className="w-4 h-4" /> },
-      { id: "summon", label: "Summon", icon: <SparklesIcon className="w-4 h-4" /> },
-      { id: "deck", label: "Deck", icon: <Layers className="w-4 h-4" /> },
+      { id: "cosmetics", label: "Cosmetics", icon: <Palette className="w-4 h-4" /> },
     ],
   },
   {
-    id: "combat", label: "Combat", icon: <Swords className="w-4 h-4" />,
+    id: "summon", label: "Summon", icon: <SparklesIcon className="w-4 h-4" />,
+    tabs: [
+      { id: "summon", label: "Pack Shop", icon: <SparklesIcon className="w-4 h-4" /> },
+      { id: "deck", label: "Deck Builder", icon: <Layers className="w-4 h-4" /> },
+    ],
+  },
+  {
+    id: "combat", label: "Battle", icon: <Swords className="w-4 h-4" />,
     tabs: [
       { id: "combat-hall", label: "Arena", icon: <Flame className="w-4 h-4" /> },
     ],
   },
   {
-    id: "progress", label: "Progress", icon: <Trophy className="w-4 h-4" />,
+    id: "grow", label: "Grow", icon: <Trophy className="w-4 h-4" />,
     tabs: [
+      { id: "daily", label: "Daily", icon: <Gift className="w-4 h-4" /> },
       { id: "quests", label: "Quests", icon: <ScrollText className="w-4 h-4" /> },
-      { id: "workshop", label: "Workshop", icon: <Hammer className="w-4 h-4" /> },
-      { id: "achievements", label: "Badges", icon: <Trophy className="w-4 h-4" /> },
-      { id: "pass", label: "Pass", icon: <Shield className="w-4 h-4" /> },
+      { id: "pass", label: "Battle Pass", icon: <Shield className="w-4 h-4" /> },
       { id: "boost", label: "Boost", icon: <Zap className="w-4 h-4" /> },
+      { id: "achievements", label: "Badges", icon: <Trophy className="w-4 h-4" /> },
+      { id: "workshop", label: "Workshop", icon: <Hammer className="w-4 h-4" /> },
       { id: "events", label: "Events", icon: <Calendar className="w-4 h-4" /> },
     ],
   },
   {
-    id: "social", label: "Social", icon: <ArrowLeftRight className="w-4 h-4" />,
-    tabs: [
-      { id: "trade", label: "Trade", icon: <ArrowLeftRight className="w-4 h-4" /> },
-      { id: "mail", label: "Mail", icon: <Mail className="w-4 h-4" /> },
-      { id: "leaderboard", label: "Ranks", icon: <BarChart3 className="w-4 h-4" /> },
-    ],
-  },
-  {
-    id: "community", label: "Community", icon: <Users className="w-4 h-4" />,
+    id: "social", label: "Social", icon: <Users className="w-4 h-4" />,
     tabs: [
       { id: "friends", label: "Friends", icon: <Users className="w-4 h-4" /> },
       { id: "chat", label: "Chat", icon: <MessageCircle className="w-4 h-4" /> },
       { id: "guild", label: "Guild", icon: <Flag className="w-4 h-4" /> },
+      { id: "trade", label: "Trade", icon: <ArrowLeftRight className="w-4 h-4" /> },
+      { id: "leaderboard", label: "Ranks", icon: <BarChart3 className="w-4 h-4" /> },
+      { id: "mail", label: "Mail", icon: <Mail className="w-4 h-4" /> },
       { id: "spectate", label: "Spectate", icon: <Eye className="w-4 h-4" /> },
-    ],
-  },
-  {
-    id: "you", label: "You", icon: <User className="w-4 h-4" />,
-    tabs: [
       { id: "profile", label: "Profile", icon: <User className="w-4 h-4" /> },
-      { id: "daily", label: "Daily", icon: <Gift className="w-4 h-4" /> },
     ],
   },
 ];
@@ -104,7 +99,7 @@ export default function Index() {
   const [activeCategory, setActiveCategory] = useState<Category>("cards");
   const [activeTab, setActiveTab] = useState<Tab>("collection");
   const [lastTabPerCategory, setLastTabPerCategory] = useState<Record<Category, Tab>>({
-    cards: "collection", combat: "combat-hall", progress: "quests", social: "trade", community: "friends", you: "profile",
+    cards: "collection", summon: "summon", combat: "combat-hall", grow: "daily", social: "friends",
   });
   const [battleDeckIds, setBattleDeckIds] = useState<string[]>([]);
   const [soloRaidBossId, setSoloRaidBossId] = useState<string | null>(null);
@@ -333,7 +328,7 @@ export default function Index() {
       await api.respondGuildInvite(inviteId, true);
       setGuildInvitePopup(null);
       toast({ title: "Joined guild", description: `Welcome to ${guildName} [${guildTag}] — invited by ${fromUsername}.` });
-      setActiveCategory("community");
+      setActiveCategory("social");
       setActiveTab("guild");
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Could not accept invite";
@@ -601,8 +596,10 @@ export default function Index() {
                     setActiveTab("friends");
                   } else if (mode === "raid-solo" || mode === "raid-hotseat") {
                     setPendingCombat({ kind: mode, bossId: bossId ?? "ember-tyrant" });
+                    setActiveCategory("summon");
                     setActiveTab("deck");
                   } else {
+                    setActiveCategory("summon");
                     setActiveTab("deck");
                   }
                 }}
@@ -675,6 +672,7 @@ export default function Index() {
             {activeTab === "mail" && (
               <MailHall
                 onNavigate={(tab) => {
+                  // friends, guild, trade are all in "social" now
                   setActiveCategory("social");
                   setActiveTab(tab);
                 }}
