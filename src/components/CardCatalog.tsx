@@ -10,6 +10,17 @@ interface CardCatalogProps {
   playerState: PlayerState;
 }
 
+/** Collection ownership + any card id still referenced in a saved deck (avoids catalog "locked" when presets desync from ownedCardIds). */
+function getCatalogUnlockedIds(state: PlayerState): Set<string> {
+  const ids = new Set(state.ownedCardIds);
+  for (const preset of state.deckPresets ?? []) {
+    for (const id of preset.cardIds ?? []) {
+      if (id) ids.add(id);
+    }
+  }
+  return ids;
+}
+
 const typeFilters: { id: CardType | "all"; label: string; icon: React.ReactNode }[] = [
   { id: "all", label: "All", icon: <Grid3X3 className="w-3.5 h-3.5" /> },
   { id: "god", label: "Gods", icon: <Crown className="w-3.5 h-3.5" /> },
@@ -31,7 +42,7 @@ export default function CardCatalog({ playerState }: CardCatalogProps) {
   const [activeFilter, setActiveFilter] = useState<CardType | "all">("all");
   const [selectedCard, setSelectedCard] = useState<GameCardType | null>(null);
 
-  const ownedSet = useMemo(() => new Set(playerState.ownedCardIds), [playerState.ownedCardIds]);
+  const catalogUnlockedSet = useMemo(() => getCatalogUnlockedIds(playerState), [playerState]);
 
   const filteredCards = useMemo(() => {
     return activeFilter === "all" ? allGameCards : allGameCards.filter((c) => c.type === activeFilter);
@@ -48,7 +59,7 @@ export default function CardCatalog({ playerState }: CardCatalogProps) {
 
   // Count stats
   const totalFiltered = filteredCards.length;
-  const ownedFiltered = filteredCards.filter((c) => ownedSet.has(c.id)).length;
+  const ownedFiltered = filteredCards.filter((c) => catalogUnlockedSet.has(c.id)).length;
 
   return (
     <div>
@@ -70,8 +81,8 @@ export default function CardCatalog({ playerState }: CardCatalogProps) {
               : allGameCards.filter((c) => c.type === f.id).length;
           const owned =
             f.id === "all"
-              ? playerState.ownedCardIds.length
-              : allGameCards.filter((c) => c.type === f.id && ownedSet.has(c.id)).length;
+              ? catalogUnlockedSet.size
+              : allGameCards.filter((c) => c.type === f.id && catalogUnlockedSet.has(c.id)).length;
           return (
             <button
               key={f.id}
@@ -104,16 +115,17 @@ export default function CardCatalog({ playerState }: CardCatalogProps) {
               <span className="text-lg">{info.icon}</span>
               <h3 className="font-heading text-lg font-bold text-foreground">{info.label}</h3>
               <span className="text-xs text-muted-foreground">
-                ({cards.filter((c) => ownedSet.has(c.id)).length}/{cards.length})
+                ({cards.filter((c) => catalogUnlockedSet.has(c.id)).length}/{cards.length})
               </span>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
               {cards.map((card) => {
-                const isOwned = ownedSet.has(card.id);
+                const inCollection = playerState.ownedCardIds.includes(card.id);
+                const unlocked = catalogUnlockedSet.has(card.id);
                 return (
                   <div
                     key={card.id}
-                    className={cn(!isOwned && "grayscale opacity-50 hover:opacity-70 transition-opacity")}
+                    className={cn(!unlocked && "grayscale opacity-50 hover:opacity-70 transition-opacity")}
                   >
                     <GameCard
                       card={card}
@@ -121,6 +133,9 @@ export default function CardCatalog({ playerState }: CardCatalogProps) {
                       onClick={() => setSelectedCard(card)}
                       cardProgress={playerState.cardProgress[card.id]}
                     />
+                    {unlocked && !inCollection && (
+                      <p className="text-[9px] text-center text-amber-600/90 font-medium mt-1 leading-tight">In a deck only</p>
+                    )}
                   </div>
                 );
               })}
@@ -134,23 +149,35 @@ export default function CardCatalog({ playerState }: CardCatalogProps) {
         <DialogContent className="bg-transparent border-none shadow-none max-w-fit p-0 [&>button]:hidden">
           {selectedCard && (
             <div className="flex flex-col items-center gap-4">
-              <div className={cn(!ownedSet.has(selectedCard.id) && "grayscale opacity-60")}>
+              <div className={cn(!catalogUnlockedSet.has(selectedCard.id) && "grayscale opacity-60")}>
                 <GameCard
                   card={selectedCard}
                   size="lg"
                   cardProgress={playerState.cardProgress[selectedCard.id]}
                 />
               </div>
-              <div className="flex items-center gap-2 text-sm font-medium">
-                {ownedSet.has(selectedCard.id) ? (
+              <div className="flex flex-col items-center gap-1 text-sm font-medium">
+                {!catalogUnlockedSet.has(selectedCard.id) ? (
                   <>
-                    <Unlock className="w-4 h-4 text-primary" />
-                    <span className="text-primary">Owned</span>
+                    <div className="flex items-center gap-2">
+                      <Lock className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">Not yet unlocked</span>
+                    </div>
                   </>
+                ) : playerState.ownedCardIds.includes(selectedCard.id) ? (
+                  <div className="flex items-center gap-2">
+                    <Unlock className="w-4 h-4 text-primary" />
+                    <span className="text-primary">In your collection</span>
+                  </div>
                 ) : (
                   <>
-                    <Lock className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">Not yet unlocked</span>
+                    <div className="flex items-center gap-2">
+                      <Unlock className="w-4 h-4 text-amber-600" />
+                      <span className="text-amber-600">In a saved deck</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground font-normal text-center max-w-xs">
+                      This card is listed in a deck preset but not in your collection. Remove it from the deck or pull it again to sync.
+                    </p>
                   </>
                 )}
               </div>
