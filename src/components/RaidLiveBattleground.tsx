@@ -36,7 +36,16 @@ type Props = {
     goldReward: number;
     levelUps: Array<{ cardId: string; oldLevel: number; newLevel: number }>;
   } | null>;
-  startPveBattle: () => Promise<{ matchId: string } | null>;
+  startPveBattle: (body: {
+    deckCardIds: string[];
+    raidBossId?: string;
+    raidCoopHotseat?: boolean;
+  }) => Promise<{
+    matchId: string;
+    seed?: number;
+    enemyDeckIds?: string[];
+    skipReplayVerification?: boolean;
+  } | null>;
   syncEconomyApi?: (gold?: number, stardust?: number) => Promise<void>;
 };
 

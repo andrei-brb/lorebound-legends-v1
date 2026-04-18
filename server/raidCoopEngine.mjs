@@ -8957,5 +8957,6 @@ export {
   raidPartyWon,
   raidPlayCard,
   raidReplayFromLog,
-  raidRunBossTurn
+  raidRunBossTurn,
+  resolveBossDeck
 };

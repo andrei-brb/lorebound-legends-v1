@@ -28,6 +28,7 @@ interface UsePlayerApiReturn {
     draw?: boolean;
     turnCount: number;
     deckCardIds: string[];
+    actionLog?: import("./battleLockstep").BattleLockstepIntent[];
   }) => Promise<{
     goldReward: number;
     levelUps: Array<{ cardId: string; oldLevel: number; newLevel: number }>;
@@ -36,7 +37,17 @@ interface UsePlayerApiReturn {
   craftFuse: (inputRarity: string, selectedCardIds: string[]) => Promise<{ resultCardId: string } | null>;
   craftSacrifice: (cardIds: string[]) => Promise<{ totalStardust: number } | null>;
   pullSeasonalPack: (eventId: string) => Promise<{ cardIds: string[]; state: PlayerState } | null>;
-  startPveBattle: () => Promise<{ matchId: string } | null>;
+  startPveBattle: (body: {
+    deckCardIds: string[];
+    raidBossId?: string;
+    opponentDeckIds?: string[] | null;
+    raidCoopHotseat?: boolean;
+  }) => Promise<{
+    matchId: string;
+    seed?: number;
+    enemyDeckIds?: string[];
+    skipReplayVerification?: boolean;
+  } | null>;
 }
 
 const MIGRATION_KEY = "lorebound-migrated";
@@ -159,7 +170,15 @@ export function usePlayerApi(): UsePlayerApiReturn {
   );
 
   const submitBattleResult = useCallback(
-    async (data: { matchId: string; won: boolean; draw?: boolean; turnCount: number; deckCardIds: string[] }) => {
+    async (data: {
+      matchId: string;
+      won: boolean;
+      draw?: boolean;
+      turnCount: number;
+      deckCardIds: string[];
+      raidBossId?: string;
+      actionLog?: import("./battleLockstep").BattleLockstepIntent[];
+    }) => {
       if (!online) return null;
       try {
         const result = await api.submitBattleResult(data);
@@ -235,15 +254,23 @@ export function usePlayerApi(): UsePlayerApiReturn {
     [online],
   );
 
-  const startPveBattle = useCallback(async () => {
-    if (!online) return null;
-    try {
-      return await api.startPveBattle();
-    } catch (err) {
-      console.error("[usePlayerApi] startPveBattle failed:", err);
-      return null;
-    }
-  }, [online]);
+  const startPveBattle = useCallback(
+    async (body: {
+      deckCardIds: string[];
+      raidBossId?: string;
+      opponentDeckIds?: string[] | null;
+      raidCoopHotseat?: boolean;
+    }) => {
+      if (!online) return null;
+      try {
+        return await api.startPveBattle(body);
+      } catch (err) {
+        console.error("[usePlayerApi] startPveBattle failed:", err);
+        return null;
+      }
+    },
+    [online],
+  );
 
   const pullSeasonalPack = useCallback(
     async (eventId: string) => {

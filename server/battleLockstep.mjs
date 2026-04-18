@@ -8780,12 +8780,41 @@ function simulateBattle(params) {
   }
   return { winner: s.winner, turnCount: s.turnNumber, finalState: s };
 }
+function generateEnemyDeck(size = 10, rng = Math.random) {
+  const heroes = allCards.filter((c) => c.type === "hero");
+  const gods = allCards.filter((c) => c.type === "god");
+  const weapons = allCards.filter((c) => c.type === "weapon");
+  const spells = allCards.filter((c) => c.type === "spell");
+  const traps = allCards.filter((c) => c.type === "trap");
+  const shuffled = (arr) => shuffleDeck(arr, rng);
+  const picked = [];
+  const heroCount = Math.min(4, Math.ceil(size * 0.4));
+  const godCount = Math.min(2, Math.ceil(size * 0.2));
+  const weaponCount = Math.min(2, Math.ceil(size * 0.2));
+  const spellCount = Math.min(1, Math.ceil(size * 0.1));
+  const trapCount = Math.min(1, Math.ceil(size * 0.1));
+  for (const c of shuffled(heroes).slice(0, heroCount)) picked.push(c.id);
+  for (const c of shuffled(gods).slice(0, godCount)) picked.push(c.id);
+  for (const c of shuffled(weapons).slice(0, weaponCount)) picked.push(c.id);
+  for (const c of shuffled(spells).slice(0, spellCount)) picked.push(c.id);
+  for (const c of shuffled(traps).slice(0, trapCount)) picked.push(c.id);
+  while (picked.length < size) {
+    const pool = [...heroes, ...gods].filter((c) => !picked.includes(c.id));
+    if (pool.length === 0) break;
+    picked.push(pool[Math.floor(rng() * pool.length)].id);
+  }
+  return picked.slice(0, size);
+}
 
 // src/lib/battleLockstep.ts
 var MAX_REPLAY_STEPS = 16e3;
 var MAX_ENEMY_SUBSTEPS = 64;
-function replayRankedFromPlayerActions(seed, deckA, deckB, playerActions) {
-  let s = initBattle(deckA, deckB, { seed });
+function replayRankedFromPlayerActions(seed, deckA, deckB, playerActions, initOpts) {
+  let s = initBattle(deckA, deckB, {
+    seed,
+    enemyHero: initOpts?.enemyHero,
+    playerCardProgress: initOpts?.playerCardProgress
+  });
   let qi = 0;
   let steps = 0;
   while (s.phase !== "game-over" && steps++ < MAX_REPLAY_STEPS) {
@@ -8843,6 +8872,8 @@ function toViewerBattleState(state, viewerIsA) {
 }
 export {
   applyBattleLockstepIntent,
+  createSeededRng,
+  generateEnemyDeck,
   replayBattleFromActions,
   replayRankedFromPlayerActions,
   simulateBattle,

@@ -146,13 +146,23 @@ export const api = {
     return handleResponse(res);
   },
 
-  async startPveBattle() {
+  async startPveBattle(body: {
+    deckCardIds: string[];
+    raidBossId?: string;
+    opponentDeckIds?: string[] | null;
+    raidCoopHotseat?: boolean;
+  }) {
     const res = await fetch(`${getApiBase()}/api/battle/start`, {
       method: "POST",
       headers: getHeaders(),
-      body: JSON.stringify({}),
+      body: JSON.stringify(body),
     });
-    return handleResponse<{ matchId: string }>(res);
+    return handleResponse<{
+      matchId: string;
+      seed?: number;
+      enemyDeckIds?: string[];
+      skipReplayVerification?: boolean;
+    }>(res);
   },
 
   async submitBattleResult(data: {
@@ -162,6 +172,7 @@ export const api = {
     turnCount: number;
     deckCardIds: string[];
     raidBossId?: string;
+    actionLog?: import("./battleLockstep").BattleLockstepIntent[];
   }) {
     const res = await fetch(`${getApiBase()}/api/battle/result`, {
       method: "POST",

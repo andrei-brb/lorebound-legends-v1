@@ -34,6 +34,8 @@ import {
   applyBattleLockstepIntent,
   replayRankedFromPlayerActions,
   simulateBattle,
+  generateEnemyDeck,
+  createSeededRng,
 } from "./battleLockstep.mjs";
 import * as raidCoop from "./raidCoopEngine.mjs";
 import { RAID_BOSS_GOLD_MULTIPLIER } from "./lib/raidBossGold.mjs";
@@ -1812,6 +1814,61 @@ async function handleGetAsyncPlay(req, res, matchId) {
 }
 
 const MAX_RANKED_ACTIONS = 800;
+const MAX_PVE_REPLAY_ACTIONS = MAX_RANKED_ACTIONS;
+
+function verifyPveSoloReplay(session, body) {
+  const actionLog = Array.isArray(body.actionLog) ? body.actionLog : null;
+  if (!actionLog || actionLog.length === 0) {
+    return { ok: false, error: "actionLog required for verified PvE battles" };
+  }
+  if (actionLog.length > MAX_PVE_REPLAY_ACTIONS) {
+    return { ok: false, error: "actionLog too long" };
+  }
+  if (!actionLog.every(isValidBattleIntent)) {
+    return { ok: false, error: "Invalid action in actionLog" };
+  }
+  const seed = session.seed;
+  const deckA = session.playerDeckIds;
+  const deckB = session.enemyDeckIds;
+  if (seed == null || !Array.isArray(deckA) || !Array.isArray(deckB)) {
+    return { ok: false, error: "Battle session is missing replay data — start a new battle" };
+  }
+  const bodyDeck = Array.isArray(body.deckCardIds) ? body.deckCardIds.map(String) : [];
+  if (bodyDeck.length !== deckA.length || bodyDeck.some((id, i) => id !== String(deckA[i]))) {
+    return { ok: false, error: "deckCardIds must match the battle session" };
+  }
+  const snap = session.playerProgressSnapshot;
+  const initOpts = {
+    enemyHero: session.enemyHero && typeof session.enemyHero === "object" ? session.enemyHero : undefined,
+    playerCardProgress: snap && typeof snap === "object" ? snap : undefined,
+  };
+  let replayed;
+  try {
+    replayed = replayRankedFromPlayerActions(seed, deckA, deckB, actionLog, initOpts);
+  } catch (e) {
+    return { ok: false, error: "Replay failed" };
+  }
+  if (replayed.phase !== "game-over" || replayed.winner === null) {
+    return { ok: false, error: "Replay did not reach a completed battle" };
+  }
+  const expectedDraw = replayed.winner === "draw";
+  const expectedWon = replayed.winner === "player";
+  const bodyDraw = !!body.draw;
+  const bodyWon = !!body.won;
+  if (expectedDraw !== bodyDraw || (!bodyDraw && bodyWon !== expectedWon)) {
+    return { ok: false, error: "Outcome does not match verified battle replay" };
+  }
+  const tc = Number(body.turnCount) || 0;
+  if (tc !== replayed.turnNumber) {
+    return { ok: false, error: "turnCount does not match replay" };
+  }
+  const sidRaid = session.raidBossId != null ? String(session.raidBossId) : null;
+  const bodyRaid = body.raidBossId != null ? String(body.raidBossId) : null;
+  if (sidRaid !== bodyRaid) {
+    return { ok: false, error: "raidBossId does not match battle session" };
+  }
+  return { ok: true, won: bodyWon, draw: bodyDraw, turnCount: tc };
+}
 
 function isValidBattleIntent(x) {
   if (!x || typeof x !== "object") return false;
@@ -2971,12 +3028,98 @@ function utcStartOfToday() {
 async function handleBattleStart(req, res) {
   const user = await requireAuth(req, res);
   if (!user) return;
-  const me = await prisma.player.findUnique({ where: { discordId: user.id } });
-  if (!me) return sendJson(res, 404, { error: "Player not found" });
-  const session = await prisma.pveBattleSession.create({
-    data: { playerId: me.id },
+
+  let body = {};
+  try {
+    body = await readJsonBody(req);
+  } catch {
+    body = {};
+  }
+
+  const me = await prisma.player.findUnique({
+    where: { discordId: user.id },
+    include: { cards: true },
   });
-  return sendJson(res, 200, { matchId: session.id });
+  if (!me) return sendJson(res, 404, { error: "Player not found" });
+
+  const raidCoopHotseat = body.raidCoopHotseat === true;
+  const deckIds = Array.isArray(body.deckCardIds) ? body.deckCardIds.map(String) : [];
+  if (deckIds.length < 1 || deckIds.length > MAX_RANKED_DECK_CARDS) {
+    return sendJson(res, 400, { error: `deckCardIds required (1–${MAX_RANKED_DECK_CARDS} cards)` });
+  }
+
+  const owned = new Set(me.cards.map((c) => c.cardId));
+  for (const id of deckIds) {
+    if (!ALL_CARD_IDS.includes(id)) return sendJson(res, 400, { error: `Invalid card id: ${id}` });
+    if (!owned.has(id)) return sendJson(res, 400, { error: `Card not in collection: ${id}` });
+  }
+
+  const raidBossId = body.raidBossId != null && body.raidBossId !== "" ? String(body.raidBossId) : null;
+
+  if (raidCoopHotseat) {
+    const session = await prisma.pveBattleSession.create({
+      data: {
+        playerId: me.id,
+        skipReplayVerification: true,
+        raidBossId,
+        playerDeckIds: deckIds,
+      },
+    });
+    return sendJson(res, 200, { matchId: session.id, skipReplayVerification: true });
+  }
+
+  const seed = crypto.randomInt(1, 2 ** 31 - 1);
+  const rng = createSeededRng(seed);
+
+  let enemyDeckIds;
+  let enemyHero = null;
+  const opponentDeckIds = Array.isArray(body.opponentDeckIds)
+    ? [...new Set(body.opponentDeckIds.map(String))].filter((id) => ALL_CARD_IDS.includes(id))
+    : [];
+
+  if (raidBossId) {
+    const boss = raidCoop.getRaidBoss(raidBossId);
+    if (!boss) return sendJson(res, 400, { error: "Unknown raid boss" });
+    enemyDeckIds = raidCoop.resolveBossDeck(boss, Math.max(10, deckIds.length), seed);
+    enemyHero = { hp: boss.enemyHp, shield: boss.enemyShield };
+  } else if (opponentDeckIds.length > 0) {
+    enemyDeckIds = opponentDeckIds;
+  } else {
+    enemyDeckIds = generateEnemyDeck(deckIds.length, rng);
+  }
+
+  const progressSnap = {};
+  for (const cid of deckIds) {
+    const row = me.cards.find((c) => c.cardId === cid);
+    if (row) {
+      progressSnap[cid] = {
+        level: row.level,
+        xp: row.xp,
+        prestigeLevel: row.prestigeLevel,
+        starProgress: { dupeCount: row.dupeCount, goldStars: row.goldStars, redStars: row.redStars },
+      };
+    }
+  }
+
+  const session = await prisma.pveBattleSession.create({
+    data: {
+      playerId: me.id,
+      skipReplayVerification: false,
+      seed,
+      playerDeckIds: deckIds,
+      enemyDeckIds,
+      enemyHero,
+      playerProgressSnapshot: progressSnap,
+      raidBossId,
+    },
+  });
+
+  return sendJson(res, 200, {
+    matchId: session.id,
+    seed,
+    enemyDeckIds,
+    skipReplayVerification: false,
+  });
 }
 
 async function handleBattleResult(req, res) {
@@ -2984,10 +3127,7 @@ async function handleBattleResult(req, res) {
   if (!user) return;
 
   const body = await readJsonBody(req);
-  const { won, turnCount, deckCardIds, matchId } = body;
-  if (typeof won !== "boolean" || typeof turnCount !== "number" || turnCount < 1) {
-    return sendJson(res, 400, { error: "won (bool) and positive turnCount required" });
-  }
+  const { deckCardIds, matchId } = body;
   if (!matchId || typeof matchId !== "string") {
     return sendJson(res, 400, { error: "matchId required — call POST /api/battle/start before reporting results" });
   }
@@ -3020,12 +3160,28 @@ async function handleBattleResult(req, res) {
     }
   }
 
-  const raidBossId = body.raidBossId != null ? String(body.raidBossId) : null;
+  let won = !!body.won;
+  let isDraw = !!body.draw;
+  let turnCount = Number(body.turnCount) || 0;
+
+  if (!session.skipReplayVerification) {
+    const v = verifyPveSoloReplay(session, body);
+    if (!v.ok) return sendJson(res, 400, { error: v.error });
+    won = v.won;
+    isDraw = v.draw;
+    turnCount = v.turnCount;
+  } else {
+    if (typeof body.won !== "boolean" || typeof body.turnCount !== "number" || body.turnCount < 1) {
+      return sendJson(res, 400, { error: "won (bool) and positive turnCount required" });
+    }
+  }
+
+  const raidBossId = session.raidBossId != null ? String(session.raidBossId) : null;
   let goldReward = getBattleGoldReward(won, turnCount);
   if (won && raidBossId && RAID_BOSS_GOLD_MULTIPLIER[raidBossId]) {
     goldReward = Math.round(goldReward * RAID_BOSS_GOLD_MULTIPLIER[raidBossId]);
   }
-  const outcome = won ? "win" : body.draw ? "draw" : "loss";
+  const outcome = won ? "win" : isDraw ? "draw" : "loss";
   const xpAmount = won ? 50 : outcome === "draw" ? 35 : 20;
 
   const allLevelUps = [];

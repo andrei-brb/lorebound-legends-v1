@@ -320,4 +320,4 @@ export function raidIsDraw(raid: RaidCoopState): boolean {
   return raid.live.winner === "draw";
 }
 
-export { getRaidBoss, type RaidBossDefinition };
+export { getRaidBoss, resolveBossDeck, type RaidBossDefinition };

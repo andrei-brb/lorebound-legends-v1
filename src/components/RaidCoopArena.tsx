@@ -46,9 +46,19 @@ type Props = {
   playerState: PlayerState;
   onStateChange: (state: PlayerState) => void;
   isOnline?: boolean;
-  startPveBattleApi?: () => Promise<{ matchId: string } | null>;
+  startPveBattleApi?: (body: {
+    deckCardIds: string[];
+    raidBossId?: string;
+    raidCoopHotseat?: boolean;
+  }) => Promise<{
+    matchId: string;
+    seed?: number;
+    enemyDeckIds?: string[];
+    skipReplayVerification?: boolean;
+  } | null>;
   submitBattleResultApi?: (data: {
     matchId: string;
+    actionLog?: import("@/lib/battleLockstep").BattleLockstepIntent[];
     won: boolean;
     draw?: boolean;
     turnCount: number;
@@ -92,12 +102,16 @@ export default function RaidCoopArena({
     pveMatchIdRef.current = null;
     if (!isOnline || !submitBattleResultApi || !startPveBattleApi) return;
     try {
-      const started = await startPveBattleApi();
+      const started = await startPveBattleApi({
+        deckCardIds: playerDeckIds,
+        raidBossId: raid.bossId,
+        raidCoopHotseat: true,
+      });
       pveMatchIdRef.current = started?.matchId ?? null;
     } catch {
       pveMatchIdRef.current = null;
     }
-  }, [isOnline, submitBattleResultApi, startPveBattleApi]);
+  }, [isOnline, submitBattleResultApi, startPveBattleApi, playerDeckIds, raid.bossId]);
 
   useEffect(() => {
     void startPveSession();

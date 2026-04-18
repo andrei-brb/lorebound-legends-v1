@@ -153,7 +153,21 @@ model PveBattleSession {
   playerId   Int
   createdAt  DateTime  @default(now())
   resolvedAt DateTime?
-  player     Player    @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  /// When true (raid co-op / non-lockstep modes), rewards skip action-log replay until a dedicated verifier exists.
+  skipReplayVerification Boolean @default(false)
+  /// Server RNG seed for solo PvE lockstep replay (null when skipReplayVerification).
+  seed                     Int?
+  /// Player deck at battle start (null when skipReplayVerification).
+  playerDeckIds            Json?
+  /// Enemy deck at battle start (null when skipReplayVerification).
+  enemyDeckIds             Json?
+  /// Optional enemy hero override (raid boss), same shape as battleEngine init opts.
+  enemyHero                Json?
+  /// Snapshot of CardProgress-like objects for deck cards (authoritative from DB at start).
+  playerProgressSnapshot   Json?
+  raidBossId               String?
+
+  player Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
 
   @@index([playerId, createdAt])
 }

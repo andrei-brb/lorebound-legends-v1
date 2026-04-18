@@ -1,4 +1,5 @@
 import type { BattleState } from "./battleEngine";
+import type { CardProgress } from "./playerState";
 import {
   initBattle,
   playCard,
@@ -9,9 +10,11 @@ import {
   endTurnAction,
   performAITurn,
   simulateBattle,
+  generateEnemyDeck,
+  createSeededRng,
 } from "./battleEngine";
 
-export { simulateBattle };
+export { simulateBattle, generateEnemyDeck, createSeededRng };
 
 const MAX_REPLAY_STEPS = 16000;
 const MAX_ENEMY_SUBSTEPS = 64;
@@ -20,13 +23,23 @@ const MAX_ENEMY_SUBSTEPS = 64;
  * Ranked async: player A (deck A) submits a log of player-intents only;
  * opponent B runs the same `performAITurn` AI as the client between player turns.
  */
+export type ReplayRankedInitOpts = {
+  enemyHero?: { hp?: number; shield?: number };
+  playerCardProgress?: Record<string, CardProgress>;
+};
+
 export function replayRankedFromPlayerActions(
   seed: number,
   deckA: string[],
   deckB: string[],
   playerActions: BattleLockstepIntent[],
+  initOpts?: ReplayRankedInitOpts,
 ): BattleState {
-  let s = initBattle(deckA, deckB, { seed });
+  let s = initBattle(deckA, deckB, {
+    seed,
+    enemyHero: initOpts?.enemyHero,
+    playerCardProgress: initOpts?.playerCardProgress,
+  });
   let qi = 0;
   let steps = 0;
   while (s.phase !== "game-over" && steps++ < MAX_REPLAY_STEPS) {

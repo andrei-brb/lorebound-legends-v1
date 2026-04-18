@@ -139,15 +139,24 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
     }
   }, [deckIds.length, step]);
 
+  /** Remove one slot by index (tray order matches deckIds order). */
+  const removeCardAtSlot = (index: number) => {
+    setDeckIds((prev) => prev.filter((_, j) => j !== index));
+  };
+
+  /**
+   * Toggle card in/out of deck. Ownership is only required when *adding* — otherwise you can
+   * never remove cards that are still in a saved preset but no longer owned (fuse/sacrifice/sync).
+   */
   const toggleCard = (cardId: string) => {
-    if (!playerState.ownedCardIds.includes(cardId)) return;
-    setDeckIds(prev =>
-      prev.includes(cardId)
-        ? prev.filter(id => id !== cardId)
-        : prev.length < MAX_DECK_SIZE
-          ? [...prev, cardId]
-          : prev
-    );
+    setDeckIds((prev) => {
+      if (prev.includes(cardId)) {
+        return prev.filter((id) => id !== cardId);
+      }
+      if (!playerState.ownedCardIds.includes(cardId)) return prev;
+      if (prev.length >= MAX_DECK_SIZE) return prev;
+      return [...prev, cardId];
+    });
   };
 
   const saveDeck = () => {
@@ -387,11 +396,12 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
         {/* Card slots */}
         <div className="grid grid-cols-5 sm:grid-cols-10 gap-2 mb-3">
           {Array.from({ length: MAX_DECK_SIZE }).map((_, i) => {
-            const card = deckCards[i];
-            const isSynergyHighlight = card && synergies.some(s => s.cards.includes(card.name));
+            const slotId = deckIds[i];
+            const card = slotId ? allGameCards.find((c) => c.id === slotId) : undefined;
+            const isSynergyHighlight = card && synergies.some((s) => s.cards.includes(card.name));
             return (
               <motion.div
-                key={i}
+                key={`slot-${i}-${slotId ?? "empty"}`}
                 layout
                 className={cn(
                   "relative aspect-[3/4] rounded-lg border-2 overflow-hidden transition-all",
@@ -399,14 +409,17 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
                     ? isSynergyHighlight
                       ? "border-synergy shadow-[0_0_8px_hsl(var(--synergy)/0.4)]"
                       : "border-primary/40"
-                    : "border-dashed border-border bg-secondary/30"
+                    : slotId
+                      ? "border-destructive/50 bg-destructive/10"
+                      : "border-dashed border-border bg-secondary/30",
                 )}
               >
                 {card ? (
                   <>
                     <img src={card.image} alt={card.name} className="w-full h-full object-cover" />
                     <button
-                      onClick={() => toggleCard(card.id)}
+                      type="button"
+                      onClick={() => removeCardAtSlot(i)}
                       className="absolute top-0 right-0 w-5 h-5 bg-background/80 rounded-bl flex items-center justify-center hover:bg-destructive hover:text-destructive-foreground transition-colors"
                     >
                       <X className="w-3 h-3" />
@@ -414,6 +427,20 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
                     <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent px-1 pb-0.5 pt-3">
                       <p className="text-[8px] font-bold text-white truncate">{card.name}</p>
                     </div>
+                  </>
+                ) : slotId ? (
+                  <>
+                    <div className="w-full h-full flex flex-col items-center justify-center p-1 text-center bg-secondary/80">
+                      <p className="text-[8px] font-bold text-destructive leading-tight">Unavailable</p>
+                      <p className="text-[7px] text-muted-foreground mt-0.5 break-all line-clamp-2">{slotId}</p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => removeCardAtSlot(i)}
+                      className="absolute top-0 right-0 w-5 h-5 bg-background/80 rounded-bl flex items-center justify-center hover:bg-destructive hover:text-destructive-foreground transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
                   </>
                 ) : (
                   <div className="w-full h-full flex items-center justify-center">
@@ -622,24 +649,46 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
 
       {/* Cards grid */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-        {deckCards.map(card => {
+        {deckIds.map((id, index) => {
+          const card = allGameCards.find((c) => c.id === id);
+          if (!card) {
+            return (
+              <div
+                key={`review-${index}-${id}`}
+                className="relative rounded-lg border-2 border-destructive/40 overflow-hidden bg-secondary/60 flex flex-col items-center justify-center aspect-[3/4] p-2 group"
+              >
+                <p className="text-[10px] font-bold text-destructive text-center">Card not in collection</p>
+                <p className="text-[8px] text-muted-foreground break-all text-center mt-1 line-clamp-3">{id}</p>
+                <button
+                  type="button"
+                  onClick={() => removeCardAtSlot(index)}
+                  className="absolute top-1 right-1 w-6 h-6 bg-background/70 rounded-full flex items-center justify-center opacity-80 group-hover:opacity-100 hover:bg-destructive hover:text-destructive-foreground"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </div>
+            );
+          }
           const prog = getCardProgress(playerState, card.id);
-          const hasSynergy = synergies.some(s => s.cards.includes(card.name));
+          const hasSynergy = synergies.some((s) => s.cards.includes(card.name));
           return (
             <div
-              key={card.id}
+              key={`review-${index}-${card.id}`}
               className={cn(
                 "relative rounded-lg border-2 overflow-hidden group",
-                hasSynergy ? "border-synergy shadow-[0_0_8px_hsl(var(--synergy)/0.3)]" : "border-border"
+                hasSynergy ? "border-synergy shadow-[0_0_8px_hsl(var(--synergy)/0.3)]" : "border-border",
               )}
             >
               <img src={card.image} alt={card.name} className="w-full aspect-[3/4] object-cover" />
               <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 to-transparent p-2 pt-6">
                 <p className="text-xs font-bold text-white truncate">{card.name}</p>
-                <p className="text-[9px] text-white/70 capitalize">{card.rarity} {card.type} · Lv.{prog.level}</p>
+                <p className="text-[9px] text-white/70 capitalize">
+                  {card.rarity} {card.type} · Lv.{prog.level}
+                </p>
               </div>
               <button
-                onClick={() => toggleCard(card.id)}
+                type="button"
+                onClick={() => removeCardAtSlot(index)}
                 className="absolute top-1 right-1 w-6 h-6 bg-background/70 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive hover:text-destructive-foreground"
               >
                 <X className="w-3 h-3" />

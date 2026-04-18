@@ -48,7 +48,17 @@ interface BattleArenaProps {
   playerState: PlayerState;
   onStateChange: (state: PlayerState) => void;
   isOnline?: boolean;
-  startPveBattleApi?: () => Promise<{ matchId: string } | null>;
+  startPveBattleApi?: (body: {
+    deckCardIds: string[];
+    raidBossId?: string;
+    opponentDeckIds?: string[] | null;
+    raidCoopHotseat?: boolean;
+  }) => Promise<{
+    matchId: string;
+    seed?: number;
+    enemyDeckIds?: string[];
+    skipReplayVerification?: boolean;
+  } | null>;
   submitBattleResultApi?: (data: {
     matchId: string;
     won: boolean;
@@ -56,6 +66,7 @@ interface BattleArenaProps {
     turnCount: number;
     deckCardIds: string[];
     raidBossId?: string;
+    actionLog?: BattleLockstepIntent[];
   }) => Promise<{
     goldReward: number;
     levelUps: Array<{ cardId: string; oldLevel: number; newLevel: number }>;
@@ -109,11 +120,14 @@ export default function BattleArena({
   const [selectedFieldIndex, setSelectedFieldIndex] = useState<number | null>(null);
   const cardsPlayedRef = useRef(0);
   const rankedActionLogRef = useRef<BattleLockstepIntent[]>([]);
+  const pveActionLogRef = useRef<BattleLockstepIntent[]>([]);
   const pveMatchIdRef = useRef<string | null>(null);
   const isMobile = useIsMobile();
 
-  const queueRankedIntent = (intent: BattleLockstepIntent) => {
-    if (onRankedSubmit && !livePvP) rankedActionLogRef.current.push(intent);
+  const queueBattleIntent = (intent: BattleLockstepIntent) => {
+    if (livePvP) return;
+    if (onRankedSubmit) rankedActionLogRef.current.push(intent);
+    else pveActionLogRef.current.push(intent);
   };
 
   const soloBoss = soloRaidBossId ? getRaidBoss(soloRaidBossId) : undefined;
@@ -121,14 +135,30 @@ export default function BattleArena({
   useEffect(() => {
     if (livePvP) return;
     rankedActionLogRef.current = [];
+    pveActionLogRef.current = [];
     pveMatchIdRef.current = null;
     let cancelled = false;
 
     (async () => {
+      let serverSeed: number | null = null;
+      let serverEnemyDeck: string[] | null = null;
+
       if (isOnline && submitBattleResultApi && startPveBattleApi && !onRankedSubmit) {
         try {
-          const started = await startPveBattleApi();
-          if (!cancelled) pveMatchIdRef.current = started?.matchId ?? null;
+          const started = await startPveBattleApi({
+            deckCardIds: playerDeckIds,
+            raidBossId: soloRaidBossId ?? undefined,
+            opponentDeckIds: opponentDeckIds ?? undefined,
+          });
+          if (!cancelled && started?.matchId) {
+            pveMatchIdRef.current = started.matchId;
+            if (!started.skipReplayVerification && started.seed != null && Array.isArray(started.enemyDeckIds)) {
+              serverSeed = started.seed;
+              serverEnemyDeck = started.enemyDeckIds;
+            }
+          } else if (!cancelled) {
+            pveMatchIdRef.current = null;
+          }
         } catch {
           if (!cancelled) pveMatchIdRef.current = null;
         }
@@ -137,7 +167,17 @@ export default function BattleArena({
 
       let enemyIds: string[];
       let initOpts: Parameters<typeof initBattle>[2];
-      if (soloBoss) {
+      if (serverSeed != null && serverEnemyDeck != null) {
+        enemyIds = serverEnemyDeck;
+        if (soloBoss) {
+          initOpts = {
+            seed: serverSeed,
+            enemyHero: { hp: soloBoss.enemyHp, shield: soloBoss.enemyShield },
+          };
+        } else {
+          initOpts = { seed: serverSeed };
+        }
+      } else if (soloBoss) {
         const deckSeed = battleSeed ?? Math.floor(Math.random() * 1_000_000_000);
         enemyIds = resolveBossDeck(soloBoss, Math.max(10, playerDeckIds.length), deckSeed);
         initOpts = {
@@ -207,7 +247,7 @@ export default function BattleArena({
       return;
     }
     if (state.turn !== "player") return;
-    queueRankedIntent({ kind: "end-turn" });
+    queueBattleIntent({ kind: "end-turn" });
     setSoloState((prev) => (prev ? endTurnAction(prev) : prev));
     setActionMode("none");
     setSelectedFieldIndex(null);
@@ -282,6 +322,7 @@ export default function BattleArena({
               turnCount: turnNumber,
               deckCardIds: playerDeckIds,
               raidBossId: soloRaidBossId ?? undefined,
+              actionLog: pveActionLogRef.current,
             });
             if (result) {
               setGoldEarned(result.goldReward);
@@ -424,7 +465,7 @@ export default function BattleArena({
 
     if (card.type === "hero" || card.type === "god" || card.type === "trap") {
       cardsPlayedRef.current += 1;
-      queueRankedIntent({ kind: "play-card", handIndex: index });
+      queueBattleIntent({ kind: "play-card", handIndex: index });
       setAnimating(true);
       setTimeout(() => {
         setSoloState(prev => prev ? playCard(prev, index) : prev);
@@ -437,7 +478,7 @@ export default function BattleArena({
     } else if (card.type === "spell") {
       cardsPlayedRef.current += 1;
       if (card.spellEffect?.target === "all_enemies" || card.spellEffect?.target === "all_allies") {
-        queueRankedIntent({ kind: "cast-spell", handIndex: index });
+        queueBattleIntent({ kind: "cast-spell", handIndex: index });
         setAnimating(true);
         setTimeout(() => {
           setSoloState(prev => prev ? castSpell(prev, index) : prev);
@@ -488,7 +529,7 @@ export default function BattleArena({
 
     if (actionMode === "select-equip-target" && side === "player" && selectedHandIndex !== null) {
       cardsPlayedRef.current += 1;
-      queueRankedIntent({ kind: "equip-weapon", handIndex: selectedHandIndex, fieldIndex: index });
+      queueBattleIntent({ kind: "equip-weapon", handIndex: selectedHandIndex, fieldIndex: index });
       setAnimating(true);
       setTimeout(() => {
         setSoloState(prev => prev ? equipWeapon(prev, selectedHandIndex!, index) : prev);
@@ -501,7 +542,7 @@ export default function BattleArena({
       const spell = state.player.hand[selectedHandIndex];
       const targetSide = spell?.spellEffect?.target === "single_ally" ? "player" : "enemy";
       if (side !== targetSide) return;
-      queueRankedIntent({ kind: "cast-spell", handIndex: selectedHandIndex, targetFieldIndex: index });
+      queueBattleIntent({ kind: "cast-spell", handIndex: selectedHandIndex, targetFieldIndex: index });
       setAnimating(true);
       setTimeout(() => {
         setSoloState(prev => prev ? castSpell(prev, selectedHandIndex!, index) : prev);
@@ -510,7 +551,7 @@ export default function BattleArena({
         setSelectedHandIndex(null);
       }, 150);
     } else if (actionMode === "select-attack-target" && side === "enemy" && selectedFieldIndex !== null) {
-      queueRankedIntent({
+      queueBattleIntent({
         kind: "attack",
         attackerFieldIndex: selectedFieldIndex,
         targetFieldIndex: index,
@@ -552,7 +593,7 @@ export default function BattleArena({
       setSelectedFieldIndex(null);
       return;
     }
-    queueRankedIntent({
+    queueBattleIntent({
       kind: "attack",
       attackerFieldIndex: selectedFieldIndex,
       targetFieldIndex: "direct",
@@ -575,7 +616,7 @@ export default function BattleArena({
       setSelectedFieldIndex(null);
       return;
     }
-    queueRankedIntent({ kind: "ability", fieldIndex });
+    queueBattleIntent({ kind: "ability", fieldIndex });
     setAnimating(true);
     setTimeout(() => {
       setSoloState(prev => prev ? activateAbility(prev, fieldIndex) : prev);
