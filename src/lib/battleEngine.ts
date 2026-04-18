@@ -938,7 +938,7 @@ export function attackTarget(state: BattleState, attackerFieldIndex: number, tar
   const elemMult = getElementMultiplier(attackerElement, defenderElement);
   const elemLabel = getElementAdvantageLabel(attackerElement, defenderElement);
 
-  const rawDmg = Math.max(1, attacker.attack - Math.floor(target.defense * 0.4));
+  const rawDmg = Math.max(1, attacker.attack - Math.floor(target.defense * 0.25));
   const variance = 0.9 + state.rng() * 0.2;
   let dmg = Math.max(1, Math.round(rawDmg * variance * elemMult));
 
