@@ -5,6 +5,7 @@ import type { PlayerState } from "@/lib/playerState";
 import HallLayout, { HallSection, HallStat } from "@/components/scene/HallLayout";
 import GlassPanel from "@/components/scene/GlassPanel";
 import HexAvatar from "@/components/scene/HexAvatar";
+import { texThrone, texGilded, texVelvet } from "@/components/scene/panelTextures";
 import { cn } from "@/lib/utils";
 
 type Row = { rank: number; username: string; score: number; discordId?: string; avatar?: string | null; isMe?: boolean };
@@ -44,16 +45,16 @@ export default function RanksHall({ playerState, isOnline }: Props) {
     <HallLayout
       sidebar={
         <>
-          <HallSection title="Hall of Ranks" hue="var(--legendary)" glow={0.5}>
+          <HallSection title="Hall of Ranks" hue="var(--legendary)" glow={0.5} bg={texThrone} bgTint={0.65}>
             <div className="flex items-center gap-2 mb-3">
               <BarChart3 className="w-4 h-4 text-[hsl(var(--legendary))]" />
-              <span className="text-xs text-muted-foreground">Global standings</span>
+              <span className="text-xs text-foreground/85 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">Global standings</span>
             </div>
             <HallStat label="Your gold" value={playerState.gold.toLocaleString()} hue="var(--legendary)" />
             <HallStat label="Cards owned" value={playerState.ownedCardIds.length} />
           </HallSection>
 
-          <HallSection title="Board" hue="var(--legendary)" glow={0.3}>
+          <HallSection title="Board" hue="var(--legendary)" glow={0.3} bg={texGilded}>
             <div className="space-y-1">
               {(["wins", "collection", "rarest"] as const).map((b) => (
                 <button
@@ -61,7 +62,7 @@ export default function RanksHall({ playerState, isOnline }: Props) {
                   onClick={() => setBoard(b)}
                   className={cn(
                     "w-full text-left px-2.5 py-1.5 rounded-lg text-xs capitalize transition-colors",
-                    board === b ? "bg-[hsl(var(--legendary)/0.15)] text-foreground ring-1 ring-[hsl(var(--legendary)/0.4)]" : "text-muted-foreground hover:bg-foreground/5"
+                    board === b ? "bg-[hsl(var(--legendary)/0.25)] text-foreground ring-1 ring-[hsl(var(--legendary)/0.5)]" : "text-foreground/85 hover:bg-foreground/10 bg-background/30"
                   )}
                 >
                   {b}
@@ -78,7 +79,7 @@ export default function RanksHall({ playerState, isOnline }: Props) {
         <>
           {/* Podium */}
           {top3.length === 3 && (
-            <GlassPanel hue="var(--legendary)" glow={0.5} padding="lg">
+            <GlassPanel hue="var(--legendary)" glow={0.5} padding="lg" bg={texThrone} bgTint={0.6}>
               <div className="grid grid-cols-3 gap-3 items-end">
                 <Podium row={top3[1]} place={2} />
                 <Podium row={top3[0]} place={1} />
@@ -88,8 +89,8 @@ export default function RanksHall({ playerState, isOnline }: Props) {
           )}
 
           {/* Rest of leaderboard */}
-          <GlassPanel hue="var(--primary)" glow={0.3} padding="md">
-            <h3 className="font-heading text-xs uppercase tracking-wider text-foreground/90 mb-3">Top Contenders</h3>
+          <GlassPanel hue="var(--primary)" glow={0.3} padding="md" bg={texVelvet}>
+            <h3 className="font-heading text-xs uppercase tracking-wider text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] mb-3">Top Contenders</h3>
             <ul className="space-y-1">
               {rest.map((r) => (
                 <li key={r.rank} className={cn(
