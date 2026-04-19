@@ -10,7 +10,7 @@ import BattleRadialMenu from "./BattleRadialMenu";
 import HeroPortrait from "./HeroPortrait";
 import BattleInfoPanel from "./BattleInfoPanel";
 import CardLevelUp from "./CardLevelUp";
-import { type PlayerState, type CardProgress, getCardProgress } from "@/lib/playerState";
+import { type PlayerState, type CardProgress, getCardProgress, addCardToCollection } from "@/lib/playerState";
 import { awardXp, type LevelUpResult } from "@/lib/progressionEngine";
 import { getBattleGoldReward, getRaidGoldReward } from "@/lib/gachaEngine";
 import { getRaidBoss, resolveBossDeck } from "@/lib/raid/bosses";
@@ -18,10 +18,8 @@ import { loadDailyQuests, progressQuest, saveDailyQuests } from "@/lib/questEngi
 import { toast } from "@/hooks/use-toast";
 import { rollMysteryBox, claimFirstWin, FIRST_WIN_GOLD, FIRST_WIN_BP_XP } from "@/lib/dailyEngine";
 import { awardBattlePassXp } from "@/lib/battlePassEngine";
-import { rollMysteryBox, claimFirstWin, FIRST_WIN_GOLD, FIRST_WIN_BP_XP } from "@/lib/dailyEngine";
 import { getCosmeticById } from "@/data/cosmetics";
 import LegendaryPicker from "./LegendaryPicker";
-import { addCardToCollection } from "@/lib/playerState";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface BattleArenaProps {
