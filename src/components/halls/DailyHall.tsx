@@ -2,6 +2,7 @@ import { Gift, Calendar, Coins, Sparkles, CheckCircle2, Lock } from "lucide-reac
 import type { PlayerState } from "@/lib/playerState";
 import HallLayout, { HallSection, HallStat } from "@/components/scene/HallLayout";
 import GlassPanel from "@/components/scene/GlassPanel";
+import { texTreasure, texParchment, texVelvet, texGilded, texCosmic } from "@/components/scene/panelTextures";
 import { cn } from "@/lib/utils";
 
 interface Props { playerState: PlayerState; onStateChange: (s: PlayerState) => void }
@@ -26,33 +27,33 @@ export default function DailyHall({ playerState }: Props) {
     <HallLayout
       sidebar={
         <>
-          <HallSection title="Daily Hub" hue="var(--legendary)" glow={0.55}>
+          <HallSection title="Daily Hub" hue="var(--legendary)" glow={0.55} bg={texTreasure}>
             <div className="flex items-center gap-2 mb-3">
               <Gift className="w-4 h-4 text-[hsl(var(--legendary))]" />
-              <span className="text-xs text-muted-foreground">Login rewards & boons</span>
+              <span className="text-xs text-foreground/85 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">Login rewards & boons</span>
             </div>
             <HallStat label="Current streak" value={`${streak}d`} hue="var(--legendary)" />
             <HallStat label="Claimed this cycle" value={`${claimedDays.length}/7`} />
             <HallStat label="Claimed today" value={claimedToday ? "yes" : "no"} hue={claimedToday ? "var(--synergy)" : "var(--rare)"} />
           </HallSection>
 
-          <HallSection title="Tip" hue="var(--legendary)" glow={0.25}>
-            <p className="text-xs text-muted-foreground leading-relaxed">
+          <HallSection title="Tip" hue="var(--legendary)" glow={0.25} bg={texParchment}>
+            <p className="text-xs text-foreground/85 leading-relaxed drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
               Login each day to keep your streak — day 7 always rewards a pack.
             </p>
           </HallSection>
         </>
       }
       header={
-        <GlassPanel hue="var(--legendary)" glow={0.4} padding="md">
+        <GlassPanel hue="var(--legendary)" glow={0.4} padding="md" bg={texVelvet}>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Weekly Cycle</p>
-              <h1 className="font-heading text-lg text-foreground">Day {Math.min(7, claimedDays.length + (claimedToday ? 0 : 1))}</h1>
+              <p className="text-[10px] uppercase tracking-widest text-foreground/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">Weekly Cycle</p>
+              <h1 className="font-heading text-lg text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Day {Math.min(7, claimedDays.length + (claimedToday ? 0 : 1))}</h1>
             </div>
             <button
               disabled={claimedToday}
-              className="px-4 py-2 rounded-lg bg-gradient-to-r from-[hsl(var(--rare))] to-[hsl(var(--legendary))] text-background font-heading text-xs uppercase tracking-wider disabled:opacity-30 disabled:cursor-not-allowed"
+              className="px-4 py-2 rounded-lg bg-gradient-to-r from-[hsl(var(--rare))] to-[hsl(var(--legendary))] text-background font-heading text-xs uppercase tracking-wider disabled:opacity-30 disabled:cursor-not-allowed shadow-lg"
             >
               {claimedToday ? "Claimed" : "Claim Today"}
             </button>
@@ -60,8 +61,8 @@ export default function DailyHall({ playerState }: Props) {
         </GlassPanel>
       }
     >
-      <GlassPanel hue="var(--legendary)" glow={0.35} padding="md">
-        <h3 className="font-heading text-xs uppercase tracking-wider text-foreground/90 mb-4">Reward Path</h3>
+      <GlassPanel hue="var(--legendary)" glow={0.35} padding="md" bg={texGilded} bgTint={0.7}>
+        <h3 className="font-heading text-xs uppercase tracking-wider text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] mb-4">Reward Path</h3>
         <div className="grid grid-cols-7 gap-2">
           {REWARDS.map((r) => {
             const claimed = claimedDays.includes(r.day);
@@ -93,10 +94,10 @@ export default function DailyHall({ playerState }: Props) {
         </div>
       </GlassPanel>
 
-      <GlassPanel hue="var(--primary)" glow={0.3} padding="md">
-        <h3 className="font-heading text-xs uppercase tracking-wider text-foreground/90 mb-3">Mystery Boxes</h3>
+      <GlassPanel hue="var(--primary)" glow={0.3} padding="md" bg={texCosmic} bgTint={0.7}>
+        <h3 className="font-heading text-xs uppercase tracking-wider text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] mb-3">Mystery Boxes</h3>
         <div className="flex items-center justify-between">
-          <p className="text-sm text-muted-foreground">{playerState.mysteryBoxesPending ?? 0} pending</p>
+          <p className="text-sm text-foreground/85 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">{playerState.mysteryBoxesPending ?? 0} pending</p>
           <button
             disabled={(playerState.mysteryBoxesPending ?? 0) === 0}
             className="px-3 py-1.5 rounded-lg bg-primary/15 hover:bg-primary/25 text-primary text-xs uppercase tracking-wider disabled:opacity-30"

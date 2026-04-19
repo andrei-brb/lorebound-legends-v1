@@ -7,6 +7,7 @@ import HexAvatar from "@/components/scene/HexAvatar";
 import { AVATARS } from "@/data/avatars";
 import { TITLES } from "@/data/titles";
 import { loadAchievementState } from "@/lib/achievementEngine";
+import { texGilded, texParchment, texThrone, texCodex } from "@/components/scene/panelTextures";
 import { cn } from "@/lib/utils";
 
 interface Props { playerState: PlayerState; onStateChange: (s: PlayerState) => void }
@@ -26,22 +27,22 @@ export default function ProfileHall({ playerState, onStateChange }: Props) {
     <HallLayout
       sidebar={
         <>
-          <HallSection title="Identity" hue={pathHue} glow={0.55}>
+          <HallSection title="Identity" hue={pathHue} glow={0.55} bg={texGilded}>
             <div className="flex flex-col items-center text-center gap-2">
               <HexAvatar size={88} hue={pathHue}>
                 <span className="text-4xl">{currentAvatar.emoji}</span>
               </HexAvatar>
-              <h3 className="font-heading text-base text-foreground mt-2">{currentAvatar.name}</h3>
-              {currentTitle && <p className="text-xs text-[hsl(var(--legendary))] italic">"{currentTitle.label}"</p>}
+              <h3 className="font-heading text-base text-foreground mt-2 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">{currentAvatar.name}</h3>
+              {currentTitle && <p className="text-xs text-[hsl(var(--legendary))] italic drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">"{currentTitle.label}"</p>}
               {playerState.selectedPath && (
-                <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full" style={{ background: `hsl(${pathHue}/0.15)`, color: `hsl(${pathHue})` }}>
+                <span className="text-[10px] uppercase tracking-wider px-2 py-0.5 rounded-full" style={{ background: `hsl(${pathHue}/0.25)`, color: `hsl(${pathHue})` }}>
                   Path of {playerState.selectedPath}
                 </span>
               )}
             </div>
           </HallSection>
 
-          <HallSection title="Stats" hue="var(--primary)" glow={0.35}>
+          <HallSection title="Stats" hue="var(--primary)" glow={0.35} bg={texParchment}>
             <HallStat label="Gold" value={playerState.gold.toLocaleString()} hue="var(--legendary)" />
             <HallStat label="Stardust" value={playerState.stardust.toLocaleString()} hue="var(--rare)" />
             <HallStat label="Cards owned" value={playerState.ownedCardIds.length} />
@@ -51,8 +52,8 @@ export default function ProfileHall({ playerState, onStateChange }: Props) {
         </>
       }
     >
-      <GlassPanel hue="var(--primary)" glow={0.35} padding="md">
-        <h3 className="font-heading text-xs uppercase tracking-wider text-foreground/90 mb-3">Avatars · {unlockedAvatars.length}/{AVATARS.length}</h3>
+      <GlassPanel hue="var(--primary)" glow={0.35} padding="md" bg={texThrone} bgTint={0.72}>
+        <h3 className="font-heading text-xs uppercase tracking-wider text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] mb-3">Avatars · {unlockedAvatars.length}/{AVATARS.length}</h3>
         <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 gap-3">
           {AVATARS.map((a) => {
             const unlocked = unlockedAvatars.includes(a);
@@ -75,8 +76,8 @@ export default function ProfileHall({ playerState, onStateChange }: Props) {
         </div>
       </GlassPanel>
 
-      <GlassPanel hue="var(--legendary)" glow={0.3} padding="md">
-        <h3 className="font-heading text-xs uppercase tracking-wider text-foreground/90 mb-3">Titles · {unlockedTitles.length}/{TITLES.length}</h3>
+      <GlassPanel hue="var(--legendary)" glow={0.3} padding="md" bg={texCodex} bgTint={0.7}>
+        <h3 className="font-heading text-xs uppercase tracking-wider text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] mb-3">Titles · {unlockedTitles.length}/{TITLES.length}</h3>
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => setTitle(null)}
