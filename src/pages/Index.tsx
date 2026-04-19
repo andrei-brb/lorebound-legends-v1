@@ -39,8 +39,8 @@ import { setSfxVolume } from "@/lib/sfx";
 import iconGold from "@/assets/icon-gold.png";
 import iconStardust from "@/assets/icon-stardust.png";
 
-type Tab = "collection" | "catalog" | "deck" | "battle" | "pvp" | "summon" | "quests" | "workshop" | "achievements" | "leaderboard" | "trade" | "mail" | "events" | "tournament" | "boost" | "pass" | "profile" | "daily" | "friends" | "chat" | "guild" | "spectate" | "cards-hall" | "combat-hall";
-type Category = "cards" | "combat" | "progress" | "social" | "community" | "you";
+type Tab = "collection" | "catalog" | "cosmetics" | "deck" | "battle" | "pvp" | "summon" | "quests" | "workshop" | "achievements" | "leaderboard" | "trade" | "mail" | "events" | "tournament" | "boost" | "pass" | "profile" | "daily" | "friends" | "chat" | "guild" | "spectate" | "cards-hall" | "combat-hall" | "raid";
+type Category = "cards" | "summon-cat" | "battle" | "grow" | "social";
 
 const categories: { id: Category; label: string; icon: React.ReactNode; tabs: { id: Tab; label: string; icon: React.ReactNode }[] }[] = [
   {
@@ -48,50 +48,43 @@ const categories: { id: Category; label: string; icon: React.ReactNode; tabs: { 
     tabs: [
       { id: "collection", label: "Collection", icon: <BookOpen className="w-4 h-4" /> },
       { id: "catalog", label: "Catalog", icon: <Grid3X3 className="w-4 h-4" /> },
-      { id: "summon", label: "Summon", icon: <SparklesIcon className="w-4 h-4" /> },
-      { id: "deck", label: "Deck", icon: <Layers className="w-4 h-4" /> },
-      { id: "cards-hall", label: "Hall ✨", icon: <SparklesIcon className="w-4 h-4" /> },
+      { id: "cosmetics", label: "Cosmetics", icon: <SparklesIcon className="w-4 h-4" /> },
     ],
   },
   {
-    id: "combat", label: "Combat", icon: <Swords className="w-4 h-4" />,
+    id: "summon-cat", label: "Summon", icon: <SparklesIcon className="w-4 h-4" />,
     tabs: [
-      { id: "combat-hall", label: "Arena", icon: <Flame className="w-4 h-4" /> },
+      { id: "summon", label: "Pack Shop", icon: <Gift className="w-4 h-4" /> },
+      { id: "deck", label: "Deck Builder", icon: <Layers className="w-4 h-4" /> },
     ],
   },
   {
-    id: "progress", label: "Progress", icon: <Trophy className="w-4 h-4" />,
+    id: "battle", label: "Battle", icon: <Swords className="w-4 h-4" />,
     tabs: [
-      { id: "quests", label: "Quests", icon: <ScrollText className="w-4 h-4" /> },
+      { id: "combat-hall", label: "Combat Hall", icon: <Flame className="w-4 h-4" /> },
+      { id: "pvp", label: "PvP", icon: <Crown className="w-4 h-4" /> },
+      { id: "tournament", label: "Tournament", icon: <Trophy className="w-4 h-4" /> },
+      { id: "raid", label: "Raid", icon: <Shield className="w-4 h-4" /> },
+    ],
+  },
+  {
+    id: "grow", label: "Grow", icon: <Trophy className="w-4 h-4" />,
+    tabs: [
+      { id: "daily", label: "Daily Quests", icon: <Calendar className="w-4 h-4" /> },
+      { id: "pass", label: "Battle Pass", icon: <Shield className="w-4 h-4" /> },
+      { id: "achievements", label: "Achievements", icon: <Trophy className="w-4 h-4" /> },
       { id: "workshop", label: "Workshop", icon: <Hammer className="w-4 h-4" /> },
-      { id: "achievements", label: "Badges", icon: <Trophy className="w-4 h-4" /> },
-      { id: "pass", label: "Pass", icon: <Shield className="w-4 h-4" /> },
-      { id: "boost", label: "Boost", icon: <Zap className="w-4 h-4" /> },
-      { id: "events", label: "Events", icon: <Calendar className="w-4 h-4" /> },
     ],
   },
   {
-    id: "social", label: "Social", icon: <ArrowLeftRight className="w-4 h-4" />,
-    tabs: [
-      { id: "trade", label: "Trade", icon: <ArrowLeftRight className="w-4 h-4" /> },
-      { id: "mail", label: "Mail", icon: <Mail className="w-4 h-4" /> },
-      { id: "leaderboard", label: "Ranks", icon: <BarChart3 className="w-4 h-4" /> },
-    ],
-  },
-  {
-    id: "community", label: "Community", icon: <Users className="w-4 h-4" />,
+    id: "social", label: "Social", icon: <Users className="w-4 h-4" />,
     tabs: [
       { id: "friends", label: "Friends", icon: <Users className="w-4 h-4" /> },
-      { id: "chat", label: "Chat", icon: <MessageCircle className="w-4 h-4" /> },
       { id: "guild", label: "Guild", icon: <Flag className="w-4 h-4" /> },
-      { id: "spectate", label: "Spectate", icon: <Eye className="w-4 h-4" /> },
-    ],
-  },
-  {
-    id: "you", label: "You", icon: <User className="w-4 h-4" />,
-    tabs: [
-      { id: "profile", label: "Profile", icon: <User className="w-4 h-4" /> },
-      { id: "daily", label: "Daily", icon: <Gift className="w-4 h-4" /> },
+      { id: "trade", label: "Trade", icon: <ArrowLeftRight className="w-4 h-4" /> },
+      { id: "events", label: "Events", icon: <Calendar className="w-4 h-4" /> },
+      { id: "mail", label: "Mail", icon: <Mail className="w-4 h-4" /> },
+      { id: "leaderboard", label: "Leaderboard", icon: <BarChart3 className="w-4 h-4" /> },
     ],
   },
 ];
@@ -100,7 +93,7 @@ export default function Index() {
   const [activeCategory, setActiveCategory] = useState<Category>("cards");
   const [activeTab, setActiveTab] = useState<Tab>("collection");
   const [lastTabPerCategory, setLastTabPerCategory] = useState<Record<Category, Tab>>({
-    cards: "collection", combat: "combat-hall", progress: "quests", social: "trade", community: "friends", you: "profile",
+    cards: "collection", "summon-cat": "summon", battle: "combat-hall", grow: "daily", social: "friends",
   });
   const [battleDeckIds, setBattleDeckIds] = useState<string[]>([]);
   const [unreadMail, setUnreadMail] = useState(0);
@@ -192,7 +185,7 @@ export default function Index() {
 
   const startBattle = (deckIds: string[]) => {
     setBattleDeckIds(deckIds);
-    setActiveCategory("combat");
+    setActiveCategory("battle");
     setActiveTab("battle");
   };
 
