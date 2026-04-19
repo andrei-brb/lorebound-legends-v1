@@ -206,27 +206,38 @@ export default function CollectionView({
             const totalOfRarity = allGameCards.filter((c) => c.rarity === rarity).length;
             if (cards.length === 0) return null;
             const pct = Math.round((cards.length / totalOfRarity) * 100);
+            const tex = rarity === "legendary" ? "/src/assets/box-tex-codex.jpg" : "/src/assets/box-tex-library.jpg";
             return (
-              <Card key={rarity} className="animate-fade-in bg-card/50 border-border">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className={cn("text-lg flex items-center gap-2", rarityColors[rarity])}>
-                      {rarityLabels[rarity]}
-                      <span className="text-sm text-muted-foreground font-body">({cards.length})</span>
-                    </CardTitle>
-                    <Badge variant="outline" className={cn("text-[10px]", rarityColors[rarity])}>
-                      {pct}% complete
-                    </Badge>
+              <div key={rarity} className="animate-fade-in">
+                <div
+                  className="rounded-2xl overflow-hidden relative isolate"
+                  style={{
+                    border: `1px solid hsl(var(--${rarity === "legendary" ? "legendary" : rarity === "rare" ? "rare" : "primary"}) / 0.4)`,
+                    boxShadow: `0 8px 32px hsl(var(--background) / 0.6)`,
+                  }}
+                >
+                  <div className="absolute inset-0 -z-10" aria-hidden>
+                    <img src={tex} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-card/70" />
                   </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-4 gap-4">
-                    {cards.map((card) => (
-                      <CardGridItem key={card.id} card={card} onAddToDeck={onAddToDeck} deckCardIds={deckCardIds} playerState={playerState} onStateChange={onStateChange} highlighted={highlightSet.has(card.id)} />
-                    ))}
+                  <div className="p-5">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className={cn("font-heading text-lg flex items-center gap-2 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]", rarityColors[rarity])}>
+                        {rarityLabels[rarity]}
+                        <span className="text-sm text-foreground/80 font-body">({cards.length})</span>
+                      </h3>
+                      <Badge variant="outline" className={cn("text-[10px]", rarityColors[rarity])}>
+                        {pct}% complete
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-4 gap-4">
+                      {cards.map((card) => (
+                        <CardGridItem key={card.id} card={card} onAddToDeck={onAddToDeck} deckCardIds={deckCardIds} playerState={playerState} onStateChange={onStateChange} highlighted={highlightSet.has(card.id)} />
+                      ))}
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             );
           })}
         </>
