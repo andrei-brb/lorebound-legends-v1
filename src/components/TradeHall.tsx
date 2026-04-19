@@ -257,7 +257,7 @@ export default function TradeHall({ playerState, onStateChange }: TradeHallProps
 /* ---------- Tray ---------- */
 
 function Tray({
-  label, hue, cards, onAdd, onRemove, disabled, reduceMotion,
+  label, hue, cards, onAdd, onRemove, disabled, reduceMotion, banner,
 }: {
   label: string;
   hue: string;
@@ -266,14 +266,18 @@ function Tray({
   onRemove: (id: string) => void;
   disabled?: boolean;
   reduceMotion?: boolean;
+  banner?: string;
 }) {
   const slots = [0, 1, 2];
   return (
     <GlassPanel hue={hue} glow={cards.length ? 0.55 : 0.3} padding="md">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="font-heading text-xs uppercase tracking-wider text-foreground/90">{label}</h3>
-        <span className="text-[10px] text-muted-foreground">{cards.length}/3</span>
-      </div>
+      {banner && <PanelBanner src={banner} height={56} title={label} hint={`${cards.length}/3`} />}
+      {!banner && (
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-heading text-xs uppercase tracking-wider text-foreground/90">{label}</h3>
+          <span className="text-[10px] text-muted-foreground">{cards.length}/3</span>
+        </div>
+      )}
       <div className="grid grid-cols-3 gap-3 sm:gap-4">
         {slots.map((i) => {
           const card = cards[i];
