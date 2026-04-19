@@ -1,5 +1,5 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
-import { BookOpen, Layers, Swords, Sparkles as SparklesIcon, Grid3X3, Loader2, ScrollText, Hammer, Trophy, ArrowLeftRight, BarChart3, Calendar, Zap, Crown, Shield, Mail, User, Gift, Users, MessageCircle, Eye, Flag, Palette, Flame } from "lucide-react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { BookOpen, Layers, Swords, Coins, Sparkles as SparklesIcon, Grid3X3, Loader2, ScrollText, Hammer, Trophy, ArrowLeftRight, BarChart3, Calendar, Zap, Crown, Shield, Mail, User, Gift, Users, MessageCircle, Eye, Flag, Flame } from "lucide-react";
 import TabTransition from "@/components/TabTransition";
 import TutorialOverlay from "@/components/TutorialOverlay";
 import CollectionView from "@/components/CollectionView";
@@ -17,7 +17,7 @@ import TradeHall from "@/components/TradeHall";
 import QuestsHall from "@/components/halls/QuestsHall";
 import WorkshopHall from "@/components/halls/WorkshopHall";
 import BadgesHall from "@/components/halls/BadgesHall";
-import BattlePass from "@/components/BattlePass";
+import PassHall from "@/components/halls/PassHall";
 import BoostHall from "@/components/halls/BoostHall";
 import EventsHall from "@/components/halls/EventsHall";
 import MailHall from "@/components/halls/MailHall";
@@ -28,12 +28,8 @@ import GuildHall from "@/components/halls/GuildHall";
 import SpectateHall from "@/components/halls/SpectateHall";
 import ProfileHall from "@/components/halls/ProfileHall";
 import DailyHall from "@/components/halls/DailyHall";
+import CardsHall from "@/components/halls/CardsHall";
 import CombatHall from "@/components/halls/CombatHall";
-import LivePvPBattleground from "@/components/LivePvPBattleground";
-import RaidCoopArena from "@/components/RaidCoopArena";
-import RaidLiveBattleground from "@/components/RaidLiveBattleground";
-import { initRaidCoopBattle, type RaidCoopState } from "@/lib/raid/raidCoopEngine";
-import { getRaidBoss } from "@/lib/raid/bosses";
 import { cn } from "@/lib/utils";
 import { setSfxVolume } from "@/lib/sfx";
 import { usePlayerApi } from "@/lib/usePlayerApi";
@@ -41,10 +37,12 @@ import { loadAchievementState, checkNewAchievements, saveAchievementState } from
 import { toast } from "@/hooks/use-toast";
 import { api } from "@/lib/apiClient";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
-import { GoldCurrencyIcon, StardustCurrencyIcon } from "@/components/CurrencyIcons";
+import { setSfxVolume } from "@/lib/sfx";
+import iconGold from "@/assets/icon-gold.png";
+import iconStardust from "@/assets/icon-stardust.png";
 
-type Tab = "collection" | "cosmetics" | "catalog" | "deck" | "combat-hall" | "battle" | "pvp" | "summon" | "quests" | "workshop" | "achievements" | "leaderboard" | "trade" | "mail" | "events" | "tournament" | "boost" | "pass" | "profile" | "daily" | "friends" | "chat" | "guild" | "spectate";
-type Category = "cards" | "summon" | "combat" | "grow" | "social";
+type Tab = "collection" | "catalog" | "cosmetics" | "deck" | "battle" | "pvp" | "summon" | "quests" | "workshop" | "achievements" | "leaderboard" | "trade" | "mail" | "events" | "tournament" | "boost" | "pass" | "profile" | "daily" | "friends" | "chat" | "guild" | "spectate" | "cards-hall" | "combat-hall" | "raid";
+type Category = "cards" | "summon-cat" | "battle" | "grow" | "social";
 
 const categories: { id: Category; label: string; icon: React.ReactNode; tabs: { id: Tab; label: string; icon: React.ReactNode }[] }[] = [
   {
@@ -52,45 +50,43 @@ const categories: { id: Category; label: string; icon: React.ReactNode; tabs: { 
     tabs: [
       { id: "collection", label: "Collection", icon: <BookOpen className="w-4 h-4" /> },
       { id: "catalog", label: "Catalog", icon: <Grid3X3 className="w-4 h-4" /> },
-      { id: "cosmetics", label: "Cosmetics", icon: <Palette className="w-4 h-4" /> },
+      { id: "cosmetics", label: "Cosmetics", icon: <SparklesIcon className="w-4 h-4" /> },
     ],
   },
   {
-    id: "summon", label: "Summon", icon: <SparklesIcon className="w-4 h-4" />,
+    id: "summon-cat", label: "Summon", icon: <SparklesIcon className="w-4 h-4" />,
     tabs: [
-      { id: "summon", label: "Pack Shop", icon: <SparklesIcon className="w-4 h-4" /> },
+      { id: "summon", label: "Pack Shop", icon: <Gift className="w-4 h-4" /> },
       { id: "deck", label: "Deck Builder", icon: <Layers className="w-4 h-4" /> },
     ],
   },
   {
-    id: "combat", label: "Battle", icon: <Swords className="w-4 h-4" />,
+    id: "battle", label: "Battle", icon: <Swords className="w-4 h-4" />,
     tabs: [
-      { id: "combat-hall", label: "Arena", icon: <Flame className="w-4 h-4" /> },
+      { id: "combat-hall", label: "Combat Hall", icon: <Flame className="w-4 h-4" /> },
+      { id: "pvp", label: "PvP", icon: <Crown className="w-4 h-4" /> },
+      { id: "tournament", label: "Tournament", icon: <Trophy className="w-4 h-4" /> },
+      { id: "raid", label: "Raid", icon: <Shield className="w-4 h-4" /> },
     ],
   },
   {
     id: "grow", label: "Grow", icon: <Trophy className="w-4 h-4" />,
     tabs: [
-      { id: "daily", label: "Daily", icon: <Gift className="w-4 h-4" /> },
-      { id: "quests", label: "Quests", icon: <ScrollText className="w-4 h-4" /> },
+      { id: "daily", label: "Daily Quests", icon: <Calendar className="w-4 h-4" /> },
       { id: "pass", label: "Battle Pass", icon: <Shield className="w-4 h-4" /> },
-      { id: "boost", label: "Boost", icon: <Zap className="w-4 h-4" /> },
-      { id: "achievements", label: "Badges", icon: <Trophy className="w-4 h-4" /> },
+      { id: "achievements", label: "Achievements", icon: <Trophy className="w-4 h-4" /> },
       { id: "workshop", label: "Workshop", icon: <Hammer className="w-4 h-4" /> },
-      { id: "events", label: "Events", icon: <Calendar className="w-4 h-4" /> },
     ],
   },
   {
     id: "social", label: "Social", icon: <Users className="w-4 h-4" />,
     tabs: [
       { id: "friends", label: "Friends", icon: <Users className="w-4 h-4" /> },
-      { id: "chat", label: "Chat", icon: <MessageCircle className="w-4 h-4" /> },
       { id: "guild", label: "Guild", icon: <Flag className="w-4 h-4" /> },
       { id: "trade", label: "Trade", icon: <ArrowLeftRight className="w-4 h-4" /> },
-      { id: "leaderboard", label: "Ranks", icon: <BarChart3 className="w-4 h-4" /> },
+      { id: "events", label: "Events", icon: <Calendar className="w-4 h-4" /> },
       { id: "mail", label: "Mail", icon: <Mail className="w-4 h-4" /> },
-      { id: "spectate", label: "Spectate", icon: <Eye className="w-4 h-4" /> },
-      { id: "profile", label: "Profile", icon: <User className="w-4 h-4" /> },
+      { id: "leaderboard", label: "Leaderboard", icon: <BarChart3 className="w-4 h-4" /> },
     ],
   },
 ];
@@ -99,7 +95,7 @@ export default function Index() {
   const [activeCategory, setActiveCategory] = useState<Category>("cards");
   const [activeTab, setActiveTab] = useState<Tab>("collection");
   const [lastTabPerCategory, setLastTabPerCategory] = useState<Record<Category, Tab>>({
-    cards: "collection", summon: "summon", combat: "combat-hall", grow: "daily", social: "friends",
+    cards: "collection", "summon-cat": "summon", battle: "combat-hall", grow: "daily", social: "friends",
   });
   const [battleDeckIds, setBattleDeckIds] = useState<string[]>([]);
   const [soloRaidBossId, setSoloRaidBossId] = useState<string | null>(null);
@@ -136,6 +132,12 @@ export default function Index() {
       animationDelay: `${Math.random() * 8}s`, animationDuration: `${6 + Math.random() * 8}s`,
     })), []
   );
+
+  // Sync sfx volume from settings on every change
+  useEffect(() => {
+    const v = playerState.settings?.sfxVol;
+    if (typeof v === "number") setSfxVolume(v);
+  }, [playerState.settings?.sfxVol]);
 
   useEffect(() => {
     const v = playerState.settings?.sfxVol;
@@ -206,53 +208,6 @@ export default function Index() {
     return () => { alive = false; window.clearInterval(id); };
   }, [isOnline]);
 
-  // Guild invite popup — poll for newest pending invite
-  useEffect(() => {
-    if (!isOnline) return;
-    let alive = true;
-    const tick = async () => {
-      if (!alive) return;
-      if (guildInvitePopup) return;
-      try {
-        const r = await api.getIncomingGuildInvites(1);
-        const inv = (r.invites || [])[0];
-        if (!inv) return;
-        const g = inv.guild;
-        const from = inv.fromPlayer;
-        if (!g || !from) return;
-        setGuildInvitePopup({
-          inviteId: inv.id,
-          guildName: g.name,
-          guildTag: g.tag,
-          fromUsername: from.username,
-        });
-      } catch {
-        // ignore
-      }
-    };
-    tick();
-    const id = window.setInterval(tick, 12000);
-    return () => { alive = false; window.clearInterval(id); };
-  }, [isOnline, guildInvitePopup]);
-
-  const patchRaid = useCallback((fn: (r: RaidCoopState) => void) => {
-    setRaidState((prev) => {
-      if (!prev) return prev;
-      fn(prev);
-      return { ...prev };
-    });
-  }, []);
-
-  useEffect(() => {
-    if (!raidHotseat) {
-      setRaidState(null);
-      return;
-    }
-    const boss = getRaidBoss(raidHotseat.bossId);
-    if (!boss) return;
-    setRaidState(initRaidCoopBattle(raidHotseat.deckIds, raidHotseat.deckIds, boss));
-  }, [raidHotseat]);
-
   if (status === "loading") {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -284,7 +239,7 @@ export default function Index() {
     setRaidHotseat(null);
     setRaidState(null);
     setBattleDeckIds(deckIds);
-    setActiveCategory("combat");
+    setActiveCategory("battle");
     setActiveTab("battle");
   };
 
@@ -439,11 +394,79 @@ export default function Index() {
         </div>
       )}
       <div className="min-h-screen bg-background" style={{ paddingTop: isDiscordActivityHost ? discordOverlayInset : "env(safe-area-inset-top)" }}>
-        {/* Ambient particles */}
-        {playerState.settings?.animationsOn !== false && (
+        {/* Ambient particles — disabled when reduceMotion or animationsOn = false */}
+        {playerState.settings?.animationsOn !== false && !playerState.settings?.reduceMotion && (
           <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
             {ambientParticles.map((p, i) => (
               <div key={i} className="absolute w-1 h-1 rounded-full bg-primary/20 animate-float" style={{ left: p.left, top: p.top, animationDelay: p.animationDelay, animationDuration: p.animationDuration }} />
+            ))}
+          </div>
+        )}
+
+        {/* Header */}
+        <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky z-50" style={{ top: 0 }}>
+          <div className="container flex items-center justify-between h-14 gap-2">
+            <div className="flex items-center gap-2 shrink-0">
+              <Swords className="w-6 h-6 text-primary" />
+              <h1 className="font-heading text-lg font-bold text-foreground tracking-wide hidden sm:block">Mythic Arcana</h1>
+            </div>
+            <div className="flex items-center gap-2 sm:gap-4">
+              <div className="flex items-center gap-1.5 bg-secondary/80 rounded-lg px-2.5 py-1.5">
+                <img src={iconGold} alt="Gold" loading="lazy" width={512} height={512} className="w-5 h-5 drop-shadow-[0_0_6px_hsl(var(--legendary)/0.6)]" />
+                <span className="font-heading font-bold text-sm text-foreground">{Number(playerState.gold) || 0}</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-secondary/80 rounded-lg px-2.5 py-1.5">
+                <img src={iconStardust} alt="Stardust" loading="lazy" width={512} height={512} className="w-5 h-5 drop-shadow-[0_0_6px_hsl(var(--primary)/0.7)]" />
+                <span className="font-heading font-bold text-sm text-foreground">{Number(playerState.stardust) || 0}</span>
+              </div>
+              <nav className="flex gap-0.5">
+                {categories.map((cat) => (
+                  <Tooltip key={cat.id}>
+                    <TooltipTrigger asChild>
+                      <button
+                        onClick={() => handleCategoryClick(cat.id)}
+                        className={cn(
+                          "flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap",
+                          activeCategory === cat.id
+                            ? "bg-primary text-primary-foreground"
+                            : "text-muted-foreground hover:bg-secondary hover:text-secondary-foreground"
+                        )}
+                      >
+                        {cat.icon}
+                        <span className="hidden md:inline">{cat.label}</span>
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent className="md:hidden"><p>{cat.label}</p></TooltipContent>
+                  </Tooltip>
+                ))}
+              </nav>
+              <SettingsPanel playerState={playerState} onStateChange={setPlayerState} />
+            </div>
+          </div>
+          {/* Sub-tabs row */}
+          <div className="container flex items-center gap-1 h-10 overflow-x-auto scrollbar-none">
+            {activeCat?.tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => handleTabClick(tab.id)}
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap relative",
+                  activeTab === tab.id
+                    ? "bg-secondary text-foreground"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {tab.icon}
+                <span className="relative">
+                  {tab.label}
+                  {tab.id === "mail" && unreadMail > 0 && (
+                    <span className="absolute -top-2 -right-3 text-[10px] font-bold bg-primary text-primary-foreground rounded-full px-1.5 py-0.5">
+                      {unreadMail > 99 ? "99+" : unreadMail}
+                    </span>
+                  )}
+                </span>
+                {activeTab === tab.id && <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-primary rounded-full" />}
+              </button>
             ))}
           </div>
         )}
@@ -518,12 +541,7 @@ export default function Index() {
         )}
 
         {/* Content */}
-        <main
-          className={cn(
-            "relative z-10",
-            hideAppChromeDuringBattle ? "w-full max-w-none px-0 py-0" : "container py-8 max-w-7xl"
-          )}
-        >
+        <main className="container py-8 relative z-10 max-w-7xl">
           <TutorialOverlay tabId={activeTab} playerState={playerState} onStateChange={setPlayerState} />
           <TabTransition tabKey={activeTab} reduceMotion={!!playerState.settings?.reduceMotion}>
             {activeTab === "collection" && (
@@ -545,6 +563,13 @@ export default function Index() {
               </div>
             )}
             {activeTab === "catalog" && <CardCatalog playerState={playerState} />}
+            {activeTab === "cosmetics" && (
+              <div className="text-center py-20">
+                <SparklesIcon className="w-16 h-16 text-primary/40 mx-auto mb-4" />
+                <h2 className="font-heading text-xl font-bold mb-2">Cosmetics</h2>
+                <p className="text-sm text-muted-foreground">Coming soon — frames, banners, card backs.</p>
+              </div>
+            )}
             {activeTab === "summon" && <PackShop playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} pullCardsApi={pullCards} />}
             {activeTab === "deck" && (
               <DeckBuilder
@@ -581,185 +606,42 @@ export default function Index() {
                 onStateChange={setPlayerState}
               />
             )}
-            {activeTab === "combat-hall" && (
-              <CombatHall
-                playerState={playerState}
-                onLaunchMode={(mode, bossId) => {
-                  if (mode === "ranked") setActiveTab("pvp");
-                  else if (mode === "tourney") setActiveTab("tournament");
-                  else if (mode === "raid-online") {
-                    toast({
-                      title: "Online co-op raid",
-                      description: "Use Friends → challenge with raid invite, or POST /api/raid/live/create with a friend’s player id. Set session raid.live.matchId after joining.",
-                    });
-                    setActiveCategory("social");
-                    setActiveTab("friends");
-                  } else if (mode === "raid-solo" || mode === "raid-hotseat") {
-                    setPendingCombat({ kind: mode, bossId: bossId ?? "ember-tyrant" });
-                    setActiveCategory("summon");
-                    setActiveTab("deck");
-                  } else {
-                    setActiveCategory("summon");
-                    setActiveTab("deck");
-                  }
-                }}
-              />
-            )}
-            {activeTab === "battle" && battleDeckIds.length > 0 && !raidHotseat && (
-              <BattleArena
-                playerDeckIds={battleDeckIds}
-                opponentDeckIds={rankedBattle?.opponentDeckIds ?? null}
-                rankedSubtitle={
-                  rankedBattle
-                    ? `Ranked vs ${rankedBattle.opponentName} — AI plays their deck`
-                    : null
-                }
-                battleSeed={rankedBattle?.seed ?? null}
-                onRankedSubmit={
-                  rankedBattle
-                    ? async (data) => {
-                        await api.pvpAsyncSubmit(rankedBattle.matchId, data);
-                      }
-                    : undefined
-                }
-                soloRaidBossId={soloRaidBossId}
-                onExit={() => {
-                  setBattleDeckIds([]);
-                  setSoloRaidBossId(null);
-                  const wasRanked = rankedBattle != null;
-                  setRankedBattle(null);
-                  setActiveTab(wasRanked ? "pvp" : "combat-hall");
-                }}
-                playerState={playerState}
-                onStateChange={setPlayerState}
-                isOnline={isOnline}
-                submitBattleResultApi={submitBattleResult}
-                startPveBattleApi={startPveBattle}
-                syncEconomyApi={syncEconomy}
-              />
-            )}
-            {activeTab === "battle" && raidHotseat && raidState && (
-              <RaidCoopArena
-                raid={raidState}
-                onRaidPatch={patchRaid}
-                onExit={() => {
-                  setRaidHotseat(null);
-                  setRaidState(null);
-                  setActiveTab("combat-hall");
-                }}
-                playerDeckIds={raidHotseat.deckIds}
-                playerState={playerState}
-                onStateChange={setPlayerState}
-                isOnline={isOnline}
-                submitBattleResultApi={submitBattleResult}
-                startPveBattleApi={startPveBattle}
-                syncEconomyApi={syncEconomy}
-              />
-            )}
             {activeTab === "quests" && <QuestsHall playerState={playerState} onStateChange={setPlayerState} />}
-            {activeTab === "workshop" && (
-              <WorkshopHall
-                playerState={playerState}
-                onStateChange={setPlayerState}
-                isOnline={isOnline}
-                craftFuseApi={craftFuse}
-                craftSacrificeApi={craftSacrifice}
-              />
-            )}
+            {activeTab === "workshop" && <WorkshopHall playerState={playerState} onStateChange={setPlayerState} />}
             {activeTab === "achievements" && <BadgesHall playerState={playerState} />}
             {activeTab === "leaderboard" && <RanksHall playerState={playerState} isOnline={isOnline} />}
             {activeTab === "trade" && <TradeHall playerState={playerState} onStateChange={setPlayerState} />}
-            {activeTab === "mail" && (
-              <MailHall
-                onNavigate={(tab) => {
-                  // friends, guild, trade are all in "social" now
-                  setActiveCategory("social");
-                  setActiveTab(tab);
-                }}
-              />
-            )}
-            {activeTab === "pvp" && (
-              <PvPPanel
-                playerState={playerState}
-                onNavigateBattle={(matchId) => {
-                  sessionStorage.setItem("pvp.live.matchId", String(matchId));
-                  setRankedBattle(null);
-                  setBattleDeckIds([]);
-                  setSoloRaidBossId(null);
-                  setRaidHotseat(null);
-                  setRaidState(null);
-                  setActiveCategory("combat");
-                  setActiveTab("battle");
-                }}
-                onStartRankedBattle={async (matchId) => {
-                  try {
-                    const data = await api.pvpAsyncGetPlay(matchId);
-                    setRankedBattle({
-                      matchId: data.matchId,
-                      opponentName: data.opponent.username,
-                      opponentDeckIds: data.opponentDeckCardIds,
-                      seed: data.seed ?? null,
-                    });
-                    setBattleDeckIds(data.myDeckCardIds);
-                    setActiveCategory("combat");
-                    setActiveTab("battle");
-                  } catch (e) {
-                    toast({
-                      title: "Could not load ranked match",
-                      description: e instanceof Error ? e.message : String(e),
-                      variant: "destructive",
-                    });
-                  }
-                }}
-              />
-            )}
+            {activeTab === "mail" && <MailHall onNavigate={(tab) => { setActiveCategory("social"); setActiveTab(tab as Tab); }} />}
+            {activeTab === "pvp" && <PvPPanel playerState={playerState} />}
             {activeTab === "events" && <EventsHall playerState={playerState} onStateChange={setPlayerState} />}
             {activeTab === "tournament" && <Tournament playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} syncEconomyApi={syncEconomy} />}
             {activeTab === "boost" && <BoostHall playerState={playerState} />}
-            {activeTab === "pass" && <BattlePass playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} />}
+            {activeTab === "pass" && <PassHall playerState={playerState} onStateChange={setPlayerState} />}
             {activeTab === "profile" && <ProfileHall playerState={playerState} onStateChange={setPlayerState} />}
             {activeTab === "daily" && <DailyHall playerState={playerState} onStateChange={setPlayerState} />}
             {activeTab === "friends" && <FriendsHall isOnline={isOnline} />}
             {activeTab === "chat" && <ChatHall isOnline={isOnline} playerState={playerState} />}
             {activeTab === "guild" && <GuildHall isOnline={isOnline} playerState={playerState} />}
             {activeTab === "spectate" && <SpectateHall isOnline={isOnline} />}
-            {activeTab === "battle" && battleDeckIds.length === 0 && hasLiveMatchFromInbox && (
-              <LivePvPBattleground
-                matchId={liveMatchIdFromInbox}
+            {activeTab === "cards-hall" && <CardsHall playerState={playerState} />}
+            {activeTab === "combat-hall" && (
+              <CombatHall
                 playerState={playerState}
-                onStateChange={setPlayerState}
-                syncEconomyApi={syncEconomy}
-                onExit={() => {
-                  sessionStorage.removeItem("pvp.live.matchId");
-                  setActiveCategory("combat");
-                  setActiveTab("combat-hall");
+                onLaunchMode={(mode) => {
+                  if (mode === "ranked") setActiveTab("pvp");
+                  else if (mode === "tourney") setActiveTab("tournament");
+                  else setActiveTab("deck"); // skirmish/raid → pick a deck first
                 }}
               />
             )}
-            {activeTab === "battle" &&
-              battleDeckIds.length === 0 &&
-              !hasLiveMatchFromInbox &&
-              hasRaidLiveMatchFromInbox &&
-              !raidHotseat && (
-                <RaidLiveBattleground
-                  matchId={raidLiveMatchIdFromInbox}
-                  playerState={playerState}
-                  onStateChange={setPlayerState}
-                  submitBattleResult={submitBattleResult}
-                  startPveBattle={startPveBattle}
-                  syncEconomyApi={syncEconomy}
-                  onExit={() => {
-                    sessionStorage.removeItem("raid.live.matchId");
-                    setActiveCategory("combat");
-                    setActiveTab("combat-hall");
-                  }}
-                />
-              )}
-            {activeTab === "battle" &&
-              battleDeckIds.length === 0 &&
-              !hasLiveMatchFromInbox &&
-              !hasRaidLiveMatchFromInbox &&
-              !(raidHotseat && raidState) && (
+            {activeTab === "raid" && (
+              <CombatHall
+                playerState={playerState}
+                defaultMode="raid"
+                onLaunchMode={() => setActiveTab("deck")}
+              />
+            )}
+            {activeTab === "battle" && battleDeckIds.length === 0 && (
               <div className="text-center py-20">
                 <Swords className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
                 <h2 className="font-heading text-xl font-bold text-foreground mb-2">No Deck Selected</h2>

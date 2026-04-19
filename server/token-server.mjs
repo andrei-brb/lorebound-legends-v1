@@ -3805,8 +3805,6 @@ const server = http.createServer(async (req, res) => {
     if (method === "GET"  && path === "/api/guilds/me")          return await handleGetMyGuild(req, res);
     if (method === "POST" && path === "/api/guilds")             return await handleCreateGuild(req, res);
     if (method === "POST" && path === "/api/guilds/leave")       return await handleLeaveGuild(req, res);
-    if (method === "GET"  && path === "/api/guilds/invites/incoming") return await handleGetIncomingGuildInvites(req, res);
-    if (method === "POST" && path === "/api/guilds/invite")           return await handleCreateGuildInvite(req, res);
     if (method === "GET"  && path === "/api/spectate/active")    return await handleSpectateList(req, res);
 
     const guildJoinMatch = path.match(/^\/api\/guilds\/(\d+)\/join$/);
@@ -3814,13 +3812,6 @@ const server = http.createServer(async (req, res) => {
       const gid = Number(guildJoinMatch[1]);
       if (!Number.isFinite(gid)) return sendJson(res, 400, { error: "Invalid guild id" });
       return await handleJoinGuild(req, res, gid);
-    }
-
-    const guildInviteRespondMatch = path.match(/^\/api\/guilds\/invites\/(\d+)\/respond$/);
-    if (guildInviteRespondMatch && method === "POST") {
-      const inviteId = Number(guildInviteRespondMatch[1]);
-      if (!Number.isFinite(inviteId)) return sendJson(res, 400, { error: "Invalid invite id" });
-      return await handleRespondGuildInvite(req, res, inviteId);
     }
 
     const guildChatMatch = path.match(/^\/api\/chat\/guild\/(\d+)$/);
@@ -4101,34 +4092,12 @@ async function handleJoinGuild(req, res, guildId) {
   if (me.guildId) return sendJson(res, 400, { error: "Leave your current guild first" });
   const guild = await prisma.guild.findUnique({ where: { id: guildId } });
   if (!guild) return sendJson(res, 404, { error: "Guild not found" });
+  if (guild.memberCount >= GUILD_MAX_MEMBERS) return sendJson(res, 400, { error: "Guild is full" });
 
-  try {
-    await prisma.$transaction(async (tx) => {
-      const bump = await tx.guild.updateMany({
-        where: { id: guildId, memberCount: { lt: GUILD_MAX_MEMBERS } },
-        data: { memberCount: { increment: 1 } },
-      });
-      if (bump.count !== 1) {
-        const err = new Error("Guild is full");
-        err.statusCode = 400;
-        throw err;
-      }
-      const joined = await tx.player.updateMany({
-        where: { id: me.id, guildId: null },
-        data: { guildId },
-      });
-      if (joined.count !== 1) {
-        await tx.guild.update({ where: { id: guildId }, data: { memberCount: { decrement: 1 } } });
-        const err = new Error("Could not join guild");
-        err.statusCode = 400;
-        throw err;
-      }
-    });
-  } catch (e) {
-    if (e?.statusCode === 400) return sendJson(res, 400, { error: e.message });
-    console.error("[guild/join]", e);
-    return sendJson(res, 500, { error: "Could not join guild" });
-  }
+  await prisma.$transaction(async (tx) => {
+    await tx.player.update({ where: { id: me.id }, data: { guildId: guild.id } });
+    await tx.guild.update({ where: { id: guild.id }, data: { memberCount: { increment: 1 } } });
+  });
   return sendJson(res, 200, { ok: true });
 }
 
@@ -4157,110 +4126,6 @@ async function handleLeaveGuild(req, res) {
   return sendJson(res, 200, { ok: true });
 }
 
-// ── Guild invites ──────────────────────────────────────────────────────────────
-
-function publicGuildInvite(inv) {
-  return {
-    id: inv.id,
-    status: inv.status,
-    createdAt: inv.createdAt.getTime(),
-    respondedAt: inv.respondedAt ? inv.respondedAt.getTime() : null,
-    guild: inv.guild ? publicGuild(inv.guild) : null,
-    fromPlayer: inv.fromPlayer ? publicPlayerWithPresence(inv.fromPlayer) : null,
-  };
-}
-
-async function handleCreateGuildInvite(req, res) {
-  const user = await requireAuth(req, res); if (!user) return;
-  const me = await getMePlayer(user); if (!me) return sendJson(res, 404, { error: "Player not found" });
-  if (!me.guildId) return sendJson(res, 400, { error: "You must be in a guild to invite" });
-
-  let body; try { body = await readJsonBody(req); } catch { return sendJson(res, 400, { error: "Invalid JSON" }); }
-  const username = String(body.username || "").trim();
-  if (!username) return sendJson(res, 400, { error: "Username required" });
-
-  const target = await prisma.player.findFirst({
-    where: { username: { equals: username, mode: "insensitive" } },
-  });
-  if (!target) return sendJson(res, 404, { error: "Player not found" });
-  if (target.id === me.id) return sendJson(res, 400, { error: "You cannot invite yourself" });
-  if (target.guildId) return sendJson(res, 400, { error: "That player is already in a guild" });
-
-  const guild = await prisma.guild.findUnique({ where: { id: me.guildId } });
-  if (!guild) return sendJson(res, 404, { error: "Guild not found" });
-
-  // Prevent spam: only one pending invite per (guild, target).
-  const existing = await prisma.guildInvite.findFirst({
-    where: { guildId: guild.id, toPlayerId: target.id, status: "pending" },
-  });
-  if (existing) return sendJson(res, 200, { ok: true, invite: publicGuildInvite({ ...existing, guild, fromPlayer: me }) });
-
-  const created = await prisma.guildInvite.create({
-    data: { guildId: guild.id, fromPlayerId: me.id, toPlayerId: target.id },
-    include: { guild: true, fromPlayer: true },
-  });
-
-  return sendJson(res, 200, { ok: true, invite: publicGuildInvite(created) });
-}
-
-async function handleGetIncomingGuildInvites(req, res) {
-  const user = await requireAuth(req, res); if (!user) return;
-  const me = await getMePlayer(user); if (!me) return sendJson(res, 404, { error: "Player not found" });
-
-  const url = new URL(`http://localhost${req.url}`);
-  const limit = Math.min(10, Math.max(1, Number(url.searchParams.get("limit") || 5)));
-
-  const invites = await prisma.guildInvite.findMany({
-    where: { toPlayerId: me.id, status: "pending" },
-    orderBy: { createdAt: "desc" },
-    take: limit,
-    include: { guild: true, fromPlayer: true },
-  });
-
-  return sendJson(res, 200, { invites: invites.map(publicGuildInvite) });
-}
-
-async function handleRespondGuildInvite(req, res, inviteId) {
-  const user = await requireAuth(req, res); if (!user) return;
-  const me = await getMePlayer(user); if (!me) return sendJson(res, 404, { error: "Player not found" });
-
-  let body; try { body = await readJsonBody(req); } catch { return sendJson(res, 400, { error: "Invalid JSON" }); }
-  const accept = !!body.accept;
-
-  const inv = await prisma.guildInvite.findUnique({
-    where: { id: inviteId },
-    include: { guild: true, fromPlayer: true },
-  });
-  if (!inv) return sendJson(res, 404, { error: "Invite not found" });
-  if (inv.toPlayerId !== me.id) return sendJson(res, 403, { error: "Forbidden" });
-  if (inv.status !== "pending") return sendJson(res, 400, { error: "Invite already resolved" });
-  if (!inv.guild) return sendJson(res, 404, { error: "Guild not found" });
-
-  if (!accept) {
-    const updated = await prisma.guildInvite.update({
-      where: { id: inv.id },
-      data: { status: "declined", respondedAt: new Date() },
-      include: { guild: true, fromPlayer: true },
-    });
-    return sendJson(res, 200, { ok: true, invite: publicGuildInvite(updated) });
-  }
-
-  if (me.guildId) return sendJson(res, 400, { error: "You are already in a guild" });
-  if (inv.guild.memberCount >= GUILD_MAX_MEMBERS) return sendJson(res, 400, { error: "Guild is full" });
-
-  const updated = await prisma.$transaction(async (tx) => {
-    await tx.player.update({ where: { id: me.id }, data: { guildId: inv.guildId } });
-    await tx.guild.update({ where: { id: inv.guildId }, data: { memberCount: { increment: 1 } } });
-    return tx.guildInvite.update({
-      where: { id: inv.id },
-      data: { status: "accepted", respondedAt: new Date() },
-      include: { guild: true, fromPlayer: true },
-    });
-  });
-
-  return sendJson(res, 200, { ok: true, invite: publicGuildInvite(updated) });
-}
-
 // ── Spectate (list active live PvP matches) ───────────────────────────────────
 
 async function handleSpectateList(req, res) {
@@ -4282,8 +4147,6 @@ async function handleSpectateList(req, res) {
     })),
   });
 }
-
-({ broadcastLiveMatchRefresh } = attachLiveMatchWebSocket(server, { prisma, toPublicPlayer }));
 
 server.listen(PORT, () => {
   console.log(`Lorebound API listening on http://127.0.0.1:${PORT}`);

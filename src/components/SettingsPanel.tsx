@@ -17,8 +17,10 @@ const DEFAULTS: AppSettings = { musicVol: 0.7, sfxVol: 0.8, reduceMotion: false,
 export default function SettingsPanel({ playerState, onStateChange }: SettingsPanelProps) {
   const settings = playerState.settings ?? DEFAULTS;
 
+  // Sync sfx volume on mount + whenever it changes
   useEffect(() => { setSfxVolume(settings.sfxVol); }, [settings.sfxVol]);
 
+  // Apply reduce-motion CSS hook on document
   useEffect(() => {
     const cls = "reduce-motion";
     if (settings.reduceMotion) document.documentElement.classList.add(cls);
@@ -45,6 +47,7 @@ export default function SettingsPanel({ playerState, onStateChange }: SettingsPa
           <DialogTitle className="flex items-center gap-2"><SettingsIcon className="w-4 h-4" /> Settings</DialogTitle>
         </DialogHeader>
         <div className="space-y-5 pt-2">
+          {/* SFX */}
           <div>
             <Label className="text-sm flex items-center gap-2 mb-2">
               <Volume2 className="w-4 h-4 text-primary" /> Sound effects
@@ -59,6 +62,7 @@ export default function SettingsPanel({ playerState, onStateChange }: SettingsPa
             />
           </div>
 
+          {/* Music */}
           <div>
             <Label className="text-sm flex items-center gap-2 mb-2">
               <Music className="w-4 h-4 text-primary" /> Music
@@ -74,6 +78,7 @@ export default function SettingsPanel({ playerState, onStateChange }: SettingsPa
             <p className="text-[10px] text-muted-foreground mt-1">Music tracks reserved for a future update.</p>
           </div>
 
+          {/* Reduce motion */}
           <div className="flex items-center justify-between gap-4 pt-1">
             <Label className="text-sm flex items-center gap-2">
               <Eye className="w-4 h-4 text-primary" /> Reduce motion
@@ -81,6 +86,7 @@ export default function SettingsPanel({ playerState, onStateChange }: SettingsPa
             <Switch checked={settings.reduceMotion} onCheckedChange={(v) => update({ reduceMotion: v })} />
           </div>
 
+          {/* Animations on */}
           <div className="flex items-center justify-between gap-4">
             <Label className="text-sm flex items-center gap-2">
               <Sparkles className="w-4 h-4 text-primary" /> Ambient animations

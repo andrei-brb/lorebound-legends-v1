@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { Shield, Plus, LogOut, Loader2, Users, Trophy, Circle, UserPlus } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Shield, Plus, LogOut, Loader2, Users, Trophy, Circle } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,16 +19,10 @@ export default function GuildPanel({ isOnline }: GuildPanelProps) {
   const [browseList, setBrowseList] = useState<GuildPublic[]>([]);
   const [loading, setLoading] = useState(true);
   const [createOpen, setCreateOpen] = useState(false);
-  const [inviteOpen, setInviteOpen] = useState(false);
-  const [inviteUsername, setInviteUsername] = useState("");
-  const [inviteSuggestions, setInviteSuggestions] = useState<Array<{ id: number; username: string; avatar?: string | null }>>([]);
-  const [inviteSuggestLoading, setInviteSuggestLoading] = useState(false);
   const [name, setName] = useState("");
   const [tag, setTag] = useState("");
   const [description, setDescription] = useState("");
   const [busy, setBusy] = useState(false);
-
-  const inviteQuery = useMemo(() => inviteUsername.trim(), [inviteUsername]);
 
   const refresh = async () => {
     if (!isOnline) { setLoading(false); return; }
@@ -40,9 +34,8 @@ export default function GuildPanel({ isOnline }: GuildPanelProps) {
         const list = await api.listGuilds();
         setBrowseList(list.guilds);
       }
-    } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : "";
-      toast({ title: "Failed to load guilds", description: message, variant: "destructive" });
+    } catch (e: any) {
+      toast({ title: "Failed to load guilds", description: e?.message || "", variant: "destructive" });
     } finally { setLoading(false); }
   };
 
@@ -55,9 +48,8 @@ export default function GuildPanel({ isOnline }: GuildPanelProps) {
       toast({ title: "Guild founded! 🛡️" });
       setCreateOpen(false); setName(""); setTag(""); setDescription("");
       refresh();
-    } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : "";
-      toast({ title: "Could not create", description: message, variant: "destructive" });
+    } catch (e: any) {
+      toast({ title: "Could not create", description: e?.message || "", variant: "destructive" });
     } finally { setBusy(false); }
   };
 
@@ -67,9 +59,8 @@ export default function GuildPanel({ isOnline }: GuildPanelProps) {
       await api.joinGuild(id);
       toast({ title: "Joined guild" });
       refresh();
-    } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : "";
-      toast({ title: "Could not join", description: message, variant: "destructive" });
+    } catch (e: any) {
+      toast({ title: "Could not join", description: e?.message || "", variant: "destructive" });
     } finally { setBusy(false); }
   };
 
@@ -80,62 +71,10 @@ export default function GuildPanel({ isOnline }: GuildPanelProps) {
       const r = await api.leaveGuild();
       toast({ title: r.disbanded ? "Guild disbanded" : "Left the guild" });
       refresh();
-    } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : "";
-      toast({ title: "Failed", description: message, variant: "destructive" });
+    } catch (e: any) {
+      toast({ title: "Failed", description: e?.message || "", variant: "destructive" });
     } finally { setBusy(false); }
   };
-
-  const invite = async () => {
-    const u = inviteUsername.trim();
-    if (!u) return;
-    setBusy(true);
-    try {
-      await api.inviteToGuild(u);
-      toast({ title: "Invite sent", description: `Sent an invite to ${u}.` });
-      setInviteOpen(false);
-      setInviteUsername("");
-      setInviteSuggestions([]);
-    } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : "";
-      toast({ title: "Could not invite", description: message, variant: "destructive" });
-    } finally { setBusy(false); }
-  };
-
-  useEffect(() => {
-    if (!inviteOpen || !isOnline) return;
-    const q = inviteQuery;
-    if (q.length < 1) {
-      setInviteSuggestions([]);
-      setInviteSuggestLoading(false);
-      return;
-    }
-
-    let cancelled = false;
-    setInviteSuggestLoading(true);
-
-    const t = window.setTimeout(async () => {
-      try {
-        const r = await api.searchUsers(q);
-        if (cancelled) return;
-        const users = r.users || [];
-        setInviteSuggestions(users.slice(0, 8).map((u) => ({ id: u.id, username: u.username, avatar: u.avatar })));
-      } catch (e: unknown) {
-        if (!cancelled) setInviteSuggestions([]);
-        if (!cancelled) {
-          toast({
-            title: "Search failed",
-            description: e instanceof Error ? e.message : "Could not search users",
-            variant: "destructive",
-          });
-        }
-      } finally {
-        if (!cancelled) setInviteSuggestLoading(false);
-      }
-    }, 250);
-
-    return () => { cancelled = true; window.clearTimeout(t); };
-  }, [inviteOpen, inviteQuery, isOnline]);
 
   if (!isOnline) {
     return (
@@ -173,65 +112,6 @@ export default function GuildPanel({ isOnline }: GuildPanelProps) {
             <div className="h-full bg-gradient-to-r from-primary to-[hsl(var(--legendary))]" style={{ width: `${goalPct}%` }} />
           </div>
           <p className="text-[11px] text-muted-foreground mt-2">Resets weekly. Hit the target as a guild for shared bonus rewards.</p>
-        </Card>
-
-        <Card className="p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="font-heading font-bold text-sm text-foreground flex items-center gap-2">
-              <UserPlus className="w-4 h-4 text-primary" /> Invite a player
-            </h3>
-            <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm" variant="secondary" disabled={busy}>
-                  <UserPlus className="w-3.5 h-3.5" /> Invite
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader><DialogTitle>Invite to {myGuild.name}</DialogTitle></DialogHeader>
-                <div className="space-y-3 pt-2">
-                  <div>
-                    <label className="text-xs text-muted-foreground">Username</label>
-                    <Input
-                      value={inviteUsername}
-                      onChange={(e) => setInviteUsername(e.target.value)}
-                      placeholder="playername"
-                      maxLength={32}
-                      onKeyDown={(e) => { if (e.key === "Enter") invite(); }}
-                    />
-                    {inviteSuggestLoading && (
-                      <div className="mt-2 text-xs text-muted-foreground flex items-center gap-2">
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" /> searching…
-                      </div>
-                    )}
-                    {inviteSuggestions.length > 0 && (
-                      <div className="mt-2 rounded-md border border-border bg-background overflow-hidden">
-                        {inviteSuggestions.map((u) => (
-                          <button
-                            key={u.id}
-                            type="button"
-                            className="w-full text-left px-3 py-2 text-sm hover:bg-secondary/50 flex items-center justify-between"
-                            onClick={() => { setInviteUsername(u.username); setInviteSuggestions([]); }}
-                          >
-                            <span className="text-foreground">{u.username}</span>
-                            <span className="text-[10px] text-muted-foreground">select</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <Button onClick={invite} disabled={busy || !inviteUsername.trim()} className="w-full">
-                    {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : "Send invite"}
-                  </Button>
-                  <p className="text-xs text-muted-foreground">
-                    They’ll get a popup with Accept / Decline while online.
-                  </p>
-                </div>
-              </DialogContent>
-            </Dialog>
-          </div>
-          <p className="text-xs text-muted-foreground">
-            Invite by username. Once they accept, they’ll join instantly.
-          </p>
         </Card>
 
         <Card className="p-4">

@@ -1,5 +1,6 @@
 /**
  * Synthesised sound effects using the Web Audio API.
+ * No external files needed — everything is generated on the fly.
  * All sounds route through a single master gain node so volume can be
  * adjusted globally via setSfxVolume().
  */
@@ -29,9 +30,12 @@ function getCtx(): AudioContext {
 }
 
 function out(): AudioNode {
+  // Always lazily ensure ctx is built so master exists.
   getCtx();
   return master!;
 }
+
+/* ── helpers ── */
 
 function noise(ac: AudioContext, duration: number, gain: number): { node: AudioBufferSourceNode; gain: GainNode } {
   const buf = ac.createBuffer(1, ac.sampleRate * duration, ac.sampleRate);

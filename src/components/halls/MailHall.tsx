@@ -3,6 +3,7 @@ import { Mail, MailOpen, Bell, ArrowLeftRight, Swords, RefreshCw, Check, Loader2
 import { api } from "@/lib/apiClient";
 import HallLayout, { HallSection, HallStat } from "@/components/scene/HallLayout";
 import GlassPanel from "@/components/scene/GlassPanel";
+import { texLeather, texParchment, texVelvet } from "@/components/scene/panelTextures";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 
@@ -29,8 +30,8 @@ export default function MailHall({ onNavigate }: Props) {
   const load = async () => {
     setLoading(true);
     try {
-      const r = await api.getNotifications();
-      setRows(r.notifications as Notif[]);
+      const r: any = await api.getNotifications();
+      setRows(r?.items || r || []);
     } catch { /* offline ok */ }
     finally { setLoading(false); }
   };
@@ -47,14 +48,11 @@ export default function MailHall({ onNavigate }: Props) {
 
   const markAll = async () => {
     try {
-      const ids = rows.filter((r) => !r.readAt).map((r) => r.id);
-      if (ids.length === 0) return;
-      await api.markNotificationsRead(ids);
+      await api.markNotificationsRead();
       setRows((r) => r.map((x) => ({ ...x, readAt: x.readAt || Date.now() })));
       toast({ title: "All marked as read" });
-    } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : undefined;
-      toast({ title: "Couldn't mark all", description: message, variant: "destructive" });
+    } catch (e: any) {
+      toast({ title: "Couldn't mark all", description: e?.message, variant: "destructive" });
     }
   };
 
@@ -62,16 +60,16 @@ export default function MailHall({ onNavigate }: Props) {
     <HallLayout
       sidebar={
         <>
-          <HallSection title="Inbox" hue="var(--primary)" glow={0.5}>
+          <HallSection title="Inbox" hue="var(--primary)" glow={0.5} bg={texLeather}>
             <div className="flex items-center gap-2 mb-3">
               <Mail className="w-4 h-4 text-primary" />
-              <span className="text-xs text-muted-foreground">Notifications & alerts</span>
+              <span className="text-xs text-foreground/85 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">Notifications & alerts</span>
             </div>
             <HallStat label="Unread" value={unread} hue="var(--legendary)" />
             <HallStat label="Total" value={rows.length} />
           </HallSection>
 
-          <HallSection title="Filter" hue="var(--primary)" glow={0.3}>
+          <HallSection title="Filter" hue="var(--primary)" glow={0.3} bg={texParchment}>
             <div className="space-y-1">
               {(["all", "unread", "trade", "pvp"] as const).map((f) => (
                 <button
@@ -79,7 +77,7 @@ export default function MailHall({ onNavigate }: Props) {
                   onClick={() => setFilter(f)}
                   className={cn(
                     "w-full text-left px-2.5 py-1.5 rounded-lg text-xs capitalize transition-colors",
-                    filter === f ? "bg-primary/15 text-foreground ring-1 ring-primary/40" : "text-muted-foreground hover:bg-foreground/5"
+                    filter === f ? "bg-primary/20 text-foreground ring-1 ring-primary/50" : "text-foreground/85 hover:bg-foreground/10 bg-background/30"
                   )}
                 >
                   {f}
@@ -94,14 +92,14 @@ export default function MailHall({ onNavigate }: Props) {
         </>
       }
       header={
-        <GlassPanel hue="var(--primary)" glow={0.4} padding="md">
+        <GlassPanel hue="var(--primary)" glow={0.4} padding="md" bg={texVelvet}>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Showing</p>
-              <h1 className="font-heading text-lg text-foreground capitalize">{filter} · {filtered.length}</h1>
+              <p className="text-[10px] uppercase tracking-widest text-foreground/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">Showing</p>
+              <h1 className="font-heading text-lg text-foreground capitalize drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">{filter} · {filtered.length}</h1>
             </div>
             {unread > 0 && (
-              <button onClick={markAll} className="text-xs text-primary hover:text-primary/80 flex items-center gap-1.5">
+              <button onClick={markAll} className="text-xs text-primary hover:text-primary/80 flex items-center gap-1.5 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
                 <Check className="w-3.5 h-3.5" /> Mark all read
               </button>
             )}
@@ -126,7 +124,7 @@ export default function MailHall({ onNavigate }: Props) {
             return (
               <GlassPanel key={n.id} hue={hue} glow={n.readAt ? 0.2 : 0.45} padding="sm">
                 <button
-                  onClick={() => target && onNavigate?.(target)}
+                  onClick={() => target && onNavigate?.(target as any)}
                   className="w-full flex items-start gap-3 text-left"
                 >
                   <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: `hsl(${hue}/0.15)`, color: `hsl(${hue})` }}>

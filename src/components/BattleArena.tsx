@@ -1,17 +1,10 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 import battleBg from "@/assets/battle-bg.jpg";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trophy, Skull, Sparkles, ArrowLeft } from "lucide-react";
-import { GoldCurrencyIcon } from "@/components/CurrencyIcons";
+import { Trophy, Skull, Coins, Sparkles, ArrowLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { BattleState } from "@/lib/battleEngine";
-import { initBattle, playCard, equipWeapon, castSpell, attackTarget, activateAbility, performAITurn, generateEnemyDeck, endTurnAction } from "@/lib/battleEngine";
-import {
-  replayBattleFromActions,
-  toViewerBattleState,
-  type BattleLockstepIntent,
-  type LivePvPBattleConfig,
-} from "@/lib/battleLockstep";
+import { initBattle, playCard, equipWeapon, castSpell, attackTarget, useAbility, performAITurn, generateEnemyDeck, endTurnAction } from "@/lib/battleEngine";
 import BattleCardToken from "./BattleCardToken";
 import BattleRadialMenu from "./BattleRadialMenu";
 import HeroPortrait from "./HeroPortrait";
@@ -23,6 +16,7 @@ import { getBattleGoldReward, getRaidGoldReward } from "@/lib/gachaEngine";
 import { getRaidBoss, resolveBossDeck } from "@/lib/raid/bosses";
 import { loadDailyQuests, progressQuest, saveDailyQuests } from "@/lib/questEngine";
 import { toast } from "@/hooks/use-toast";
+import { rollMysteryBox, claimFirstWin, FIRST_WIN_GOLD, FIRST_WIN_BP_XP } from "@/lib/dailyEngine";
 import { awardBattlePassXp } from "@/lib/battlePassEngine";
 import { rollMysteryBox, claimFirstWin, FIRST_WIN_GOLD, FIRST_WIN_BP_XP } from "@/lib/dailyEngine";
 import { getCosmeticById } from "@/data/cosmetics";
@@ -119,18 +113,7 @@ export default function BattleArena({
   const [selectedHandIndex, setSelectedHandIndex] = useState<number | null>(null);
   const [selectedFieldIndex, setSelectedFieldIndex] = useState<number | null>(null);
   const cardsPlayedRef = useRef(0);
-  const rankedActionLogRef = useRef<BattleLockstepIntent[]>([]);
-  const pveActionLogRef = useRef<BattleLockstepIntent[]>([]);
-  const pveMatchIdRef = useRef<string | null>(null);
   const isMobile = useIsMobile();
-
-  const queueBattleIntent = (intent: BattleLockstepIntent) => {
-    if (livePvP) return;
-    if (onRankedSubmit) rankedActionLogRef.current.push(intent);
-    else pveActionLogRef.current.push(intent);
-  };
-
-  const soloBoss = soloRaidBossId ? getRaidBoss(soloRaidBossId) : undefined;
 
   useEffect(() => {
     if (livePvP) return;
@@ -138,89 +121,6 @@ export default function BattleArena({
     pveActionLogRef.current = [];
     pveMatchIdRef.current = null;
     let cancelled = false;
-
-    (async () => {
-      let serverSeed: number | null = null;
-      let serverEnemyDeck: string[] | null = null;
-
-      if (isOnline && submitBattleResultApi && startPveBattleApi && !onRankedSubmit) {
-        try {
-          const started = await startPveBattleApi({
-            deckCardIds: playerDeckIds,
-            raidBossId: soloRaidBossId ?? undefined,
-            opponentDeckIds: opponentDeckIds ?? undefined,
-          });
-          if (!cancelled && started?.matchId) {
-            pveMatchIdRef.current = started.matchId;
-            if (!started.skipReplayVerification && started.seed != null && Array.isArray(started.enemyDeckIds)) {
-              serverSeed = started.seed;
-              serverEnemyDeck = started.enemyDeckIds;
-            }
-          } else if (!cancelled) {
-            pveMatchIdRef.current = null;
-          }
-        } catch {
-          if (!cancelled) pveMatchIdRef.current = null;
-        }
-      }
-      if (cancelled) return;
-
-      let enemyIds: string[];
-      let initOpts: Parameters<typeof initBattle>[2];
-      if (serverSeed != null && serverEnemyDeck != null) {
-        enemyIds = serverEnemyDeck;
-        if (soloBoss) {
-          initOpts = {
-            seed: serverSeed,
-            enemyHero: { hp: soloBoss.enemyHp, shield: soloBoss.enemyShield },
-          };
-        } else {
-          initOpts = { seed: serverSeed };
-        }
-      } else if (soloBoss) {
-        const deckSeed = battleSeed ?? Math.floor(Math.random() * 1_000_000_000);
-        enemyIds = resolveBossDeck(soloBoss, Math.max(10, playerDeckIds.length), deckSeed);
-        initOpts = {
-          seed: deckSeed,
-          enemyHero: { hp: soloBoss.enemyHp, shield: soloBoss.enemyShield },
-        };
-      } else {
-        enemyIds =
-          opponentDeckIds && opponentDeckIds.length > 0 ? opponentDeckIds : generateEnemyDeck(playerDeckIds.length);
-        initOpts = battleSeed != null ? { seed: battleSeed } : undefined;
-      }
-      const playerCardProgress: Partial<Record<string, CardProgress>> = {};
-      for (const id of playerDeckIds) {
-        playerCardProgress[id] = getCardProgress(playerState, id);
-      }
-      setSoloState(
-        initBattle(playerDeckIds, enemyIds, {
-          ...initOpts,
-          playerCardProgress: playerCardProgress as Record<string, CardProgress>,
-        }),
-      );
-      setRewardsGiven(false);
-      setGoldEarned(0);
-      setLevelUps([]);
-      cardsPlayedRef.current = 0;
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    playerDeckIds,
-    opponentDeckIds,
-    livePvP,
-    battleSeed,
-    soloRaidBossId,
-    soloBoss?.id,
-    isOnline,
-    submitBattleResultApi,
-    startPveBattleApi,
-    playerState.cardProgress,
-    onRankedSubmit,
-  ]);
 
   // Enemy AI turn
   useEffect(() => {
@@ -295,143 +195,75 @@ export default function BattleArena({
     if (cardsPlayedRef.current > 0) questState = progressQuest(questState, "play_cards_in_battle", cardsPlayedRef.current);
     saveDailyQuests(questState);
 
-    void (async () => {
-      try {
-        if (onRankedSubmit) {
-          await onRankedSubmit({
-            won,
-            draw: isDraw,
-            turnCount: turnNumber,
-            actionLog: rankedActionLogRef.current,
-            seed: battleSeed ?? undefined,
-          });
-        }
-      } catch (e) {
-        toast({ title: "Ranked result failed", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
+    // Apply daily-engine bonuses (mystery box drop + first-win bonus) — works online and offline.
+    let stateAfterDaily = rollMysteryBox(playerState);
+    let firstWinResult: ReturnType<typeof claimFirstWin> = null;
+    if (won) {
+      firstWinResult = claimFirstWin(stateAfterDaily);
+      if (firstWinResult) {
+        stateAfterDaily = firstWinResult.state;
+        toast({
+          title: "🏆 First win of the day!",
+          description: `+${FIRST_WIN_GOLD} gold + ${FIRST_WIN_BP_XP} BP XP bonus`,
+        });
       }
+    }
+    if (stateAfterDaily.mysteryBoxesPending !== playerState.mysteryBoxesPending) {
+      toast({ title: "📦 Mystery box dropped!", description: "Open it from the Daily tab." });
+    }
 
-      let usedOnlinePvE = false;
-      if (isOnline && submitBattleResultApi && !onRankedSubmit) {
-        const mid = pveMatchIdRef.current;
-        if (mid) {
-          try {
-            const result = await submitBattleResultApi({
-              matchId: mid,
-              won,
-              draw: isDraw,
-              turnCount: turnNumber,
-              deckCardIds: playerDeckIds,
-              raidBossId: soloRaidBossId ?? undefined,
-              actionLog: pveActionLogRef.current,
-            });
-            if (result) {
-              setGoldEarned(result.goldReward);
-              const mapped = result.levelUps.map((lu) => ({
-                ...lu,
-                milestone: null as string | null,
-              }));
-              setLevelUps(mapped);
-              if (mapped.length > 0) {
-                setShowLevelUps(true);
-                const qs = progressQuest(loadDailyQuests(), "level_up_card", mapped.length);
-                saveDailyQuests(qs);
-              }
-            }
-            onStateChange((prev) => {
-              let s = awardBattlePassXp(prev, won ? 120 : isDraw ? 80 : 60).state;
-              const prevPending = s.mysteryBoxesPending ?? 0;
-              s = rollMysteryBox(s);
-              if ((s.mysteryBoxesPending ?? 0) > prevPending) {
-                toast({ title: "Mystery box earned!", description: "Open it in You → Daily." });
-              }
-              if (won) {
-                const fw = claimFirstWin(s);
-                if (fw) {
-                  s = fw.state;
-                  s = awardBattlePassXp(s, FIRST_WIN_BP_XP).state;
-                  toast({
-                    title: "First win of the day!",
-                    description: `+${FIRST_WIN_GOLD} gold & +${FIRST_WIN_BP_XP} Battle Pass XP`,
-                  });
-                }
-              }
-              if (isOnline && syncEconomyApi) void syncEconomyApi(s.gold, s.stardust);
-              return s;
-            });
-            usedOnlinePvE = true;
-          } catch (e) {
-            toast({
-              title: "Online rewards failed",
-              description: e instanceof Error ? e.message : String(e),
-              variant: "destructive",
-            });
-          }
-        } else {
-          toast({
-            title: "Online rewards unavailable",
-            description: "Could not start a server battle session. Rewards use local rules until you reconnect.",
-            variant: "destructive",
-          });
-        }
-      }
-      if (usedOnlinePvE) return;
-
-      onStateChange((prev) => {
-        const gold =
-          soloBoss != null
-            ? getRaidGoldReward(won, turnNumber, soloBoss.goldRewardMultiplier)
-            : getBattleGoldReward(won, turnNumber);
-        setGoldEarned(gold);
-        let newState = { ...prev, cardProgress: { ...prev.cardProgress }, gold: prev.gold + gold };
-        const allLevelUps: (LevelUpResult & { cardId: string })[] = [];
-        const xpAmount = won ? 50 : isDraw ? 35 : 20;
-        for (const id of playerDeckIds) {
-          const progress = getCardProgress(newState, id);
-          const result = awardXp(progress, xpAmount);
-          newState.cardProgress[id] = result.progress;
-          for (const lu of result.levelUps) allLevelUps.push({ ...lu, cardId: id });
-        }
-        setLevelUps(allLevelUps);
-        if (allLevelUps.length > 0) {
-          setShowLevelUps(true);
-          const qs = progressQuest(loadDailyQuests(), "level_up_card", allLevelUps.length);
-          saveDailyQuests(qs);
-        }
-        newState = awardBattlePassXp(newState, won ? 120 : isDraw ? 80 : 60).state;
-        const prevPending = newState.mysteryBoxesPending ?? 0;
-        newState = rollMysteryBox(newState);
-        if ((newState.mysteryBoxesPending ?? 0) > prevPending) {
-          toast({ title: "Mystery box earned!", description: "Open it in You → Daily." });
-        }
-        if (won) {
-          const fw = claimFirstWin(newState);
-          if (fw) {
-            newState = fw.state;
-            newState = awardBattlePassXp(newState, FIRST_WIN_BP_XP).state;
-            toast({
-              title: "First win of the day!",
-              description: `+${FIRST_WIN_GOLD} gold & +${FIRST_WIN_BP_XP} Battle Pass XP`,
-            });
+    if (isOnline && submitBattleResultApi) {
+      submitBattleResultApi({
+        won,
+        draw: isDraw,
+        turnCount: state.turnNumber,
+        deckCardIds: playerDeckIds,
+      }).then((result) => {
+        if (result) {
+          setGoldEarned(result.goldReward);
+          const mapped = result.levelUps.map((lu) => ({
+            ...lu,
+            milestone: null as string | null,
+          }));
+          setLevelUps(mapped);
+          if (mapped.length > 0) {
+            setShowLevelUps(true);
+            const qs = progressQuest(loadDailyQuests(), "level_up_card", mapped.length);
+            saveDailyQuests(qs);
           }
         }
         return newState;
       });
-    })();
-  }, [
-    state,
-    rewardsGiven,
-    livePvP,
-    onRankedSubmit,
-    battleSeed,
-    submitBattleResultApi,
-    playerDeckIds,
-    onStateChange,
-    isOnline,
-    syncEconomyApi,
-    soloRaidBossId,
-    soloBoss,
-    onRankedSubmit,
-  ]);
+      const baseBpXp = won ? 120 : isDraw ? 80 : 60;
+      const bpBonus = firstWinResult ? FIRST_WIN_BP_XP : 0;
+      const bp = awardBattlePassXp(stateAfterDaily, baseBpXp + bpBonus);
+      onStateChange(bp.state);
+      return;
+    }
+
+    const gold = getBattleGoldReward(won, state.turnNumber);
+    setGoldEarned(gold);
+    let newState = { ...stateAfterDaily, cardProgress: { ...stateAfterDaily.cardProgress }, gold: stateAfterDaily.gold + gold };
+    const allLevelUps: (LevelUpResult & { cardId: string })[] = [];
+    const xpAmount = won ? 50 : isDraw ? 35 : 20;
+    for (const id of playerDeckIds) {
+      const progress = getCardProgress(newState, id);
+      const result = awardXp(progress, xpAmount);
+      newState.cardProgress[id] = result.progress;
+      for (const lu of result.levelUps) allLevelUps.push({ ...lu, cardId: id });
+    }
+    setLevelUps(allLevelUps);
+    if (allLevelUps.length > 0) {
+      setShowLevelUps(true);
+      const qs = progressQuest(loadDailyQuests(), "level_up_card", allLevelUps.length);
+      saveDailyQuests(qs);
+    }
+    const baseBpXp = won ? 120 : isDraw ? 80 : 60;
+    const bpBonus = firstWinResult ? FIRST_WIN_BP_XP : 0;
+    newState = awardBattlePassXp(newState, baseBpXp + bpBonus).state;
+    onStateChange(newState);
+    savePlayerState(newState);
+  }, [state?.phase]);
 
   const handleHandCardClick = (index: number) => {
     if (!state || state.turn !== "player" || animating || state.phase === "game-over") return;
@@ -549,7 +381,7 @@ export default function BattleArena({
         setAnimating(false);
         setActionMode("none");
         setSelectedHandIndex(null);
-      }, 150);
+      }, 400);
     } else if (actionMode === "select-attack-target" && side === "enemy" && selectedFieldIndex !== null) {
       queueBattleIntent({
         kind: "attack",
@@ -562,7 +394,7 @@ export default function BattleArena({
         setAnimating(false);
         setActionMode("none");
         setSelectedFieldIndex(null);
-      }, 150);
+      }, 400);
     } else if (actionMode === "none" && side === "player") {
       const fc = state.player.field[index];
       if (!fc) return;
@@ -574,7 +406,6 @@ export default function BattleArena({
 
   const beginAttackFromRadial = () => {
     if (!state || !isPlayerTurn || animating || selectedFieldIndex === null) return;
-    if (livePvP?.isSubmitting) return;
     const fc = state.player.field[selectedFieldIndex];
     if (!fc || fc.stunned || fc.attackedThisTurn) return;
     if (state.player.ap < 1) {
@@ -623,16 +454,12 @@ export default function BattleArena({
       setAnimating(false);
       setActionMode("none");
       setSelectedFieldIndex(null);
-    }, 150);
+    }, 400);
   };
 
   if (!state) return null;
 
-  const isPlayerTurn =
-    state.turn === "player" &&
-    !animating &&
-    state.phase !== "game-over" &&
-    !livePvP?.isSubmitting;
+  const isPlayerTurn = state.turn === "player" && !animating && state.phase !== "game-over";
   const boardSkinId = playerState.cosmeticsEquipped?.boardSkinId || null;
   const boardSkinImage = boardSkinId ? (getCosmeticById(boardSkinId)?.image || null) : null;
   const noEnemyField = !state.enemy.field.some(fc => fc !== null);
@@ -649,18 +476,13 @@ export default function BattleArena({
         {/* ===== Main Battlefield ===== */}
         <div className="flex-1 flex flex-col min-h-0">
           {/* Retreat button */}
-          <div className="absolute top-2 left-2 z-30 flex flex-col gap-1 items-start max-w-[min(100%,280px)]">
+          <div className="absolute top-2 left-2 z-30">
             <button
               onClick={onExit}
               className="flex items-center gap-1 px-2 py-1 rounded-lg bg-secondary/80 text-secondary-foreground text-[10px] font-bold hover:bg-secondary transition-colors backdrop-blur-sm"
             >
               <ArrowLeft className="w-3 h-3" /> Retreat
             </button>
-            {rankedSubtitle || soloBoss ? (
-              <span className="text-[9px] text-muted-foreground font-heading leading-tight bg-background/70 px-2 py-1 rounded-md border border-border/50">
-                {rankedSubtitle ?? (soloBoss ? `Raid — ${soloBoss.name}` : "")}
-              </span>
-            ) : null}
           </div>
 
           {/* Turn indicator */}
@@ -674,7 +496,7 @@ export default function BattleArena({
               <HeroPortrait
                 side="enemy"
                 hp={state.enemy.hp}
-                maxHp={soloBoss?.enemyHp ?? 30}
+                maxHp={30}
                 shield={state.enemy.shield}
                 ap={state.enemy.ap}
                 maxAp={2}
@@ -686,28 +508,6 @@ export default function BattleArena({
 
             {/* ===== Enemy Field ===== */}
             <div className="space-y-1.5">
-              <div className="flex justify-center gap-1 flex-wrap">
-                {state.enemy.tokens.map((tok, i) => (
-                  <div
-                    key={`et-${i}`}
-                    className={cn(
-                      "relative w-10 h-12 sm:w-11 sm:h-14 rounded-md border overflow-hidden flex flex-col items-center justify-end",
-                      tok ? "border-amber-500/50 bg-amber-950/30" : "border-border/10 opacity-40",
-                    )}
-                  >
-                    {tok ? (
-                      <>
-                        <img src={tok.image} alt="" className="absolute inset-0 w-full h-full object-cover opacity-90" />
-                        <span className="relative z-10 text-[8px] font-bold text-white drop-shadow px-0.5">
-                          {tok.attack}⚔ {tok.turnsRemaining}t
-                        </span>
-                      </>
-                    ) : (
-                      <span className="text-muted-foreground/20 text-[8px]">·</span>
-                    )}
-                  </div>
-                ))}
-              </div>
               <div className="flex justify-center gap-2 sm:gap-3 min-h-[104px]">
                 {state.enemy.field.map((fc, i) => (
                   <div key={i} className="relative group">
@@ -779,28 +579,6 @@ export default function BattleArena({
                 ))}
               </div>
 
-              <div className="flex justify-center gap-1 flex-wrap">
-                {state.player.tokens.map((tok, i) => (
-                  <div
-                    key={`pt-${i}`}
-                    className={cn(
-                      "relative w-10 h-12 sm:w-11 sm:h-14 rounded-md border overflow-hidden flex flex-col items-center justify-end",
-                      tok ? "border-primary/50 bg-primary/10" : "border-border/10 opacity-40",
-                    )}
-                  >
-                    {tok ? (
-                      <>
-                        <img src={tok.image} alt="" className="absolute inset-0 w-full h-full object-cover opacity-90" />
-                        <span className="relative z-10 text-[8px] font-bold text-white drop-shadow px-0.5">
-                          {tok.attack}⚔ {tok.turnsRemaining}t
-                        </span>
-                      </>
-                    ) : (
-                      <span className="text-muted-foreground/20 text-[8px]">·</span>
-                    )}
-                  </div>
-                ))}
-              </div>
               <div className="flex justify-center gap-2 sm:gap-3 min-h-[104px]">
                 {state.player.field.map((fc, i) => (
                   <div key={i} className="relative group">
@@ -906,15 +684,19 @@ export default function BattleArena({
               </div>
               <div className="flex gap-1.5 sm:gap-2 overflow-x-auto pb-1 justify-center">
                 {state.player.hand.map((card, i) => (
-                  <div
+                  <motion.div
                     key={`${card.id}-${i}`}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{
+                      opacity: 1,
+                      y: selectedHandIndex === i ? -8 : 0,
+                    }}
+                    whileHover={isPlayerTurn ? { y: -6, scale: 1.05 } : undefined}
                     className={cn(
-                      "flex-shrink-0 w-[68px] sm:w-20 rounded-lg border-2 overflow-hidden cursor-pointer",
-                      "transition-[transform,box-shadow,border-color] duration-150 ease-out will-change-transform",
+                      "flex-shrink-0 w-[68px] sm:w-20 rounded-lg border-2 overflow-hidden cursor-pointer transition-shadow",
                       selectedHandIndex === i
-                        ? "-translate-y-2 ring-2 ring-legendary border-legendary shadow-[0_0_12px_hsl(var(--legendary)/0.4)]"
-                        : "border-border translate-y-0",
-                      isPlayerTurn && selectedHandIndex !== i && "hover:border-primary/50",
+                        ? "ring-2 ring-legendary border-legendary shadow-[0_0_12px_hsl(var(--legendary)/0.4)]"
+                        : "border-border hover:border-primary/50",
                       !isPlayerTurn && "opacity-50 pointer-events-none"
                     )}
                     onClick={() => isPlayerTurn && handleHandCardClick(i)}
@@ -942,7 +724,7 @@ export default function BattleArena({
                         <div className="text-[7px] text-destructive">🪤 Trap</div>
                       )}
                     </div>
-                  </div>
+                  </motion.div>
                 ))}
                 {state.player.hand.length === 0 && (
                   <p className="text-[10px] text-muted-foreground py-3">No cards in hand</p>
@@ -991,7 +773,22 @@ export default function BattleArena({
               )}
               <div className="flex gap-3 mt-6 justify-center">
                 <button onClick={onExit} className="px-5 py-2.5 rounded-xl bg-secondary text-secondary-foreground font-heading font-bold text-sm hover:bg-secondary/80">
-                  {livePvP ? "Back to PvP" : "Back to Deck"}
+                  Back to Deck
+                </button>
+                <button
+                  onClick={() => {
+                    const enemyIds = generateEnemyDeck(playerDeckIds.length);
+                    setState(initBattle(playerDeckIds, enemyIds));
+                    setRewardsGiven(false);
+                    setGoldEarned(0);
+                    setLevelUps([]);
+                    setActionMode("none");
+                    setSelectedFieldIndex(null);
+                    setSelectedHandIndex(null);
+                  }}
+                  className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-heading font-bold text-sm hover:brightness-110"
+                >
+                  Battle Again
                 </button>
                 {!livePvP && (
                   <button

@@ -1,10 +1,11 @@
+// Player titles. Most are tied to existing achievements (auto-unlocked when achievement fires).
 import type { PlayerState } from "@/lib/playerState";
 import type { AchievementState } from "@/lib/achievementEngine";
 
 export interface TitleDefinition {
   id: string;
   label: string;
-  color: string;
+  color: string; // tailwind color class for the label
   unlock: (state: PlayerState, ach: AchievementState) => boolean;
   unlockHint: string;
 }

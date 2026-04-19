@@ -10,11 +10,6 @@ export const TUTORIALS: Record<string, TutorialStep[]> = {
     { icon: "🔄", title: "Flip for details", body: "Click any card to flip it and read its lore, abilities, and synergies." },
     { icon: "⭐", title: "Stars matter", body: "Duplicate pulls grant stars and Stardust. Stars boost a card's stats permanently." },
   ],
-  cosmetics: [
-    { icon: "🎨", title: "Cosmetics locker", body: "Everything you unlock from the Battle Pass and seasons appears here when you own it." },
-    { icon: "✨", title: "Equip per slot", body: "Pick one item per category — board skin, frame, card back, border, title, and emote." },
-    { icon: "🃏", title: "See it in battle", body: "Frames and backs show on cards in your collection and in matches. Board skins appear on the battle board." },
-  ],
   catalog: [
     { icon: "🗺️", title: "Card Catalog", body: "The complete index of every card in the game — owned and unowned." },
     { icon: "🔍", title: "Plan your hunt", body: "Use this to spot which Legendaries you're missing before opening a pack." },
@@ -27,12 +22,7 @@ export const TUTORIALS: Record<string, TutorialStep[]> = {
   deck: [
     { icon: "🃏", title: "Build a Deck", body: "Pick up to 10 cards. A balanced deck mixes attackers, defenders, and spells." },
     { icon: "💾", title: "Save presets", body: "Save your favorite decks so you can swap loadouts in one click." },
-    { icon: "⚔️", title: "Start the fight", body: "From Arena, pick Skirmish and Begin Battle — or start from here after you have a deck." },
-  ],
-  "combat-hall": [
-    { icon: "🔥", title: "Arena", body: "One hub for every combat mode — no more jumping between Battle, PvP, and Tourney in the nav." },
-    { icon: "⚔️", title: "Skirmish & more", body: "Choose Skirmish for PvE, Ranked PvP for ladder, or Tournament for brackets. Begin Battle routes you to the right screen." },
-    { icon: "🃏", title: "Deck first", body: "Build a deck under Cards → Deck, then return here to launch Skirmish or hop into PvP and Tourney." },
+    { icon: "⚔️", title: "Start the fight", body: "Hit Battle to take your deck into combat against the AI." },
   ],
   battle: [
     { icon: "⚔️", title: "Welcome to Battle", body: "Take down your opponent's hero by playing cards and attacking each turn." },

@@ -1,17 +1,14 @@
 import { useMemo, useState } from "react";
-import { Trophy, Edit3, Lock, Sparkles, Swords, BookOpen, Shield } from "lucide-react";
-import { GoldCurrencyIcon, StardustCurrencyIcon } from "@/components/CurrencyIcons";
+import { Trophy, Edit3, Lock, Coins, Sparkles, Swords, BookOpen, Shield } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import type { PlayerState } from "@/lib/playerState";
 import { AVATARS, getAvatar, type AvatarDefinition } from "@/data/avatars";
-import { COSMETICS } from "@/data/cosmetics";
-import { TITLES, type TitleDefinition } from "@/data/titles";
+import { TITLES, getTitle, type TitleDefinition } from "@/data/titles";
 import { loadAchievementState, type AchievementState } from "@/lib/achievementEngine";
 import { allCards } from "@/data/cards";
-import { clearCosmeticSlot, getBattlePassLevelFromXp, setCosmeticEquipped } from "@/lib/battlePassEngine";
-import { getDisplayedProfileTitle, isCosmeticTitleActive } from "@/lib/profileTitleDisplay";
 
 interface ProfilePageProps {
   playerState: PlayerState;
@@ -25,10 +22,9 @@ export default function ProfilePage({ playerState, onStateChange }: ProfilePageP
   const ach: AchievementState = useMemo(() => loadAchievementState(), []);
   const profile = playerState.profile ?? { avatarId: "default", titleId: null, bannerId: null };
   const avatar = getAvatar(profile.avatarId);
-  const displayedTitle = getDisplayedProfileTitle(playerState);
-  const cosmeticTitleActive = isCosmeticTitleActive(playerState);
-  const ownedTitleCosmetics = COSMETICS.filter((c) => c.type === "title" && (playerState.cosmeticsOwned || []).includes(c.id));
+  const title = getTitle(profile.titleId);
 
+  // Auto-unlock avatars/titles based on current state — silently sync to playerState
   const autoUnlocked = useMemo(() => {
     const unlockedAv = new Set(playerState.unlockedAvatars ?? ["default"]);
     const unlockedTi = new Set(playerState.unlockedTitles ?? []);
@@ -62,47 +58,28 @@ export default function ProfilePage({ playerState, onStateChange }: ProfilePageP
   const bp = playerState.battlePass;
   const activeSeason = bp?.seasons?.[bp.activeSeasonId];
   const bpXp = activeSeason?.xp ?? 0;
-  const bpLevel = getBattlePassLevelFromXp(bpXp);
+  const bpLevel = Math.floor(bpXp / 1000) + 1;
   const wins = ach.stats.totalWins;
   const battles = ach.stats.totalBattles;
   const winRate = battles > 0 ? Math.round((wins / battles) * 100) : 0;
-
-  const titleTriggerClass =
-    displayedTitle.kind === "cosmetic"
-      ? "text-[hsl(var(--legendary))]"
-      : displayedTitle.kind === "achievement"
-        ? displayedTitle.colorClass ?? "text-muted-foreground"
-        : "text-muted-foreground";
 
   const selectAvatar = (a: AvatarDefinition) => {
     if (!autoUnlocked.avatars.has(a.id)) return;
     onStateChange({ ...playerState, profile: { ...profile, avatarId: a.id } });
     setAvatarOpen(false);
   };
-  const selectAchievementTitle = (t: TitleDefinition | null) => {
+  const selectTitle = (t: TitleDefinition | null) => {
     if (t && !autoUnlocked.titles.has(t.id)) return;
-    let next = clearCosmeticSlot(playerState, "title");
-    next = { ...next, profile: { ...profile, titleId: t?.id ?? null } };
-    onStateChange(next);
-    setTitleOpen(false);
-  };
-
-  const selectCosmeticTitle = (cosmeticId: string) => {
-    onStateChange(setCosmeticEquipped(playerState, cosmeticId));
-    setTitleOpen(false);
-  };
-
-  const clearAllTitles = () => {
-    let next = clearCosmeticSlot(playerState, "title");
-    next = { ...next, profile: { ...profile, titleId: null } };
-    onStateChange(next);
+    onStateChange({ ...playerState, profile: { ...profile, titleId: t?.id ?? null } });
     setTitleOpen(false);
   };
 
   return (
     <div className="space-y-6">
+      {/* Banner card */}
       <Card className="relative overflow-hidden p-6 bg-gradient-to-br from-card via-card to-secondary/30 border-border">
         <div className="flex flex-col sm:flex-row gap-6 items-center sm:items-start">
+          {/* Avatar */}
           <Dialog open={avatarOpen} onOpenChange={setAvatarOpen}>
             <DialogTrigger asChild>
               <button className="group relative w-28 h-28 rounded-2xl bg-secondary/60 border-2 border-primary/40 flex items-center justify-center text-7xl hover:border-primary transition-colors shadow-lg">
@@ -146,12 +123,13 @@ export default function ProfilePage({ playerState, onStateChange }: ProfilePageP
             </DialogContent>
           </Dialog>
 
+          {/* Identity */}
           <div className="flex-1 text-center sm:text-left">
             <h2 className="font-heading text-2xl font-bold text-foreground">{avatar.name}</h2>
             <Dialog open={titleOpen} onOpenChange={setTitleOpen}>
               <DialogTrigger asChild>
-                <button className={cn("text-sm mt-1 inline-flex items-center gap-1.5 hover:underline", titleTriggerClass)}>
-                  {displayedTitle.kind === "none" ? "No title" : displayedTitle.label}
+                <button className={cn("text-sm mt-1 inline-flex items-center gap-1.5 hover:underline", title?.color ?? "text-muted-foreground")}>
+                  {title ? title.label : "No title"}
                   <Edit3 className="w-3 h-3 opacity-60" />
                 </button>
               </DialogTrigger>
@@ -159,26 +137,25 @@ export default function ProfilePage({ playerState, onStateChange }: ProfilePageP
                 <DialogHeader><DialogTitle>Choose Title</DialogTitle></DialogHeader>
                 <div className="space-y-1 max-h-[60vh] overflow-y-auto pr-1">
                   <button
-                    onClick={() => clearAllTitles()}
+                    onClick={() => selectTitle(null)}
                     className={cn(
                       "w-full text-left px-3 py-2 rounded-md transition-colors",
-                      displayedTitle.kind === "none" ? "bg-primary/15 border border-primary/40" : "hover:bg-secondary/60 border border-transparent",
+                      profile.titleId === null ? "bg-primary/15 border border-primary/40" : "hover:bg-secondary/60 border border-transparent",
                     )}
                   >
                     <span className="text-sm text-muted-foreground italic">No title</span>
                   </button>
                   {TITLES.map((t) => {
                     const unlocked = autoUnlocked.titles.has(t.id);
-                    const sel = !cosmeticTitleActive && profile.titleId === t.id;
                     return (
                       <button
                         key={t.id}
                         disabled={!unlocked}
-                        onClick={() => selectAchievementTitle(t)}
+                        onClick={() => selectTitle(t)}
                         className={cn(
                           "w-full text-left px-3 py-2 rounded-md transition-colors flex items-center justify-between",
                           unlocked
-                            ? sel
+                            ? profile.titleId === t.id
                               ? "bg-primary/15 border border-primary/40"
                               : "hover:bg-secondary/60 border border-transparent"
                             : "opacity-50 cursor-not-allowed border border-transparent",
@@ -193,35 +170,15 @@ export default function ProfilePage({ playerState, onStateChange }: ProfilePageP
                       </button>
                     );
                   })}
-                  {ownedTitleCosmetics.length > 0 && (
-                    <>
-                      <p className="text-xs text-muted-foreground pt-3 pb-1">Season titles (Battle Pass)</p>
-                      {ownedTitleCosmetics.map((c) => {
-                        const sel = playerState.cosmeticsEquipped?.titleId === c.id;
-                        return (
-                          <button
-                            key={c.id}
-                            onClick={() => selectCosmeticTitle(c.id)}
-                            className={cn(
-                              "w-full text-left px-3 py-2 rounded-md transition-colors",
-                              sel ? "bg-primary/15 border border-primary/40" : "hover:bg-secondary/60 border border-transparent",
-                            )}
-                          >
-                            <span className="text-sm font-medium text-[hsl(var(--legendary))]">{c.name}</span>
-                          </button>
-                        );
-                      })}
-                    </>
-                  )}
                 </div>
               </DialogContent>
             </Dialog>
             <div className="mt-3 flex flex-wrap gap-2 justify-center sm:justify-start">
               <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-secondary/60 text-xs">
-                <GoldCurrencyIcon className="w-4 h-4" /> {playerState.gold}
+                <Coins className="w-3 h-3 text-[hsl(var(--legendary))]" /> {playerState.gold}
               </span>
               <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-secondary/60 text-xs">
-                <StardustCurrencyIcon className="w-4 h-4" /> {playerState.stardust}
+                💎 {playerState.stardust}
               </span>
               <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-secondary/60 text-xs">
                 <Shield className="w-3 h-3 text-primary" /> BP Lv {bpLevel}
@@ -231,6 +188,7 @@ export default function ProfilePage({ playerState, onStateChange }: ProfilePageP
         </div>
       </Card>
 
+      {/* Stats grid */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <StatTile icon={<Swords className="w-4 h-4" />} label="Wins" value={wins} />
         <StatTile icon={<Trophy className="w-4 h-4" />} label="Win rate" value={`${winRate}%`} />
@@ -238,6 +196,7 @@ export default function ProfilePage({ playerState, onStateChange }: ProfilePageP
         <StatTile icon={<Sparkles className="w-4 h-4" />} label="Total levels" value={totalLevels} />
       </div>
 
+      {/* Achievements summary */}
       <Card className="p-5">
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-heading font-bold text-foreground flex items-center gap-2">

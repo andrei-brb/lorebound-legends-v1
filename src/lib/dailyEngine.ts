@@ -10,14 +10,14 @@ export const DAILY_LOGIN_REWARDS = [
   { day: 7, gold: 500, stardust: 200, label: "500g + 200 Stardust" },
 ];
 
-export const HOURLY_CHEST_COOLDOWN_MS = 60 * 60 * 1000;
+export const HOURLY_CHEST_COOLDOWN_MS = 60 * 60 * 1000; // 1h
 export const HOURLY_CHEST_GOLD = 60;
 export const HOURLY_CHEST_STARDUST = 10;
 
 export const FIRST_WIN_GOLD = 200;
 export const FIRST_WIN_BP_XP = 500;
 
-export const MYSTERY_BOX_DROP_CHANCE = 0.05;
+export const MYSTERY_BOX_DROP_CHANCE = 0.05; // 5% per battle (any outcome)
 
 function todayString(): string {
   return new Date().toISOString().slice(0, 10);
@@ -31,11 +31,12 @@ function dayDiff(a: string, b: string): number {
 export function getNextLoginDay(d: DailyLoginState): number {
   const today = todayString();
   if (d.lastClaimDate === today) {
+    // Already claimed today — show next day greyed
     const next = (d.claimedDays.at(-1) ?? 0) + 1;
     return next > 7 ? 7 : next;
   }
   const next = (d.claimedDays.at(-1) ?? 0) + 1;
-  return next > 7 ? 1 : next;
+  return next > 7 ? 1 : next; // wrap after week 1
 }
 
 export function canClaimDailyLogin(d: DailyLoginState): boolean {
@@ -55,15 +56,18 @@ export function claimDailyLogin(state: PlayerState): DailyLoginClaimResult | nul
   const today = todayString();
   if (d.lastClaimDate === today) return null;
 
+  // Streak: continued only if last claim was yesterday
   let newStreak = 1;
   if (d.lastClaimDate) {
     const diff = dayDiff(d.lastClaimDate, today);
     if (diff === 1) newStreak = d.streak + 1;
   }
 
+  // Determine reward day index (1-7 cycle)
   let dayIdx = (d.claimedDays.at(-1) ?? 0) + 1;
   let claimedDays = [...d.claimedDays];
   if (dayIdx > 7) {
+    // Reset cycle
     dayIdx = 1;
     claimedDays = [];
   }
@@ -138,8 +142,9 @@ export function rollMysteryBox(state: PlayerState): PlayerState {
 
 export function openMysteryBox(state: PlayerState): { state: PlayerState; gold: number; stardust: number } | null {
   if ((state.mysteryBoxesPending ?? 0) <= 0) return null;
-  const gold = 50 + Math.floor(Math.random() * 250);
-  const stardust = Math.floor(Math.random() * 60);
+  // Random reward within friendly bands
+  const gold = 50 + Math.floor(Math.random() * 250);    // 50..299
+  const stardust = Math.floor(Math.random() * 60);       // 0..59
   return {
     state: {
       ...state,

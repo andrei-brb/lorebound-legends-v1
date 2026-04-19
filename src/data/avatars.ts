@@ -1,3 +1,6 @@
+// Avatar catalog. Avatars are emoji-based for now (zero-asset, instant theming).
+// Each avatar has an unlock condition checked against PlayerState + AchievementState.
+
 import type { PlayerState } from "@/lib/playerState";
 import type { AchievementState } from "@/lib/achievementEngine";
 

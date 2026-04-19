@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Calendar, Clock, Trophy, Gift, Flame, Sparkles } from "lucide-react";
+import { Calendar, Clock, Trophy, Gift, Coins, Flame, Sparkles } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -25,11 +25,9 @@ import { playCollect, playFanfare } from "@/lib/sfx";
 interface DailyHubProps {
   playerState: PlayerState;
   onStateChange: (state: PlayerState) => void;
-  isOnline?: boolean;
-  syncEconomyApi?: (gold: number, stardust: number) => Promise<void>;
 }
 
-export default function DailyHub({ playerState, onStateChange, isOnline, syncEconomyApi }: DailyHubProps) {
+export default function DailyHub({ playerState, onStateChange }: DailyHubProps) {
   const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
@@ -46,19 +44,10 @@ export default function DailyHub({ playerState, onStateChange, isOnline, syncEco
   const firstWinAvail = isFirstWinAvailable(playerState);
   const boxesPending = playerState.mysteryBoxesPending ?? 0;
 
-  void now;
-
-  const pushState = (next: PlayerState) => {
-    onStateChange(next);
-    if (isOnline && syncEconomyApi) {
-      void syncEconomyApi(next.gold, next.stardust);
-    }
-  };
-
   const handleClaimDaily = () => {
     const result = claimDailyLogin(playerState);
     if (!result) return;
-    pushState(result.state);
+    onStateChange(result.state);
     playFanfare();
     toast({
       title: `Day ${result.day} claimed! 🎁`,
@@ -69,7 +58,7 @@ export default function DailyHub({ playerState, onStateChange, isOnline, syncEco
   const handleClaimChest = () => {
     const result = claimHourlyChest(playerState);
     if (!result) return;
-    pushState(result.state);
+    onStateChange(result.state);
     playCollect();
     toast({ title: "Hourly chest opened!", description: `+${result.gold} gold, +${result.stardust} stardust` });
   };
@@ -77,7 +66,7 @@ export default function DailyHub({ playerState, onStateChange, isOnline, syncEco
   const handleOpenBox = () => {
     const result = openMysteryBox(playerState);
     if (!result) return;
-    pushState(result.state);
+    onStateChange(result.state);
     playFanfare();
     toast({ title: "🎁 Mystery box!", description: `+${result.gold} gold${result.stardust > 0 ? `, +${result.stardust} stardust` : ""}` });
   };
@@ -91,6 +80,7 @@ export default function DailyHub({ playerState, onStateChange, isOnline, syncEco
         <p className="text-sm text-muted-foreground mt-1">Log in, win, and open boxes for daily rewards.</p>
       </div>
 
+      {/* Daily login calendar */}
       <Card className="p-5">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-heading font-bold text-foreground flex items-center gap-2">
@@ -130,6 +120,7 @@ export default function DailyHub({ playerState, onStateChange, isOnline, syncEco
         </div>
       </Card>
 
+      {/* Two-column row: chest + first win */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card className="p-5">
           <h3 className="font-heading font-bold text-foreground flex items-center gap-2 mb-2">
@@ -177,6 +168,7 @@ export default function DailyHub({ playerState, onStateChange, isOnline, syncEco
         </Card>
       </div>
 
+      {/* Mystery boxes */}
       <Card className="p-5">
         <h3 className="font-heading font-bold text-foreground flex items-center gap-2 mb-2">
           <Gift className="w-4 h-4 text-primary" /> Mystery Boxes

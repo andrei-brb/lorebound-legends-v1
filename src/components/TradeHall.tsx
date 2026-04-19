@@ -10,6 +10,34 @@ import GameCard from "./GameCard";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import boxBazaar from "@/assets/box-tex-bazaar.jpg";
+import boxParchment from "@/assets/box-tex-parchment.jpg";
+import boxVelvet from "@/assets/box-tex-velvet.jpg";
+import boxStone from "@/assets/box-tex-stone.jpg";
+
+/** Full-panel textured background. Place as first child inside a GlassPanel with `relative overflow-hidden`. */
+function PanelBg({ src }: { src: string }) {
+  return (
+    <div className="absolute inset-0 pointer-events-none" aria-hidden>
+      <img src={src} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
+      <div className="absolute inset-0 bg-[hsl(var(--card)/0.55)]" />
+      <div
+        className="absolute inset-0"
+        style={{ background: `radial-gradient(ellipse at center, transparent 0%, hsl(var(--card) / 0.35) 70%, hsl(var(--card) / 0.7) 100%)` }}
+      />
+    </div>
+  );
+}
+
+/** Drop-shadowed heading used over textured backgrounds. */
+function PanelHeading({ title, hint }: { title: string; hint?: string }) {
+  return (
+    <div className="relative mb-3">
+      <h3 className="font-heading text-xs uppercase tracking-wider text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">{title}</h3>
+      {hint && <p className="text-[10px] text-foreground/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{hint}</p>}
+    </div>
+  );
+}
 
 interface TradeHallProps {
   playerState: PlayerState;
@@ -42,7 +70,7 @@ export default function TradeHall({ playerState, onStateChange }: TradeHallProps
   useEffect(() => {
     let alive = true;
     api.getFriends()
-      .then((r) => { if (alive) setFriends(r.accepted.map((f) => f.friend)); })
+      .then((r) => { if (alive) setFriends((r.accepted || []).map((f: any) => f.friend)); })
       .catch(() => {})
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
@@ -82,9 +110,8 @@ export default function TradeHall({ playerState, onStateChange }: TradeHallProps
       toast({ title: "Offer sent", description: `Pact sealed with ${partner.username}.` });
       setOffered([]);
       setRequested([]);
-    } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : "";
-      toast({ title: "Trade refused", description: message, variant: "destructive" });
+    } catch (e: any) {
+      toast({ title: "Trade refused", description: e?.message || "", variant: "destructive" });
     } finally { setSubmitting(false); }
   };
 
@@ -95,75 +122,76 @@ export default function TradeHall({ playerState, onStateChange }: TradeHallProps
       <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-5">
         {/* ---------- Sticky sidebar ---------- */}
         <aside className="lg:sticky lg:top-24 lg:self-start space-y-4">
-          <GlassPanel hue="var(--primary)" glow={0.5} padding="md">
-            <div className="flex items-center gap-2 mb-3">
-              <ArrowLeftRight className="w-4 h-4 text-primary" />
-              <h2 className="font-heading text-sm uppercase tracking-widest text-foreground/90">Trade Hall</h2>
+          <GlassPanel hue="var(--primary)" glow={0.5} padding="md" className="relative overflow-hidden">
+            <PanelBg src={boxBazaar} />
+            <div className="relative">
+              <PanelHeading title="Trade Hall" hint="Seal pacts in the night bazaar" />
+              <p className="text-xs text-foreground/85 leading-relaxed drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                Choose a partner, place up to 3 cards on each side, then seal the pact.
+              </p>
             </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Choose a partner, place up to 3 cards on each side, then seal the pact.
-            </p>
           </GlassPanel>
 
-          <GlassPanel hue="var(--primary)" glow={0.35} padding="md">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-heading text-xs uppercase tracking-wider text-foreground/80">Partners</h3>
-              <span className="text-[10px] text-muted-foreground">{friends.length}</span>
-            </div>
-            <div className="relative mb-3">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-              <Input
-                value={friendQuery}
-                onChange={(e) => setFriendQuery(e.target.value)}
-                placeholder="Search…"
-                className="h-8 pl-7 text-xs bg-background/40 border-border/40"
-              />
-            </div>
-            {loading ? (
-              <div className="flex justify-center py-4"><Loader2 className="w-4 h-4 animate-spin text-primary" /></div>
-            ) : filteredFriends.length === 0 ? (
-              <p className="text-xs text-muted-foreground text-center py-3">no friends to trade with</p>
-            ) : (
-              <ul className="space-y-1 max-h-[40vh] overflow-y-auto pr-1">
-                {filteredFriends.map((f) => {
-                  const sel = partner?.id === f.id;
-                  return (
-                    <li key={f.id}>
-                      <button
-                        type="button"
-                        onClick={() => setPartner(f)}
-                        className={cn(
-                          "w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg transition-colors text-left",
-                          sel ? "bg-primary/15 ring-1 ring-primary/40" : "hover:bg-foreground/5"
-                        )}
-                      >
-                        <HexAvatar
-                          size={32}
-                          hue={sel ? "var(--legendary)" : "var(--primary)"}
-                          src={f.avatar ? `https://cdn.discordapp.com/avatars/${f.discordId}/${f.avatar}.png?size=64` : null}
+          <GlassPanel hue="var(--primary)" glow={0.35} padding="md" className="relative overflow-hidden">
+            <PanelBg src={boxParchment} />
+            <div className="relative">
+              <PanelHeading title="Partners" hint={`${friends.length} known`} />
+              <div className="relative mb-3">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                <Input
+                  value={friendQuery}
+                  onChange={(e) => setFriendQuery(e.target.value)}
+                  placeholder="Search…"
+                  className="h-8 pl-7 text-xs bg-background/60 border-border/40"
+                />
+              </div>
+              {loading ? (
+                <div className="flex justify-center py-4"><Loader2 className="w-4 h-4 animate-spin text-primary" /></div>
+              ) : filteredFriends.length === 0 ? (
+                <p className="text-xs text-foreground/70 text-center py-3 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">no friends to trade with</p>
+              ) : (
+                <ul className="space-y-1 max-h-[40vh] overflow-y-auto pr-1">
+                  {filteredFriends.map((f) => {
+                    const sel = partner?.id === f.id;
+                    return (
+                      <li key={f.id}>
+                        <button
+                          type="button"
+                          onClick={() => setPartner(f)}
+                          className={cn(
+                            "w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg transition-colors text-left",
+                            sel ? "bg-primary/25 ring-1 ring-primary/50" : "hover:bg-foreground/10 bg-background/30"
+                          )}
                         >
-                          {f.username.slice(0, 1).toUpperCase()}
-                        </HexAvatar>
-                        <span className={cn("text-xs truncate", sel ? "text-foreground font-medium" : "text-foreground/80")}>
-                          {f.username}
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
+                          <HexAvatar
+                            size={32}
+                            hue={sel ? "var(--legendary)" : "var(--primary)"}
+                            src={f.avatar ? `https://cdn.discordapp.com/avatars/${f.discordId}/${f.avatar}.png?size=64` : null}
+                          >
+                            {f.username.slice(0, 1).toUpperCase()}
+                          </HexAvatar>
+                          <span className={cn("text-xs truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]", sel ? "text-foreground font-medium" : "text-foreground/90")}>
+                            {f.username}
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
           </GlassPanel>
         </aside>
 
         {/* ---------- Main panel ---------- */}
         <main className="space-y-4">
           {/* Header */}
-          <GlassPanel hue="var(--primary)" glow={0.4} padding="md">
-            <div className="flex items-center justify-between gap-3">
+          <GlassPanel hue="var(--primary)" glow={0.4} padding="md" className="relative overflow-hidden">
+            <PanelBg src={boxVelvet} />
+            <div className="relative flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Trading with</p>
-                <h1 className="font-heading text-lg text-foreground truncate">
+                <p className="text-[10px] uppercase tracking-widest text-foreground/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">Trading with</p>
+                <h1 className="font-heading text-lg text-foreground truncate drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
                   {partner ? partner.username : "— select a partner —"}
                 </h1>
               </div>
@@ -198,6 +226,7 @@ export default function TradeHall({ playerState, onStateChange }: TradeHallProps
             <Tray
               label="Your Offer"
               hue="var(--primary)"
+              banner={boxVelvet}
               cards={offered.map((id) => allCards.find((c) => c.id === id)!).filter(Boolean)}
               onAdd={() => setPicker("yours")}
               onRemove={(id) => setOffered((o) => o.filter((x) => x !== id))}
@@ -206,6 +235,7 @@ export default function TradeHall({ playerState, onStateChange }: TradeHallProps
             <Tray
               label={partner ? `${partner.username}'s Offer` : "Their Offer"}
               hue="var(--legendary)"
+              banner={boxStone}
               cards={requested.map((id) => allCards.find((c) => c.id === id)!).filter(Boolean)}
               onAdd={() => partner ? setPicker("theirs") : toast({ title: "Choose a partner first" })}
               onRemove={(id) => setRequested((o) => o.filter((x) => x !== id))}
@@ -238,7 +268,7 @@ export default function TradeHall({ playerState, onStateChange }: TradeHallProps
 /* ---------- Tray ---------- */
 
 function Tray({
-  label, hue, cards, onAdd, onRemove, disabled, reduceMotion,
+  label, hue, cards, onAdd, onRemove, disabled, reduceMotion, banner,
 }: {
   label: string;
   hue: string;
@@ -247,15 +277,31 @@ function Tray({
   onRemove: (id: string) => void;
   disabled?: boolean;
   reduceMotion?: boolean;
+  banner?: string;
 }) {
   const slots = [0, 1, 2];
   return (
-    <GlassPanel hue={hue} glow={cards.length ? 0.55 : 0.3} padding="md">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="font-heading text-xs uppercase tracking-wider text-foreground/90">{label}</h3>
-        <span className="text-[10px] text-muted-foreground">{cards.length}/3</span>
+    <GlassPanel hue={hue} glow={cards.length ? 0.55 : 0.3} padding="md" className="relative overflow-hidden">
+      {/* Full-panel banner background */}
+      {banner && (
+        <div className="absolute inset-0 pointer-events-none" aria-hidden>
+          <img src={banner} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-[hsl(var(--card)/0.55)]" />
+          <div
+            className="absolute inset-0"
+            style={{ background: `radial-gradient(ellipse at center, transparent 0%, hsl(var(--card) / 0.35) 70%, hsl(var(--card) / 0.7) 100%)` }}
+          />
+        </div>
+      )}
+
+      {/* Header */}
+      <div className="relative flex items-center justify-between mb-3">
+        <h3 className="font-heading text-xs uppercase tracking-wider text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">{label}</h3>
+        <span className="text-[10px] text-foreground/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{cards.length}/3</span>
       </div>
-      <div className="grid grid-cols-3 gap-3 sm:gap-4">
+
+      {/* Slots */}
+      <div className="relative grid grid-cols-3 gap-3 sm:gap-4">
         {slots.map((i) => {
           const card = cards[i];
           return (
@@ -263,14 +309,15 @@ function Tray({
               key={i}
               className="relative aspect-[3/4] rounded-xl overflow-hidden"
               style={{
+                // Empty slots punch through the banner with a dark inset; filled slots stay transparent so the card pops
                 background: card
-                  ? `radial-gradient(ellipse at center, hsl(${hue} / 0.12) 0%, transparent 70%)`
-                  : !disabled
-                    ? `radial-gradient(ellipse at center, hsl(${hue} / 0.06) 0%, transparent 70%)`
-                    : undefined,
+                  ? "transparent"
+                  : `hsl(var(--background) / 0.7)`,
+                backdropFilter: card ? undefined : "blur(2px)",
                 border: card
-                  ? `1px solid hsl(${hue} / 0.35)`
-                  : "1px dashed hsl(var(--foreground) / 0.15)",
+                  ? `1px solid hsl(${hue} / 0.45)`
+                  : "1px dashed hsl(var(--foreground) / 0.25)",
+                boxShadow: card ? `0 0 24px hsl(${hue} / 0.35)` : "inset 0 0 20px hsl(var(--background) / 0.6)",
               }}
             >
               {card ? (
@@ -282,7 +329,6 @@ function Tray({
                     )}
                     style={{ animationDelay: `${i * 0.6}s` }}
                   >
-                    {/* GameCard sm = 11rem × 16rem (176×256). Scale to fit slot. */}
                     <div className="w-44 h-64 origin-center scale-[0.42] sm:scale-[0.5] md:scale-[0.55] pointer-events-auto">
                       <GameCard card={card} size="sm" />
                     </div>
@@ -302,11 +348,11 @@ function Tray({
                   disabled={disabled}
                   className={cn(
                     "absolute inset-0 flex items-center justify-center transition-colors",
-                    "hover:bg-primary/5",
+                    "hover:bg-primary/10",
                     disabled && "opacity-30 cursor-not-allowed hover:bg-transparent"
                   )}
                 >
-                  <span className="text-2xl text-foreground/30">+</span>
+                  <span className="text-2xl text-foreground/40">+</span>
                 </button>
               )}
             </div>

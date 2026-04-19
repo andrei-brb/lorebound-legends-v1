@@ -8,6 +8,7 @@ import { getCosmeticById } from "@/data/cosmetics";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { texCodex, texLibrary } from "@/components/scene/panelTextures";
 
 const rarityOrder: Rarity[] = ["legendary", "rare", "common"];
 const rarityLabels: Record<Rarity, string> = {
@@ -34,15 +35,6 @@ interface CollectionViewProps {
   inDeckOnly?: boolean;
   sortBy?: "rarity_desc" | "rarity_asc" | "name_asc" | "name_desc" | "attack_desc" | "defense_desc" | "hp_desc" | "level_desc";
   highlightCardIds?: string[];
-  /** When true, only show owned cards whose id completes a pair synergy with the current deck (see synergyPartnerIds). */
-  synergyPickOnly?: boolean;
-  /** Partner card ids that would activate at least one synergy with deckCardIds (typically not already in the deck). */
-  synergyPartnerIds?: string[];
-  /** When false, lore arc chips are hidden (e.g. deck builder renders them in the top filter bar). */
-  showLoreArcFilters?: boolean;
-  /** Controlled lore arc filter (use with onArcFilterChange). */
-  arcFilter?: string | null;
-  onArcFilterChange?: (arc: string | null) => void;
 }
 
 const rarityRank: Record<Rarity, number> = { common: 1, rare: 2, legendary: 3 };
@@ -165,25 +157,11 @@ function CardGridItem({ card, onAddToDeck, deckCardIds, playerState, onStateChan
 }
 
 export default function CollectionView({
-  onAddToDeck,
-  deckCardIds = [],
-  playerState,
-  onStateChange,
-  searchQuery,
-  typeFilter = "all",
-  rarityFilter = "all",
-  elementFilter = "all",
-  inDeckOnly = false,
-  sortBy = "rarity_desc",
+  onAddToDeck, deckCardIds = [], playerState, onStateChange,
+  searchQuery, typeFilter = "all", rarityFilter = "all", elementFilter = "all", inDeckOnly = false, sortBy = "rarity_desc",
   highlightCardIds = [],
-  synergyPickOnly = false,
-  synergyPartnerIds = [],
-  showLoreArcFilters = true,
-  arcFilter: arcFilterProp,
-  onArcFilterChange,
 }: CollectionViewProps) {
   const highlightSet = useMemo(() => new Set(highlightCardIds), [highlightCardIds]);
-  const synergyPartnerIdSet = useMemo(() => new Set(synergyPartnerIds), [synergyPartnerIds]);
   const ownedIds = playerState?.ownedCardIds || allGameCards.map(c => c.id);
   const [internalArc, setInternalArc] = useState<string | null>(null);
   const arcControlled = onArcFilterChange !== undefined;
@@ -284,27 +262,38 @@ export default function CollectionView({
             const totalOfRarity = allGameCards.filter((c) => c.rarity === rarity).length;
             if (cards.length === 0) return null;
             const pct = Math.round((cards.length / totalOfRarity) * 100);
+            const tex = rarity === "legendary" ? texCodex : texLibrary;
             return (
-              <Card key={rarity} className="animate-fade-in bg-card/50 border-border">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className={cn("text-lg flex items-center gap-2", rarityColors[rarity])}>
-                      {rarityLabels[rarity]}
-                      <span className="text-sm text-muted-foreground font-body">({cards.length})</span>
-                    </CardTitle>
-                    <Badge variant="outline" className={cn("text-[10px]", rarityColors[rarity])}>
-                      {pct}% complete
-                    </Badge>
+              <div key={rarity} className="animate-fade-in">
+                <div
+                  className="rounded-2xl overflow-hidden relative isolate"
+                  style={{
+                    border: `1px solid hsl(var(--${rarity === "legendary" ? "legendary" : rarity === "rare" ? "rare" : "primary"}) / 0.4)`,
+                    boxShadow: `0 8px 32px hsl(var(--background) / 0.6)`,
+                  }}
+                >
+                  <div className="absolute inset-0 -z-10" aria-hidden>
+                    <img src={tex} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
+                    <div className="absolute inset-0 bg-card/70" />
                   </div>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-4 gap-4">
-                    {cards.map((card) => (
-                      <CardGridItem key={card.id} card={card} onAddToDeck={onAddToDeck} deckCardIds={deckCardIds} playerState={playerState} onStateChange={onStateChange} highlighted={highlightSet.has(card.id)} />
-                    ))}
+                  <div className="p-5">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className={cn("font-heading text-lg flex items-center gap-2 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]", rarityColors[rarity])}>
+                        {rarityLabels[rarity]}
+                        <span className="text-sm text-foreground/80 font-body">({cards.length})</span>
+                      </h3>
+                      <Badge variant="outline" className={cn("text-[10px]", rarityColors[rarity])}>
+                        {pct}% complete
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-4 gap-4">
+                      {cards.map((card) => (
+                        <CardGridItem key={card.id} card={card} onAddToDeck={onAddToDeck} deckCardIds={deckCardIds} playerState={playerState} onStateChange={onStateChange} highlighted={highlightSet.has(card.id)} />
+                      ))}
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
+                </div>
+              </div>
             );
           })}
         </>

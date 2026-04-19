@@ -6,6 +6,7 @@ import GlassPanel from "@/components/scene/GlassPanel";
 import HexAvatar from "@/components/scene/HexAvatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { texHearth, texParchment, texLeather, texVelvet } from "@/components/scene/panelTextures";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
 
@@ -24,9 +25,9 @@ export default function FriendsHall({ isOnline }: Props) {
   const load = async () => {
     setLoading(true);
     try {
-      const r = await api.getFriends();
-      setFriends(r.accepted.map((f) => f.friend));
-      setPending(r.incoming.map((p) => ({ id: p.id, from: p.from })));
+      const r: any = await api.getFriends();
+      setFriends((r.accepted || []).map((f: any) => f.friend));
+      setPending((r.incoming || []).map((p: any) => ({ id: p.id, from: p.from })));
     } catch { /* offline ok */ }
     finally { setLoading(false); }
   };
@@ -39,56 +40,47 @@ export default function FriendsHall({ isOnline }: Props) {
 
   const accept = async (id: number) => {
     try { await api.friendRespond(id, true); toast({ title: "Friend added" }); load(); }
-    catch (e: unknown) {
-      const message = e instanceof Error ? e.message : undefined;
-      toast({ title: "Failed", description: message, variant: "destructive" });
-    }
+    catch (e: any) { toast({ title: "Failed", description: e?.message, variant: "destructive" }); }
   };
   const decline = async (id: number) => {
     try { await api.friendRespond(id, false); load(); }
-    catch (e: unknown) {
-      const message = e instanceof Error ? e.message : undefined;
-      toast({ title: "Failed", description: message, variant: "destructive" });
-    }
+    catch (e: any) { toast({ title: "Failed", description: e?.message, variant: "destructive" }); }
   };
   const addFriend = async () => {
     if (!addQuery.trim()) return;
     try { await api.friendRequest(addQuery.trim()); toast({ title: "Request sent" }); setAddQuery(""); }
-    catch (e: unknown) {
-      const message = e instanceof Error ? e.message : undefined;
-      toast({ title: "Failed", description: message, variant: "destructive" });
-    }
+    catch (e: any) { toast({ title: "Failed", description: e?.message, variant: "destructive" }); }
   };
 
   return (
     <HallLayout
       sidebar={
         <>
-          <HallSection title="Companions" hue="var(--primary)" glow={0.5}>
+          <HallSection title="Companions" hue="var(--primary)" glow={0.5} bg={texHearth}>
             <div className="flex items-center gap-2 mb-3">
               <Users className="w-4 h-4 text-primary" />
-              <span className="text-xs text-muted-foreground">Your circle</span>
+              <span className="text-xs text-foreground/85 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">Your circle</span>
             </div>
             <HallStat label="Friends" value={friends.length} />
             <HallStat label="Pending" value={pending.length} hue="var(--rare)" />
           </HallSection>
 
-          <HallSection title="Add Friend" hue="var(--primary)" glow={0.35}>
+          <HallSection title="Add Friend" hue="var(--primary)" glow={0.35} bg={texParchment}>
             <div className="space-y-2">
-              <Input value={addQuery} onChange={(e) => setAddQuery(e.target.value)} placeholder="Discord username" className="h-8 text-xs bg-background/40 border-border/40" />
+              <Input value={addQuery} onChange={(e) => setAddQuery(e.target.value)} placeholder="Discord username" className="h-8 text-xs bg-background/60 border-border/40" />
               <Button onClick={addFriend} size="sm" className="w-full h-8 text-xs"><UserPlus className="w-3 h-3 mr-1" /> Send Request</Button>
             </div>
           </HallSection>
 
           {pending.length > 0 && (
-            <HallSection title={`Pending (${pending.length})`} hue="var(--rare)" glow={0.4}>
+            <HallSection title={`Pending (${pending.length})`} hue="var(--rare)" glow={0.4} bg={texLeather}>
               <ul className="space-y-2">
                 {pending.map((p) => (
                   <li key={p.id} className="flex items-center gap-2">
                     <HexAvatar size={28} hue="var(--rare)" src={p.from.avatar && p.from.discordId ? `https://cdn.discordapp.com/avatars/${p.from.discordId}/${p.from.avatar}.png?size=64` : null}>
                       {p.from.username.slice(0, 1).toUpperCase()}
                     </HexAvatar>
-                    <span className="text-xs flex-1 truncate">{p.from.username}</span>
+                    <span className="text-xs flex-1 truncate text-foreground drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">{p.from.username}</span>
                     <button onClick={() => accept(p.id)} className="w-6 h-6 rounded bg-[hsl(var(--synergy)/0.2)] text-[hsl(var(--synergy))] flex items-center justify-center hover:bg-[hsl(var(--synergy)/0.3)]"><Check className="w-3 h-3" /></button>
                     <button onClick={() => decline(p.id)} className="w-6 h-6 rounded bg-destructive/20 text-destructive flex items-center justify-center hover:bg-destructive/30"><X className="w-3 h-3" /></button>
                   </li>
@@ -99,10 +91,10 @@ export default function FriendsHall({ isOnline }: Props) {
         </>
       }
       header={
-        <GlassPanel hue="var(--primary)" glow={0.4} padding="md">
+        <GlassPanel hue="var(--primary)" glow={0.4} padding="md" bg={texVelvet}>
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search companions…" className="h-9 pl-9 bg-background/40 border-border/40" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-foreground/80" />
+            <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search companions…" className="h-9 pl-9 bg-background/60 border-border/40" />
           </div>
         </GlassPanel>
       }

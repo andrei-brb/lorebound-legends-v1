@@ -27,9 +27,8 @@ export default function FriendsPanel({ isOnline }: FriendsPanelProps) {
       setFriends(withPresence.friends);
       setIncoming(all.incoming as RequestRow[]);
       setOutgoing(all.outgoing as RequestRow[]);
-    } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : "Try again later";
-      toast({ title: "Failed to load friends", description: message, variant: "destructive" });
+    } catch (e: any) {
+      toast({ title: "Failed to load friends", description: e?.message || "Try again later", variant: "destructive" });
     } finally { setLoading(false); }
   };
 
@@ -47,9 +46,8 @@ export default function FriendsPanel({ isOnline }: FriendsPanelProps) {
       toast({ title: "Friend request sent" });
       setQuery("");
       refresh();
-    } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : "Try again";
-      toast({ title: "Could not send", description: message, variant: "destructive" });
+    } catch (e: any) {
+      toast({ title: "Could not send", description: e?.message || "Try again", variant: "destructive" });
     } finally { setBusy(false); }
   };
 
@@ -58,9 +56,8 @@ export default function FriendsPanel({ isOnline }: FriendsPanelProps) {
       await api.friendRespond(requestId, accept);
       toast({ title: accept ? "Friend added" : "Request declined" });
       refresh();
-    } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : "";
-      toast({ title: "Failed", description: message, variant: "destructive" });
+    } catch (e: any) {
+      toast({ title: "Failed", description: e?.message || "", variant: "destructive" });
     }
   };
 
@@ -69,9 +66,8 @@ export default function FriendsPanel({ isOnline }: FriendsPanelProps) {
       await api.friendRemove(friendId);
       toast({ title: "Friend removed" });
       refresh();
-    } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : "";
-      toast({ title: "Failed", description: message, variant: "destructive" });
+    } catch (e: any) {
+      toast({ title: "Failed", description: e?.message || "", variant: "destructive" });
     }
   };
 

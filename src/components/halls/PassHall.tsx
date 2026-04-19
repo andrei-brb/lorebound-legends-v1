@@ -2,6 +2,7 @@ import { Shield, Lock, CheckCircle2, Crown, Coins, Sparkles } from "lucide-react
 import type { PlayerState } from "@/lib/playerState";
 import HallLayout, { HallSection, HallStat } from "@/components/scene/HallLayout";
 import GlassPanel from "@/components/scene/GlassPanel";
+import { texGilded, texThrone } from "@/components/scene/panelTextures";
 import { cn } from "@/lib/utils";
 
 interface Props { playerState: PlayerState; onStateChange: (s: PlayerState) => void }
@@ -22,7 +23,7 @@ export default function PassHall({ playerState }: Props) {
       sidebarWidth="md"
       sidebar={
         <>
-          <HallSection title="Battle Pass" hue="var(--legendary)" glow={0.6}>
+          <HallSection title="Battle Pass" hue="var(--legendary)" glow={0.6} bg={texGilded}>
             <div className="flex items-center gap-2 mb-3">
               <Shield className="w-4 h-4 text-[hsl(var(--legendary))]" />
               <span className="text-xs text-muted-foreground">Season 1</span>
@@ -38,7 +39,7 @@ export default function PassHall({ playerState }: Props) {
           </HallSection>
 
           {!hasElite && (
-            <HallSection title="Upgrade" hue="var(--legendary)" glow={0.5}>
+            <HallSection title="Upgrade" hue="var(--legendary)" glow={0.5} bg={texThrone} bgTint={0.7}>
               <p className="text-xs text-muted-foreground mb-3">Unlock Elite to claim premium rewards on every level.</p>
               <button className="w-full py-2 rounded-lg bg-gradient-to-r from-[hsl(var(--legendary))] to-[hsl(var(--rare))] text-background font-heading text-xs uppercase tracking-wider">
                 <Crown className="w-3.5 h-3.5 inline mr-1.5" />
@@ -49,8 +50,8 @@ export default function PassHall({ playerState }: Props) {
         </>
       }
     >
-      <GlassPanel hue="var(--legendary)" glow={0.4} padding="md">
-        <h3 className="font-heading text-xs uppercase tracking-wider text-foreground/90 mb-4">Reward Track</h3>
+      <GlassPanel hue="var(--legendary)" glow={0.4} padding="md" bg={texGilded} bgTint={0.72}>
+        <h3 className="font-heading text-xs uppercase tracking-wider text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] mb-4">Reward Track</h3>
         <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-6 gap-3">
           {Array.from({ length: TOTAL_LEVELS }).map((_, i) => {
             const lvl = i + 1;

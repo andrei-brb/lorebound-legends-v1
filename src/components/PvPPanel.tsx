@@ -7,6 +7,9 @@ import { cn } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { allGameCards } from "@/data/cardIndex";
+import GlassPanel from "@/components/scene/GlassPanel";
+import { texArena, texThrone } from "@/components/scene/panelTextures";
 
 type Props = {
   playerState: PlayerState;
@@ -92,12 +95,16 @@ export default function PvPPanel({ playerState, onNavigateBattle, onStartRankedB
         </button>
       </div>
 
-      {/* Ranked — AI plays opponent's deck */}
-      <Card className="border-border overflow-hidden">
+      {/* Ranked (async) */}
+      <Card className="border-border overflow-hidden relative isolate">
+        <div className="absolute inset-0 -z-10" aria-hidden>
+          <img src={texThrone} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-card/70" />
+        </div>
         <div className="h-1.5 bg-gradient-to-r from-[hsl(var(--legendary))] to-[hsl(var(--legendary-glow))]" />
         <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Crown className="w-5 h-5 text-[hsl(var(--legendary))]" /> Ranked ladder
+          <CardTitle className="text-base flex items-center gap-2 text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+            <Crown className="w-5 h-5 text-[hsl(var(--legendary))]" /> Ranked (Async)
           </CardTitle>
           <p className="text-xs text-muted-foreground font-normal">
             Queue to face a similar MMR. You play the full battle; the AI controls your opponent&apos;s cards using their ranked deck snapshot.
@@ -230,12 +237,16 @@ export default function PvPPanel({ playerState, onNavigateBattle, onStartRankedB
         </CardContent>
       </Card>
 
-      {/* Duel — live human vs human */}
-      <Card className="border-border overflow-hidden">
+      {/* Live */}
+      <Card className="border-border overflow-hidden relative isolate">
+        <div className="absolute inset-0 -z-10" aria-hidden>
+          <img src={texArena} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-card/70" />
+        </div>
         <div className="h-1.5 bg-gradient-to-r from-primary to-primary/60" />
         <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Users className="w-5 h-5 text-primary" /> Duel (live)
+          <CardTitle className="text-base flex items-center gap-2 text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+            <Users className="w-5 h-5 text-primary" /> Live (Friends)
           </CardTitle>
           <p className="text-xs text-muted-foreground font-normal">
             Your friend gets an invite and controls their own cards. Battle opens on the Combat → Battle tab.

@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect } from "react";
-import { allGameCards, loreArcs } from "@/data/cardIndex";
+import { allGameCards } from "@/data/cardIndex";
 import CollectionView from "./CollectionView";
 import {
   X, Swords, Layers, Shield, Zap, Flame, Plus, ChevronRight,
@@ -17,9 +17,9 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
 import { motion, AnimatePresence } from "framer-motion";
+import GlassPanel from "@/components/scene/GlassPanel";
+import { texLeather, texForge, texVelvet } from "@/components/scene/panelTextures";
 
 const MAX_DECK_SIZE = 10;
 const MAX_PRESETS = 5;
@@ -38,8 +38,6 @@ type SortBy =
 
 interface DeckBuilderProps {
   onStartBattle?: (deckIds: string[]) => void;
-  /** Shown above the deck when launching from Combat Hall for a special mode */
-  pendingCombatHint?: string | null;
   playerState: PlayerState;
   onStateChange: (state: PlayerState) => void;
 }
@@ -48,8 +46,8 @@ interface DeckBuilderProps {
 function getDeckStrength(deckCards: typeof allGameCards): "weak" | "balanced" | "strong" | "empty" {
   if (deckCards.length === 0) return "empty";
   const avg = deckCards.reduce((a, c) => a + c.attack + c.defense + c.hp, 0) / deckCards.length;
-  if (avg > 65) return "strong";
-  if (avg > 48) return "balanced";
+  if (avg > 180) return "strong";
+  if (avg > 100) return "balanced";
   return "weak";
 }
 
@@ -88,38 +86,6 @@ function getSynergyPartnerIds(deckIds: string[]): Set<string> {
   return partners;
 }
 
-/** Open pair synergies: partner not yet in deck, keyed by synergy name + partner id. */
-function getIncompleteSynergyHints(deckIds: string[]) {
-  const deckSet = new Set(deckIds);
-  const map = new Map<
-    string,
-    { partnerId: string; partnerName: string; synergyName: string; description: string; triggeredBy: string[] }
-  >();
-  for (const did of deckIds) {
-    const card = allGameCards.find((c) => c.id === did);
-    if (!card) continue;
-    for (const syn of card.synergies) {
-      if (!syn.partnerId || deckSet.has(syn.partnerId)) continue;
-      const partner = allGameCards.find((c) => c.id === syn.partnerId);
-      if (!partner) continue;
-      const key = `${syn.name}::${syn.partnerId}`;
-      const existing = map.get(key);
-      if (existing) {
-        if (!existing.triggeredBy.includes(card.name)) existing.triggeredBy.push(card.name);
-      } else {
-        map.set(key, {
-          partnerId: syn.partnerId,
-          partnerName: partner.name,
-          synergyName: syn.name,
-          description: syn.description,
-          triggeredBy: [card.name],
-        });
-      }
-    }
-  }
-  return [...map.values()];
-}
-
 /* ─── Deck Warnings ─── */
 function getDeckWarnings(deckCards: typeof allGameCards): string[] {
   const warnings: string[] = [];
@@ -132,7 +98,7 @@ function getDeckWarnings(deckCards: typeof allGameCards): string[] {
   return warnings;
 }
 
-export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerState, onStateChange }: DeckBuilderProps) {
+export default function DeckBuilder({ onStartBattle, playerState, onStateChange }: DeckBuilderProps) {
   const [step, setStep] = useState<WizardStep>("manage");
   const [deckIds, setDeckIds] = useState<string[]>([]);
   const [editingPresetId, setEditingPresetId] = useState<string | null>(null); // null = new deck
@@ -153,7 +119,6 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
   const deckCards = deckIds.map(id => allGameCards.find(c => c.id === id)!).filter(Boolean);
   const synergies = useMemo(() => getActiveSynergies(deckIds), [deckIds]);
   const synergyPartners = useMemo(() => getSynergyPartnerIds(deckIds), [deckIds]);
-  const incompleteSynergyHints = useMemo(() => getIncompleteSynergyHints(deckIds), [deckIds]);
   const strength = getDeckStrength(deckCards);
   const warnings = useMemo(() => getDeckWarnings(deckCards), [deckCards]);
   const sConf = strengthConfig[strength];
@@ -176,28 +141,15 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
     }
   }, [deckIds.length, step]);
 
-  useEffect(() => {
-    if (synergyPartners.size === 0 && synergyPickOnly) setSynergyPickOnly(false);
-  }, [synergyPartners.size, synergyPickOnly]);
-
-  /** Remove one slot by index (tray order matches deckIds order). */
-  const removeCardAtSlot = (index: number) => {
-    setDeckIds((prev) => prev.filter((_, j) => j !== index));
-  };
-
-  /**
-   * Toggle card in/out of deck. Ownership is only required when *adding* — otherwise you can
-   * never remove cards that are still in a saved preset but no longer owned (fuse/sacrifice/sync).
-   */
   const toggleCard = (cardId: string) => {
-    setDeckIds((prev) => {
-      if (prev.includes(cardId)) {
-        return prev.filter((id) => id !== cardId);
-      }
-      if (!playerState.ownedCardIds.includes(cardId)) return prev;
-      if (prev.length >= MAX_DECK_SIZE) return prev;
-      return [...prev, cardId];
-    });
+    if (!playerState.ownedCardIds.includes(cardId)) return;
+    setDeckIds(prev =>
+      prev.includes(cardId)
+        ? prev.filter(id => id !== cardId)
+        : prev.length < MAX_DECK_SIZE
+          ? [...prev, cardId]
+          : prev
+    );
   };
 
   const saveDeck = () => {
@@ -223,7 +175,6 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
     setDeckIds([]);
     setDeckName("");
     setEditingPresetId(null);
-    setSynergyPickOnly(false);
   };
 
   const deletePreset = (id: string) => {
@@ -236,8 +187,6 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
     setEditingPresetId(preset.id);
     setDeckIds([...preset.cardIds]);
     setDeckName(preset.name);
-    setSynergyPickOnly(false);
-    setArcFilter(null);
     setStep("pick");
   };
 
@@ -245,8 +194,6 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
     setEditingPresetId(null);
     setDeckIds([]);
     setDeckName("");
-    setSynergyPickOnly(false);
-    setArcFilter(null);
     setStep("pick");
   };
 
@@ -412,17 +359,7 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
     <div className="space-y-4">
       {/* Top bar */}
       <div className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={() => {
-            setStep("manage");
-            setDeckIds([]);
-            setEditingPresetId(null);
-            setSynergyPickOnly(false);
-            setArcFilter(null);
-          }}
-          className="text-muted-foreground hover:text-foreground transition-colors"
-        >
+        <button onClick={() => { setStep("manage"); setDeckIds([]); setEditingPresetId(null); }} className="text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft className="w-5 h-5" />
         </button>
         <h2 className="font-heading text-lg font-bold text-foreground">
@@ -431,9 +368,115 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
         <Badge variant="secondary" className="ml-auto font-heading">{deckIds.length}/{MAX_DECK_SIZE}</Badge>
       </div>
 
-      {/* Search, sort & categories */}
-      <div className="rounded-xl border border-border bg-card/40 p-3 space-y-3">
-        <p className="text-[10px] font-heading font-bold uppercase tracking-wider text-muted-foreground">Filters</p>
+      {/* ── Live Deck Tray ── */}
+      <div className="border border-border rounded-xl p-4 relative isolate overflow-hidden">
+        <div className="absolute inset-0 -z-10" aria-hidden>
+          <img src={texLeather} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-card/75" />
+        </div>
+        <div className="flex items-center gap-2 mb-4">
+          <div className="flex items-center gap-1">
+            <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">1</div>
+            <span className="text-xs font-semibold text-foreground hidden sm:inline">Pick Cards</span>
+          </div>
+          <div className="h-px flex-1 bg-border" />
+          <div className="flex items-center gap-1">
+            <div className={cn(
+              "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold",
+              deckIds.length >= 4 ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"
+            )}>2</div>
+            <span className="text-xs font-semibold text-muted-foreground hidden sm:inline">Review & Save</span>
+          </div>
+        </div>
+
+        {/* Card slots */}
+        <div className="grid grid-cols-5 sm:grid-cols-10 gap-2 mb-3">
+          {Array.from({ length: MAX_DECK_SIZE }).map((_, i) => {
+            const card = deckCards[i];
+            const isSynergyHighlight = card && synergies.some(s => s.cards.includes(card.name));
+            return (
+              <motion.div
+                key={i}
+                layout
+                className={cn(
+                  "relative aspect-[3/4] rounded-lg border-2 overflow-hidden transition-all",
+                  card
+                    ? isSynergyHighlight
+                      ? "border-synergy shadow-[0_0_8px_hsl(var(--synergy)/0.4)]"
+                      : "border-primary/40"
+                    : "border-dashed border-border bg-secondary/30"
+                )}
+              >
+                {card ? (
+                  <>
+                    <img src={card.image} alt={card.name} className="w-full h-full object-cover" />
+                    <button
+                      onClick={() => toggleCard(card.id)}
+                      className="absolute top-0 right-0 w-5 h-5 bg-background/80 rounded-bl flex items-center justify-center hover:bg-destructive hover:text-destructive-foreground transition-colors"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent px-1 pb-0.5 pt-3">
+                      <p className="text-[8px] font-bold text-white truncate">{card.name}</p>
+                    </div>
+                  </>
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <Plus className="w-4 h-4 text-muted-foreground/30" />
+                  </div>
+                )}
+              </motion.div>
+            );
+          })}
+        </div>
+
+        {/* Strength meter + type composition */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className={cn("flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-bold", sConf.bg, sConf.color)}>
+            <Sparkles className="w-3 h-3" /> {sConf.label}
+          </div>
+          {deckCards.length > 0 && (
+            <>
+              <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+                <span>⚔️ {heroGodCount}</span>
+                <span>🗡️ {weaponCount}</span>
+                <span>✨ {spellCount}</span>
+                <span>🪤 {trapCount}</span>
+              </div>
+            </>
+          )}
+          {warnings.map((w, i) => (
+            <span key={i} className="text-[10px] text-destructive font-semibold">⚠ {w}</span>
+          ))}
+        </div>
+
+        {/* Action buttons */}
+        <div className="flex gap-2 mt-3">
+          {deckIds.length >= 4 && (
+            <Button size="sm" onClick={() => setStep("review")} className="gap-1">
+              Review Deck <ChevronRight className="w-3 h-3" />
+            </Button>
+          )}
+          {deckIds.length > 0 && (
+            <Button size="sm" variant="outline" onClick={() => setDeckIds([])}>
+              Clear All
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Synergy hints */}
+      {synergyPartners.size > 0 && deckIds.length > 0 && deckIds.length < MAX_DECK_SIZE && (
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-synergy/10 border border-synergy/20">
+          <Sparkles className="w-4 h-4 text-synergy shrink-0" />
+          <p className="text-[11px] text-synergy">
+            Cards with a <span className="font-bold">golden glow</span> below have synergies with your current deck!
+          </p>
+        </div>
+      )}
+
+      {/* Filters */}
+      <div className="space-y-3">
         <div className="grid grid-cols-1 md:grid-cols-[1fr_200px] gap-2">
           <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search cards…" />
           <Select value={sortBy} onValueChange={v => setSortBy(v as SortBy)}>
@@ -484,273 +527,21 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
               <SelectItem value="neutral">Neutral</SelectItem>
             </SelectContent>
           </Select>
-          <div className="flex items-center gap-2 w-full sm:w-auto sm:pl-2 border-t sm:border-t-0 border-border pt-2 sm:pt-0">
-            <Checkbox
-              id="deck-synergy-pick-only"
-              checked={synergyPickOnly}
-              disabled={synergyPartners.size === 0}
-              onCheckedChange={(v) => setSynergyPickOnly(v === true)}
-            />
-            <Label
-              htmlFor="deck-synergy-pick-only"
-              className={cn(
-                "text-xs font-medium leading-none cursor-pointer select-none",
-                synergyPartners.size === 0 ? "text-muted-foreground/50" : "text-foreground",
-              )}
-            >
-              Synergy picks only
-            </Label>
-          </div>
-        </div>
-        <div className="pt-1 border-t border-border/60">
-          <p className="text-[10px] font-heading font-bold uppercase tracking-wider text-muted-foreground mb-2">Lore arcs</p>
-          <div className="flex flex-wrap gap-2">
-            {loreArcs.map((arc) => (
-              <button
-                key={arc.id}
-                type="button"
-                onClick={() => setArcFilter(arcFilter === arc.id ? null : arc.id)}
-                className={cn(
-                  "px-3 py-1.5 rounded-full border text-xs font-heading transition-colors",
-                  arcFilter === arc.id
-                    ? "bg-primary text-primary-foreground border-primary"
-                    : "bg-secondary border-border text-secondary-foreground hover:bg-secondary/80"
-                )}
-              >
-                {arc.name}
-                <span className="ml-1.5 text-muted-foreground">({arc.cardIds.length})</span>
-              </button>
-            ))}
-            {arcFilter && (
-              <button
-                type="button"
-                onClick={() => setArcFilter(null)}
-                className="px-3 py-1.5 rounded-full border border-input text-xs text-muted-foreground hover:text-foreground"
-              >
-                Clear arc
-              </button>
-            )}
-          </div>
         </div>
       </div>
 
-      {/* ── Live Deck Tray ── */}
-      <div className="bg-card border border-border rounded-xl p-4">
-        {/* Wizard progress */}
-        <div className="flex items-center gap-2 mb-4">
-          <div className="flex items-center gap-1">
-            <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">1</div>
-            <span className="text-xs font-semibold text-foreground hidden sm:inline">Pick Cards</span>
-          </div>
-          <div className="h-px flex-1 bg-border" />
-          <div className="flex items-center gap-1">
-            <div className={cn(
-              "w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold",
-              deckIds.length >= 4 ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground"
-            )}>2</div>
-            <span className="text-xs font-semibold text-muted-foreground hidden sm:inline">Review & Save</span>
-          </div>
-        </div>
-
-        {/* Card slots */}
-        <div className="grid grid-cols-5 sm:grid-cols-10 gap-2 mb-3">
-          {Array.from({ length: MAX_DECK_SIZE }).map((_, i) => {
-            const slotId = deckIds[i];
-            const card = slotId ? allGameCards.find((c) => c.id === slotId) : undefined;
-            const isSynergyHighlight = card && synergies.some((s) => s.cards.includes(card.name));
-            return (
-              <motion.div
-                key={`slot-${i}-${slotId ?? "empty"}`}
-                layout
-                className={cn(
-                  "relative aspect-[3/4] rounded-lg border-2 overflow-hidden transition-all",
-                  card
-                    ? isSynergyHighlight
-                      ? "border-synergy shadow-[0_0_8px_hsl(var(--synergy)/0.4)]"
-                      : "border-primary/40"
-                    : slotId
-                      ? "border-destructive/50 bg-destructive/10"
-                      : "border-dashed border-border bg-secondary/30",
-                )}
-              >
-                {card ? (
-                  <>
-                    <img src={card.image} alt={card.name} className="w-full h-full object-cover" />
-                    <button
-                      type="button"
-                      onClick={() => removeCardAtSlot(i)}
-                      className="absolute top-0 right-0 w-5 h-5 bg-background/80 rounded-bl flex items-center justify-center hover:bg-destructive hover:text-destructive-foreground transition-colors"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                    <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/80 to-transparent px-1 pb-0.5 pt-3">
-                      <p className="text-[8px] font-bold text-white truncate">{card.name}</p>
-                    </div>
-                  </>
-                ) : slotId ? (
-                  <>
-                    <div className="w-full h-full flex flex-col items-center justify-center p-1 text-center bg-secondary/80">
-                      <p className="text-[8px] font-bold text-destructive leading-tight">Unavailable</p>
-                      <p className="text-[7px] text-muted-foreground mt-0.5 break-all line-clamp-2">{slotId}</p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeCardAtSlot(i)}
-                      className="absolute top-0 right-0 w-5 h-5 bg-background/80 rounded-bl flex items-center justify-center hover:bg-destructive hover:text-destructive-foreground transition-colors"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </>
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center">
-                    <Plus className="w-4 h-4 text-muted-foreground/30" />
-                  </div>
-                )}
-              </motion.div>
-            );
-          })}
-        </div>
-
-        {/* Strength meter + type composition */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className={cn("flex items-center gap-1.5 px-2 py-1 rounded-md text-xs font-bold", sConf.bg, sConf.color)}>
-            <Sparkles className="w-3 h-3" /> {sConf.label}
-          </div>
-          {deckCards.length > 0 && (
-            <>
-              <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
-                <span>⚔️ {heroGodCount}</span>
-                <span>🗡️ {weaponCount}</span>
-                <span>✨ {spellCount}</span>
-                <span>🪤 {trapCount}</span>
-              </div>
-            </>
-          )}
-          {warnings.map((w, i) => (
-            <span key={i} className="text-[10px] text-destructive font-semibold">⚠ {w}</span>
-          ))}
-        </div>
-
-        {/* Action buttons */}
-        <div className="flex gap-2 mt-3">
-          {deckIds.length >= 4 && (
-            <Button size="sm" onClick={() => setStep("review")} className="gap-1">
-              Review Deck <ChevronRight className="w-3 h-3" />
-            </Button>
-          )}
-          {deckIds.length > 0 && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                setDeckIds([]);
-                setSynergyPickOnly(false);
-              }}
-            >
-              Clear All
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {/* Synergy helper: explicit missing partners */}
-      {deckIds.length > 0 && deckIds.length < MAX_DECK_SIZE && incompleteSynergyHints.length > 0 && (
-        <div className="rounded-xl border border-synergy/25 bg-synergy/5 p-3 space-y-2">
-          <div className="flex items-center gap-2">
-            <Sparkles className="w-4 h-4 text-synergy shrink-0" />
-            <h3 className="font-heading text-xs font-bold uppercase tracking-wider text-synergy">Add for pair synergies</h3>
-          </div>
-          <ul className="space-y-2">
-            {incompleteSynergyHints.map((h) => {
-              const ownedPartner = playerState.ownedCardIds.includes(h.partnerId);
-              const canQuickAdd = ownedPartner && deckIds.length < MAX_DECK_SIZE;
-              return (
-                <li
-                  key={`${h.synergyName}::${h.partnerId}`}
-                  className="rounded-lg bg-card/80 border border-border/60 px-3 py-2 text-xs"
-                >
-                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
-                    <div className="min-w-0 space-y-0.5">
-                      <p className="text-foreground font-heading font-semibold leading-snug">
-                        Add <span className="text-synergy">{h.partnerName}</span>
-                        <span className="text-muted-foreground font-normal"> · </span>
-                        <span className="text-primary/90">{h.synergyName}</span>
-                      </p>
-                      <p className="text-[11px] text-muted-foreground leading-snug">{h.description}</p>
-                      <p className="text-[10px] text-muted-foreground">
-                        With: {h.triggeredBy.join(", ")}
-                      </p>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2 shrink-0">
-                      <div className="flex flex-wrap items-center gap-1.5">
-                        <Badge variant={ownedPartner ? "default" : "secondary"} className="text-[10px]">
-                          {ownedPartner ? "Owned" : "Not owned"}
-                        </Badge>
-                        {ownedPartner && (
-                          <Button
-                            type="button"
-                            size="sm"
-                            className="h-7 text-[10px] px-2 gap-0.5"
-                            disabled={!canQuickAdd}
-                            title={!canQuickAdd ? "Deck is full" : `Add ${h.partnerName} to deck`}
-                            onClick={() => toggleCard(h.partnerId)}
-                          >
-                            <Plus className="w-3 h-3" /> Add
-                          </Button>
-                        )}
-                      </div>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-7 text-[10px] px-2"
-                        onClick={() => setSearch(h.partnerName)}
-                      >
-                        Search name
-                      </Button>
-                    </div>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-          {synergyPartners.size > 0 && (
-            <p className="text-[10px] text-synergy pt-1 border-t border-synergy/15">
-              Cards with a <span className="font-bold">golden glow</span> in the grid below are synergy partners you can add.
-            </p>
-          )}
-        </div>
-      )}
-
-      {synergyPartners.size > 0 && deckIds.length > 0 && deckIds.length < MAX_DECK_SIZE && incompleteSynergyHints.length === 0 && (
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-synergy/10 border border-synergy/20">
-          <Sparkles className="w-4 h-4 text-synergy shrink-0" />
-          <p className="text-[11px] text-synergy">
-            Cards with a <span className="font-bold">golden glow</span> below have synergies with your current deck!
-          </p>
-        </div>
-      )}
-
-      {/* Collection */}
-      <div className="space-y-3">
-        <h3 className="font-heading text-sm font-bold uppercase tracking-wider text-muted-foreground">Collection</h3>
-        <CollectionView
-          onAddToDeck={toggleCard}
-          deckCardIds={deckIds}
-          playerState={playerState}
-          searchQuery={search}
-          typeFilter={typeFilter}
-          rarityFilter={rarityFilter}
-          elementFilter={elementFilter}
-          sortBy={sortBy}
-          highlightCardIds={Array.from(synergyPartners)}
-          synergyPickOnly={synergyPickOnly}
-          synergyPartnerIds={Array.from(synergyPartners)}
-          showLoreArcFilters={false}
-          arcFilter={arcFilter}
-          onArcFilterChange={setArcFilter}
-        />
-      </div>
+      {/* Card grid */}
+      <CollectionView
+        onAddToDeck={toggleCard}
+        deckCardIds={deckIds}
+        playerState={playerState}
+        searchQuery={search}
+        typeFilter={typeFilter}
+        rarityFilter={rarityFilter}
+        elementFilter={elementFilter}
+        sortBy={sortBy}
+        highlightCardIds={Array.from(synergyPartners)}
+      />
     </div>
   );
 
@@ -804,6 +595,7 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
             <span className="text-xs font-bold text-foreground w-8 text-right">{avgStats.hp}</span>
           </div>
         </div>
+      </div>
 
         {/* Composition bar */}
         {deckCards.length > 0 && (
@@ -836,46 +628,24 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
 
       {/* Cards grid */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-        {deckIds.map((id, index) => {
-          const card = allGameCards.find((c) => c.id === id);
-          if (!card) {
-            return (
-              <div
-                key={`review-${index}-${id}`}
-                className="relative rounded-lg border-2 border-destructive/40 overflow-hidden bg-secondary/60 flex flex-col items-center justify-center aspect-[3/4] p-2 group"
-              >
-                <p className="text-[10px] font-bold text-destructive text-center">Card not in collection</p>
-                <p className="text-[8px] text-muted-foreground break-all text-center mt-1 line-clamp-3">{id}</p>
-                <button
-                  type="button"
-                  onClick={() => removeCardAtSlot(index)}
-                  className="absolute top-1 right-1 w-6 h-6 bg-background/70 rounded-full flex items-center justify-center opacity-80 group-hover:opacity-100 hover:bg-destructive hover:text-destructive-foreground"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              </div>
-            );
-          }
+        {deckCards.map(card => {
           const prog = getCardProgress(playerState, card.id);
-          const hasSynergy = synergies.some((s) => s.cards.includes(card.name));
+          const hasSynergy = synergies.some(s => s.cards.includes(card.name));
           return (
             <div
-              key={`review-${index}-${card.id}`}
+              key={card.id}
               className={cn(
                 "relative rounded-lg border-2 overflow-hidden group",
-                hasSynergy ? "border-synergy shadow-[0_0_8px_hsl(var(--synergy)/0.3)]" : "border-border",
+                hasSynergy ? "border-synergy shadow-[0_0_8px_hsl(var(--synergy)/0.3)]" : "border-border"
               )}
             >
               <img src={card.image} alt={card.name} className="w-full aspect-[3/4] object-cover" />
               <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/90 to-transparent p-2 pt-6">
                 <p className="text-xs font-bold text-white truncate">{card.name}</p>
-                <p className="text-[9px] text-white/70 capitalize">
-                  {card.rarity} {card.type} · Lv.{prog.level}
-                </p>
+                <p className="text-[9px] text-white/70 capitalize">{card.rarity} {card.type} · Lv.{prog.level}</p>
               </div>
               <button
-                type="button"
-                onClick={() => removeCardAtSlot(index)}
+                onClick={() => toggleCard(card.id)}
                 className="absolute top-1 right-1 w-6 h-6 bg-background/70 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-destructive hover:text-destructive-foreground"
               >
                 <X className="w-3 h-3" />
@@ -942,11 +712,6 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
 
   return (
     <div>
-      {pendingCombatHint ? (
-        <div className="mb-4 p-3 rounded-xl border border-primary/30 bg-primary/5 text-sm text-foreground">
-          {pendingCombatHint}
-        </div>
-      ) : null}
       {step === "manage" && manageView}
       {step === "pick" && pickView}
       {step === "review" && reviewView}

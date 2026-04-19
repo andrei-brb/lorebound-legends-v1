@@ -1,8 +1,8 @@
-import { Zap, Clock, TrendingUp } from "lucide-react";
+import { Zap, Clock, Coins, Sparkles, TrendingUp } from "lucide-react";
 import type { PlayerState } from "@/lib/playerState";
-import { GoldCurrencyIcon, StardustCurrencyIcon } from "@/components/CurrencyIcons";
 import HallLayout, { HallSection, HallStat } from "@/components/scene/HallLayout";
 import GlassPanel from "@/components/scene/GlassPanel";
+import { texRunes, texVelvet } from "@/components/scene/panelTextures";
 
 interface Boost {
   id: string;
@@ -29,34 +29,18 @@ export default function BoostHall({ playerState }: Props) {
     <HallLayout
       sidebar={
         <>
-          <HallSection title="Boost Altar" hue="var(--rare)" glow={0.5}>
+          <HallSection title="Boost Altar" hue="var(--rare)" glow={0.5} bg={texRunes} bgTint={0.7}>
             <div className="flex items-center gap-2 mb-3">
               <Zap className="w-4 h-4 text-[hsl(var(--rare))]" />
-              <span className="text-xs text-muted-foreground">Temporary multipliers</span>
+              <span className="text-xs text-foreground/85 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">Temporary multipliers</span>
             </div>
             <HallStat label="Active" value={`${activeCount}/${MOCK_BOOSTS.length}`} hue="var(--rare)" />
-            <HallStat
-              label={
-                <>
-                  <GoldCurrencyIcon className="h-3.5 w-3.5 shrink-0" /> Gold
-                </>
-              }
-              value={playerState.gold.toLocaleString()}
-              hue="var(--legendary)"
-            />
-            <HallStat
-              label={
-                <>
-                  <StardustCurrencyIcon className="h-3.5 w-3.5 shrink-0" /> Stardust
-                </>
-              }
-              value={playerState.stardust.toLocaleString()}
-              hue="var(--rare)"
-            />
+            <HallStat label="Gold" value={playerState.gold.toLocaleString()} hue="var(--legendary)" />
+            <HallStat label="Stardust" value={playerState.stardust.toLocaleString()} hue="var(--rare)" />
           </HallSection>
 
-          <HallSection title="Tip" hue="var(--rare)" glow={0.25}>
-            <p className="text-xs text-muted-foreground leading-relaxed">
+          <HallSection title="Tip" hue="var(--rare)" glow={0.25} bg={texVelvet}>
+            <p className="text-xs text-foreground/85 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] leading-relaxed">
               Stack boosts before grinding daily quests for maximum gain.
             </p>
           </HallSection>
@@ -85,16 +69,8 @@ function BoostCard({ boost }: { boost: Boost }) {
           <p className="text-xs text-muted-foreground mt-1">{boost.description}</p>
           <div className="flex items-center gap-3 mt-3 pt-3 border-t border-border/30">
             <span className="flex items-center gap-1 text-[11px] text-muted-foreground"><Clock className="w-3 h-3" /> {boost.duration}</span>
-            {boost.cost.gold && (
-              <span className="flex items-center gap-1 text-[11px] text-[hsl(var(--legendary))]">
-                <GoldCurrencyIcon className="w-3.5 h-3.5" /> {boost.cost.gold}
-              </span>
-            )}
-            {boost.cost.stardust && (
-              <span className="flex items-center gap-1 text-[11px] text-[hsl(var(--rare))]">
-                <StardustCurrencyIcon className="w-3.5 h-3.5" /> {boost.cost.stardust}
-              </span>
-            )}
+            {boost.cost.gold && <span className="flex items-center gap-1 text-[11px] text-[hsl(var(--legendary))]"><Coins className="w-3 h-3" /> {boost.cost.gold}</span>}
+            {boost.cost.stardust && <span className="flex items-center gap-1 text-[11px] text-[hsl(var(--rare))]"><Sparkles className="w-3 h-3" /> {boost.cost.stardust}</span>}
             <button
               disabled={boost.active}
               className="ml-auto px-3 py-1 rounded-md bg-[hsl(var(--rare)/0.2)] hover:bg-[hsl(var(--rare)/0.3)] text-[hsl(var(--rare))] text-[11px] uppercase tracking-wider disabled:opacity-40 disabled:cursor-not-allowed"
