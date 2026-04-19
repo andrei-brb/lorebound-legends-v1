@@ -270,15 +270,27 @@ function Tray({
 }) {
   const slots = [0, 1, 2];
   return (
-    <GlassPanel hue={hue} glow={cards.length ? 0.55 : 0.3} padding="md">
-      {banner && <PanelBanner src={banner} height={56} title={label} hint={`${cards.length}/3`} />}
-      {!banner && (
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-heading text-xs uppercase tracking-wider text-foreground/90">{label}</h3>
-          <span className="text-[10px] text-muted-foreground">{cards.length}/3</span>
+    <GlassPanel hue={hue} glow={cards.length ? 0.55 : 0.3} padding="md" className="relative overflow-hidden">
+      {/* Full-panel banner background */}
+      {banner && (
+        <div className="absolute inset-0 pointer-events-none" aria-hidden>
+          <img src={banner} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-[hsl(var(--card)/0.55)]" />
+          <div
+            className="absolute inset-0"
+            style={{ background: `radial-gradient(ellipse at center, transparent 0%, hsl(var(--card) / 0.35) 70%, hsl(var(--card) / 0.7) 100%)` }}
+          />
         </div>
       )}
-      <div className="grid grid-cols-3 gap-3 sm:gap-4">
+
+      {/* Header */}
+      <div className="relative flex items-center justify-between mb-3">
+        <h3 className="font-heading text-xs uppercase tracking-wider text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">{label}</h3>
+        <span className="text-[10px] text-foreground/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{cards.length}/3</span>
+      </div>
+
+      {/* Slots */}
+      <div className="relative grid grid-cols-3 gap-3 sm:gap-4">
         {slots.map((i) => {
           const card = cards[i];
           return (
@@ -286,14 +298,15 @@ function Tray({
               key={i}
               className="relative aspect-[3/4] rounded-xl overflow-hidden"
               style={{
+                // Empty slots punch through the banner with a dark inset; filled slots stay transparent so the card pops
                 background: card
-                  ? `radial-gradient(ellipse at center, hsl(${hue} / 0.12) 0%, transparent 70%)`
-                  : !disabled
-                    ? `radial-gradient(ellipse at center, hsl(${hue} / 0.06) 0%, transparent 70%)`
-                    : undefined,
+                  ? "transparent"
+                  : `hsl(var(--background) / 0.7)`,
+                backdropFilter: card ? undefined : "blur(2px)",
                 border: card
-                  ? `1px solid hsl(${hue} / 0.35)`
-                  : "1px dashed hsl(var(--foreground) / 0.15)",
+                  ? `1px solid hsl(${hue} / 0.45)`
+                  : "1px dashed hsl(var(--foreground) / 0.25)",
+                boxShadow: card ? `0 0 24px hsl(${hue} / 0.35)` : "inset 0 0 20px hsl(var(--background) / 0.6)",
               }}
             >
               {card ? (
@@ -305,7 +318,6 @@ function Tray({
                     )}
                     style={{ animationDelay: `${i * 0.6}s` }}
                   >
-                    {/* GameCard sm = 11rem × 16rem (176×256). Scale to fit slot. */}
                     <div className="w-44 h-64 origin-center scale-[0.42] sm:scale-[0.5] md:scale-[0.55] pointer-events-auto">
                       <GameCard card={card} size="sm" />
                     </div>
@@ -325,11 +337,11 @@ function Tray({
                   disabled={disabled}
                   className={cn(
                     "absolute inset-0 flex items-center justify-center transition-colors",
-                    "hover:bg-primary/5",
+                    "hover:bg-primary/10",
                     disabled && "opacity-30 cursor-not-allowed hover:bg-transparent"
                   )}
                 >
-                  <span className="text-2xl text-foreground/30">+</span>
+                  <span className="text-2xl text-foreground/40">+</span>
                 </button>
               )}
             </div>
