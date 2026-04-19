@@ -8,6 +8,7 @@ import HexAvatar from "@/components/scene/HexAvatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import bgGuild from "@/assets/bg-guild-hall.jpg";
 
 interface Member { id: number; username: string; role: "leader" | "officer" | "member"; online?: boolean; avatar?: string | null; discordId?: string }
 interface Guild { id: number; name: string; tag: string; level: number; xp: number; xpNext: number; memberCount: number; description?: string }
@@ -77,6 +78,22 @@ export default function GuildHall({ isOnline }: Props) {
   const online = members.filter((m) => m.online).length;
 
   return (
+    <div className="relative -mt-8 -mx-4 sm:-mx-6">
+      {/* Hero illustration — fades into background */}
+      <div className="absolute inset-x-0 top-0 h-[480px] pointer-events-none overflow-hidden" aria-hidden>
+        <img
+          src={bgGuild}
+          alt=""
+          width={1920}
+          height={1080}
+          className="w-full h-full object-cover object-top opacity-70"
+        />
+        {/* Vignette + bottom fade to background */}
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-background/30 to-background" />
+        <div className="absolute inset-0 bg-gradient-to-r from-background/60 via-transparent to-background/60" />
+      </div>
+
+      <div className="relative z-10 pt-8">
     <HallLayout
       sidebarWidth="md"
       sidebar={
@@ -171,5 +188,7 @@ export default function GuildHall({ isOnline }: Props) {
         </div>
       </GlassPanel>
     </HallLayout>
+      </div>
+    </div>
   );
 }
