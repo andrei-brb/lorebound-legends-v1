@@ -5,6 +5,8 @@ import GameCard from "@/components/GameCard";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import type { PlayerState } from "@/lib/playerState";
+import GlassPanel from "@/components/scene/GlassPanel";
+import { texCodex } from "@/components/scene/panelTextures";
 
 interface CardCatalogProps {
   playerState: PlayerState;
@@ -62,12 +64,13 @@ export default function CardCatalog({ playerState }: CardCatalogProps) {
   const ownedFiltered = filteredCards.filter((c) => catalogUnlockedSet.has(c.id)).length;
 
   return (
-    <div>
+    <div className="px-4 sm:px-6 max-w-7xl mx-auto pb-8">
+      <GlassPanel hue="var(--primary)" glow={0.4} padding="lg" bg={texCodex} bgTint={0.52}>
       {/* Header */}
       <div className="mb-6">
-        <h2 className="font-heading text-2xl font-bold text-foreground">Card Catalog</h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          Browse all cards in the game — 
+        <h2 className="font-heading text-2xl font-bold text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Card Catalog</h2>
+        <p className="text-sm text-foreground/85 mt-1 drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]">
+          Browse all cards in the game —
           <span className="text-primary font-semibold"> {ownedFiltered}/{totalFiltered}</span> unlocked
         </p>
       </div>
@@ -113,8 +116,8 @@ export default function CardCatalog({ playerState }: CardCatalogProps) {
           <div key={rarity} className="mb-8">
             <div className="flex items-center gap-2 mb-4">
               <span className="text-lg">{info.icon}</span>
-              <h3 className="font-heading text-lg font-bold text-foreground">{info.label}</h3>
-              <span className="text-xs text-muted-foreground">
+              <h3 className="font-heading text-lg font-bold text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">{info.label}</h3>
+              <span className="text-xs text-foreground/75 drop-shadow-[0_1px_2px_rgba(0,0,0,0.75)]">
                 ({cards.filter((c) => catalogUnlockedSet.has(c.id)).length}/{cards.length})
               </span>
             </div>
@@ -143,6 +146,7 @@ export default function CardCatalog({ playerState }: CardCatalogProps) {
           </div>
         );
       })}
+      </GlassPanel>
 
       {/* Card Detail Modal */}
       <Dialog open={!!selectedCard} onOpenChange={(open) => !open && setSelectedCard(null)}>

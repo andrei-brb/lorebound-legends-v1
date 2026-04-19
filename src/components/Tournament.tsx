@@ -254,13 +254,13 @@ export default function Tournament({ playerState, onStateChange, isOnline, syncE
   };
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="font-heading text-2xl font-bold text-foreground flex items-center gap-2">
+    <div className="px-4 sm:px-6 max-w-7xl mx-auto pb-8 space-y-6">
+      <GlassPanel hue="var(--legendary)" glow={0.45} padding="md" bg={texThrone} bgTint={0.58}>
+        <h2 className="font-heading text-2xl font-bold text-foreground flex items-center gap-2 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
           <Trophy className="w-6 h-6 text-legendary" /> Tournament Arena
         </h2>
-        <p className="text-sm text-muted-foreground mt-1">Compete in 8-player brackets for gold prizes</p>
-      </div>
+        <p className="text-sm text-foreground/85 mt-1 drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]">Compete in 8-player brackets for gold prizes</p>
+      </GlassPanel>
 
       {status === "lobby" && (
         <motion.div
@@ -309,7 +309,7 @@ export default function Tournament({ playerState, onStateChange, isOnline, syncE
       )}
 
       {(status === "in-progress" || status === "completed") && (
-        <div className="space-y-4">
+        <GlassPanel hue="var(--primary)" glow={0.4} padding="md" bg={texArena} bgTint={0.56} className="space-y-4">
           {renderBracket()}
 
           {status === "in-progress" && !playerEliminated && (
@@ -361,7 +361,7 @@ export default function Tournament({ playerState, onStateChange, isOnline, syncE
               </button>
             </motion.div>
           )}
-        </div>
+        </GlassPanel>
       )}
     </div>
   );

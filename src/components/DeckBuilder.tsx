@@ -20,6 +20,8 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { motion, AnimatePresence } from "framer-motion";
+import GlassPanel from "@/components/scene/GlassPanel";
+import { texForge, texLeather, texLibrary, texParchment } from "@/components/scene/panelTextures";
 
 const MAX_DECK_SIZE = 10;
 const MAX_PRESETS = 5;
@@ -254,32 +256,36 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
      STEP 1: MANAGE — Gallery of saved decks
      ═══════════════════════════════════════════════════════ */
   const manageView = (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="font-heading text-xl font-bold text-foreground">My Decks</h2>
-          <p className="text-sm text-muted-foreground">{presets.length}/{MAX_PRESETS} slots used</p>
+    <div className="px-4 sm:px-6 max-w-7xl mx-auto space-y-5 pb-8">
+      <GlassPanel hue="var(--primary)" glow={0.4} padding="md" bg={texForge} bgTint={0.52}>
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="font-heading text-xl font-bold text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">My Decks</h2>
+            <p className="text-sm text-foreground/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">{presets.length}/{MAX_PRESETS} slots used</p>
+          </div>
+          {presets.length < MAX_PRESETS && (
+            <Button onClick={startNewDeck} className="gap-2">
+              <Plus className="w-4 h-4" /> New Deck
+            </Button>
+          )}
         </div>
-        {presets.length < MAX_PRESETS && (
-          <Button onClick={startNewDeck} className="gap-2">
-            <Plus className="w-4 h-4" /> New Deck
-          </Button>
-        )}
-      </div>
+      </GlassPanel>
 
       {presets.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-            <Layers className="w-10 h-10 text-primary/40" />
+        <GlassPanel hue="var(--primary)" glow={0.35} padding="lg" bg={texParchment} bgTint={0.5}>
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+              <Layers className="w-10 h-10 text-primary/40" />
+            </div>
+            <h3 className="font-heading text-lg font-bold text-foreground mb-2 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">No decks yet</h3>
+            <p className="text-sm text-foreground/80 mb-6 max-w-xs drop-shadow-[0_1px_2px_rgba(0,0,0,0.75)]">
+              Create your first deck to start battling! Pick 10 cards and save them as a deck.
+            </p>
+            <Button onClick={startNewDeck} size="lg" className="gap-2">
+              <Plus className="w-5 h-5" /> Create Your First Deck
+            </Button>
           </div>
-          <h3 className="font-heading text-lg font-bold text-foreground mb-2">No decks yet</h3>
-          <p className="text-sm text-muted-foreground mb-6 max-w-xs">
-            Create your first deck to start battling! Pick 10 cards and save them as a deck.
-          </p>
-          <Button onClick={startNewDeck} size="lg" className="gap-2">
-            <Plus className="w-5 h-5" /> Create Your First Deck
-          </Button>
-        </div>
+        </GlassPanel>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {presets.map(preset => {
@@ -409,7 +415,7 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
      STEP 2: PICK — Live deck tray + card selection
      ═══════════════════════════════════════════════════════ */
   const pickView = (
-    <div className="space-y-4">
+    <div className="space-y-4 px-4 sm:px-6 max-w-7xl mx-auto pb-8">
       {/* Top bar */}
       <div className="flex items-center gap-3">
         <button
@@ -421,19 +427,19 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
             setSynergyPickOnly(false);
             setArcFilter(null);
           }}
-          className="text-muted-foreground hover:text-foreground transition-colors"
+          className="text-foreground/70 hover:text-foreground transition-colors drop-shadow-[0_1px_2px_rgba(0,0,0,0.75)]"
         >
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h2 className="font-heading text-lg font-bold text-foreground">
+        <h2 className="font-heading text-lg font-bold text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
           {editingPresetId ? `Editing: ${deckName}` : "Build Your Deck"}
         </h2>
         <Badge variant="secondary" className="ml-auto font-heading">{deckIds.length}/{MAX_DECK_SIZE}</Badge>
       </div>
 
       {/* Search, sort & categories */}
-      <div className="rounded-xl border border-border bg-card/40 p-3 space-y-3">
-        <p className="text-[10px] font-heading font-bold uppercase tracking-wider text-muted-foreground">Filters</p>
+      <GlassPanel hue="var(--primary)" glow={0.38} padding="md" bg={texForge} bgTint={0.5} className="space-y-3">
+        <p className="text-[10px] font-heading font-bold uppercase tracking-wider text-foreground/85 drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]">Filters</p>
         <div className="grid grid-cols-1 md:grid-cols-[1fr_200px] gap-2">
           <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search cards…" />
           <Select value={sortBy} onValueChange={v => setSortBy(v as SortBy)}>
@@ -503,7 +509,7 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
           </div>
         </div>
         <div className="pt-1 border-t border-border/60">
-          <p className="text-[10px] font-heading font-bold uppercase tracking-wider text-muted-foreground mb-2">Lore arcs</p>
+          <p className="text-[10px] font-heading font-bold uppercase tracking-wider text-foreground/85 drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)] mb-2">Lore arcs</p>
           <div className="flex flex-wrap gap-2">
             {loreArcs.map((arc) => (
               <button
@@ -532,10 +538,11 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
             )}
           </div>
         </div>
-      </div>
+      </GlassPanel>
 
       {/* ── Live Deck Tray ── */}
-      <div className="bg-card border border-border rounded-xl p-4">
+      <GlassPanel hue="var(--primary)" glow={0.42} padding="md" bg={texLeather} bgTint={0.52}>
+      <div className="space-y-0">
         {/* Wizard progress */}
         <div className="flex items-center gap-2 mb-4">
           <div className="flex items-center gap-1">
@@ -652,13 +659,14 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
           )}
         </div>
       </div>
+      </GlassPanel>
 
       {/* Synergy helper: explicit missing partners */}
       {deckIds.length > 0 && deckIds.length < MAX_DECK_SIZE && incompleteSynergyHints.length > 0 && (
-        <div className="rounded-xl border border-synergy/25 bg-synergy/5 p-3 space-y-2">
+        <GlassPanel hue="hsl(var(--synergy))" glow={0.35} padding="md" bg={texParchment} bgTint={0.48} className="space-y-2 border border-synergy/25">
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-synergy shrink-0" />
-            <h3 className="font-heading text-xs font-bold uppercase tracking-wider text-synergy">Add for pair synergies</h3>
+            <h3 className="font-heading text-xs font-bold uppercase tracking-wider text-synergy drop-shadow-[0_2px_4px_rgba(0,0,0,0.85)]">Add for pair synergies</h3>
           </div>
           <ul className="space-y-2">
             {incompleteSynergyHints.map((h) => {
@@ -719,21 +727,21 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
               Cards with a <span className="font-bold">golden glow</span> in the grid below are synergy partners you can add.
             </p>
           )}
-        </div>
+        </GlassPanel>
       )}
 
       {synergyPartners.size > 0 && deckIds.length > 0 && deckIds.length < MAX_DECK_SIZE && incompleteSynergyHints.length === 0 && (
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-synergy/10 border border-synergy/20">
+        <GlassPanel hue="hsl(var(--synergy))" glow={0.3} padding="sm" bg={texParchment} bgTint={0.42} className="flex items-center gap-2 border border-synergy/20">
           <Sparkles className="w-4 h-4 text-synergy shrink-0" />
-          <p className="text-[11px] text-synergy">
+          <p className="text-[11px] text-synergy drop-shadow-[0_1px_2px_rgba(0,0,0,0.75)]">
             Cards with a <span className="font-bold">golden glow</span> below have synergies with your current deck!
           </p>
-        </div>
+        </GlassPanel>
       )}
 
       {/* Collection */}
-      <div className="space-y-3">
-        <h3 className="font-heading text-sm font-bold uppercase tracking-wider text-muted-foreground">Collection</h3>
+      <GlassPanel hue="var(--primary)" glow={0.36} padding="lg" bg={texLibrary} bgTint={0.52} className="space-y-3">
+        <h3 className="font-heading text-sm font-bold uppercase tracking-wider text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Collection</h3>
         <CollectionView
           onAddToDeck={toggleCard}
           deckCardIds={deckIds}
@@ -750,7 +758,7 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
           arcFilter={arcFilter}
           onArcFilterChange={setArcFilter}
         />
-      </div>
+      </GlassPanel>
     </div>
   );
 
@@ -758,12 +766,12 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
      STEP 3: REVIEW — Full deck overview + save
      ═══════════════════════════════════════════════════════ */
   const reviewView = (
-    <div className="space-y-6">
+    <div className="space-y-6 px-4 sm:px-6 max-w-7xl mx-auto pb-8">
       <div className="flex items-center gap-3">
-        <button onClick={() => setStep("pick")} className="text-muted-foreground hover:text-foreground transition-colors">
+        <button onClick={() => setStep("pick")} className="text-foreground/70 hover:text-foreground transition-colors drop-shadow-[0_1px_2px_rgba(0,0,0,0.75)]">
           <ArrowLeft className="w-5 h-5" />
         </button>
-        <h2 className="font-heading text-lg font-bold text-foreground">Review Your Deck</h2>
+        <h2 className="font-heading text-lg font-bold text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Review Your Deck</h2>
       </div>
 
       {/* Deck complete banner */}
@@ -779,9 +787,9 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
       )}
 
       {/* Strength meter */}
-      <div className="bg-card border border-border rounded-xl p-4 space-y-3">
+      <GlassPanel hue="var(--primary)" glow={0.4} padding="md" bg={texLeather} bgTint={0.52} className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold text-foreground">Deck Strength</h3>
+          <h3 className="text-sm font-bold text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Deck Strength</h3>
           <Badge className={cn(sConf.bg, sConf.color)}>{sConf.label}</Badge>
         </div>
         <div className="space-y-2">
@@ -832,7 +840,7 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
             ))}
           </div>
         )}
-      </div>
+      </GlassPanel>
 
       {/* Cards grid */}
       <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
@@ -887,8 +895,8 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
 
       {/* Synergies */}
       {synergies.length > 0 && (
-        <div className="bg-card border border-border rounded-xl p-4 space-y-2">
-          <h3 className="text-sm font-bold text-synergy flex items-center gap-1">
+        <GlassPanel hue="hsl(var(--synergy))" glow={0.35} padding="md" bg={texParchment} bgTint={0.48} className="space-y-2">
+          <h3 className="text-sm font-bold text-synergy flex items-center gap-1 drop-shadow-[0_2px_4px_rgba(0,0,0,0.85)]">
             <Sparkles className="w-4 h-4" /> Active Synergies ({synergies.length})
           </h3>
           {synergies.map(s => (
@@ -898,7 +906,7 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
               <p className="text-[10px] text-synergy-glow mt-1">{s.description}</p>
             </div>
           ))}
-        </div>
+        </GlassPanel>
       )}
 
       {/* Action buttons */}

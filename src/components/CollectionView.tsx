@@ -8,6 +8,8 @@ import { getCosmeticById } from "@/data/cosmetics";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import GlassPanel from "@/components/scene/GlassPanel";
+import { texLibrary } from "@/components/scene/panelTextures";
 
 const rarityOrder: Rarity[] = ["legendary", "rare", "common"];
 const rarityLabels: Record<Rarity, string> = {
@@ -184,6 +186,8 @@ export default function CollectionView({
 }: CollectionViewProps) {
   const highlightSet = useMemo(() => new Set(highlightCardIds), [highlightCardIds]);
   const synergyPartnerIdSet = useMemo(() => new Set(synergyPartnerIds), [synergyPartnerIds]);
+  /** Standalone Collection tab gets a textured shell; Deck Builder embeds this without a second panel. */
+  const texturedShell = onAddToDeck === undefined;
   const ownedIds = playerState?.ownedCardIds || allGameCards.map(c => c.id);
   const [internalArc, setInternalArc] = useState<string | null>(null);
   const arcControlled = onArcFilterChange !== undefined;
@@ -230,7 +234,7 @@ export default function CollectionView({
     );
   }
 
-  return (
+  const body = (
     <div className="space-y-8">
       {showLoreArcFilters && (
         <div className="flex flex-wrap gap-2">
@@ -259,9 +263,9 @@ export default function CollectionView({
 
       {discoveryActive ? (
         <div className="animate-fade-in">
-          <h2 className="font-heading text-xl font-bold mb-4 text-foreground">
+          <h2 className="font-heading text-xl font-bold mb-4 text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
             Results
-            <span className="ml-2 text-sm text-muted-foreground font-body">({discoveredCards.length})</span>
+            <span className="ml-2 text-sm text-foreground/75 font-body drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">({discoveredCards.length})</span>
           </h2>
           {discoveredCards.length === 0 ? (
             <p className="text-sm text-muted-foreground">
@@ -311,4 +315,13 @@ export default function CollectionView({
       )}
     </div>
   );
+
+  if (texturedShell) {
+    return (
+      <GlassPanel hue="var(--primary)" glow={0.38} padding="lg" bg={texLibrary} bgTint={0.52} className="relative">
+        <div className="relative z-[1]">{body}</div>
+      </GlassPanel>
+    );
+  }
+  return body;
 }

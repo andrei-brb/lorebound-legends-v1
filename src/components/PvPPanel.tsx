@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { allGameCards } from "@/data/cardIndex";
 import GlassPanel from "@/components/scene/GlassPanel";
-import { texArena, texThrone } from "@/components/scene/panelTextures";
+import { texArena, texGilded, texThrone } from "@/components/scene/panelTextures";
 
 type Props = {
   playerState: PlayerState;
@@ -63,37 +63,39 @@ export default function PvPPanel({ playerState, onNavigateBattle, onStartRankedB
     : acceptedFriends;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h2 className="font-heading text-2xl font-bold text-foreground flex items-center gap-2">
-            <Swords className="w-6 h-6 text-primary" /> PvP Arena
-          </h2>
-          {pvpRating && (
-            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
-              <Badge variant="secondary" className="font-heading gap-1.5">
-                <Trophy className="w-3.5 h-3.5 text-[hsl(var(--legendary))]" />
-                {pvpRating.rankTier} · MMR {pvpRating.mmr}
-              </Badge>
-              <span className="text-muted-foreground">{pvpRating.gamesPlayed} ranked games</span>
-            </div>
-          )}
-          <p className="text-sm text-muted-foreground mt-1">
-            <span className="font-heading text-foreground/90">Ranked</span> — fight another player&apos;s deck with the AI piloting them.{" "}
-            <span className="font-heading text-foreground/90">Duel</span> — invite a friend; you both play live.
-          </p>
+    <div className="space-y-6 px-4 sm:px-6 max-w-7xl mx-auto pb-8">
+      <GlassPanel hue="var(--legendary)" glow={0.42} padding="md" bg={texGilded} bgTint={0.55}>
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <h2 className="font-heading text-2xl font-bold text-foreground flex items-center gap-2 drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+              <Swords className="w-6 h-6 text-primary" /> PvP Arena
+            </h2>
+            {pvpRating && (
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                <Badge variant="secondary" className="font-heading gap-1.5">
+                  <Trophy className="w-3.5 h-3.5 text-[hsl(var(--legendary))]" />
+                  {pvpRating.rankTier} · MMR {pvpRating.mmr}
+                </Badge>
+                <span className="text-foreground/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.75)]">{pvpRating.gamesPlayed} ranked games</span>
+              </div>
+            )}
+            <p className="text-sm text-foreground/85 mt-1 drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]">
+              <span className="font-heading text-foreground drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]">Ranked</span> — fight another player&apos;s deck with the AI piloting them.{" "}
+              <span className="font-heading text-foreground drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]">Duel</span> — invite a friend; you both play live.
+            </p>
+          </div>
+          <button
+            onClick={refresh}
+            disabled={loading}
+            className={cn(
+              "px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 bg-secondary/90 text-secondary-foreground hover:bg-secondary border border-border/50 drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]",
+              loading && "opacity-50 cursor-not-allowed",
+            )}
+          >
+            <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} /> Refresh
+          </button>
         </div>
-        <button
-          onClick={refresh}
-          disabled={loading}
-          className={cn(
-            "px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 bg-secondary text-secondary-foreground hover:bg-secondary/80",
-            loading && "opacity-50 cursor-not-allowed",
-          )}
-        >
-          <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} /> Refresh
-        </button>
-      </div>
+      </GlassPanel>
 
       {/* Ranked (async) */}
       <Card className="border-border overflow-hidden relative isolate">
