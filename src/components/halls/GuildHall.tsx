@@ -101,7 +101,7 @@ export default function GuildHall({ isOnline }: Props) {
       sidebarWidth="md"
       sidebar={
         <>
-          <HallSection title="Hall of Banners" hue="var(--legendary)" glow={0.6}>
+          <HallSection title="Hall of Banners" hue="var(--legendary)" glow={0.6} banner={boxParchment} bannerHeight={64}>
             <div className="flex items-center gap-3 mb-4">
               <HexAvatar size={56} hue="var(--legendary)">
                 <Flag className="w-6 h-6 text-[hsl(var(--legendary))]" />
@@ -125,7 +125,7 @@ export default function GuildHall({ isOnline }: Props) {
             </div>
           </HallSection>
 
-          <HallSection title={`Roster (${members.length})`} hue="var(--legendary)" glow={0.3}>
+          <HallSection title={`Roster (${members.length})`} hue="var(--legendary)" glow={0.3} banner={boxStone} bannerHeight={64}>
             <ul className="space-y-1.5 max-h-[40vh] overflow-y-auto pr-1">
               {members.map((m) => {
                 const hue = m.role === "leader" ? "var(--legendary)" : m.role === "officer" ? "var(--rare)" : "var(--primary)";
