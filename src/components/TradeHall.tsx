@@ -15,21 +15,26 @@ import boxParchment from "@/assets/box-tex-parchment.jpg";
 import boxVelvet from "@/assets/box-tex-velvet.jpg";
 import boxStone from "@/assets/box-tex-stone.jpg";
 
-/** Textured top banner used inside any panel (panels must use padding="md" = p-5) */
-function PanelBanner({ src, height = 64, title, hint }: { src: string; height?: number; title?: string; hint?: string }) {
+/** Full-panel textured background. Place as first child inside a GlassPanel with `relative overflow-hidden`. */
+function PanelBg({ src }: { src: string }) {
   return (
-    <div className="relative overflow-hidden rounded-t-2xl -mx-5 -mt-5 mb-3" style={{ height }} aria-hidden>
+    <div className="absolute inset-0 pointer-events-none" aria-hidden>
       <img src={src} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
-      <div className="absolute inset-0 bg-gradient-to-r from-[hsl(var(--card)/0.7)] via-transparent to-[hsl(var(--card)/0.7)]" />
-      <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-b from-transparent to-[hsl(var(--card)/0.9)]" />
-      {title && (
-        <div className="absolute inset-0 flex items-end px-5 pb-2 pointer-events-none">
-          <div className="min-w-0">
-            <h3 className="font-heading text-xs uppercase tracking-wider text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">{title}</h3>
-            {hint && <p className="text-[10px] text-foreground/70 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{hint}</p>}
-          </div>
-        </div>
-      )}
+      <div className="absolute inset-0 bg-[hsl(var(--card)/0.55)]" />
+      <div
+        className="absolute inset-0"
+        style={{ background: `radial-gradient(ellipse at center, transparent 0%, hsl(var(--card) / 0.35) 70%, hsl(var(--card) / 0.7) 100%)` }}
+      />
+    </div>
+  );
+}
+
+/** Drop-shadowed heading used over textured backgrounds. */
+function PanelHeading({ title, hint }: { title: string; hint?: string }) {
+  return (
+    <div className="relative mb-3">
+      <h3 className="font-heading text-xs uppercase tracking-wider text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">{title}</h3>
+      {hint && <p className="text-[10px] text-foreground/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{hint}</p>}
     </div>
   );
 }
