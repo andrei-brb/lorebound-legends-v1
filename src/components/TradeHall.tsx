@@ -10,6 +10,29 @@ import GameCard from "./GameCard";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import boxBazaar from "@/assets/box-tex-bazaar.jpg";
+import boxParchment from "@/assets/box-tex-parchment.jpg";
+import boxVelvet from "@/assets/box-tex-velvet.jpg";
+import boxStone from "@/assets/box-tex-stone.jpg";
+
+/** Textured top banner used inside any panel (panels must use padding="md" = p-5) */
+function PanelBanner({ src, height = 64, title, hint }: { src: string; height?: number; title?: string; hint?: string }) {
+  return (
+    <div className="relative overflow-hidden rounded-t-2xl -mx-5 -mt-5 mb-3" style={{ height }} aria-hidden>
+      <img src={src} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
+      <div className="absolute inset-0 bg-gradient-to-r from-[hsl(var(--card)/0.7)] via-transparent to-[hsl(var(--card)/0.7)]" />
+      <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-b from-transparent to-[hsl(var(--card)/0.9)]" />
+      {title && (
+        <div className="absolute inset-0 flex items-end px-5 pb-2 pointer-events-none">
+          <div className="min-w-0">
+            <h3 className="font-heading text-xs uppercase tracking-wider text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">{title}</h3>
+            {hint && <p className="text-[10px] text-foreground/70 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{hint}</p>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface TradeHallProps {
   playerState: PlayerState;
@@ -95,20 +118,14 @@ export default function TradeHall({ playerState, onStateChange }: TradeHallProps
         {/* ---------- Sticky sidebar ---------- */}
         <aside className="lg:sticky lg:top-24 lg:self-start space-y-4">
           <GlassPanel hue="var(--primary)" glow={0.5} padding="md">
-            <div className="flex items-center gap-2 mb-3">
-              <ArrowLeftRight className="w-4 h-4 text-primary" />
-              <h2 className="font-heading text-sm uppercase tracking-widest text-foreground/90">Trade Hall</h2>
-            </div>
+            <PanelBanner src={boxBazaar} height={88} title="Trade Hall" hint="Seal pacts in the night bazaar" />
             <p className="text-xs text-muted-foreground leading-relaxed">
               Choose a partner, place up to 3 cards on each side, then seal the pact.
             </p>
           </GlassPanel>
 
           <GlassPanel hue="var(--primary)" glow={0.35} padding="md">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-heading text-xs uppercase tracking-wider text-foreground/80">Partners</h3>
-              <span className="text-[10px] text-muted-foreground">{friends.length}</span>
-            </div>
+            <PanelBanner src={boxParchment} height={56} title="Partners" hint={`${friends.length} known`} />
             <div className="relative mb-3">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
               <Input
@@ -159,6 +176,7 @@ export default function TradeHall({ playerState, onStateChange }: TradeHallProps
         <main className="space-y-4">
           {/* Header */}
           <GlassPanel hue="var(--primary)" glow={0.4} padding="md">
+            <PanelBanner src={boxVelvet} height={64} />
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Trading with</p>
@@ -197,6 +215,7 @@ export default function TradeHall({ playerState, onStateChange }: TradeHallProps
             <Tray
               label="Your Offer"
               hue="var(--primary)"
+              banner={boxVelvet}
               cards={offered.map((id) => allCards.find((c) => c.id === id)!).filter(Boolean)}
               onAdd={() => setPicker("yours")}
               onRemove={(id) => setOffered((o) => o.filter((x) => x !== id))}
@@ -205,6 +224,7 @@ export default function TradeHall({ playerState, onStateChange }: TradeHallProps
             <Tray
               label={partner ? `${partner.username}'s Offer` : "Their Offer"}
               hue="var(--legendary)"
+              banner={boxStone}
               cards={requested.map((id) => allCards.find((c) => c.id === id)!).filter(Boolean)}
               onAdd={() => partner ? setPicker("theirs") : toast({ title: "Choose a partner first" })}
               onRemove={(id) => setRequested((o) => o.filter((x) => x !== id))}
@@ -237,7 +257,7 @@ export default function TradeHall({ playerState, onStateChange }: TradeHallProps
 /* ---------- Tray ---------- */
 
 function Tray({
-  label, hue, cards, onAdd, onRemove, disabled, reduceMotion,
+  label, hue, cards, onAdd, onRemove, disabled, reduceMotion, banner,
 }: {
   label: string;
   hue: string;
@@ -246,14 +266,18 @@ function Tray({
   onRemove: (id: string) => void;
   disabled?: boolean;
   reduceMotion?: boolean;
+  banner?: string;
 }) {
   const slots = [0, 1, 2];
   return (
     <GlassPanel hue={hue} glow={cards.length ? 0.55 : 0.3} padding="md">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="font-heading text-xs uppercase tracking-wider text-foreground/90">{label}</h3>
-        <span className="text-[10px] text-muted-foreground">{cards.length}/3</span>
-      </div>
+      {banner && <PanelBanner src={banner} height={56} title={label} hint={`${cards.length}/3`} />}
+      {!banner && (
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-heading text-xs uppercase tracking-wider text-foreground/90">{label}</h3>
+          <span className="text-[10px] text-muted-foreground">{cards.length}/3</span>
+        </div>
+      )}
       <div className="grid grid-cols-3 gap-3 sm:gap-4">
         {slots.map((i) => {
           const card = cards[i];
