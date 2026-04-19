@@ -14,6 +14,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import bronzePackImg from "@/assets/packs/bronze-pack.jpg";
 import silverPackImg from "@/assets/packs/silver-pack.jpg";
 import goldPackImg from "@/assets/packs/gold-pack.jpg";
+import GlassPanel from "@/components/scene/GlassPanel";
+import { texParchment, texGilded, texTreasure } from "@/components/scene/panelTextures";
 
 const packImages: Record<string, string> = {
   bronze: bronzePackImg,
