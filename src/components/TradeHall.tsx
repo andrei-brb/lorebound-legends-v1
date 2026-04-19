@@ -215,6 +215,7 @@ export default function TradeHall({ playerState, onStateChange }: TradeHallProps
             <Tray
               label="Your Offer"
               hue="var(--primary)"
+              banner={boxVelvet}
               cards={offered.map((id) => allCards.find((c) => c.id === id)!).filter(Boolean)}
               onAdd={() => setPicker("yours")}
               onRemove={(id) => setOffered((o) => o.filter((x) => x !== id))}
@@ -223,6 +224,7 @@ export default function TradeHall({ playerState, onStateChange }: TradeHallProps
             <Tray
               label={partner ? `${partner.username}'s Offer` : "Their Offer"}
               hue="var(--legendary)"
+              banner={boxStone}
               cards={requested.map((id) => allCards.find((c) => c.id === id)!).filter(Boolean)}
               onAdd={() => partner ? setPicker("theirs") : toast({ title: "Choose a partner first" })}
               onRemove={(id) => setRequested((o) => o.filter((x) => x !== id))}
