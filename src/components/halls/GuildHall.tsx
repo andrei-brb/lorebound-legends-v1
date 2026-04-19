@@ -9,6 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import bgGuild from "@/assets/bg-guild-hall.jpg";
+import boxParchment from "@/assets/box-tex-parchment.jpg";
+import boxStone from "@/assets/box-tex-stone.jpg";
+import boxLeather from "@/assets/box-tex-leather.jpg";
 
 interface Member { id: number; username: string; role: "leader" | "officer" | "member"; online?: boolean; avatar?: string | null; discordId?: string }
 interface Guild { id: number; name: string; tag: string; level: number; xp: number; xpNext: number; memberCount: number; description?: string }
@@ -98,7 +101,7 @@ export default function GuildHall({ isOnline }: Props) {
       sidebarWidth="md"
       sidebar={
         <>
-          <HallSection title="Hall of Banners" hue="var(--legendary)" glow={0.6}>
+          <HallSection title="Hall of Banners" hue="var(--legendary)" glow={0.6} banner={boxParchment} bannerHeight={64}>
             <div className="flex items-center gap-3 mb-4">
               <HexAvatar size={56} hue="var(--legendary)">
                 <Flag className="w-6 h-6 text-[hsl(var(--legendary))]" />
@@ -122,7 +125,7 @@ export default function GuildHall({ isOnline }: Props) {
             </div>
           </HallSection>
 
-          <HallSection title={`Roster (${members.length})`} hue="var(--legendary)" glow={0.3}>
+          <HallSection title={`Roster (${members.length})`} hue="var(--legendary)" glow={0.3} banner={boxStone} bannerHeight={64}>
             <ul className="space-y-1.5 max-h-[40vh] overflow-y-auto pr-1">
               {members.map((m) => {
                 const hue = m.role === "leader" ? "var(--legendary)" : m.role === "officer" ? "var(--rare)" : "var(--primary)";
@@ -143,8 +146,13 @@ export default function GuildHall({ isOnline }: Props) {
         </>
       }
       header={
-        <GlassPanel hue="var(--legendary)" glow={0.4} padding="md">
-          <div className="flex items-center justify-between">
+        <GlassPanel hue="var(--legendary)" glow={0.4} padding="none">
+          <div className="relative h-16 overflow-hidden rounded-t-2xl" aria-hidden>
+            <img src={boxLeather} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-r from-[hsl(var(--card)/0.6)] via-transparent to-[hsl(var(--card)/0.6)]" />
+            <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-b from-transparent to-[hsl(var(--card)/0.85)]" />
+          </div>
+          <div className="flex items-center justify-between p-4 -mt-2">
             <div>
               <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Guild Chat</p>
               <h1 className="font-heading text-lg text-foreground">Banner Hall</h1>
