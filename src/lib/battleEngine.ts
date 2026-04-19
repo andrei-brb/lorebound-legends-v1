@@ -49,6 +49,8 @@ export interface FieldCard {
   blind?: { missChance: number; turnsRemaining: number };
   /** Co-op raid: which ally controls this unit. */
   raidOwner?: "allyA" | "allyB";
+  /** Turns until a 1-AP ability recharges (Fix 5). */
+  abilityRechargeIn?: number;
 }
 
 export interface TempBuff {
@@ -117,6 +119,8 @@ export interface BattleState {
   skipPlayerWipeCheck?: boolean;
   /** PvE: collection levels for milestone passives (crit / lifesteal / DR) on player-side units. */
   playerCardProgress?: Record<string, CardProgress>;
+  /** AI difficulty tier (Fix 4). */
+  aiDifficulty?: "easy" | "normal" | "hard";
 }
 
 export type PendingAction =
@@ -179,6 +183,7 @@ export function initBattle(
     rng?: RNG;
     enemyHero?: { hp?: number; shield?: number };
     playerCardProgress?: Record<string, CardProgress>;
+    aiDifficulty?: "easy" | "normal" | "hard";
   },
 ): BattleState {
   const rng = opts?.rng ?? (opts?.seed !== undefined ? createSeededRng(opts.seed) : Math.random);
@@ -196,6 +201,7 @@ export function initBattle(
     rng,
     rngSeed: opts?.seed,
     playerCardProgress: opts?.playerCardProgress,
+    aiDifficulty: opts?.aiDifficulty ?? "normal",
   };
   return startTurn(state);
 }
@@ -361,6 +367,34 @@ function tryPlaceToken(
     source: meta?.source,
     ruleTag: meta?.ruleTag ?? "summon",
   });
+
+  // Fix 7: token entry strike — immediately hits weakest enemy unit or attacks directly
+  const otherSide = side === state.player ? state.enemy : state.player;
+  const raw = base.attack;
+  const enemies = otherSide.field.map((fc, i) => (fc ? { fc, i } : null)).filter(Boolean) as { fc: FieldCard; i: number }[];
+  if (enemies.length === 0) {
+    let dmg = raw;
+    if (otherSide.shield > 0) {
+      const absorbed = Math.min(otherSide.shield, dmg);
+      otherSide.shield -= absorbed;
+      dmg -= absorbed;
+    }
+    otherSide.hp = Math.max(0, otherSide.hp - dmg);
+    addLog(state, `🪶 ${base.name} enters and strikes directly for ${raw}!`, "token");
+  } else {
+    enemies.sort((a, b) => a.fc.currentHp - b.fc.currentHp);
+    const { fc: target, i: idx } = enemies[0];
+    const dmg = Math.max(1, raw - Math.floor(target.defense * 0.25));
+    target.currentHp = Math.max(0, target.currentHp - dmg);
+    addLog(state, `🪶 ${base.name} enters and strikes ${target.card.name} for ${dmg}!`, "token");
+    if (target.currentHp <= 0) {
+      addLog(state, `💀 ${target.card.name} was destroyed!`, "defeat");
+      otherSide.graveyard.push(target.card);
+      if (target.equippedWeapon) otherSide.graveyard.push(target.equippedWeapon);
+      otherSide.field[idx] = null;
+    }
+  }
+
   return true;
 }
 
@@ -443,6 +477,15 @@ export function startTurn(state: BattleState): BattleState {
   for (const fc of side.field) {
     if (!fc) continue;
     fc.attackedThisTurn = false;
+    // Fix 5: tick down ability recharge counter
+    if (fc.abilityRechargeIn !== undefined) {
+      fc.abilityRechargeIn -= 1;
+      if (fc.abilityRechargeIn <= 0) {
+        delete fc.abilityRechargeIn;
+        fc.abilityUsed = false;
+        addLog(state, `🔄 ${fc.card.name}'s ability is ready again!`, "info");
+      }
+    }
   }
 
   // Poison ticks at start of each unit's controller's turn
@@ -482,13 +525,29 @@ export function startTurn(state: BattleState): BattleState {
   checkWinCondition(state);
   if (state.phase === "game-over") return state;
 
-  // Draw 1 card at start of turn; apply fatigue only on draw.
+  // Draw 1 card at start of turn; apply fatigue only on empty deck.
   if (side.deck.length > 0) {
     side.hand.push(side.deck.shift()!);
+    // Fix 2: hand cap at 7 — discard oldest card on overdraw
+    if (side.hand.length > 7) {
+      const discarded = side.hand.shift()!;
+      side.graveyard.push(discarded);
+      addLog(state, `📤 Hand full — ${discarded.name} was discarded!`, "info");
+    }
   } else {
     side.fatigue += 1;
     side.hp = Math.max(0, side.hp - side.fatigue);
     addLog(state, `📦 ${sideLabel} fatigues for ${side.fatigue} damage!`, "info");
+  }
+
+  // Fix 8: comeback mechanic — draw 1 extra card when HP ≤ 30% (≤15 of 50 default)
+  if (side.hp > 0 && side.hp <= 15 && side.deck.length > 0) {
+    side.hand.push(side.deck.shift()!);
+    if (side.hand.length > 7) {
+      const discarded = side.hand.shift()!;
+      side.graveyard.push(discarded);
+    }
+    addLog(state, `💢 ${sideLabel} draws from desperation!`, "info");
   }
 
   applyWeaponTurnStartPassives(state, side);
@@ -692,7 +751,7 @@ export function castSpell(state: BattleState, handIndex: number, targetFieldInde
       if (effect.target === "single_enemy" && targetFieldIndex !== undefined) {
         const target = otherSide.field[targetFieldIndex];
         if (target) {
-          const dmg = Math.max(1, effect.value - Math.floor(target.defense * 0.2));
+          const dmg = Math.max(1, effect.value - Math.floor(target.defense * 0.25));
           target.currentHp = Math.max(0, target.currentHp - dmg);
           addLog(newState, `🔥 ${sideLabel} cast ${card.name}! Deals ${dmg} damage to ${target.card.name}!`, "spell");
           if (target.currentHp <= 0) {
@@ -706,7 +765,7 @@ export function castSpell(state: BattleState, handIndex: number, targetFieldInde
         for (let i = 0; i < otherSide.field.length; i++) {
           const target = otherSide.field[i];
           if (!target) continue;
-          const dmg = Math.max(1, effect.value - Math.floor(target.defense * 0.2));
+          const dmg = Math.max(1, effect.value - Math.floor(target.defense * 0.25));
           target.currentHp = Math.max(0, target.currentHp - dmg);
           if (target.currentHp <= 0) {
             addLog(newState, `💀 ${target.card.name} was destroyed by ${card.name}!`, "defeat");
@@ -765,6 +824,32 @@ export function castSpell(state: BattleState, handIndex: number, targetFieldInde
   side.graveyard.push(card);
   side.hasCastSpellThisTurn = true;
   spendAp(newState, apCost);
+
+  // Fix 10: on_spell_cast trap — fires when the opponent casts a spell
+  for (let ti = 0; ti < otherSide.traps.length; ti++) {
+    const trap = otherSide.traps[ti];
+    if (!trap || !trap.faceDown || trap.card.trapEffect?.trigger !== "on_spell_cast") continue;
+    const effect = trap.card.trapEffect;
+    if (effect.effect === "damage") {
+      let dmg = effect.value;
+      if (side.shield > 0) {
+        const abs = Math.min(side.shield, dmg);
+        side.shield -= abs;
+        dmg -= abs;
+      }
+      side.hp = Math.max(0, side.hp - dmg);
+      addLog(newState, `🪤 ${trap.card.name} triggers on spell cast! Deals ${effect.value} damage to the caster!`, "trap");
+    } else if (effect.effect === "stun") {
+      const casterCards = side.field.filter(Boolean) as FieldCard[];
+      if (casterCards.length > 0) {
+        casterCards[0].stunned = true;
+        addLog(newState, `🪤 ${trap.card.name} triggers on spell cast! ${casterCards[0].card.name} is stunned!`, "trap");
+      }
+    }
+    otherSide.traps[ti] = null;
+    otherSide.graveyard.push(trap.card);
+    break;
+  }
 
   return maybeAutoEndTurn(recalcFieldStats(checkWinCondition(newState)));
 }
@@ -1090,6 +1175,33 @@ function destroyFieldCardIfDead(state: BattleState, side: PlayerSide, fieldIndex
   side.graveyard.push(fc.card);
   if (fc.equippedWeapon) side.graveyard.push(fc.equippedWeapon);
   side.field[fieldIndex] = null;
+
+  // Fix 10: on_death trap — fires when a unit on this side is destroyed
+  const opponentSide = side === state.player ? state.enemy : state.player;
+  for (let ti = 0; ti < side.traps.length; ti++) {
+    const trap = side.traps[ti];
+    if (!trap || !trap.faceDown || trap.card.trapEffect?.trigger !== "on_death") continue;
+    const effect = trap.card.trapEffect;
+    if (effect.effect === "damage") {
+      let dmg = effect.value;
+      if (opponentSide.shield > 0) {
+        const abs = Math.min(opponentSide.shield, dmg);
+        opponentSide.shield -= abs;
+        dmg -= abs;
+      }
+      opponentSide.hp = Math.max(0, opponentSide.hp - dmg);
+      addLog(state, `🪤 ${trap.card.name} triggers on death! Deals ${effect.value} damage to the enemy!`, "trap");
+    } else if (effect.effect === "stun") {
+      const enemyCards = opponentSide.field.filter(Boolean) as FieldCard[];
+      if (enemyCards.length > 0) {
+        enemyCards[0].stunned = true;
+        addLog(state, `🪤 ${trap.card.name} triggers on death! ${enemyCards[0].card.name} is stunned!`, "trap");
+      }
+    }
+    side.traps[ti] = null;
+    side.graveyard.push(trap.card);
+    break;
+  }
 }
 
 /**
@@ -1394,13 +1506,18 @@ export function activateAbility(state: BattleState, fieldIndex: number): BattleS
   const side = getActiveSide(newState);
   const fc = side.field[fieldIndex];
 
-  if (!fc || fc.abilityUsed || fc.stunned) return state;
+  if (!fc || fc.abilityUsed || fc.stunned || fc.abilityRechargeIn !== undefined) return state;
 
   const listed = fc.card.specialAbility.cost ?? 1;
   const apCost = Math.max(1, Math.min(listed, 6));
   if (!canSpendAp(newState, apCost)) return state;
 
-  fc.abilityUsed = true;
+  // Fix 5: 1-AP abilities recharge after 3 turns; 2+ AP abilities are one-shot
+  if (apCost === 1) {
+    fc.abilityRechargeIn = 3;
+  } else {
+    fc.abilityUsed = true;
+  }
   const resolved = resolveAbilityEffect(fc.card);
   applyResolvedAbility(newState, fc, fieldIndex, resolved);
 
@@ -1458,6 +1575,7 @@ export function performAITurn(state: BattleState): BattleState {
   // Enemy may take multiple actions per turn based on AP.
   let s = state;
   const MAX_ACTIONS = 6; // guard against accidental loops
+  const difficulty = s.aiDifficulty ?? "normal";
 
   for (let i = 0; i < MAX_ACTIONS; i++) {
     if (s.phase === "game-over") return s;
@@ -1466,11 +1584,43 @@ export function performAITurn(state: BattleState): BattleState {
 
     const side = s.enemy;
 
-    // Priority: Play unit → equip weapon → cast spell → ability/attack → set trap
+    // ── Easy: random play ───────────────────────────────────────────────────
+    if (difficulty === "easy") {
+      // Randomly pick any playable card and play it, or attack a random target
+      const playableCards = side.hand.map((c, idx) => ({ c, idx }));
+      if (playableCards.length > 0 && s.rng() < 0.6) {
+        const pick = playableCards[Math.floor(s.rng() * playableCards.length)];
+        const next = playCard(s, pick.idx);
+        if (next !== s) { s = next; continue; }
+      }
+      const attackerIdx = side.field.findIndex((fc) => fc !== null && !fc.stunned && !fc.attackedThisTurn);
+      if (attackerIdx !== -1) {
+        const playerCards = s.player.field
+          .map((fc2, idx) => (fc2 ? { fc: fc2, idx } : null))
+          .filter(Boolean) as { fc: FieldCard; idx: number }[];
+        if (playerCards.length > 0) {
+          const rndTarget = playerCards[Math.floor(s.rng() * playerCards.length)];
+          const next = attackTarget(s, attackerIdx, rndTarget.idx);
+          if (next !== s) { s = next; continue; }
+        } else {
+          const next = attackTarget(s, attackerIdx, "direct");
+          if (next !== s) { s = next; continue; }
+        }
+      }
+      return endTurn(deepCopy(s));
+    }
+
+    // ── Normal & Hard: priority-based ───────────────────────────────────────
+    // Play unit — Hard prefers highest base ATK; Normal picks first available
     const emptySlot = side.field.findIndex((slot) => slot === null);
     if (emptySlot !== -1) {
-      const unitIdx = side.hand.findIndex((c) => c.type === "hero" || c.type === "god");
-      if (unitIdx !== -1) {
+      const unitCards = side.hand
+        .map((c, idx) => ({ c, idx }))
+        .filter(({ c }) => c.type === "hero" || c.type === "god");
+      if (unitCards.length > 0) {
+        const unitIdx = difficulty === "hard"
+          ? unitCards.sort((a, b) => (b.c.attack ?? 0) - (a.c.attack ?? 0))[0].idx
+          : unitCards[0].idx;
         const next = playCard(s, unitIdx);
         if (next !== s) { s = next; continue; }
       }
@@ -1504,7 +1654,10 @@ export function performAITurn(state: BattleState): BattleState {
     const attackerIdx = side.field.findIndex((fc) => fc !== null && !fc.stunned && !fc.attackedThisTurn);
     if (attackerIdx !== -1) {
       const fc = side.field[attackerIdx]!;
-      if (!fc.abilityUsed && s.rng() < 0.3) {
+      // Hard: always use ability when available; Normal: 30% chance
+      const shouldUseAbility = !fc.abilityUsed && fc.abilityRechargeIn === undefined &&
+        (difficulty === "hard" ? true : s.rng() < 0.3);
+      if (shouldUseAbility) {
         const next = activateAbility(s, attackerIdx);
         if (next !== s) { s = next; continue; }
       }
@@ -1514,8 +1667,9 @@ export function performAITurn(state: BattleState): BattleState {
         .filter(Boolean) as { fc: FieldCard; idx: number }[];
 
       if (playerFieldCards.length > 0) {
-        const weakest = playerFieldCards.sort((a, b) => a.fc.currentHp - b.fc.currentHp)[0];
-        const next = attackTarget(s, attackerIdx, weakest.idx);
+        // Fix 3 & Hard: target highest-ATK enemy (biggest threat); Normal also uses this
+        const target = playerFieldCards.sort((a, b) => b.fc.attack - a.fc.attack)[0];
+        const next = attackTarget(s, attackerIdx, target.idx);
         if (next !== s) { s = next; continue; }
       } else {
         const next = attackTarget(s, attackerIdx, "direct");
@@ -1647,10 +1801,16 @@ export function simulateBattle(params: {
     }
   }
 
+  // Fix 9: declare draw if time limit reached with no winner
+  if (!s.winner) {
+    s.winner = "draw";
+    s.phase = "game-over";
+  }
+
   return { winner: s.winner, turnCount: s.turnNumber, finalState: s };
 }
 
-export function generateEnemyDeck(size: number = 10, rng: RNG = Math.random): string[] {
+export function generateEnemyDeck(size: number = 15, rng: RNG = Math.random): string[] {
   // Build a balanced deck: mix of heroes, gods, weapons, spells, traps
   const heroes = allCards.filter(c => c.type === "hero");
   const gods = allCards.filter(c => c.type === "god");
