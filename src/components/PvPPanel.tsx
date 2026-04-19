@@ -89,10 +89,14 @@ export default function PvPPanel({ playerState }: Props) {
       </div>
 
       {/* Ranked (async) */}
-      <Card className="border-border overflow-hidden">
+      <Card className="border-border overflow-hidden relative isolate">
+        <div className="absolute inset-0 -z-10" aria-hidden>
+          <img src={texThrone} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-card/70" />
+        </div>
         <div className="h-1.5 bg-gradient-to-r from-[hsl(var(--legendary))] to-[hsl(var(--legendary-glow))]" />
         <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
+          <CardTitle className="text-base flex items-center gap-2 text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
             <Crown className="w-5 h-5 text-[hsl(var(--legendary))]" /> Ranked (Async)
           </CardTitle>
         </CardHeader>
@@ -183,10 +187,14 @@ export default function PvPPanel({ playerState }: Props) {
       </Card>
 
       {/* Live */}
-      <Card className="border-border overflow-hidden">
+      <Card className="border-border overflow-hidden relative isolate">
+        <div className="absolute inset-0 -z-10" aria-hidden>
+          <img src={texArena} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-card/70" />
+        </div>
         <div className="h-1.5 bg-gradient-to-r from-primary to-primary/60" />
         <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
+          <CardTitle className="text-base flex items-center gap-2 text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
             <Users className="w-5 h-5 text-primary" /> Live (Friends)
           </CardTitle>
         </CardHeader>
