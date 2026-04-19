@@ -38,7 +38,7 @@ export default function GlassPanel({
 }: GlassPanelProps) {
   return (
     <Tag
-      className={cn("relative rounded-2xl", bg && "overflow-hidden", padMap[padding], className)}
+      className={cn("relative rounded-2xl", bg && "overflow-hidden isolate", padMap[padding], className)}
       style={{
         background: bg
           ? "transparent"
@@ -51,7 +51,7 @@ export default function GlassPanel({
       }}
     >
       {bg && (
-        <div className="absolute inset-0 pointer-events-none" aria-hidden>
+        <div className="absolute inset-0 pointer-events-none -z-10" aria-hidden>
           <img
             src={bg}
             alt=""
