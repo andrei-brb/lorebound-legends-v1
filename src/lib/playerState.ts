@@ -60,25 +60,6 @@ export interface PlayerState {
   tutorialsCompleted?: string[];
 }
 
-export interface PlayerProfile {
-  avatarId: string;
-  titleId: string | null;
-  bannerId: string | null;
-}
-
-export interface DailyLoginState {
-  streak: number;
-  lastClaimDate: string | null; // YYYY-MM-DD
-  claimedDays: number[]; // 1..7 within current cycle
-}
-
-export interface AppSettings {
-  musicVol: number; // 0..1
-  sfxVol: number;   // 0..1
-  reduceMotion: boolean;
-  animationsOn: boolean;
-}
-
 export interface DeckPreset {
   id: string;
   name: string;
@@ -164,44 +145,6 @@ function normalizeCosmeticsEquipped(eq: CosmeticsEquipped | undefined): Cosmetic
     borderId: eq?.borderId ?? null,
     titleId: eq?.titleId ?? null,
     emoteId: eq?.emoteId ?? null,
-  };
-}
-
-function getDefaultProfile(): PlayerProfile {
-  return { avatarId: "default", titleId: null, bannerId: null };
-}
-
-function getDefaultDailyLogin(): DailyLoginState {
-  return { streak: 0, lastClaimDate: null, claimedDays: [] };
-}
-
-function getDefaultSettings(): AppSettings {
-  return { musicVol: 0.7, sfxVol: 0.8, reduceMotion: false, animationsOn: true };
-}
-
-function normalizeProfile(p: PlayerProfile | undefined): PlayerProfile {
-  return {
-    avatarId: p?.avatarId || "default",
-    titleId: p?.titleId ?? null,
-    bannerId: p?.bannerId ?? null,
-  };
-}
-
-function normalizeDailyLogin(d: DailyLoginState | undefined): DailyLoginState {
-  return {
-    streak: Number(d?.streak) || 0,
-    lastClaimDate: d?.lastClaimDate ?? null,
-    claimedDays: Array.isArray(d?.claimedDays) ? d!.claimedDays.map((n) => Number(n)).filter((n) => n >= 1 && n <= 7) : [],
-  };
-}
-
-function normalizeSettings(s: AppSettings | undefined): AppSettings {
-  const def = getDefaultSettings();
-  return {
-    musicVol: typeof s?.musicVol === "number" ? Math.max(0, Math.min(1, s.musicVol)) : def.musicVol,
-    sfxVol: typeof s?.sfxVol === "number" ? Math.max(0, Math.min(1, s.sfxVol)) : def.sfxVol,
-    reduceMotion: !!s?.reduceMotion,
-    animationsOn: s?.animationsOn !== false,
   };
 }
 

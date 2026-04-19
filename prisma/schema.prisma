@@ -103,6 +103,9 @@ model Player {
   guild                      Guild?               @relation("GuildMembers", fields: [guildId], references: [id], onDelete: SetNull)
   guildOwned                 Guild[]              @relation("GuildOwner")
   chatMessages               ChatMessage[]
+  guildInvitesSent           GuildInvite[]        @relation("GuildInviteFrom")
+  guildInvitesReceived       GuildInvite[]        @relation("GuildInviteTo")
+  pveBattleSessions          PveBattleSession[]
 
   @@index([guildId])
   @@index([lastSeenAt])
@@ -354,8 +357,9 @@ model Guild {
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
-  owner   Player   @relation("GuildOwner", fields: [ownerPlayerId], references: [id], onDelete: Cascade)
-  members Player[] @relation("GuildMembers")
+  owner   Player        @relation("GuildOwner", fields: [ownerPlayerId], references: [id], onDelete: Cascade)
+  members Player[]      @relation("GuildMembers")
+  invites GuildInvite[]
 
   @@index([ownerPlayerId])
   @@index([createdAt])
@@ -374,4 +378,24 @@ model ChatMessage {
 
   @@index([channel, createdAt])
   @@index([playerId])
+}
+
+model GuildInvite {
+  id           Int               @id @default(autoincrement())
+  guildId      Int
+  fromPlayerId Int
+  toPlayerId   Int
+  status       GuildInviteStatus @default(pending)
+  createdAt    DateTime          @default(now())
+  respondedAt  DateTime?
+
+  guild      Guild  @relation(fields: [guildId], references: [id], onDelete: Cascade)
+  fromPlayer Player @relation("GuildInviteFrom", fields: [fromPlayerId], references: [id], onDelete: Cascade)
+  toPlayer   Player @relation("GuildInviteTo", fields: [toPlayerId], references: [id], onDelete: Cascade)
+
+  @@unique([guildId, toPlayerId, status])
+  @@index([guildId])
+  @@index([toPlayerId])
+  @@index([status])
+  @@index([createdAt])
 }

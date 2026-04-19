@@ -16,8 +16,6 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import bronzePackImg from "@/assets/packs/bronze-pack.jpg";
 import silverPackImg from "@/assets/packs/silver-pack.jpg";
 import goldPackImg from "@/assets/packs/gold-pack.jpg";
-import GlassPanel from "@/components/scene/GlassPanel";
-import { texParchment, texGilded, texTreasure } from "@/components/scene/panelTextures";
 
 const packImages: Record<string, string> = {
   bronze: bronzePackImg,
@@ -176,69 +174,73 @@ export default function PackShop({ playerState, onStateChange, isOnline, pullCar
         </div>
 
         {/* Stats Bar */}
-        <GlassPanel hue="var(--legendary)" glow={0.3} padding="md" bg={texParchment} bgTint={0.7}>
-          <div className="flex flex-wrap items-center gap-6 divide-x divide-border/40">
-            <div className="flex items-center gap-2">
-              <Coins className="w-4 h-4 text-[hsl(var(--legendary))]" />
-              <span className="font-heading font-bold text-foreground drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">{Number(playerState.gold) || 0}</span>
-              <span className="text-xs text-foreground/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">Gold</span>
-            </div>
-            <div className="flex items-center gap-2 pl-6">
-              <span className="text-sm">💎</span>
-              <span className="font-heading font-bold text-foreground drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">{Number(playerState.stardust) || 0}</span>
-              <span className="text-xs text-foreground/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">Stardust</span>
-            </div>
-            <div className="flex items-center gap-2 pl-6">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div className="flex items-center gap-2 cursor-help">
-                    <Sparkles className="w-4 h-4 text-primary" />
-                    <span className="text-xs text-foreground/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">Pity</span>
-                    <div className="w-20">
-                      <Progress value={pityProgress} className="h-2 bg-secondary" />
+        <Card className="bg-card/50 border-border">
+          <CardContent className="p-4">
+            <div className="flex flex-wrap items-center gap-6 divide-x divide-border">
+              <div className="flex items-center gap-2">
+                <GoldCurrencyIcon className="w-[18px] h-[18px]" />
+                <span className="font-heading font-bold text-foreground">{Number(playerState.gold) || 0}</span>
+                <span className="text-xs text-muted-foreground">Gold</span>
+              </div>
+              <div className="flex items-center gap-2 pl-6">
+                <StardustCurrencyIcon className="w-[18px] h-[18px]" />
+                <span className="font-heading font-bold text-foreground">{Number(playerState.stardust) || 0}</span>
+                <span className="text-xs text-muted-foreground">Stardust</span>
+              </div>
+              <div className="flex items-center gap-2 pl-6">
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-2 cursor-help">
+                      <Sparkles className="w-4 h-4 text-primary" />
+                      <span className="text-xs text-muted-foreground">Pity</span>
+                      <div className="w-20">
+                        <Progress value={pityProgress} className="h-2 bg-secondary" />
+                      </div>
+                      <span className="text-xs font-bold text-foreground">{playerState.pityCounter}/30</span>
                     </div>
-                    <span className="text-xs font-bold text-foreground drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">{playerState.pityCounter}/30</span>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent>
-                  <p className="text-xs">After 30 pulls without a Legendary, your next pull is guaranteed Legendary!</p>
-                </TooltipContent>
-              </Tooltip>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p className="text-xs">After 30 pulls without a Legendary, your next pull is guaranteed Legendary!</p>
+                  </TooltipContent>
+                </Tooltip>
+              </div>
+              <div className="flex items-center gap-2 pl-6">
+                <span className="text-xs text-muted-foreground">Cards: {playerState.ownedCardIds.length}/{allGameCards.length}</span>
+              </div>
             </div>
-            <div className="flex items-center gap-2 pl-6">
-              <span className="text-xs text-foreground/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">Cards: {playerState.ownedCardIds.length}/{allGameCards.length}</span>
-            </div>
-          </div>
-        </GlassPanel>
+          </CardContent>
+        </Card>
 
         {/* Free Daily Pack */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-          <GlassPanel hue="var(--legendary)" glow={0.5} padding="md" bg={texGilded} bgTint={0.6}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
-                  <Gift className="w-6 h-6 text-primary" />
-                </div>
-                <div>
-                  <h3 className="font-heading font-bold text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Daily Free Pack</h3>
-                  <p className="text-xs text-foreground/85 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">One free Bronze pack every 24 hours</p>
-                </div>
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-gradient-to-r from-primary/20 to-[hsl(var(--legendary))]/10 border border-primary/30 rounded-xl p-5"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
+                <Gift className="w-6 h-6 text-primary" />
               </div>
-              {isFreeAvailable ? (
-                <button
-                  onClick={claimFreePack}
-                  className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-heading font-bold text-sm hover:brightness-110 transition-all hover:scale-105 active:scale-95 animate-glow-pulse"
-                >
-                  Claim!
-                </button>
-              ) : (
-                <div className="flex items-center gap-2 text-foreground/85 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-                  <Clock className="w-4 h-4" />
-                  <span className="text-sm font-heading">{formatTime(freeTimer)}</span>
-                </div>
-              )}
+              <div>
+                <h3 className="font-heading font-bold text-foreground">Daily Free Pack</h3>
+                <p className="text-xs text-muted-foreground">One free Bronze pack every 24 hours</p>
+              </div>
             </div>
-          </GlassPanel>
+            {isFreeAvailable ? (
+              <button
+                onClick={claimFreePack}
+                className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-heading font-bold text-sm hover:brightness-110 transition-all hover:scale-105 active:scale-95 animate-glow-pulse"
+              >
+                Claim!
+              </button>
+            ) : (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Clock className="w-4 h-4" />
+                <span className="text-sm font-heading">{formatTime(freeTimer)}</span>
+              </div>
+            )}
+          </div>
         </motion.div>
 
         {/* Pack Grid */}

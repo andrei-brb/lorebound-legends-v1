@@ -5,8 +5,6 @@ import GameCard from "@/components/GameCard";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import type { PlayerState } from "@/lib/playerState";
-import GlassPanel from "@/components/scene/GlassPanel";
-import { texCodex, texLibrary } from "@/components/scene/panelTextures";
 
 interface CardCatalogProps {
   playerState: PlayerState;
@@ -111,37 +109,37 @@ export default function CardCatalog({ playerState }: CardCatalogProps) {
         const cards = groupedByRarity[rarity];
         if (!cards) return null;
         const info = rarityLabels[rarity];
-        const tex = rarity === "legendary" ? texCodex : texLibrary;
-        const hue = rarity === "legendary" ? "var(--legendary)" : rarity === "rare" ? "var(--rare)" : "var(--primary)";
         return (
-          <div key={rarity} className="mb-6">
-            <GlassPanel hue={hue} glow={0.4} padding="md" bg={tex} bgTint={0.7}>
-              <div className="flex items-center gap-2 mb-4">
-                <span className="text-lg">{info.icon}</span>
-                <h3 className="font-heading text-lg font-bold text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">{info.label}</h3>
-                <span className="text-xs text-foreground/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
-                  ({cards.filter((c) => ownedSet.has(c.id)).length}/{cards.length})
-                </span>
-              </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
-                {cards.map((card) => {
-                  const isOwned = ownedSet.has(card.id);
-                  return (
-                    <div
-                      key={card.id}
-                      className={cn(!isOwned && "grayscale opacity-50 hover:opacity-70 transition-opacity")}
-                    >
-                      <GameCard
-                        card={card}
-                        size="sm"
-                        onClick={() => setSelectedCard(card)}
-                        cardProgress={playerState.cardProgress[card.id]}
-                      />
-                    </div>
-                  );
-                })}
-              </div>
-            </GlassPanel>
+          <div key={rarity} className="mb-8">
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-lg">{info.icon}</span>
+              <h3 className="font-heading text-lg font-bold text-foreground">{info.label}</h3>
+              <span className="text-xs text-muted-foreground">
+                ({cards.filter((c) => catalogUnlockedSet.has(c.id)).length}/{cards.length})
+              </span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4">
+              {cards.map((card) => {
+                const inCollection = playerState.ownedCardIds.includes(card.id);
+                const unlocked = catalogUnlockedSet.has(card.id);
+                return (
+                  <div
+                    key={card.id}
+                    className={cn(!unlocked && "grayscale opacity-50 hover:opacity-70 transition-opacity")}
+                  >
+                    <GameCard
+                      card={card}
+                      size="sm"
+                      onClick={() => setSelectedCard(card)}
+                      cardProgress={playerState.cardProgress[card.id]}
+                    />
+                    {unlocked && !inCollection && (
+                      <p className="text-[9px] text-center text-amber-600/90 font-medium mt-1 leading-tight">In a deck only</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         );
       })}

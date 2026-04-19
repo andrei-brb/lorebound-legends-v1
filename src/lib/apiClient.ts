@@ -599,6 +599,26 @@ export const api = {
     const res = await fetch(`${getApiBase()}/api/guilds/leave`, { method: "POST", headers: getHeaders() });
     return handleResponse<{ ok: true; disbanded?: boolean }>(res);
   },
+  async inviteToGuild(username: string) {
+    const res = await fetch(`${getApiBase()}/api/guilds/invite`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({ username }),
+    });
+    return handleResponse<{ ok: true; invite: GuildInvitePublic }>(res);
+  },
+  async getIncomingGuildInvites(limit = 3) {
+    const res = await fetch(`${getApiBase()}/api/guilds/invites/incoming?limit=${encodeURIComponent(String(limit))}`, { headers: getHeaders() });
+    return handleResponse<{ invites: GuildInvitePublic[] }>(res);
+  },
+  async respondGuildInvite(inviteId: number, accept: boolean) {
+    const res = await fetch(`${getApiBase()}/api/guilds/invites/${inviteId}/respond`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({ accept }),
+    });
+    return handleResponse<{ ok: true; invite: GuildInvitePublic }>(res);
+  },
 
   // ── Spectate ──
   async getSpectateActive() {
@@ -625,4 +645,13 @@ export interface GuildPublic {
   memberCount: number;
   weeklyGoal: { key: string; target: number; progress: number; resetAt: number };
   createdAt: number;
+}
+
+export interface GuildInvitePublic {
+  id: number;
+  status: "pending" | "accepted" | "declined" | "cancelled";
+  createdAt: number;
+  respondedAt: number | null;
+  guild: GuildPublic | null;
+  fromPlayer: { id: number; discordId: string; username: string; avatar?: string | null; online: boolean; lastSeenAt: number | null } | null;
 }
