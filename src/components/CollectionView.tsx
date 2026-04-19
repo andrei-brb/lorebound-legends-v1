@@ -8,6 +8,7 @@ import { getCosmeticById } from "@/data/cosmetics";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { texCodex, texLibrary } from "@/components/scene/panelTextures";
 
 const rarityOrder: Rarity[] = ["legendary", "rare", "common"];
 const rarityLabels: Record<Rarity, string> = {
@@ -206,7 +207,7 @@ export default function CollectionView({
             const totalOfRarity = allGameCards.filter((c) => c.rarity === rarity).length;
             if (cards.length === 0) return null;
             const pct = Math.round((cards.length / totalOfRarity) * 100);
-            const tex = rarity === "legendary" ? "/src/assets/box-tex-codex.jpg" : "/src/assets/box-tex-library.jpg";
+            const tex = rarity === "legendary" ? texCodex : texLibrary;
             return (
               <div key={rarity} className="animate-fade-in">
                 <div
