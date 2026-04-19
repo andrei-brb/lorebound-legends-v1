@@ -4,6 +4,7 @@ import { api } from "@/lib/apiClient";
 import HallLayout, { HallSection, HallStat } from "@/components/scene/HallLayout";
 import GlassPanel from "@/components/scene/GlassPanel";
 import HexAvatar from "@/components/scene/HexAvatar";
+import { texArena } from "@/components/scene/panelTextures";
 
 interface LiveMatch { id: string; player1: string; player2: string; turn: number; viewers: number }
 
@@ -32,10 +33,10 @@ export default function SpectateHall({ isOnline }: Props) {
   return (
     <HallLayout
       sidebar={
-        <HallSection title="Spectator's Gallery" hue="var(--rare)" glow={0.5}>
+        <HallSection title="Spectator's Gallery" hue="var(--rare)" glow={0.5} bg={texArena}>
           <div className="flex items-center gap-2 mb-3">
             <Eye className="w-4 h-4 text-[hsl(var(--rare))]" />
-            <span className="text-xs text-muted-foreground">Watch live battles</span>
+            <span className="text-xs text-foreground/85 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">Watch live battles</span>
           </div>
           <HallStat label="Live matches" value={matches.length} hue="var(--legendary)" />
           <HallStat label="Total viewers" value={matches.reduce((s, m) => s + m.viewers, 0)} hue="var(--rare)" />
@@ -55,7 +56,7 @@ export default function SpectateHall({ isOnline }: Props) {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {matches.map((m) => (
-            <GlassPanel key={m.id} hue="var(--rare)" glow={0.4} padding="md">
+            <GlassPanel key={m.id} hue="var(--rare)" glow={0.4} padding="md" bg={texArena} bgTint={0.7}>
               <div className="flex items-center justify-between mb-3">
                 <span className="flex items-center gap-1.5 text-xs text-[hsl(var(--legendary))] font-heading uppercase tracking-wider">
                   <span className="w-2 h-2 rounded-full bg-[hsl(var(--legendary))] animate-pulse" /> Live

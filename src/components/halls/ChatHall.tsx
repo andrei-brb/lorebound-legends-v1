@@ -7,6 +7,7 @@ import GlassPanel from "@/components/scene/GlassPanel";
 import HexAvatar from "@/components/scene/HexAvatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { texHearth, texLeather, texVelvet, texStone } from "@/components/scene/panelTextures";
 import { cn } from "@/lib/utils";
 
 type Msg = { id: number; channel: string; playerId: number; username: string; avatar: string | null; body: string; createdAt: number };
@@ -51,30 +52,30 @@ export default function ChatHall({ isOnline, playerState }: Props) {
     <HallLayout
       sidebar={
         <>
-          <HallSection title="The Hearth" hue="var(--primary)" glow={0.5}>
+          <HallSection title="The Hearth" hue="var(--primary)" glow={0.5} bg={texHearth}>
             <div className="flex items-center gap-2 mb-3">
               <MessageCircle className="w-4 h-4 text-primary" />
-              <span className="text-xs text-muted-foreground">Speak with the realm</span>
+              <span className="text-xs text-foreground/85 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">Speak with the realm</span>
             </div>
             <HallStat label="Active" value={msgs.length} />
             <HallStat label="Status" value={isOnline ? "live" : "offline"} hue={isOnline ? "var(--synergy)" : "var(--muted-foreground)"} />
           </HallSection>
 
-          <HallSection title="Channel" hue="var(--primary)" glow={0.3}>
-            <div className="px-2.5 py-1.5 rounded-lg text-xs bg-primary/15 text-foreground ring-1 ring-primary/40"># global</div>
+          <HallSection title="Channel" hue="var(--primary)" glow={0.3} bg={texLeather}>
+            <div className="px-2.5 py-1.5 rounded-lg text-xs bg-primary/25 text-foreground ring-1 ring-primary/50 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]"># global</div>
           </HallSection>
         </>
       }
       header={
-        <GlassPanel hue="var(--primary)" glow={0.4} padding="md">
+        <GlassPanel hue="var(--primary)" glow={0.4} padding="md" bg={texVelvet}>
           <div>
-            <p className="text-[10px] uppercase tracking-widest text-muted-foreground"># global</p>
-            <h1 className="font-heading text-lg text-foreground">The Common Hearth</h1>
+            <p className="text-[10px] uppercase tracking-widest text-foreground/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]"># global</p>
+            <h1 className="font-heading text-lg text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">The Common Hearth</h1>
           </div>
         </GlassPanel>
       }
     >
-      <GlassPanel hue="var(--primary)" glow={0.35} padding="none" className="flex flex-col h-[60vh] min-h-[400px] overflow-hidden">
+      <GlassPanel hue="var(--primary)" glow={0.35} padding="none" className="flex flex-col h-[60vh] min-h-[400px] overflow-hidden" bg={texStone} bgTint={0.78}>
         <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3">
           {loading ? (
             <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
