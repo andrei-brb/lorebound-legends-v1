@@ -126,10 +126,6 @@ export default function TradeHall({ playerState, onStateChange }: TradeHallProps
 
           <GlassPanel hue="var(--primary)" glow={0.35} padding="md">
             <PanelBanner src={boxParchment} height={56} title="Partners" hint={`${friends.length} known`} />
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="font-heading text-xs uppercase tracking-wider text-foreground/80">Partners</h3>
-              <span className="text-[10px] text-muted-foreground">{friends.length}</span>
-            </div>
             <div className="relative mb-3">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
               <Input
