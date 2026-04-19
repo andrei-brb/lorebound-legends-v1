@@ -15,21 +15,26 @@ import boxParchment from "@/assets/box-tex-parchment.jpg";
 import boxVelvet from "@/assets/box-tex-velvet.jpg";
 import boxStone from "@/assets/box-tex-stone.jpg";
 
-/** Textured top banner used inside any panel (panels must use padding="md" = p-5) */
-function PanelBanner({ src, height = 64, title, hint }: { src: string; height?: number; title?: string; hint?: string }) {
+/** Full-panel textured background. Place as first child inside a GlassPanel with `relative overflow-hidden`. */
+function PanelBg({ src }: { src: string }) {
   return (
-    <div className="relative overflow-hidden rounded-t-2xl -mx-5 -mt-5 mb-3" style={{ height }} aria-hidden>
+    <div className="absolute inset-0 pointer-events-none" aria-hidden>
       <img src={src} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
-      <div className="absolute inset-0 bg-gradient-to-r from-[hsl(var(--card)/0.7)] via-transparent to-[hsl(var(--card)/0.7)]" />
-      <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-b from-transparent to-[hsl(var(--card)/0.9)]" />
-      {title && (
-        <div className="absolute inset-0 flex items-end px-5 pb-2 pointer-events-none">
-          <div className="min-w-0">
-            <h3 className="font-heading text-xs uppercase tracking-wider text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">{title}</h3>
-            {hint && <p className="text-[10px] text-foreground/70 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{hint}</p>}
-          </div>
-        </div>
-      )}
+      <div className="absolute inset-0 bg-[hsl(var(--card)/0.55)]" />
+      <div
+        className="absolute inset-0"
+        style={{ background: `radial-gradient(ellipse at center, transparent 0%, hsl(var(--card) / 0.35) 70%, hsl(var(--card) / 0.7) 100%)` }}
+      />
+    </div>
+  );
+}
+
+/** Drop-shadowed heading used over textured backgrounds. */
+function PanelHeading({ title, hint }: { title: string; hint?: string }) {
+  return (
+    <div className="relative mb-3">
+      <h3 className="font-heading text-xs uppercase tracking-wider text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">{title}</h3>
+      {hint && <p className="text-[10px] text-foreground/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">{hint}</p>}
     </div>
   );
 }
@@ -117,70 +122,76 @@ export default function TradeHall({ playerState, onStateChange }: TradeHallProps
       <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-5">
         {/* ---------- Sticky sidebar ---------- */}
         <aside className="lg:sticky lg:top-24 lg:self-start space-y-4">
-          <GlassPanel hue="var(--primary)" glow={0.5} padding="md">
-            <PanelBanner src={boxBazaar} height={88} title="Trade Hall" hint="Seal pacts in the night bazaar" />
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Choose a partner, place up to 3 cards on each side, then seal the pact.
-            </p>
+          <GlassPanel hue="var(--primary)" glow={0.5} padding="md" className="relative overflow-hidden">
+            <PanelBg src={boxBazaar} />
+            <div className="relative">
+              <PanelHeading title="Trade Hall" hint="Seal pacts in the night bazaar" />
+              <p className="text-xs text-foreground/85 leading-relaxed drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                Choose a partner, place up to 3 cards on each side, then seal the pact.
+              </p>
+            </div>
           </GlassPanel>
 
-          <GlassPanel hue="var(--primary)" glow={0.35} padding="md">
-            <PanelBanner src={boxParchment} height={56} title="Partners" hint={`${friends.length} known`} />
-            <div className="relative mb-3">
-              <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-              <Input
-                value={friendQuery}
-                onChange={(e) => setFriendQuery(e.target.value)}
-                placeholder="Search…"
-                className="h-8 pl-7 text-xs bg-background/40 border-border/40"
-              />
-            </div>
-            {loading ? (
-              <div className="flex justify-center py-4"><Loader2 className="w-4 h-4 animate-spin text-primary" /></div>
-            ) : filteredFriends.length === 0 ? (
-              <p className="text-xs text-muted-foreground text-center py-3">no friends to trade with</p>
-            ) : (
-              <ul className="space-y-1 max-h-[40vh] overflow-y-auto pr-1">
-                {filteredFriends.map((f) => {
-                  const sel = partner?.id === f.id;
-                  return (
-                    <li key={f.id}>
-                      <button
-                        type="button"
-                        onClick={() => setPartner(f)}
-                        className={cn(
-                          "w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg transition-colors text-left",
-                          sel ? "bg-primary/15 ring-1 ring-primary/40" : "hover:bg-foreground/5"
-                        )}
-                      >
-                        <HexAvatar
-                          size={32}
-                          hue={sel ? "var(--legendary)" : "var(--primary)"}
-                          src={f.avatar ? `https://cdn.discordapp.com/avatars/${f.discordId}/${f.avatar}.png?size=64` : null}
+          <GlassPanel hue="var(--primary)" glow={0.35} padding="md" className="relative overflow-hidden">
+            <PanelBg src={boxParchment} />
+            <div className="relative">
+              <PanelHeading title="Partners" hint={`${friends.length} known`} />
+              <div className="relative mb-3">
+                <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                <Input
+                  value={friendQuery}
+                  onChange={(e) => setFriendQuery(e.target.value)}
+                  placeholder="Search…"
+                  className="h-8 pl-7 text-xs bg-background/60 border-border/40"
+                />
+              </div>
+              {loading ? (
+                <div className="flex justify-center py-4"><Loader2 className="w-4 h-4 animate-spin text-primary" /></div>
+              ) : filteredFriends.length === 0 ? (
+                <p className="text-xs text-foreground/70 text-center py-3 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">no friends to trade with</p>
+              ) : (
+                <ul className="space-y-1 max-h-[40vh] overflow-y-auto pr-1">
+                  {filteredFriends.map((f) => {
+                    const sel = partner?.id === f.id;
+                    return (
+                      <li key={f.id}>
+                        <button
+                          type="button"
+                          onClick={() => setPartner(f)}
+                          className={cn(
+                            "w-full flex items-center gap-2.5 px-2 py-1.5 rounded-lg transition-colors text-left",
+                            sel ? "bg-primary/25 ring-1 ring-primary/50" : "hover:bg-foreground/10 bg-background/30"
+                          )}
                         >
-                          {f.username.slice(0, 1).toUpperCase()}
-                        </HexAvatar>
-                        <span className={cn("text-xs truncate", sel ? "text-foreground font-medium" : "text-foreground/80")}>
-                          {f.username}
-                        </span>
-                      </button>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
+                          <HexAvatar
+                            size={32}
+                            hue={sel ? "var(--legendary)" : "var(--primary)"}
+                            src={f.avatar ? `https://cdn.discordapp.com/avatars/${f.discordId}/${f.avatar}.png?size=64` : null}
+                          >
+                            {f.username.slice(0, 1).toUpperCase()}
+                          </HexAvatar>
+                          <span className={cn("text-xs truncate drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]", sel ? "text-foreground font-medium" : "text-foreground/90")}>
+                            {f.username}
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
           </GlassPanel>
         </aside>
 
         {/* ---------- Main panel ---------- */}
         <main className="space-y-4">
           {/* Header */}
-          <GlassPanel hue="var(--primary)" glow={0.4} padding="md">
-            <PanelBanner src={boxVelvet} height={64} />
-            <div className="flex items-center justify-between gap-3">
+          <GlassPanel hue="var(--primary)" glow={0.4} padding="md" className="relative overflow-hidden">
+            <PanelBg src={boxVelvet} />
+            <div className="relative flex items-center justify-between gap-3">
               <div className="min-w-0">
-                <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Trading with</p>
-                <h1 className="font-heading text-lg text-foreground truncate">
+                <p className="text-[10px] uppercase tracking-widest text-foreground/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">Trading with</p>
+                <h1 className="font-heading text-lg text-foreground truncate drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
                   {partner ? partner.username : "— select a partner —"}
                 </h1>
               </div>
