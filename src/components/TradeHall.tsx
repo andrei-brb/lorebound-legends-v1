@@ -118,16 +118,14 @@ export default function TradeHall({ playerState, onStateChange }: TradeHallProps
         {/* ---------- Sticky sidebar ---------- */}
         <aside className="lg:sticky lg:top-24 lg:self-start space-y-4">
           <GlassPanel hue="var(--primary)" glow={0.5} padding="md">
-            <div className="flex items-center gap-2 mb-3">
-              <ArrowLeftRight className="w-4 h-4 text-primary" />
-              <h2 className="font-heading text-sm uppercase tracking-widest text-foreground/90">Trade Hall</h2>
-            </div>
+            <PanelBanner src={boxBazaar} height={88} title="Trade Hall" hint="Seal pacts in the night bazaar" />
             <p className="text-xs text-muted-foreground leading-relaxed">
               Choose a partner, place up to 3 cards on each side, then seal the pact.
             </p>
           </GlassPanel>
 
           <GlassPanel hue="var(--primary)" glow={0.35} padding="md">
+            <PanelBanner src={boxParchment} height={56} title="Partners" hint={`${friends.length} known`} />
             <div className="flex items-center justify-between mb-3">
               <h3 className="font-heading text-xs uppercase tracking-wider text-foreground/80">Partners</h3>
               <span className="text-[10px] text-muted-foreground">{friends.length}</span>
