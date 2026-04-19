@@ -39,6 +39,7 @@ export interface PlayerState {
   totalPulls: number;
   hasCompletedOnboarding: boolean;
   selectedPath: FactionPath | null;
+  tutorialBattlesCompleted?: number; // 0–5: tracks which legendary reward battle the player is on
   shareCollectionWithFriends?: boolean;
   // Battle Pass + cosmetics (client + server)
   battlePass?: BattlePassState;
@@ -96,14 +97,20 @@ export const FACTION_STARTER_CARDS: Record<FactionPath, string[]> = {
   fire: [
     "pyrothos", "fire-dragon", "inferna", "ignis", "magmus",
     "draconus", "warrior-king", "ares", "ferros", "bellator",
+    // +5: weapons and rare gods themed for aggro/fire
+    "enchanted-sword", "flame-sword", "hephara", "aethon", "terragon",
   ],
   nature: [
     "gaiara", "forest-druid", "verdantia", "sylvana", "vitalis",
     "arachnia", "serpentia", "fenris", "healer", "aquaris",
+    // +5: support weapons and rare nature/wind gods
+    "nature-staff", "divine-shield", "zephyros", "eirene", "crystalia",
   ],
   shadow: [
     "nyx", "shadow-assassin", "thanatos", "nekros", "umbra",
     "obscura", "corvus", "mortuus", "phantos", "somnia",
+    // +5: shadow weapons and rare dark/ice gods
+    "shadow-dagger", "storm-hammer", "glacius", "luminara", "aurora",
   ],
 };
 
@@ -211,6 +218,7 @@ function createDefaultState(): PlayerState {
     mysteryBoxesPending: 0,
     settings: getDefaultSettings(),
     tutorialsCompleted: [],
+    tutorialBattlesCompleted: 0,
   };
 }
 

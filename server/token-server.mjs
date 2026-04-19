@@ -621,6 +621,7 @@ function playerToClientState(player, cards) {
     totalPulls: player.totalPulls,
     hasCompletedOnboarding: player.hasCompletedOnboarding ?? true,
     selectedPath: player.selectedPath ?? null,
+    tutorialBattlesCompleted: player.tutorialBattlesCompleted ?? 0,
     shareCollectionWithFriends: !!player.shareCollectionWithFriends,
     battlePass: player.battlePass ?? undefined,
     cosmeticsOwned: player.cosmeticsOwned ?? undefined,
@@ -772,6 +773,13 @@ async function handlePatchPlayer(req, res) {
   if (body.deckPresets !== undefined) data.deckPresets = body.deckPresets;
   if (typeof body.shareCollectionWithFriends === "boolean") {
     data.shareCollectionWithFriends = body.shareCollectionWithFriends;
+  }
+  if (typeof body.tutorialBattlesCompleted === "number") {
+    // Only allow incrementing — never allow jumping past 5
+    const current = body.tutorialBattlesCompleted;
+    if (current >= 0 && current <= 5) {
+      data.tutorialBattlesCompleted = current;
+    }
   }
 
   if (Object.keys(data).length === 0) {

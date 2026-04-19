@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import battleBg from "@/assets/battle-bg.jpg";
 import { motion, AnimatePresence } from "framer-motion";
 import { Trophy, Skull, Coins, Sparkles, ArrowLeft } from "lucide-react";
@@ -20,6 +20,8 @@ import { rollMysteryBox, claimFirstWin, FIRST_WIN_GOLD, FIRST_WIN_BP_XP } from "
 import { awardBattlePassXp } from "@/lib/battlePassEngine";
 import { rollMysteryBox, claimFirstWin, FIRST_WIN_GOLD, FIRST_WIN_BP_XP } from "@/lib/dailyEngine";
 import { getCosmeticById } from "@/data/cosmetics";
+import LegendaryPicker from "./LegendaryPicker";
+import { addCardToCollection } from "@/lib/playerState";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 interface BattleArenaProps {
@@ -107,6 +109,7 @@ export default function BattleArena({
   const [animating, setAnimating] = useState(false);
   const [rewardsGiven, setRewardsGiven] = useState(false);
   const [goldEarned, setGoldEarned] = useState(0);
+  const [showLegendaryPicker, setShowLegendaryPicker] = useState(false);
   const [levelUps, setLevelUps] = useState<(LevelUpResult & { cardId: string })[]>([]);
   const [showLevelUps, setShowLevelUps] = useState(false);
   const [actionMode, setActionMode] = useState<ActionMode>("none");
@@ -262,6 +265,12 @@ export default function BattleArena({
     const bpBonus = firstWinResult ? FIRST_WIN_BP_XP : 0;
     newState = awardBattlePassXp(newState, baseBpXp + bpBonus).state;
     onStateChange(newState);
+
+    // Show legendary picker for first 5 tutorial battle wins (PvE only)
+    const tutorialDone = playerState.tutorialBattlesCompleted ?? 0;
+    if (won && tutorialDone < 5 && !livePvP) {
+      setShowLegendaryPicker(true);
+    }
     savePlayerState(newState);
   }, [state?.phase]);
 
@@ -812,6 +821,25 @@ export default function BattleArena({
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Legendary picker — shows after each of the first 5 tutorial battle wins */}
+      {showLegendaryPicker && (() => {
+        const battleNum = Math.min(5, (playerState.tutorialBattlesCompleted ?? 0) + 1) as 1 | 2 | 3 | 4 | 5;
+        return (
+          <LegendaryPicker
+            battleNumber={battleNum}
+            playerState={playerState}
+            onPick={(cardId) => {
+              const { state: withCard } = addCardToCollection(playerState, cardId);
+              onStateChange({
+                ...withCard,
+                tutorialBattlesCompleted: (playerState.tutorialBattlesCompleted ?? 0) + 1,
+              });
+              setShowLegendaryPicker(false);
+            }}
+          />
+        );
+      })()}
     </div>
   );
 }

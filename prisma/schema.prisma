@@ -78,6 +78,7 @@ model Player {
   shareCollectionWithFriends Boolean              @default(false)
   hasCompletedOnboarding     Boolean              @default(true)
   selectedPath               String?
+  tutorialBattlesCompleted   Int                  @default(0)
   battlePass                 Json?
   cosmeticsOwned             Json?
   cosmeticsEquipped          Json?
