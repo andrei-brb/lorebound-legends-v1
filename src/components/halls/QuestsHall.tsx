@@ -3,6 +3,7 @@ import { ScrollText, CheckCircle2, Clock, Coins, Sparkles } from "lucide-react";
 import type { PlayerState } from "@/lib/playerState";
 import HallLayout, { HallSection, HallStat } from "@/components/scene/HallLayout";
 import GlassPanel from "@/components/scene/GlassPanel";
+import { texCodex, texParchment, texVelvet } from "@/components/scene/panelTextures";
 import { cn } from "@/lib/utils";
 
 interface Quest {
@@ -36,17 +37,17 @@ export default function QuestsHall({ playerState }: Props) {
     <HallLayout
       sidebar={
         <>
-          <HallSection title="Quest Log" hue="var(--primary)" glow={0.5}>
+          <HallSection title="Quest Log" hue="var(--primary)" glow={0.5} bg={texCodex}>
             <div className="flex items-center gap-2 mb-3">
               <ScrollText className="w-4 h-4 text-primary" />
-              <span className="text-xs text-muted-foreground">Daily & weekly tasks</span>
+              <span className="text-xs text-foreground/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">Daily & weekly tasks</span>
             </div>
             <HallStat label="Completed" value={`${completed}/${MOCK_QUESTS.length}`} />
             <HallStat label="Resets in" value="6h 12m" hue="var(--rare))" />
             <HallStat label="Gold today" value={`${playerState.gold.toLocaleString()}`} hue="var(--legendary)" />
           </HallSection>
 
-          <HallSection title="Filter" hue="var(--primary)" glow={0.3}>
+          <HallSection title="Filter" hue="var(--primary)" glow={0.3} bg={texParchment}>
             <div className="grid grid-cols-3 gap-1.5">
               {(["all", "daily", "weekly"] as const).map((f) => (
                 <button
@@ -54,7 +55,7 @@ export default function QuestsHall({ playerState }: Props) {
                   onClick={() => setFilter(f)}
                   className={cn(
                     "px-2 py-1.5 rounded-lg text-[11px] uppercase tracking-wider transition-colors",
-                    filter === f ? "bg-primary/20 text-foreground ring-1 ring-primary/40" : "text-muted-foreground hover:text-foreground hover:bg-foreground/5"
+                    filter === f ? "bg-primary/20 text-foreground ring-1 ring-primary/40" : "text-foreground/80 hover:text-foreground hover:bg-foreground/10 bg-background/30"
                   )}
                 >
                   {f}
@@ -65,15 +66,15 @@ export default function QuestsHall({ playerState }: Props) {
         </>
       }
       header={
-        <GlassPanel hue="var(--primary)" glow={0.4} padding="md">
+        <GlassPanel hue="var(--primary)" glow={0.4} padding="md" bg={texVelvet}>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Today's Quests</p>
-              <h1 className="font-heading text-lg text-foreground">Earn rewards, climb ranks</h1>
+              <p className="text-[10px] uppercase tracking-widest text-foreground/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">Today's Quests</p>
+              <h1 className="font-heading text-lg text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Earn rewards, climb ranks</h1>
             </div>
             <div className="text-right">
-              <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Streak</p>
-              <p className="font-heading text-lg text-[hsl(var(--legendary))]">{playerState.dailyLogin?.streak ?? 0}d</p>
+              <p className="text-[10px] uppercase tracking-widest text-foreground/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">Streak</p>
+              <p className="font-heading text-lg text-[hsl(var(--legendary))] drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">{playerState.dailyLogin?.streak ?? 0}d</p>
             </div>
           </div>
         </GlassPanel>

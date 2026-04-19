@@ -4,6 +4,7 @@ import type { PlayerState } from "@/lib/playerState";
 import HallLayout, { HallSection, HallStat } from "@/components/scene/HallLayout";
 import GlassPanel from "@/components/scene/GlassPanel";
 import HexAvatar from "@/components/scene/HexAvatar";
+import { texGilded, texThrone } from "@/components/scene/panelTextures";
 import { cn } from "@/lib/utils";
 
 interface Badge {
@@ -38,16 +39,16 @@ export default function BadgesHall({ playerState }: Props) {
     <HallLayout
       sidebar={
         <>
-          <HallSection title="Hall of Honor" hue="var(--legendary)" glow={0.5}>
+          <HallSection title="Hall of Honor" hue="var(--legendary)" glow={0.5} bg={texGilded}>
             <div className="flex items-center gap-2 mb-3">
               <Trophy className="w-4 h-4 text-[hsl(var(--legendary))]" />
-              <span className="text-xs text-muted-foreground">Earned achievements</span>
+              <span className="text-xs text-foreground/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">Earned achievements</span>
             </div>
             <HallStat label="Unlocked" value={`${unlocked}/${MOCK_BADGES.length}`} hue="var(--legendary)" />
             <HallStat label="Completion" value={`${Math.round((unlocked / MOCK_BADGES.length) * 100)}%`} />
           </HallSection>
 
-          <HallSection title="Categories" hue="var(--legendary)" glow={0.3}>
+          <HallSection title="Categories" hue="var(--legendary)" glow={0.3} bg={texThrone} bgTint={0.7}>
             <div className="space-y-1">
               {(["all", "combat", "collection", "social", "milestone"] as const).map((c) => (
                 <button
@@ -55,7 +56,7 @@ export default function BadgesHall({ playerState }: Props) {
                   onClick={() => setCat(c)}
                   className={cn(
                     "w-full text-left px-2.5 py-1.5 rounded-lg text-xs capitalize transition-colors",
-                    cat === c ? "bg-[hsl(var(--legendary)/0.15)] text-foreground ring-1 ring-[hsl(var(--legendary)/0.4)]" : "text-muted-foreground hover:bg-foreground/5"
+                    cat === c ? "bg-[hsl(var(--legendary)/0.25)] text-foreground ring-1 ring-[hsl(var(--legendary)/0.5)]" : "text-foreground/85 hover:bg-foreground/10 bg-background/30"
                   )}
                 >
                   {c}
