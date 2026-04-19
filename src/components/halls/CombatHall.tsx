@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 interface Props {
   playerState: PlayerState;
   onLaunchMode?: (mode: "skirmish" | "ranked" | "tourney" | "raid") => void;
+  defaultMode?: "skirmish" | "ranked" | "tourney" | "raid";
 }
 
 const MODES = [
@@ -18,8 +19,8 @@ const MODES = [
   { id: "raid", label: "Raid", desc: "Co-op vs an elite boss", icon: <Flame className="w-4 h-4" />, hue: "var(--destructive)" },
 ];
 
-export default function CombatHall({ playerState, onLaunchMode }: Props) {
-  const [selected, setSelected] = useState<"skirmish" | "ranked" | "tourney" | "raid">("skirmish");
+export default function CombatHall({ playerState, onLaunchMode, defaultMode = "skirmish" }: Props) {
+  const [selected, setSelected] = useState<"skirmish" | "ranked" | "tourney" | "raid">(defaultMode);
   const wins = 0;
   const losses = 0;
   const winrate = 0;
