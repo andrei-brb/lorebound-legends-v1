@@ -176,6 +176,7 @@ export default function TradeHall({ playerState, onStateChange }: TradeHallProps
         <main className="space-y-4">
           {/* Header */}
           <GlassPanel hue="var(--primary)" glow={0.4} padding="md">
+            <PanelBanner src={boxVelvet} height={64} />
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Trading with</p>
