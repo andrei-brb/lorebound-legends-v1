@@ -8,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { allGameCards } from "@/data/cardIndex";
+import GlassPanel from "@/components/scene/GlassPanel";
+import { texArena, texThrone } from "@/components/scene/panelTextures";
 
 type Props = { playerState: PlayerState };
 

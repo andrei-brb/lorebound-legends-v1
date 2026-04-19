@@ -18,6 +18,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
+import GlassPanel from "@/components/scene/GlassPanel";
+import { texLeather, texForge, texVelvet } from "@/components/scene/panelTextures";
 
 const MAX_DECK_SIZE = 10;
 const MAX_PRESETS = 5;

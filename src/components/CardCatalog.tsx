@@ -5,6 +5,8 @@ import GameCard from "@/components/GameCard";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import type { PlayerState } from "@/lib/playerState";
+import GlassPanel from "@/components/scene/GlassPanel";
+import { texCodex, texLibrary } from "@/components/scene/panelTextures";
 
 interface CardCatalogProps {
   playerState: PlayerState;

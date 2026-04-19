@@ -5,6 +5,8 @@ import type { PlayerState } from "@/lib/playerState";
 import { savePlayerState } from "@/lib/playerState";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import GlassPanel from "@/components/scene/GlassPanel";
+import { texArena, texGilded, texThrone } from "@/components/scene/panelTextures";
 
 interface TournamentProps {
   playerState: PlayerState;
