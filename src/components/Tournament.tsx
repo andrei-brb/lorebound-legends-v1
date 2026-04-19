@@ -268,32 +268,34 @@ export default function Tournament({ playerState, onStateChange, isOnline, syncE
           animate={{ opacity: 1, y: 0 }}
           className="text-center space-y-6"
         >
-          <div className="grid grid-cols-3 gap-4 max-w-md mx-auto">
-            <div className="rounded-xl bg-card border border-border p-4 text-center">
-              <Users className="w-6 h-6 text-primary mx-auto mb-1" />
-              <p className="text-xs text-muted-foreground">Players</p>
-              <p className="font-heading font-bold text-foreground">8</p>
+          <GlassPanel hue="var(--legendary)" glow={0.4} padding="md" bg={texArena} bgTint={0.65} className="max-w-md mx-auto">
+            <div className="grid grid-cols-3 gap-3">
+              <div className="rounded-xl bg-background/40 backdrop-blur-sm border border-border/40 p-3 text-center">
+                <Users className="w-6 h-6 text-primary mx-auto mb-1" />
+                <p className="text-xs text-foreground/85 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">Players</p>
+                <p className="font-heading font-bold text-foreground drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">8</p>
+              </div>
+              <div className="rounded-xl bg-background/40 backdrop-blur-sm border border-border/40 p-3 text-center">
+                <Coins className="w-6 h-6 text-[hsl(var(--legendary))] mx-auto mb-1" />
+                <p className="text-xs text-foreground/85 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">Entry Fee</p>
+                <p className="font-heading font-bold text-foreground drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">{ENTRY_FEE}</p>
+              </div>
+              <div className="rounded-xl bg-background/40 backdrop-blur-sm border border-border/40 p-3 text-center">
+                <Trophy className="w-6 h-6 text-[hsl(var(--legendary))] mx-auto mb-1" />
+                <p className="text-xs text-foreground/85 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">1st Prize</p>
+                <p className="font-heading font-bold text-foreground drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">{PRIZE_POOL[0]}</p>
+              </div>
             </div>
-            <div className="rounded-xl bg-card border border-border p-4 text-center">
-              <Coins className="w-6 h-6 text-legendary mx-auto mb-1" />
-              <p className="text-xs text-muted-foreground">Entry Fee</p>
-              <p className="font-heading font-bold text-foreground">{ENTRY_FEE}</p>
-            </div>
-            <div className="rounded-xl bg-card border border-border p-4 text-center">
-              <Trophy className="w-6 h-6 text-legendary mx-auto mb-1" />
-              <p className="text-xs text-muted-foreground">1st Prize</p>
-              <p className="font-heading font-bold text-foreground">{PRIZE_POOL[0]}</p>
-            </div>
-          </div>
+          </GlassPanel>
 
-          <div className="rounded-xl bg-card/50 border border-border p-4 max-w-md mx-auto">
-            <h4 className="font-heading font-bold text-sm mb-2">Prize Pool</h4>
-            <div className="space-y-1 text-sm">
-              <div className="flex justify-between"><span>🥇 1st Place</span><span className="font-bold text-legendary">{PRIZE_POOL[0]} gold</span></div>
+          <GlassPanel hue="var(--legendary)" glow={0.5} padding="md" bg={texGilded} bgTint={0.65} className="max-w-md mx-auto">
+            <h4 className="font-heading font-bold text-sm mb-2 text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Prize Pool</h4>
+            <div className="space-y-1 text-sm text-foreground/90 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+              <div className="flex justify-between"><span>🥇 1st Place</span><span className="font-bold text-[hsl(var(--legendary))]">{PRIZE_POOL[0]} gold</span></div>
               <div className="flex justify-between"><span>🥈 2nd Place</span><span className="font-bold">{PRIZE_POOL[1]} gold</span></div>
               <div className="flex justify-between"><span>🥉 3rd/4th</span><span className="font-bold">{PRIZE_POOL[2]} gold</span></div>
             </div>
-          </div>
+          </GlassPanel>
 
           <button
             onClick={enterTournament}
