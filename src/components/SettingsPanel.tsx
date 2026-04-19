@@ -1,5 +1,5 @@
-import { useEffect } from "react";
-import { Settings as SettingsIcon, Volume2, Music, Eye, Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Settings as SettingsIcon, Volume2, Music, Eye, Sparkles, Trash2, AlertTriangle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
@@ -16,6 +16,7 @@ const DEFAULTS: AppSettings = { musicVol: 0.7, sfxVol: 0.8, reduceMotion: false,
 
 export default function SettingsPanel({ playerState, onStateChange }: SettingsPanelProps) {
   const settings = playerState.settings ?? DEFAULTS;
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   // Sync sfx volume on mount + whenever it changes
   useEffect(() => { setSfxVolume(settings.sfxVol); }, [settings.sfxVol]);
@@ -92,6 +93,42 @@ export default function SettingsPanel({ playerState, onStateChange }: SettingsPa
               <Sparkles className="w-4 h-4 text-primary" /> Ambient animations
             </Label>
             <Switch checked={settings.animationsOn} onCheckedChange={(v) => update({ animationsOn: v })} />
+          </div>
+
+          {/* Danger zone */}
+          <div className="border-t border-destructive/20 pt-4">
+            <p className="text-xs text-muted-foreground uppercase tracking-widest mb-3 flex items-center gap-1.5">
+              <AlertTriangle className="w-3 h-3 text-destructive" /> Danger Zone
+            </p>
+            {!confirmDelete ? (
+              <button
+                onClick={() => setConfirmDelete(true)}
+                className="w-full flex items-center justify-center gap-2 py-2 rounded-lg border border-destructive/40 text-destructive text-sm hover:bg-destructive/10 transition-colors"
+              >
+                <Trash2 className="w-4 h-4" /> Delete Character
+              </button>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-xs text-destructive text-center">This resets everything. Cannot be undone.</p>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setConfirmDelete(false)}
+                    className="flex-1 py-2 rounded-lg border border-border text-sm text-muted-foreground hover:bg-secondary transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      localStorage.removeItem("mythic-arcana-player");
+                      window.location.reload();
+                    }}
+                    className="flex-1 py-2 rounded-lg bg-destructive text-destructive-foreground text-sm font-bold hover:brightness-110 transition-all"
+                  >
+                    Yes, Delete
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </DialogContent>
