@@ -20,6 +20,8 @@ const widthMap = {
   lg: "lg:grid-cols-[340px_1fr]",
 };
 
+const padMap = { none: "", sm: "p-3", md: "p-5", lg: "p-7" };
+
 /**
  * Two-column layout used by every "Hall" tab.
  * Sticky sidebar on desktop, stacked on mobile.

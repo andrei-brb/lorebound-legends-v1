@@ -9,6 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import bgGuild from "@/assets/bg-guild-hall.jpg";
+import boxParchment from "@/assets/box-tex-parchment.jpg";
+import boxStone from "@/assets/box-tex-stone.jpg";
+import boxLeather from "@/assets/box-tex-leather.jpg";
 
 interface Member { id: number; username: string; role: "leader" | "officer" | "member"; online?: boolean; avatar?: string | null; discordId?: string }
 interface Guild { id: number; name: string; tag: string; level: number; xp: number; xpNext: number; memberCount: number; description?: string }
