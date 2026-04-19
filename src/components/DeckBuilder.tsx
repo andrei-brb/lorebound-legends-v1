@@ -18,6 +18,8 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
+import GlassPanel from "@/components/scene/GlassPanel";
+import { texLeather, texForge, texVelvet } from "@/components/scene/panelTextures";
 
 const MAX_DECK_SIZE = 10;
 const MAX_PRESETS = 5;
@@ -365,8 +367,11 @@ export default function DeckBuilder({ onStartBattle, playerState, onStateChange 
       </div>
 
       {/* ── Live Deck Tray ── */}
-      <div className="bg-card border border-border rounded-xl p-4">
-        {/* Wizard progress */}
+      <div className="border border-border rounded-xl p-4 relative isolate overflow-hidden">
+        <div className="absolute inset-0 -z-10" aria-hidden>
+          <img src={texLeather} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-card/75" />
+        </div>
         <div className="flex items-center gap-2 mb-4">
           <div className="flex items-center gap-1">
             <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xs font-bold">1</div>
