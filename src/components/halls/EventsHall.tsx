@@ -3,6 +3,7 @@ import type { PlayerState } from "@/lib/playerState";
 import HallLayout, { HallSection, HallStat } from "@/components/scene/HallLayout";
 import GlassPanel from "@/components/scene/GlassPanel";
 import HexAvatar from "@/components/scene/HexAvatar";
+import { texCosmic } from "@/components/scene/panelTextures";
 
 interface Event {
   id: string;
@@ -28,10 +29,10 @@ export default function EventsHall({}: Props) {
     <HallLayout
       sidebar={
         <>
-          <HallSection title="Seasonal Events" hue="var(--rare)" glow={0.5}>
+          <HallSection title="Seasonal Events" hue="var(--rare)" glow={0.5} bg={texCosmic}>
             <div className="flex items-center gap-2 mb-3">
               <Calendar className="w-4 h-4 text-[hsl(var(--rare))]" />
-              <span className="text-xs text-muted-foreground">Limited-time content</span>
+              <span className="text-xs text-foreground/85 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">Limited-time content</span>
             </div>
             <HallStat label="Live" value={MOCK_EVENTS.filter((e) => e.status === "live").length} hue="var(--legendary)" />
             <HallStat label="Upcoming" value={MOCK_EVENTS.filter((e) => e.status === "upcoming").length} hue="var(--rare)" />

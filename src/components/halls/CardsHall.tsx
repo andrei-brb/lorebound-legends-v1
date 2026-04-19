@@ -5,6 +5,7 @@ import HallLayout, { HallSection, HallStat } from "@/components/scene/HallLayout
 import GlassPanel from "@/components/scene/GlassPanel";
 import HexAvatar from "@/components/scene/HexAvatar";
 import { allGameCards, type GameCard, type Rarity } from "@/data/cardIndex";
+import { texCodex, texRunes, texParchment, texVelvet, texLibrary, texCosmic, texGilded } from "@/components/scene/panelTextures";
 import { cn } from "@/lib/utils";
 
 interface Props { playerState: PlayerState }
@@ -52,17 +53,17 @@ export default function CardsHall({ playerState }: Props) {
     <HallLayout
       sidebar={
         <>
-          <HallSection title="Archive" hue="var(--primary)" glow={0.55}>
+          <HallSection title="Archive" hue="var(--primary)" glow={0.55} bg={texCodex}>
             <div className="flex items-center gap-2 mb-3">
               <BookOpen className="w-4 h-4 text-primary" />
-              <span className="text-xs text-muted-foreground">Mythic codex of cards</span>
+              <span className="text-xs text-foreground/85 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">Mythic codex of cards</span>
             </div>
             <HallStat label="Owned" value={`${totalOwned}/${totalCards}`} hue="var(--legendary)" />
             <HallStat label="Completion" value={`${completion}%`} hue="var(--rare)" />
             <HallStat label="Total pulls" value={playerState.totalPulls} />
           </HallSection>
 
-          <HallSection title="By Rarity" hue="var(--epic)" glow={0.4}>
+          <HallSection title="By Rarity" hue="var(--epic)" glow={0.4} bg={texRunes} bgTint={0.72}>
             {RARITY_ORDER.map((r) => {
               const s = stats[r] ?? { owned: 0, total: 0 };
               const pct = s.total ? Math.round((s.owned / s.total) * 100) : 0;
@@ -80,7 +81,7 @@ export default function CardsHall({ playerState }: Props) {
             })}
           </HallSection>
 
-          <HallSection title="Filter" hue="var(--primary)" glow={0.3}>
+          <HallSection title="Filter" hue="var(--primary)" glow={0.3} bg={texParchment}>
             <div className="grid grid-cols-3 gap-1.5 mb-2">
               {(["all", "owned", "missing"] as const).map((f) => (
                 <button
@@ -107,7 +108,7 @@ export default function CardsHall({ playerState }: Props) {
         </>
       }
       header={
-        <GlassPanel hue="var(--primary)" glow={0.4} padding="md">
+        <GlassPanel hue="var(--primary)" glow={0.4} padding="md" bg={texVelvet}>
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Card Archive</p>
@@ -126,7 +127,7 @@ export default function CardsHall({ playerState }: Props) {
         </GlassPanel>
       }
     >
-      <GlassPanel hue="var(--primary)" glow={0.3} padding="md">
+      <GlassPanel hue="var(--primary)" glow={0.3} padding="md" bg={texLibrary} bgTint={0.72}>
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-heading text-xs uppercase tracking-wider text-foreground/90">Showing · {cards.length}</h3>
           <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
@@ -158,17 +159,17 @@ export default function CardsHall({ playerState }: Props) {
       </GlassPanel>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <GlassPanel hue="var(--rare)" glow={0.35} padding="md">
-          <div className="flex items-center gap-2 mb-1"><Sparkles className="w-4 h-4 text-[hsl(var(--rare))]" /><h3 className="font-heading text-xs uppercase tracking-wider">Summon</h3></div>
-          <p className="text-xs text-muted-foreground">Open packs and channel new cards from the void.</p>
+        <GlassPanel hue="var(--rare)" glow={0.35} padding="md" bg={texCosmic} bgTint={0.7}>
+          <div className="flex items-center gap-2 mb-1"><Sparkles className="w-4 h-4 text-[hsl(var(--rare))]" /><h3 className="font-heading text-xs uppercase tracking-wider text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Summon</h3></div>
+          <p className="text-xs text-foreground/85 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">Open packs and channel new cards from the void.</p>
         </GlassPanel>
-        <GlassPanel hue="var(--epic)" glow={0.35} padding="md">
-          <div className="flex items-center gap-2 mb-1"><Layers className="w-4 h-4 text-[hsl(var(--epic))]" /><h3 className="font-heading text-xs uppercase tracking-wider">Decks</h3></div>
-          <p className="text-xs text-muted-foreground">Forge a deck of 8 to wage your battles.</p>
+        <GlassPanel hue="var(--epic)" glow={0.35} padding="md" bg={texGilded} bgTint={0.7}>
+          <div className="flex items-center gap-2 mb-1"><Layers className="w-4 h-4 text-[hsl(var(--epic))]" /><h3 className="font-heading text-xs uppercase tracking-wider text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Decks</h3></div>
+          <p className="text-xs text-foreground/85 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">Forge a deck of 8 to wage your battles.</p>
         </GlassPanel>
-        <GlassPanel hue="var(--legendary)" glow={0.35} padding="md">
-          <div className="flex items-center gap-2 mb-1"><BookOpen className="w-4 h-4 text-[hsl(var(--legendary))]" /><h3 className="font-heading text-xs uppercase tracking-wider">Lore</h3></div>
-          <p className="text-xs text-muted-foreground">Each card carries a fragment of the realm's myth.</p>
+        <GlassPanel hue="var(--legendary)" glow={0.35} padding="md" bg={texCodex} bgTint={0.7}>
+          <div className="flex items-center gap-2 mb-1"><BookOpen className="w-4 h-4 text-[hsl(var(--legendary))]" /><h3 className="font-heading text-xs uppercase tracking-wider text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Lore</h3></div>
+          <p className="text-xs text-foreground/85 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">Each card carries a fragment of the realm's myth.</p>
         </GlassPanel>
       </div>
     </HallLayout>
