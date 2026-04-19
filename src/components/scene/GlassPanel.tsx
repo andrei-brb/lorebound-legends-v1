@@ -51,7 +51,7 @@ export default function GlassPanel({
       }}
     >
       {bg && (
-        <div className="absolute inset-0 pointer-events-none rounded-2xl overflow-hidden" aria-hidden>
+        <div className="absolute inset-0 pointer-events-none" aria-hidden>
           <img
             src={bg}
             alt=""
@@ -69,8 +69,7 @@ export default function GlassPanel({
           />
         </div>
       )}
-      {/* Content sits above the texture overlay */}
-      <div className={cn("relative", bg && "z-[1]")}>{children}</div>
+      {children}
     </Tag>
   );
 }
