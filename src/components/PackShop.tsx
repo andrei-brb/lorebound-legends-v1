@@ -171,35 +171,33 @@ export default function PackShop({ playerState, onStateChange, isOnline, pullCar
         </GlassPanel>
 
         {/* Free Daily Pack */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-r from-primary/20 to-[hsl(var(--legendary))]/10 border border-primary/30 rounded-xl p-5"
-        >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
-                <Gift className="w-6 h-6 text-primary" />
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
+          <GlassPanel hue="var(--legendary)" glow={0.5} padding="md" bg={texGilded} bgTint={0.6}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl bg-primary/20 flex items-center justify-center">
+                  <Gift className="w-6 h-6 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-heading font-bold text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Daily Free Pack</h3>
+                  <p className="text-xs text-foreground/85 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">One free Bronze pack every 24 hours</p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-heading font-bold text-foreground">Daily Free Pack</h3>
-                <p className="text-xs text-muted-foreground">One free Bronze pack every 24 hours</p>
-              </div>
+              {isFreeAvailable ? (
+                <button
+                  onClick={claimFreePack}
+                  className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-heading font-bold text-sm hover:brightness-110 transition-all hover:scale-105 active:scale-95 animate-glow-pulse"
+                >
+                  Claim!
+                </button>
+              ) : (
+                <div className="flex items-center gap-2 text-foreground/85 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+                  <Clock className="w-4 h-4" />
+                  <span className="text-sm font-heading">{formatTime(freeTimer)}</span>
+                </div>
+              )}
             </div>
-            {isFreeAvailable ? (
-              <button
-                onClick={claimFreePack}
-                className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-heading font-bold text-sm hover:brightness-110 transition-all hover:scale-105 active:scale-95 animate-glow-pulse"
-              >
-                Claim!
-              </button>
-            ) : (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Clock className="w-4 h-4" />
-                <span className="text-sm font-heading">{formatTime(freeTimer)}</span>
-              </div>
-            )}
-          </div>
+          </GlassPanel>
         </motion.div>
 
         {/* Pack Grid */}
