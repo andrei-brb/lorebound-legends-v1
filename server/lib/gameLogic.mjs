@@ -25,10 +25,10 @@ export const FACTION_STARTER_CARDS = {
 };
 
 const PACK_DEFINITIONS = {
-  bronze: { cost: 100, cardCount: 5, rates: { common: 80, rare: 18, legendary: 2 } },
-  silver: { cost: 300, cardCount: 5, rates: { common: 55, rare: 38, legendary: 7 } },
-  gold:   { cost: 800, cardCount: 5, rates: { common: 30, rare: 50, legendary: 20 } },
-  free:   { cost: 0,   cardCount: 2, rates: { common: 80, rare: 18, legendary: 2 } },
+  bronze: { cost: 100, cardCount: 5, rates: { common: 60, rare: 30, legendary: 10 } },
+  silver: { cost: 300, cardCount: 5, rates: { common: 40, rare: 40, legendary: 20 } },
+  gold:   { cost: 800, cardCount: 5, rates: { common: 20, rare: 40, legendary: 40 } },
+  free:   { cost: 0,   cardCount: 2, rates: { common: 60, rare: 30, legendary: 10 } },
 };
 
 export { PACK_DEFINITIONS };

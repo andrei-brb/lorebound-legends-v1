@@ -63,6 +63,8 @@ const MAX_JSON_BODY_BYTES = Math.min(4 * 1024 * 1024, Math.max(8192, Number(proc
 const MAX_RAW_BODY_BYTES = Math.min(4 * 1024 * 1024, Math.max(8192, Number(process.env.MAX_RAW_BODY_BYTES) || 262144));
 const PVE_BATTLE_DAILY_RESULT_CAP = Math.max(1, Number(process.env.PVE_BATTLE_DAILY_RESULT_CAP) || 50);
 const PVE_SESSION_MAX_AGE_MS = Math.max(5 * 60 * 1000, Number(process.env.PVE_SESSION_MAX_AGE_MS) || 4 * 60 * 60 * 1000);
+/** When replay verification is skipped (e.g. raid hotseat), wins must report at least this many turns to reduce trivial exploit submits. */
+const PVE_SKIP_VERIFY_MIN_TURNS_FOR_WIN = Math.max(1, Number(process.env.PVE_SKIP_VERIFY_MIN_TURNS_FOR_WIN) || 3);
 const MAX_IMPORT_GOLD = Math.max(1000, Number(process.env.MAX_IMPORT_GOLD) || 100000);
 const MAX_IMPORT_STARDUST = Math.max(0, Number(process.env.MAX_IMPORT_STARDUST) || 50000);
 const MAX_IMPORT_PITY = 10_000;
@@ -3173,6 +3175,11 @@ async function handleBattleResult(req, res) {
   } else {
     if (typeof body.won !== "boolean" || typeof body.turnCount !== "number" || body.turnCount < 1) {
       return sendJson(res, 400, { error: "won (bool) and positive turnCount required" });
+    }
+    if (body.won === true && body.turnCount < PVE_SKIP_VERIFY_MIN_TURNS_FOR_WIN) {
+      return sendJson(res, 400, {
+        error: `Wins without replay verification require at least ${PVE_SKIP_VERIFY_MIN_TURNS_FOR_WIN} turns (got ${body.turnCount})`,
+      });
     }
   }
 

@@ -1,20 +1,18 @@
-// Elemental Weakness Triangle:
-// Fire > Nature > Shadow > Fire
-// Water > Fire > Nature > Water (secondary)
-// Light > Shadow > Light (mutual weakness)
-// Neutral has no advantages or disadvantages
+// Elemental advantages (directional): attacker strong vs listed defenders → 1.3× damage; defender strong vs attacker → 0.7×.
+// Clean multi-way map: fire burns nature & air; nature overgrows water & shadow; water quenches fire; shadow eclipses light;
+// light banishes shadow; air scatters water. Neutral is neutral.
 
 export type Element = "fire" | "water" | "nature" | "shadow" | "light" | "neutral" | "air";
 
 // Returns damage multiplier: 1.3 = advantage, 0.7 = disadvantage, 1.0 = neutral
 const advantageMap: Record<Element, Element[]> = {
-  fire: ["nature"],
-  nature: ["shadow", "water"],
-  shadow: ["fire", "light"],
+  fire: ["nature", "air"],
+  nature: ["water", "shadow"],
   water: ["fire"],
+  shadow: ["light"],
   light: ["shadow"],
-  neutral: [],
   air: ["water"],
+  neutral: [],
 };
 
 export function getElementMultiplier(attackerElement: Element, defenderElement: Element): number {
@@ -79,6 +77,7 @@ export function inferElementFromTags(tags: string[]): Element {
   if (tagSet.has("nature") || tagSet.has("forest") || tagSet.has("earth") || tagSet.has("vine") || tagSet.has("beast") || tagSet.has("druid") || tagSet.has("verdant")) return "nature";
   if (tagSet.has("shadow") || tagSet.has("dark") || tagSet.has("void") || tagSet.has("death") || tagSet.has("undead") || tagSet.has("necro") || tagSet.has("phantom")) return "shadow";
   if (tagSet.has("light") || tagSet.has("divine") || tagSet.has("solar") || tagSet.has("holy") || tagSet.has("celestial") || tagSet.has("radiant") || tagSet.has("lunar")) return "light";
+  if (tagSet.has("air") || tagSet.has("sky") || tagSet.has("gale")) return "air";
   if (tagSet.has("storm") || tagSet.has("wind") || tagSet.has("lightning") || tagSet.has("thunder")) return "nature"; // storm → nature
   if (tagSet.has("warrior") || tagSet.has("forge") || tagSet.has("iron") || tagSet.has("metal") || tagSet.has("stone")) return "neutral";
   return "neutral";

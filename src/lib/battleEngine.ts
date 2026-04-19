@@ -148,8 +148,8 @@ function createSide(
   const deck = shuffled.slice(5);
 
   return {
-    hp: heroStats?.hp ?? 30,
-    shield: heroStats?.shield ?? 10,
+    hp: heroStats?.hp ?? 50,
+    shield: heroStats?.shield ?? 15,
     hand,
     field: [null, null, null, null],
     tokens: [null, null],
@@ -967,23 +967,50 @@ export function attackTarget(state: BattleState, attackerFieldIndex: number, tar
   }
 
   target.currentHp = Math.max(0, target.currentHp - dmg);
-  
+  let totalDealt = dmg;
+
   let attackMsg = `⚔️ ${attacker.card.name} attacks ${target.card.name} for ${dmg} damage!`;
   if (elemLabel) {
     attackMsg += ` ${elementEmoji[attackerElement]} ${elemLabel}`;
   }
   addLog(newState, attackMsg, "attack");
 
+  if (newState.turn === "player") {
+    const atkLv = newState.playerCardProgress?.[attacker.card.id]?.level ?? 1;
+    const msAtk = getMilestoneCombatBonuses(atkLv);
+    if (msAtk.doubleStrikeRatio > 0 && target.currentHp > 0) {
+      let dmg2 = Math.max(1, Math.round(dmg * msAtk.doubleStrikeRatio));
+      const defLv2 = newState.playerCardProgress?.[target.card.id]?.level ?? 1;
+      const defMs2 = getMilestoneCombatBonuses(defLv2);
+      if (defMs2.damageReduction > 0) {
+        dmg2 = Math.max(1, Math.round(dmg2 * (1 - defMs2.damageReduction)));
+      }
+      target.currentHp = Math.max(0, target.currentHp - dmg2);
+      totalDealt += dmg2;
+      addLog(newState, `⚔️ ${attacker.card.name} strikes again for ${dmg2}!`, "attack");
+    }
+  }
+
+  if (newState.turn === "enemy") {
+    const defLvT = newState.playerCardProgress?.[target.card.id]?.level ?? 1;
+    const defTh = getMilestoneCombatBonuses(defLvT).thorns;
+    if (defTh > 0 && totalDealt > 0 && attacker.currentHp > 0) {
+      const reflect = Math.max(1, Math.round(totalDealt * defTh));
+      attacker.currentHp = Math.max(0, attacker.currentHp - reflect);
+      addLog(newState, `🌵 ${target.card.name}'s Barbed Hide reflects ${reflect} damage!`, "attack");
+    }
+  }
+
   const passiveLsField =
     newState.turn === "player"
       ? getMilestoneCombatBonuses(newState.playerCardProgress?.[attacker.card.id]?.level ?? 1).lifesteal
       : 0;
-  if (cardHasKeyword(attacker.card, "lifesteal") && dmg > 0 && attacker.currentHp > 0) {
-    const healed = Math.min(dmg, attacker.maxHp - attacker.currentHp);
+  if (cardHasKeyword(attacker.card, "lifesteal") && totalDealt > 0 && attacker.currentHp > 0) {
+    const healed = Math.min(totalDealt, attacker.maxHp - attacker.currentHp);
     attacker.currentHp += healed;
     addLog(newState, `💚 ${attacker.card.name} lifesteals ${healed} HP!`, "attack");
-  } else if (passiveLsField > 0 && dmg > 0 && attacker.currentHp > 0) {
-    const healed = Math.min(Math.round(dmg * passiveLsField), attacker.maxHp - attacker.currentHp);
+  } else if (passiveLsField > 0 && totalDealt > 0 && attacker.currentHp > 0) {
+    const healed = Math.min(Math.round(totalDealt * passiveLsField), attacker.maxHp - attacker.currentHp);
     if (healed > 0) {
       attacker.currentHp += healed;
       addLog(newState, `💚 ${attacker.card.name} siphons ${healed} HP!`, "attack");
@@ -1369,9 +1396,8 @@ export function activateAbility(state: BattleState, fieldIndex: number): BattleS
 
   if (!fc || fc.abilityUsed || fc.stunned) return state;
 
-  // Costs 1–2 use that much AP; higher listed costs are treated as 1 AP so abilities remain usable after playing a unit (2 AP/turn).
-  const c = fc.card.specialAbility.cost ?? 1;
-  const apCost = c <= 2 ? c : 1;
+  const listed = fc.card.specialAbility.cost ?? 1;
+  const apCost = Math.max(1, Math.min(listed, 6));
   if (!canSpendAp(newState, apCost)) return state;
 
   fc.abilityUsed = true;

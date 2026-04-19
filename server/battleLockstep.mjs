@@ -1862,13 +1862,13 @@ var import_crystal_guardian = __toESM(require_crystal_guardian(), 1);
 
 // src/lib/elementSystem.ts
 var advantageMap = {
-  fire: ["nature"],
-  nature: ["shadow", "water"],
-  shadow: ["fire", "light"],
+  fire: ["nature", "air"],
+  nature: ["water", "shadow"],
   water: ["fire"],
+  shadow: ["light"],
   light: ["shadow"],
-  neutral: [],
-  air: ["water"]
+  air: ["water"],
+  neutral: []
 };
 function getElementMultiplier(attackerElement, defenderElement) {
   if (attackerElement === "neutral" || defenderElement === "neutral") return 1;
@@ -1898,6 +1898,7 @@ function inferElementFromTags(tags) {
   if (tagSet.has("nature") || tagSet.has("forest") || tagSet.has("earth") || tagSet.has("vine") || tagSet.has("beast") || tagSet.has("druid") || tagSet.has("verdant")) return "nature";
   if (tagSet.has("shadow") || tagSet.has("dark") || tagSet.has("void") || tagSet.has("death") || tagSet.has("undead") || tagSet.has("necro") || tagSet.has("phantom")) return "shadow";
   if (tagSet.has("light") || tagSet.has("divine") || tagSet.has("solar") || tagSet.has("holy") || tagSet.has("celestial") || tagSet.has("radiant") || tagSet.has("lunar")) return "light";
+  if (tagSet.has("air") || tagSet.has("sky") || tagSet.has("gale")) return "air";
   if (tagSet.has("storm") || tagSet.has("wind") || tagSet.has("lightning") || tagSet.has("thunder")) return "nature";
   if (tagSet.has("warrior") || tagSet.has("forge") || tagSet.has("iron") || tagSet.has("metal") || tagSet.has("stone")) return "neutral";
   return "neutral";
@@ -7137,19 +7138,25 @@ function calculatePassiveBonuses(fieldCardIds) {
 var PASSIVE_DEFINITIONS = [
   { level: 3, effect: "crit", name: "Critical Eye", description: "+10% critical hit chance", value: 0.1 },
   { level: 7, effect: "lifesteal", name: "Soul Siphon", description: "Heal 15% of damage dealt", value: 0.15 },
-  { level: 12, effect: "damage_reduction", name: "Iron Skin", description: "Reduce incoming damage by 15%", value: 0.15 }
+  { level: 12, effect: "damage_reduction", name: "Iron Skin", description: "Reduce incoming damage by 15%", value: 0.15 },
+  { level: 16, effect: "double_strike", name: "Twin Strikes", description: "Second hit at 50% damage on attacks", value: 0.5 },
+  { level: 18, effect: "thorns", name: "Barbed Hide", description: "Reflect 20% of damage taken from attacks", value: 0.2 }
 ];
 function getMilestoneCombatBonuses(level) {
   let critChance = 0;
   let lifesteal = 0;
   let damageReduction = 0;
+  let doubleStrikeRatio = 0;
+  let thorns = 0;
   for (const p of PASSIVE_DEFINITIONS) {
     if (level < p.level) continue;
     if (p.effect === "crit") critChance = p.value;
     else if (p.effect === "lifesteal") lifesteal = p.value;
     else if (p.effect === "damage_reduction") damageReduction = p.value;
+    else if (p.effect === "double_strike") doubleStrikeRatio = p.value;
+    else if (p.effect === "thorns") thorns = p.value;
   }
-  return { critChance, lifesteal, damageReduction };
+  return { critChance, lifesteal, damageReduction, doubleStrikeRatio, thorns };
 }
 function getStatBonuses(progress) {
   const levelBonus = progress.level - 1;
@@ -7530,8 +7537,8 @@ function createSide(deckIds, rng, heroStats) {
   const hand = shuffled.slice(0, 5);
   const deck = shuffled.slice(5);
   return {
-    hp: heroStats?.hp ?? 30,
-    shield: heroStats?.shield ?? 10,
+    hp: heroStats?.hp ?? 50,
+    shield: heroStats?.shield ?? 15,
     hand,
     field: [null, null, null, null],
     tokens: [null, null],
@@ -7750,7 +7757,7 @@ function startTurn(state) {
   const side = getActiveSide(state);
   const otherSide = getOtherSide(state);
   const sideLabel = state.turn === "player" ? "You" : "Enemy";
-  side.ap = 2;
+  side.ap = Math.min(6, 1 + state.turnNumber);
   side.hasCastSpellThisTurn = false;
   for (const fc of side.field) {
     if (!fc) continue;
@@ -8183,18 +8190,43 @@ function attackTarget(state, attackerFieldIndex, targetFieldIndex) {
     }
   }
   target.currentHp = Math.max(0, target.currentHp - dmg);
+  let totalDealt = dmg;
   let attackMsg = `\u2694\uFE0F ${attacker.card.name} attacks ${target.card.name} for ${dmg} damage!`;
   if (elemLabel) {
     attackMsg += ` ${elementEmoji[attackerElement]} ${elemLabel}`;
   }
   addLog(newState, attackMsg, "attack");
+  if (newState.turn === "player") {
+    const atkLv = newState.playerCardProgress?.[attacker.card.id]?.level ?? 1;
+    const msAtk = getMilestoneCombatBonuses(atkLv);
+    if (msAtk.doubleStrikeRatio > 0 && target.currentHp > 0) {
+      let dmg2 = Math.max(1, Math.round(dmg * msAtk.doubleStrikeRatio));
+      const defLv2 = newState.playerCardProgress?.[target.card.id]?.level ?? 1;
+      const defMs2 = getMilestoneCombatBonuses(defLv2);
+      if (defMs2.damageReduction > 0) {
+        dmg2 = Math.max(1, Math.round(dmg2 * (1 - defMs2.damageReduction)));
+      }
+      target.currentHp = Math.max(0, target.currentHp - dmg2);
+      totalDealt += dmg2;
+      addLog(newState, `\u2694\uFE0F ${attacker.card.name} strikes again for ${dmg2}!`, "attack");
+    }
+  }
+  if (newState.turn === "enemy") {
+    const defLvT = newState.playerCardProgress?.[target.card.id]?.level ?? 1;
+    const defTh = getMilestoneCombatBonuses(defLvT).thorns;
+    if (defTh > 0 && totalDealt > 0 && attacker.currentHp > 0) {
+      const reflect = Math.max(1, Math.round(totalDealt * defTh));
+      attacker.currentHp = Math.max(0, attacker.currentHp - reflect);
+      addLog(newState, `\u{1F335} ${target.card.name}'s Barbed Hide reflects ${reflect} damage!`, "attack");
+    }
+  }
   const passiveLsField = newState.turn === "player" ? getMilestoneCombatBonuses(newState.playerCardProgress?.[attacker.card.id]?.level ?? 1).lifesteal : 0;
-  if (cardHasKeyword(attacker.card, "lifesteal") && dmg > 0 && attacker.currentHp > 0) {
-    const healed = Math.min(dmg, attacker.maxHp - attacker.currentHp);
+  if (cardHasKeyword(attacker.card, "lifesteal") && totalDealt > 0 && attacker.currentHp > 0) {
+    const healed = Math.min(totalDealt, attacker.maxHp - attacker.currentHp);
     attacker.currentHp += healed;
     addLog(newState, `\u{1F49A} ${attacker.card.name} lifesteals ${healed} HP!`, "attack");
-  } else if (passiveLsField > 0 && dmg > 0 && attacker.currentHp > 0) {
-    const healed = Math.min(Math.round(dmg * passiveLsField), attacker.maxHp - attacker.currentHp);
+  } else if (passiveLsField > 0 && totalDealt > 0 && attacker.currentHp > 0) {
+    const healed = Math.min(Math.round(totalDealt * passiveLsField), attacker.maxHp - attacker.currentHp);
     if (healed > 0) {
       attacker.currentHp += healed;
       addLog(newState, `\u{1F49A} ${attacker.card.name} siphons ${healed} HP!`, "attack");
@@ -8550,8 +8582,8 @@ function activateAbility(state, fieldIndex) {
   const side = getActiveSide(newState);
   const fc = side.field[fieldIndex];
   if (!fc || fc.abilityUsed || fc.stunned) return state;
-  const c = fc.card.specialAbility.cost ?? 1;
-  const apCost = c <= 2 ? c : 1;
+  const listed = fc.card.specialAbility.cost ?? 1;
+  const apCost = Math.max(1, Math.min(listed, 6));
   if (!canSpendAp(newState, apCost)) return state;
   fc.abilityUsed = true;
   const resolved = resolveAbilityEffect(fc.card);

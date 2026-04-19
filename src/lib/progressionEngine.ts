@@ -20,20 +20,34 @@ const PASSIVE_DEFINITIONS: { level: number; effect: PassiveAbility["effect"]; na
   { level: 3, effect: "crit", name: "Critical Eye", description: "+10% critical hit chance", value: 0.10 },
   { level: 7, effect: "lifesteal", name: "Soul Siphon", description: "Heal 15% of damage dealt", value: 0.15 },
   { level: 12, effect: "damage_reduction", name: "Iron Skin", description: "Reduce incoming damage by 15%", value: 0.15 },
+  { level: 16, effect: "double_strike", name: "Twin Strikes", description: "Second hit at 50% damage on attacks", value: 0.5 },
+  { level: 18, effect: "thorns", name: "Barbed Hide", description: "Reflect 20% of damage taken from attacks", value: 0.2 },
 ];
 
 /** Milestone combat bonuses for a single card level (used by battleEngine). */
-export function getMilestoneCombatBonuses(level: number): { critChance: number; lifesteal: number; damageReduction: number } {
+export function getMilestoneCombatBonuses(level: number): {
+  critChance: number;
+  lifesteal: number;
+  damageReduction: number;
+  /** Fraction of first-hit damage dealt as a follow-up hit (player attacks only). */
+  doubleStrikeRatio: number;
+  /** Fraction of damage taken reflected to attacker (when this card is hit). */
+  thorns: number;
+} {
   let critChance = 0;
   let lifesteal = 0;
   let damageReduction = 0;
+  let doubleStrikeRatio = 0;
+  let thorns = 0;
   for (const p of PASSIVE_DEFINITIONS) {
     if (level < p.level) continue;
     if (p.effect === "crit") critChance = p.value;
     else if (p.effect === "lifesteal") lifesteal = p.value;
     else if (p.effect === "damage_reduction") damageReduction = p.value;
+    else if (p.effect === "double_strike") doubleStrikeRatio = p.value;
+    else if (p.effect === "thorns") thorns = p.value;
   }
-  return { critChance, lifesteal, damageReduction };
+  return { critChance, lifesteal, damageReduction, doubleStrikeRatio, thorns };
 }
 
 export function getPassiveAbilities(progress: CardProgress): PassiveAbility[] {
@@ -98,6 +112,8 @@ export function awardXp(progress: CardProgress, xpAmount: number): { progress: C
       else if (newProgress.level === 3) milestone = "Passive: Critical Eye unlocked!";
       else if (newProgress.level === 7) milestone = "Passive: Soul Siphon unlocked!";
       else if (newProgress.level === 12) milestone = "Passive: Iron Skin unlocked!";
+      else if (newProgress.level === 16) milestone = "Passive: Twin Strikes unlocked!";
+      else if (newProgress.level === 18) milestone = "Passive: Barbed Hide unlocked!";
       levelUps.push({ cardId: "", oldLevel, newLevel: newProgress.level, milestone });
     } else {
       break;
