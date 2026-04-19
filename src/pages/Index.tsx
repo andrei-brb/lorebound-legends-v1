@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback } from "react";
 import { BookOpen, Layers, Swords, Coins, Sparkles as SparklesIcon, Grid3X3, Loader2, ScrollText, Hammer, Trophy, ArrowLeftRight, BarChart3, Calendar, Zap, Crown, Shield, Mail, User, Gift, Users, MessageCircle, Eye, Flag, Flame } from "lucide-react";
 import TabTransition from "@/components/TabTransition";
 import TutorialOverlay from "@/components/TutorialOverlay";
@@ -30,6 +30,11 @@ import ProfileHall from "@/components/halls/ProfileHall";
 import DailyHall from "@/components/halls/DailyHall";
 import CardsHall from "@/components/halls/CardsHall";
 import CombatHall from "@/components/halls/CombatHall";
+import LivePvPBattleground from "@/components/LivePvPBattleground";
+import RaidCoopArena from "@/components/RaidCoopArena";
+import RaidLiveBattleground from "@/components/RaidLiveBattleground";
+import { initRaidCoopBattle, type RaidCoopState } from "@/lib/raid/raidCoopEngine";
+import { getRaidBoss } from "@/lib/raid/bosses";
 import { cn } from "@/lib/utils";
 import { usePlayerApi } from "@/lib/usePlayerApi";
 import { loadAchievementState, checkNewAchievements, saveAchievementState } from "@/lib/achievementEngine";
@@ -206,6 +211,24 @@ export default function Index() {
     return () => { alive = false; window.clearInterval(id); };
   }, [isOnline]);
 
+  const patchRaid = useCallback((fn: (r: RaidCoopState) => void) => {
+    setRaidState((prev) => {
+      if (!prev) return prev;
+      fn(prev);
+      return { ...prev };
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!raidHotseat) {
+      setRaidState(null);
+      return;
+    }
+    const boss = getRaidBoss(raidHotseat.bossId);
+    if (!boss) return;
+    setRaidState(initRaidCoopBattle(raidHotseat.deckIds, raidHotseat.deckIds, boss));
+  }, [raidHotseat]);
+
   if (status === "loading") {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -251,7 +274,7 @@ export default function Index() {
       setPvpInvitePopup(null);
       setRankedBattle(null);
       setBattleDeckIds([]);
-      setActiveCategory("combat");
+      setActiveCategory("battle");
       setActiveTab("battle");
       toast({ title: "⚔ Match accepted!", description: `Joining match #${matchId}` });
     } catch (e: unknown) {
@@ -508,7 +531,7 @@ export default function Index() {
                     setRaidState(null);
                     setBattleDeckIds(deckIds);
                     setPendingCombat(null);
-                    setActiveCategory("combat");
+                    setActiveCategory("battle");
                     setActiveTab("battle");
                     return;
                   }
@@ -517,7 +540,7 @@ export default function Index() {
                     setSoloRaidBossId(null);
                     setBattleDeckIds([]);
                     setPendingCombat(null);
-                    setActiveCategory("combat");
+                    setActiveCategory("battle");
                     setActiveTab("battle");
                     return;
                   }
@@ -540,7 +563,41 @@ export default function Index() {
             {activeTab === "leaderboard" && <RanksHall playerState={playerState} isOnline={isOnline} />}
             {activeTab === "trade" && <TradeHall playerState={playerState} onStateChange={setPlayerState} />}
             {activeTab === "mail" && <MailHall onNavigate={(tab) => { setActiveCategory("social"); setActiveTab(tab as Tab); }} />}
-            {activeTab === "pvp" && <PvPPanel playerState={playerState} />}
+            {activeTab === "pvp" && (
+              <PvPPanel
+                playerState={playerState}
+                onNavigateBattle={(matchId) => {
+                  sessionStorage.setItem("pvp.live.matchId", String(matchId));
+                  setRankedBattle(null);
+                  setBattleDeckIds([]);
+                  setSoloRaidBossId(null);
+                  setRaidHotseat(null);
+                  setRaidState(null);
+                  setActiveCategory("battle");
+                  setActiveTab("battle");
+                }}
+                onStartRankedBattle={async (matchId) => {
+                  try {
+                    const data = await api.pvpAsyncGetPlay(matchId);
+                    setRankedBattle({
+                      matchId: data.matchId,
+                      opponentName: data.opponent.username,
+                      opponentDeckIds: data.opponentDeckCardIds,
+                      seed: data.seed ?? null,
+                    });
+                    setBattleDeckIds(data.myDeckCardIds);
+                    setActiveCategory("battle");
+                    setActiveTab("battle");
+                  } catch (e) {
+                    toast({
+                      title: "Could not load ranked match",
+                      description: e instanceof Error ? e.message : String(e),
+                      variant: "destructive",
+                    });
+                  }
+                }}
+              />
+            )}
             {activeTab === "events" && <EventsHall playerState={playerState} onStateChange={setPlayerState} />}
             {activeTab === "tournament" && <Tournament playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} syncEconomyApi={syncEconomy} />}
             {activeTab === "boost" && <BoostHall playerState={playerState} />}
@@ -569,7 +626,94 @@ export default function Index() {
                 onLaunchMode={() => setActiveTab("deck")}
               />
             )}
-            {activeTab === "battle" && battleDeckIds.length === 0 && (
+            {activeTab === "battle" && battleDeckIds.length > 0 && !raidHotseat && (
+              <BattleArena
+                playerDeckIds={battleDeckIds}
+                opponentDeckIds={rankedBattle?.opponentDeckIds ?? null}
+                rankedSubtitle={
+                  rankedBattle ? `Ranked vs ${rankedBattle.opponentName} — AI plays their deck` : null
+                }
+                battleSeed={rankedBattle?.seed ?? null}
+                onRankedSubmit={
+                  rankedBattle
+                    ? async (data) => {
+                        await api.pvpAsyncSubmit(rankedBattle.matchId, data);
+                      }
+                    : undefined
+                }
+                soloRaidBossId={soloRaidBossId}
+                onExit={() => {
+                  setBattleDeckIds([]);
+                  setSoloRaidBossId(null);
+                  const wasRanked = rankedBattle != null;
+                  setRankedBattle(null);
+                  setActiveCategory("battle");
+                  setActiveTab(wasRanked ? "pvp" : "combat-hall");
+                }}
+                playerState={playerState}
+                onStateChange={setPlayerState}
+                isOnline={isOnline}
+                submitBattleResultApi={submitBattleResult}
+                startPveBattleApi={startPveBattle}
+                syncEconomyApi={syncEconomy}
+              />
+            )}
+            {activeTab === "battle" && raidHotseat && raidState && (
+              <RaidCoopArena
+                raid={raidState}
+                onRaidPatch={patchRaid}
+                onExit={() => {
+                  setRaidHotseat(null);
+                  setRaidState(null);
+                  setActiveCategory("battle");
+                  setActiveTab("combat-hall");
+                }}
+                playerDeckIds={raidHotseat.deckIds}
+                playerState={playerState}
+                onStateChange={setPlayerState}
+                isOnline={isOnline}
+                submitBattleResultApi={submitBattleResult}
+                startPveBattleApi={startPveBattle}
+                syncEconomyApi={syncEconomy}
+              />
+            )}
+            {activeTab === "battle" && battleDeckIds.length === 0 && hasLiveMatchFromInbox && (
+              <LivePvPBattleground
+                matchId={liveMatchIdFromInbox}
+                playerState={playerState}
+                onStateChange={setPlayerState}
+                syncEconomyApi={syncEconomy}
+                onExit={() => {
+                  sessionStorage.removeItem("pvp.live.matchId");
+                  setActiveCategory("battle");
+                  setActiveTab("combat-hall");
+                }}
+              />
+            )}
+            {activeTab === "battle" &&
+              battleDeckIds.length === 0 &&
+              !hasLiveMatchFromInbox &&
+              hasRaidLiveMatchFromInbox &&
+              !raidHotseat && (
+                <RaidLiveBattleground
+                  matchId={raidLiveMatchIdFromInbox}
+                  playerState={playerState}
+                  onStateChange={setPlayerState}
+                  submitBattleResult={submitBattleResult}
+                  startPveBattle={startPveBattle}
+                  syncEconomyApi={syncEconomy}
+                  onExit={() => {
+                    sessionStorage.removeItem("raid.live.matchId");
+                    setActiveCategory("battle");
+                    setActiveTab("combat-hall");
+                  }}
+                />
+              )}
+            {activeTab === "battle" &&
+              battleDeckIds.length === 0 &&
+              !hasLiveMatchFromInbox &&
+              !hasRaidLiveMatchFromInbox &&
+              !(raidHotseat && raidState) && (
               <div className="text-center py-20">
                 <Swords className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
                 <h2 className="font-heading text-xl font-bold text-foreground mb-2">No Deck Selected</h2>

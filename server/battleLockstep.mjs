@@ -7565,7 +7565,8 @@ function initBattle(playerDeckIds, enemyDeckIds, opts) {
     pendingAction: null,
     rng,
     rngSeed: opts?.seed,
-    playerCardProgress: opts?.playerCardProgress
+    playerCardProgress: opts?.playerCardProgress,
+    aiDifficulty: opts?.aiDifficulty ?? "normal"
   };
   return startTurn(state);
 }
@@ -7690,6 +7691,31 @@ function tryPlaceToken(state, side, tokenId, duration, meta) {
     source: meta?.source,
     ruleTag: meta?.ruleTag ?? "summon"
   });
+  const otherSide = side === state.player ? state.enemy : state.player;
+  const raw = base.attack;
+  const enemies = otherSide.field.map((fc, i) => fc ? { fc, i } : null).filter(Boolean);
+  if (enemies.length === 0) {
+    let dmg = raw;
+    if (otherSide.shield > 0) {
+      const absorbed = Math.min(otherSide.shield, dmg);
+      otherSide.shield -= absorbed;
+      dmg -= absorbed;
+    }
+    otherSide.hp = Math.max(0, otherSide.hp - dmg);
+    addLog(state, `\u{1FAB6} ${base.name} enters and strikes directly for ${raw}!`, "token");
+  } else {
+    enemies.sort((a, b) => a.fc.currentHp - b.fc.currentHp);
+    const { fc: target, i: idx } = enemies[0];
+    const dmg = Math.max(1, raw - Math.floor(target.defense * 0.25));
+    target.currentHp = Math.max(0, target.currentHp - dmg);
+    addLog(state, `\u{1FAB6} ${base.name} enters and strikes ${target.card.name} for ${dmg}!`, "token");
+    if (target.currentHp <= 0) {
+      addLog(state, `\u{1F480} ${target.card.name} was destroyed!`, "defeat");
+      otherSide.graveyard.push(target.card);
+      if (target.equippedWeapon) otherSide.graveyard.push(target.equippedWeapon);
+      otherSide.field[idx] = null;
+    }
+  }
   return true;
 }
 function applyWeaponTurnStartPassives(state, side) {
@@ -7762,6 +7788,14 @@ function startTurn(state) {
   for (const fc of side.field) {
     if (!fc) continue;
     fc.attackedThisTurn = false;
+    if (fc.abilityRechargeIn !== void 0) {
+      fc.abilityRechargeIn -= 1;
+      if (fc.abilityRechargeIn <= 0) {
+        delete fc.abilityRechargeIn;
+        fc.abilityUsed = false;
+        addLog(state, `\u{1F504} ${fc.card.name}'s ability is ready again!`, "info");
+      }
+    }
   }
   for (let pi = 0; pi < side.field.length; pi++) {
     const fc = side.field[pi];
@@ -7797,10 +7831,23 @@ function startTurn(state) {
   if (state.phase === "game-over") return state;
   if (side.deck.length > 0) {
     side.hand.push(side.deck.shift());
+    if (side.hand.length > 7) {
+      const discarded = side.hand.shift();
+      side.graveyard.push(discarded);
+      addLog(state, `\u{1F4E4} Hand full \u2014 ${discarded.name} was discarded!`, "info");
+    }
   } else {
     side.fatigue += 1;
     side.hp = Math.max(0, side.hp - side.fatigue);
     addLog(state, `\u{1F4E6} ${sideLabel} fatigues for ${side.fatigue} damage!`, "info");
+  }
+  if (side.hp > 0 && side.hp <= 15 && side.deck.length > 0) {
+    side.hand.push(side.deck.shift());
+    if (side.hand.length > 7) {
+      const discarded = side.hand.shift();
+      side.graveyard.push(discarded);
+    }
+    addLog(state, `\u{1F4A2} ${sideLabel} draws from desperation!`, "info");
   }
   applyWeaponTurnStartPassives(state, side);
   processTokenAutoStrikes(state, side, otherSide);
@@ -7947,7 +7994,7 @@ function castSpell(state, handIndex, targetFieldIndex) {
       if (effect.target === "single_enemy" && targetFieldIndex !== void 0) {
         const target = otherSide.field[targetFieldIndex];
         if (target) {
-          const dmg = Math.max(1, effect.value - Math.floor(target.defense * 0.2));
+          const dmg = Math.max(1, effect.value - Math.floor(target.defense * 0.25));
           target.currentHp = Math.max(0, target.currentHp - dmg);
           addLog(newState, `\u{1F525} ${sideLabel} cast ${card.name}! Deals ${dmg} damage to ${target.card.name}!`, "spell");
           if (target.currentHp <= 0) {
@@ -7961,7 +8008,7 @@ function castSpell(state, handIndex, targetFieldIndex) {
         for (let i = 0; i < otherSide.field.length; i++) {
           const target = otherSide.field[i];
           if (!target) continue;
-          const dmg = Math.max(1, effect.value - Math.floor(target.defense * 0.2));
+          const dmg = Math.max(1, effect.value - Math.floor(target.defense * 0.25));
           target.currentHp = Math.max(0, target.currentHp - dmg);
           if (target.currentHp <= 0) {
             addLog(newState, `\u{1F480} ${target.card.name} was destroyed by ${card.name}!`, "defeat");
@@ -8019,6 +8066,30 @@ function castSpell(state, handIndex, targetFieldIndex) {
   side.graveyard.push(card);
   side.hasCastSpellThisTurn = true;
   spendAp(newState, apCost);
+  for (let ti = 0; ti < otherSide.traps.length; ti++) {
+    const trap = otherSide.traps[ti];
+    if (!trap || !trap.faceDown || trap.card.trapEffect?.trigger !== "on_spell_cast") continue;
+    const effect2 = trap.card.trapEffect;
+    if (effect2.effect === "damage") {
+      let dmg = effect2.value;
+      if (side.shield > 0) {
+        const abs = Math.min(side.shield, dmg);
+        side.shield -= abs;
+        dmg -= abs;
+      }
+      side.hp = Math.max(0, side.hp - dmg);
+      addLog(newState, `\u{1FAA4} ${trap.card.name} triggers on spell cast! Deals ${effect2.value} damage to the caster!`, "trap");
+    } else if (effect2.effect === "stun") {
+      const casterCards = side.field.filter(Boolean);
+      if (casterCards.length > 0) {
+        casterCards[0].stunned = true;
+        addLog(newState, `\u{1FAA4} ${trap.card.name} triggers on spell cast! ${casterCards[0].card.name} is stunned!`, "trap");
+      }
+    }
+    otherSide.traps[ti] = null;
+    otherSide.graveyard.push(trap.card);
+    break;
+  }
   return maybeAutoEndTurn(recalcFieldStats(checkWinCondition(newState)));
 }
 function attackTarget(state, attackerFieldIndex, targetFieldIndex) {
@@ -8290,6 +8361,31 @@ function destroyFieldCardIfDead(state, side, fieldIndex) {
   side.graveyard.push(fc.card);
   if (fc.equippedWeapon) side.graveyard.push(fc.equippedWeapon);
   side.field[fieldIndex] = null;
+  const opponentSide = side === state.player ? state.enemy : state.player;
+  for (let ti = 0; ti < side.traps.length; ti++) {
+    const trap = side.traps[ti];
+    if (!trap || !trap.faceDown || trap.card.trapEffect?.trigger !== "on_death") continue;
+    const effect = trap.card.trapEffect;
+    if (effect.effect === "damage") {
+      let dmg = effect.value;
+      if (opponentSide.shield > 0) {
+        const abs = Math.min(opponentSide.shield, dmg);
+        opponentSide.shield -= abs;
+        dmg -= abs;
+      }
+      opponentSide.hp = Math.max(0, opponentSide.hp - dmg);
+      addLog(state, `\u{1FAA4} ${trap.card.name} triggers on death! Deals ${effect.value} damage to the enemy!`, "trap");
+    } else if (effect.effect === "stun") {
+      const enemyCards = opponentSide.field.filter(Boolean);
+      if (enemyCards.length > 0) {
+        enemyCards[0].stunned = true;
+        addLog(state, `\u{1FAA4} ${trap.card.name} triggers on death! ${enemyCards[0].card.name} is stunned!`, "trap");
+      }
+    }
+    side.traps[ti] = null;
+    side.graveyard.push(trap.card);
+    break;
+  }
 }
 function applyResolvedAbility(newState, fc, fieldIndex, effect) {
   const side = getActiveSide(newState);
@@ -8581,11 +8677,15 @@ function activateAbility(state, fieldIndex) {
   const newState = deepCopy(state);
   const side = getActiveSide(newState);
   const fc = side.field[fieldIndex];
-  if (!fc || fc.abilityUsed || fc.stunned) return state;
+  if (!fc || fc.abilityUsed || fc.stunned || fc.abilityRechargeIn !== void 0) return state;
   const listed = fc.card.specialAbility.cost ?? 1;
   const apCost = Math.max(1, Math.min(listed, 6));
   if (!canSpendAp(newState, apCost)) return state;
-  fc.abilityUsed = true;
+  if (apCost === 1) {
+    fc.abilityRechargeIn = 3;
+  } else {
+    fc.abilityUsed = true;
+  }
   const resolved = resolveAbilityEffect(fc.card);
   applyResolvedAbility(newState, fc, fieldIndex, resolved);
   spendAp(newState, apCost);
@@ -8625,15 +8725,47 @@ function endTurn(state) {
 function performAITurn(state) {
   let s = state;
   const MAX_ACTIONS = 6;
+  const difficulty = s.aiDifficulty ?? "normal";
   for (let i = 0; i < MAX_ACTIONS; i++) {
     if (s.phase === "game-over") return s;
     if (s.turn !== "enemy") return s;
     if (s.enemy.ap <= 0) return s;
     const side = s.enemy;
+    if (difficulty === "easy") {
+      const playableCards = side.hand.map((c, idx) => ({ c, idx }));
+      if (playableCards.length > 0 && s.rng() < 0.6) {
+        const pick = playableCards[Math.floor(s.rng() * playableCards.length)];
+        const next = playCard(s, pick.idx);
+        if (next !== s) {
+          s = next;
+          continue;
+        }
+      }
+      const attackerIdx2 = side.field.findIndex((fc) => fc !== null && !fc.stunned && !fc.attackedThisTurn);
+      if (attackerIdx2 !== -1) {
+        const playerCards = s.player.field.map((fc2, idx) => fc2 ? { fc: fc2, idx } : null).filter(Boolean);
+        if (playerCards.length > 0) {
+          const rndTarget = playerCards[Math.floor(s.rng() * playerCards.length)];
+          const next = attackTarget(s, attackerIdx2, rndTarget.idx);
+          if (next !== s) {
+            s = next;
+            continue;
+          }
+        } else {
+          const next = attackTarget(s, attackerIdx2, "direct");
+          if (next !== s) {
+            s = next;
+            continue;
+          }
+        }
+      }
+      return endTurn(deepCopy(s));
+    }
     const emptySlot = side.field.findIndex((slot) => slot === null);
     if (emptySlot !== -1) {
-      const unitIdx = side.hand.findIndex((c) => c.type === "hero" || c.type === "god");
-      if (unitIdx !== -1) {
+      const unitCards = side.hand.map((c, idx) => ({ c, idx })).filter(({ c }) => c.type === "hero" || c.type === "god");
+      if (unitCards.length > 0) {
+        const unitIdx = difficulty === "hard" ? unitCards.sort((a, b) => (b.c.attack ?? 0) - (a.c.attack ?? 0))[0].idx : unitCards[0].idx;
         const next = playCard(s, unitIdx);
         if (next !== s) {
           s = next;
@@ -8676,7 +8808,8 @@ function performAITurn(state) {
     const attackerIdx = side.field.findIndex((fc) => fc !== null && !fc.stunned && !fc.attackedThisTurn);
     if (attackerIdx !== -1) {
       const fc = side.field[attackerIdx];
-      if (!fc.abilityUsed && s.rng() < 0.3) {
+      const shouldUseAbility = !fc.abilityUsed && fc.abilityRechargeIn === void 0 && (difficulty === "hard" ? true : s.rng() < 0.3);
+      if (shouldUseAbility) {
         const next = activateAbility(s, attackerIdx);
         if (next !== s) {
           s = next;
@@ -8685,8 +8818,8 @@ function performAITurn(state) {
       }
       const playerFieldCards = s.player.field.map((fc2, idx) => fc2 ? { fc: fc2, idx } : null).filter(Boolean);
       if (playerFieldCards.length > 0) {
-        const weakest = playerFieldCards.sort((a, b) => a.fc.currentHp - b.fc.currentHp)[0];
-        const next = attackTarget(s, attackerIdx, weakest.idx);
+        const target = playerFieldCards.sort((a, b) => b.fc.attack - a.fc.attack)[0];
+        const next = attackTarget(s, attackerIdx, target.idx);
         if (next !== s) {
           s = next;
           continue;
@@ -8823,9 +8956,13 @@ function simulateBattle(params) {
       s = performAutoPlayerTurn(deepCopy(s));
     }
   }
+  if (!s.winner) {
+    s.winner = "draw";
+    s.phase = "game-over";
+  }
   return { winner: s.winner, turnCount: s.turnNumber, finalState: s };
 }
-function generateEnemyDeck(size = 10, rng = Math.random) {
+function generateEnemyDeck(size = 15, rng = Math.random) {
   const heroes = allCards.filter((c) => c.type === "hero");
   const gods = allCards.filter((c) => c.type === "god");
   const weapons = allCards.filter((c) => c.type === "weapon");
