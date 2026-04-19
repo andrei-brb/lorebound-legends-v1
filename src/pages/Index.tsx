@@ -285,6 +285,13 @@ export default function Index() {
               </div>
             )}
             {activeTab === "catalog" && <CardCatalog playerState={playerState} />}
+            {activeTab === "cosmetics" && (
+              <div className="text-center py-20">
+                <SparklesIcon className="w-16 h-16 text-primary/40 mx-auto mb-4" />
+                <h2 className="font-heading text-xl font-bold mb-2">Cosmetics</h2>
+                <p className="text-sm text-muted-foreground">Coming soon — frames, banners, card backs.</p>
+              </div>
+            )}
             {activeTab === "summon" && <PackShop playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} pullCardsApi={pullCards} />}
             {activeTab === "deck" && <DeckBuilder onStartBattle={startBattle} playerState={playerState} onStateChange={setPlayerState} />}
             {activeTab === "battle" && battleDeckIds.length > 0 && (
@@ -316,6 +323,13 @@ export default function Index() {
                   else if (mode === "tourney") setActiveTab("tournament");
                   else setActiveTab("deck"); // skirmish/raid → pick a deck first
                 }}
+              />
+            )}
+            {activeTab === "raid" && (
+              <CombatHall
+                playerState={playerState}
+                defaultMode="raid"
+                onLaunchMode={() => setActiveTab("deck")}
               />
             )}
             {activeTab === "battle" && battleDeckIds.length === 0 && (
