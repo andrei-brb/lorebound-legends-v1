@@ -146,8 +146,13 @@ export default function GuildHall({ isOnline }: Props) {
         </>
       }
       header={
-        <GlassPanel hue="var(--legendary)" glow={0.4} padding="md">
-          <div className="flex items-center justify-between">
+        <GlassPanel hue="var(--legendary)" glow={0.4} padding="none">
+          <div className="relative h-16 overflow-hidden rounded-t-2xl" aria-hidden>
+            <img src={boxLeather} alt="" loading="lazy" className="absolute inset-0 w-full h-full object-cover" />
+            <div className="absolute inset-0 bg-gradient-to-r from-[hsl(var(--card)/0.6)] via-transparent to-[hsl(var(--card)/0.6)]" />
+            <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-b from-transparent to-[hsl(var(--card)/0.85)]" />
+          </div>
+          <div className="flex items-center justify-between p-4 -mt-2">
             <div>
               <p className="text-[10px] uppercase tracking-widest text-muted-foreground">Guild Chat</p>
               <h1 className="font-heading text-lg text-foreground">Banner Hall</h1>
