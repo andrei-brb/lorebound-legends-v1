@@ -7,6 +7,7 @@ import GameCard from "@/components/GameCard";
 import { allGameCards } from "@/data/cardIndex";
 import type { Rarity } from "@/data/cards";
 import { cn } from "@/lib/utils";
+import { texForge } from "@/components/scene/panelTextures";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -84,7 +85,7 @@ export default function WorkshopHall({ playerState }: Props) {
 
   return (
     <div className="px-4 sm:px-6 py-6 max-w-4xl mx-auto">
-      <GlassPanel hue="var(--epic)" glow={0.4} padding="lg">
+      <GlassPanel hue="var(--epic)" glow={0.4} padding="lg" bg={texForge} bgTint={0.7}>
         {/* Mode toggle — top center */}
         <div className="flex justify-center mb-6">
           <div className="inline-flex p-1 rounded-full bg-background/40 ring-1 ring-foreground/10">
