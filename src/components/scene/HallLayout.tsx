@@ -57,6 +57,8 @@ export function HallSection({
   padding = "md",
   banner,
   bannerHeight = 72,
+  bg,
+  bgTint,
 }: {
   title?: string;
   hint?: string;
@@ -68,10 +70,14 @@ export function HallSection({
   /** Optional textured banner image rendered at the top of the panel */
   banner?: string;
   bannerHeight?: number;
+  /** Optional textured background filling the entire panel */
+  bg?: string;
+  bgTint?: number;
 }) {
+  const overTexture = !!bg || !!banner;
   return (
-    <GlassPanel hue={hue} glow={glow} padding="none">
-      {banner && (
+    <GlassPanel hue={hue} glow={glow} padding="none" bg={bg} bgTint={bgTint}>
+      {banner && !bg && (
         <div
           className="relative w-full overflow-hidden rounded-t-2xl"
           style={{ height: bannerHeight }}
@@ -99,11 +105,33 @@ export function HallSection({
         </div>
       )}
       <div className={padMap[padding]}>
-        {!banner && (title || action) && (
+        {(!banner || bg) && (title || action) && (
           <div className="flex items-center justify-between gap-3 mb-3">
             <div className="min-w-0">
-              {title && <h3 className="font-heading text-xs uppercase tracking-wider text-foreground/90">{title}</h3>}
-              {hint && <p className="text-[10px] text-muted-foreground mt-0.5">{hint}</p>}
+              {title && (
+                <h3
+                  className={cn(
+                    "font-heading text-xs uppercase tracking-wider",
+                    overTexture
+                      ? "text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]"
+                      : "text-foreground/90"
+                  )}
+                >
+                  {title}
+                </h3>
+              )}
+              {hint && (
+                <p
+                  className={cn(
+                    "text-[10px] mt-0.5",
+                    overTexture
+                      ? "text-foreground/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]"
+                      : "text-muted-foreground"
+                  )}
+                >
+                  {hint}
+                </p>
+              )}
             </div>
             {action}
           </div>
