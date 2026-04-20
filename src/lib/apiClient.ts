@@ -130,6 +130,19 @@ export const api = {
     }>(res);
   },
 
+  async repairDailyLoginCards() {
+    const res = await fetch(`${getApiBase()}/api/player/daily-login-repair`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({}),
+    });
+    return handleResponse<{
+      repaired: boolean;
+      repairedCardIds: string[];
+      state: import("./playerState").PlayerState;
+    }>(res);
+  },
+
   async patchCard(cardId: string, action: string, extra?: Record<string, unknown>) {
     const res = await fetch(`${getApiBase()}/api/cards/${cardId}`, {
       method: "PATCH",

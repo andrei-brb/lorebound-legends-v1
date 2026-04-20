@@ -3,7 +3,8 @@
  */
 import { useState, useCallback } from "react";
 import { Gift, Calendar, Sparkles, CheckCircle2, Lock, Star, Package } from "lucide-react";
-import type { PlayerState, FactionPath } from "@/lib/playerState";
+import type { PlayerState } from "@/lib/playerState";
+import { getRewardsForPath, type DayRewardDef } from "@/lib/dailyPathRewards";
 import { addCardToCollection } from "@/lib/playerState";
 import { allCards, type GameCard } from "@/data/cards";
 import { getCardById } from "@/data/cardIndex";
@@ -40,62 +41,7 @@ interface Props {
   claimDailyLogin?: () => Promise<{ preview: DailyClaimPreview; state: PlayerState } | null>;
 }
 
-type RewardType = "gold" | "stardust" | "pack" | "card";
-
-interface DayReward {
-  day: number;
-  type: RewardType;
-  amount?: number;
-  cardId?: string;
-  label: string;
-}
-
-const FACTION_REWARDS: Record<FactionPath, DayReward[]> = {
-  fire: [
-    { day: 1, type: "card", cardId: "terragon", label: "Terragon" },
-    { day: 2, type: "card", cardId: "ferros", label: "Ferros" },
-    { day: 3, type: "card", cardId: "hephara", label: "Hephara (Rare)" },
-    { day: 4, type: "card", cardId: "aethon", label: "Aethon" },
-    { day: 5, type: "card", cardId: "inferna", label: "Inferna (Rare)" },
-    { day: 6, type: "gold", amount: 500, label: "500 Gold" },
-    { day: 7, type: "pack", amount: 1, label: "Bronze Pack" },
-  ],
-  nature: [
-    { day: 1, type: "card", cardId: "vitalis", label: "Vitalis" },
-    { day: 2, type: "card", cardId: "healer", label: "Healer" },
-    { day: 3, type: "card", cardId: "zephyros", label: "Zephyros (Rare)" },
-    { day: 4, type: "card", cardId: "eirene", label: "Eirene" },
-    { day: 5, type: "card", cardId: "verdantia", label: "Verdantia (Rare)" },
-    { day: 6, type: "gold", amount: 500, label: "500 Gold" },
-    { day: 7, type: "pack", amount: 1, label: "Bronze Pack" },
-  ],
-  shadow: [
-    { day: 1, type: "card", cardId: "nekros", label: "Nekros" },
-    { day: 2, type: "card", cardId: "obscura", label: "Obscura" },
-    { day: 3, type: "card", cardId: "glacius", label: "Glacius (Rare)" },
-    { day: 4, type: "card", cardId: "luminara", label: "Luminara" },
-    { day: 5, type: "card", cardId: "umbra", label: "Umbra (Rare)" },
-    { day: 6, type: "gold", amount: 500, label: "500 Gold" },
-    { day: 7, type: "pack", amount: 1, label: "Bronze Pack" },
-  ],
-};
-
-const DEFAULT_REWARDS: DayReward[] = [
-  { day: 1, type: "gold", amount: 50, label: "50 Gold" },
-  { day: 2, type: "gold", amount: 100, label: "100 Gold" },
-  { day: 3, type: "stardust", amount: 10, label: "10 Stardust" },
-  { day: 4, type: "gold", amount: 200, label: "200 Gold" },
-  { day: 5, type: "stardust", amount: 25, label: "25 Stardust" },
-  { day: 6, type: "gold", amount: 500, label: "500 Gold" },
-  { day: 7, type: "pack", amount: 1, label: "Bronze Pack" },
-];
-
-function getRewards(path: FactionPath | null): DayReward[] {
-  if (!path) return DEFAULT_REWARDS;
-  return FACTION_REWARDS[path] ?? DEFAULT_REWARDS;
-}
-
-function RewardTileArt({ r, cardInfo }: { r: DayReward; cardInfo?: GameCard | null }) {
+function RewardTileArt({ r, cardInfo }: { r: DayRewardDef; cardInfo?: GameCard | null }) {
   if (r.type === "gold") {
     return (
       <div className="flex flex-col items-center justify-center gap-1 p-2">
@@ -140,10 +86,10 @@ export default function DailyHall({ playerState, onStateChange, isOnline, claimD
   const claimedToday = playerState.dailyLogin?.lastClaimDate === today;
   const nextDay = claimedDays.length + 1;
 
-  const rewards = getRewards(playerState.selectedPath ?? null);
+  const rewards = getRewardsForPath(playerState.selectedPath ?? null);
 
   const applyOfflineReward = useCallback(
-    (base: PlayerState, reward: DayReward): { state: PlayerState; preview: DailyClaimPreview } => {
+    (base: PlayerState, reward: DayRewardDef): { state: PlayerState; preview: DailyClaimPreview } => {
       let updated: PlayerState = {
         ...base,
         dailyLogin: {
@@ -350,7 +296,7 @@ export default function DailyHall({ playerState, onStateChange, isOnline, claimD
       </GlassPanel>
 
       <Dialog open={!!preview} onOpenChange={(open) => !open && setPreview(null)}>
-        <DialogContent className="max-w-md border-[hsl(var(--legendary))]/30">
+        <DialogContent className="max-w-md border-[hsl(var(--legendary))]/30 shadow-2xl shadow-black/50">
           {preview && (
             <>
               <DialogHeader>

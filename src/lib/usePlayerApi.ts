@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { type PlayerState, loadPlayerState, savePlayerState, normalizePlayerState, mergeClientOnlyPlayerState } from "./playerState";
 import { hasClaimedMissingDailyCardRewards } from "./dailyPathRewards";
+import { toast } from "@/hooks/use-toast";
 import { api, isAuthenticated } from "./apiClient";
 import { toast } from "@/hooks/use-toast";
 
@@ -117,6 +118,12 @@ export function usePlayerApi(): UsePlayerApiReturn {
           try {
             const repair = await api.repairDailyLoginCards();
             merged = mergeClientOnlyPlayerState(normalizePlayerState(repair.state), merged);
+            if (repair.repaired && repair.repairedCardIds.length > 0) {
+              toast({
+                title: "Daily rewards synced",
+                description: `${repair.repairedCardIds.length} reward card(s) were missing on the server and have been added to your collection.`,
+              });
+            }
           } catch (repairErr) {
             console.error("[usePlayerApi] daily-login repair failed:", repairErr);
           }
