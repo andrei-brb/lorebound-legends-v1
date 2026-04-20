@@ -7783,7 +7783,7 @@ function startTurn(state) {
   const side = getActiveSide(state);
   const otherSide = getOtherSide(state);
   const sideLabel = state.turn === "player" ? "You" : "Enemy";
-  side.ap = Math.min(6, 1 + state.turnNumber);
+  side.ap = getApCapForTurn(state.turnNumber);
   side.hasCastSpellThisTurn = false;
   for (const fc of side.field) {
     if (!fc) continue;
@@ -7853,6 +7853,9 @@ function startTurn(state) {
   processTokenAutoStrikes(state, side, otherSide);
   state.turnPhase = "main";
   return checkWinCondition(state);
+}
+function getApCapForTurn(turnNumber) {
+  return Math.min(6, 1 + turnNumber);
 }
 function canSpendAp(state, cost2) {
   const side = getActiveSide(state);

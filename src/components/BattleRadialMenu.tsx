@@ -17,7 +17,7 @@ interface BattleRadialMenuProps {
 }
 
 export default function BattleRadialMenu({
-  fieldCard: _fc,
+  fieldCard,
   visible,
   canAttack,
   canAbility,
@@ -29,12 +29,14 @@ export default function BattleRadialMenu({
   onDismiss,
 }: BattleRadialMenuProps) {
   const noAp = ap < 1;
+  const abilityApCost = Math.max(1, Math.min(fieldCard.card.specialAbility?.cost ?? 1, 6));
+  const abilityLabel = abilityApCost > 1 ? `Ability (${abilityApCost} AP)` : "Ability (1 AP)";
 
   const actions = [
     {
       key: "attack",
       icon: Sword,
-      label: "Attack",
+      label: "Attack (1 AP)",
       color: "bg-destructive hover:bg-destructive/80 text-destructive-foreground",
       disabled: !canAttack || noAp,
       onClick: onAttack,
@@ -43,16 +45,16 @@ export default function BattleRadialMenu({
     {
       key: "ability",
       icon: Zap,
-      label: "Ability",
+      label: abilityLabel,
       color: "bg-legendary hover:brightness-110 text-primary-foreground",
-      disabled: !canAbility,
+      disabled: !canAbility || ap < abilityApCost,
       onClick: onAbility,
       show: canAbility,
     },
     {
       key: "direct",
       icon: Target,
-      label: "Direct",
+      label: "Direct (1 AP)",
       color: "bg-destructive hover:bg-destructive/80 text-destructive-foreground",
       disabled: !canDirectAttack || noAp,
       onClick: onDirectAttack,

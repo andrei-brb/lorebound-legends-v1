@@ -19,6 +19,7 @@ import {
   raidIsDraw,
 } from "@/lib/raid/raidCoopEngine";
 import { getRaidGoldReward } from "@/lib/gachaEngine";
+import { getApCapForTurn, getHandPlayApCost } from "@/lib/battleEngine";
 import BattleCardToken from "./BattleCardToken";
 import BattleRadialMenu from "./BattleRadialMenu";
 import HeroPortrait from "./HeroPortrait";
@@ -463,7 +464,7 @@ export default function RaidCoopArena({
                 maxHp={bossMeta?.enemyHp ?? 30}
                 shield={state.enemy.shield}
                 ap={state.enemy.ap}
-                maxAp={2}
+                maxAp={getApCapForTurn(state.turnNumber)}
                 deckCount={state.enemy.deck.length}
                 handCount={state.enemy.hand.length}
                 isActiveTurn={state.turn === "enemy"}
@@ -546,7 +547,7 @@ export default function RaidCoopArena({
                 maxHp={50}
                 shield={state.player.shield}
                 ap={state.player.ap}
-                maxAp={2}
+                maxAp={getApCapForTurn(state.turnNumber)}
                 deckCount={state.player.deck.length}
                 handCount={state.player.hand.length}
                 isActiveTurn={state.turn === "player"}
@@ -578,6 +579,12 @@ export default function RaidCoopArena({
                       isPlayerTurn ? "border-primary/40 hover:border-primary" : "opacity-50",
                     )}
                   >
+                    <span
+                      className="absolute top-0.5 right-0.5 z-10 rounded px-0.5 py-0.5 text-[7px] font-heading font-bold leading-none tabular-nums border border-amber-400/50 bg-black/80 text-amber-100 shadow-[0_1px_2px_rgba(0,0,0,0.9)]"
+                      title="AP to play from hand"
+                    >
+                      {getHandPlayApCost(card)} AP
+                    </span>
                     <img src={card.image} alt="" className="absolute inset-0 w-full h-full object-cover" />
                   </button>
                 ))}

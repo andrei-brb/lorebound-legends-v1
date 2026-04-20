@@ -472,7 +472,7 @@ export function startTurn(state: BattleState): BattleState {
   const sideLabel = state.turn === "player" ? "You" : "Enemy";
 
   // AP ramps from 2 up to 6 over the first 5 turns
-  side.ap = Math.min(6, 1 + state.turnNumber);
+  side.ap = getApCapForTurn(state.turnNumber);
   side.hasCastSpellThisTurn = false;
   for (const fc of side.field) {
     if (!fc) continue;
@@ -555,6 +555,18 @@ export function startTurn(state: BattleState): BattleState {
 
   state.turnPhase = "main";
   return checkWinCondition(state);
+}
+
+/** Max AP granted at turn start (`startTurn`): ramps 2→6 by global `turnNumber`. */
+export function getApCapForTurn(turnNumber: number): number {
+  return Math.min(6, 1 + turnNumber);
+}
+
+/** AP to play this card from hand (play / equip / set trap / cast spell). */
+export function getHandPlayApCost(card: GameCard): number {
+  if (card.type === "spell") return card.id === "time-stop" ? 2 : 1;
+  if (card.type === "hero" || card.type === "god" || card.type === "trap" || card.type === "weapon") return 1;
+  return 1;
 }
 
 function canSpendAp(state: BattleState, cost: number): boolean {

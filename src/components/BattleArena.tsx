@@ -5,7 +5,19 @@ import { Trophy, Skull, Sparkles, ArrowLeft } from "lucide-react";
 import { GoldCurrencyIcon } from "@/components/CurrencyIcons";
 import { cn } from "@/lib/utils";
 import type { BattleState } from "@/lib/battleEngine";
-import { initBattle, playCard, equipWeapon, castSpell, attackTarget, activateAbility, performAITurn, generateEnemyDeck, endTurnAction } from "@/lib/battleEngine";
+import {
+  initBattle,
+  playCard,
+  equipWeapon,
+  castSpell,
+  attackTarget,
+  activateAbility,
+  performAITurn,
+  generateEnemyDeck,
+  endTurnAction,
+  getApCapForTurn,
+  getHandPlayApCost,
+} from "@/lib/battleEngine";
 import {
   replayBattleFromActions,
   toViewerBattleState,
@@ -684,7 +696,7 @@ export default function BattleArena({
                 maxHp={soloBoss?.enemyHp ?? 30}
                 shield={state.enemy.shield}
                 ap={state.enemy.ap}
-                maxAp={2}
+                maxAp={getApCapForTurn(state.turnNumber)}
                 deckCount={state.enemy.deck.length}
                 handCount={state.enemy.hand.length}
                 isActiveTurn={state.turn === "enemy"}
@@ -864,7 +876,7 @@ export default function BattleArena({
                 maxHp={30}
                 shield={state.player.shield}
                 ap={state.player.ap}
-                maxAp={2}
+                maxAp={getApCapForTurn(state.turnNumber)}
                 deckCount={state.player.deck.length}
                 handCount={state.player.hand.length}
                 isActiveTurn={state.turn === "player"}
@@ -916,7 +928,7 @@ export default function BattleArena({
                   <div
                     key={`${card.id}-${i}`}
                     className={cn(
-                      "flex-shrink-0 w-[68px] sm:w-20 rounded-lg border-2 overflow-hidden cursor-pointer",
+                      "relative flex-shrink-0 w-[68px] sm:w-20 rounded-lg border-2 overflow-hidden cursor-pointer",
                       "transition-[transform,box-shadow,border-color] duration-150 ease-out will-change-transform",
                       selectedHandIndex === i
                         ? "-translate-y-2 ring-2 ring-legendary border-legendary shadow-[0_0_12px_hsl(var(--legendary)/0.4)]"
@@ -926,6 +938,12 @@ export default function BattleArena({
                     )}
                     onClick={() => isPlayerTurn && handleHandCardClick(i)}
                   >
+                    <div
+                      className="absolute top-0.5 right-0.5 z-10 rounded px-1 py-0.5 text-[8px] font-heading font-bold leading-none tabular-nums border border-amber-400/50 bg-black/80 text-amber-100 shadow-[0_1px_2px_rgba(0,0,0,0.9)]"
+                      title="AP to play from hand"
+                    >
+                      {getHandPlayApCost(card)} AP
+                    </div>
                     <div className="w-full h-16 sm:h-20 overflow-hidden">
                       <img src={card.image} alt={card.name} className="w-full h-full object-cover" />
                     </div>

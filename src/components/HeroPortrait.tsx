@@ -98,6 +98,9 @@ export default function HeroPortrait({
             />
           ))}
         </div>
+        <span className="text-[9px] font-heading font-bold tabular-nums text-foreground/90 drop-shadow-[0_1px_2px_rgba(0,0,0,0.75)]">
+          AP {ap}/{maxAp}
+        </span>
         <span className="text-[9px] text-muted-foreground">
           Deck: {deckCount} {side === "enemy" ? `· Hand: ${handCount}` : ""}
         </span>
