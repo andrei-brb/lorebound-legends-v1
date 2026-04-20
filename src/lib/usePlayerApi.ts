@@ -1,6 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { type PlayerState, loadPlayerState, savePlayerState, normalizePlayerState, mergeClientOnlyPlayerState } from "./playerState";
-import { hasClaimedMissingDailyCardRewards } from "@/lib/dailyPathRewards";
+import {
+  type PlayerState,
+  loadPlayerState,
+  savePlayerState,
+  normalizePlayerState,
+  mergeClientOnlyPlayerState,
+  hasClaimedMissingDailyCardRewards,
+} from "./playerState";
 import { toast } from "@/hooks/use-toast";
 import { api, isAuthenticated } from "./apiClient";
 
