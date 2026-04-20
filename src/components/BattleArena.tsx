@@ -654,7 +654,7 @@ export default function BattleArena({
     !livePvP?.isSubmitting;
   const boardSkinId = playerState.cosmeticsEquipped?.boardSkinId || null;
   const boardSkinImage = boardSkinId ? (getCosmeticById(boardSkinId)?.image || null) : null;
-  const noEnemyField = !state.enemy.field.some(fc => fc !== null);
+  const noEnemyField = !state.enemy.field.some((fc) => fc != null);
 
   return (
     <div

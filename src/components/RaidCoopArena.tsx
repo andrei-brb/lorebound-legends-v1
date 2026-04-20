@@ -408,7 +408,7 @@ export default function RaidCoopArena({
     state.turn === "player" && !animating && state.phase !== "game-over" && !intentSubmitting;
   const boardSkinId = playerState.cosmeticsEquipped?.boardSkinId || null;
   const boardSkinImage = boardSkinId ? getCosmeticById(boardSkinId)?.image || null : null;
-  const noEnemyField = !state.enemy.field.some((fc) => fc !== null);
+  const noEnemyField = !state.enemy.field.some((fc) => fc != null);
   const won = state.phase === "game-over" && raidPartyWon(raid);
   const lost = state.phase === "game-over" && raidBossWon(raid);
 

@@ -7894,7 +7894,7 @@ function checkWinCondition(state) {
   for (const sideKey of ["player", "enemy"]) {
     if (sideKey === "player" && state.skipPlayerWipeCheck) continue;
     const side = state[sideKey];
-    const hasField = side.field.some((fc) => fc !== null);
+    const hasField = side.field.some((fc) => fc != null);
     const hasHand = side.hand.length > 0;
     const hasDeck = side.deck.length > 0;
     if (!hasField && !hasHand && !hasDeck && state.phase !== "game-over") {
@@ -8113,7 +8113,7 @@ function attackTarget(state, attackerFieldIndex, targetFieldIndex) {
     }
   }
   if (targetFieldIndex === "direct") {
-    const hasFieldCards = otherSide.field.some((fc) => fc !== null);
+    const hasFieldCards = otherSide.field.some((fc) => fc != null);
     if (hasFieldCards) {
       addLog(newState, "\u274C Cannot attack directly while enemy has field cards!", "info");
       return state;
@@ -8744,7 +8744,7 @@ function performAITurn(state) {
           continue;
         }
       }
-      const attackerIdx2 = side.field.findIndex((fc) => fc !== null && !fc.stunned && !fc.attackedThisTurn);
+      const attackerIdx2 = side.field.findIndex((fc) => fc != null && !fc.stunned && !fc.attackedThisTurn);
       if (attackerIdx2 !== -1) {
         const playerCards = s.player.field.map((fc2, idx) => fc2 ? { fc: fc2, idx } : null).filter(Boolean);
         if (playerCards.length > 0) {
@@ -8778,7 +8778,7 @@ function performAITurn(state) {
     }
     const weaponIdx = side.hand.findIndex((c) => c.type === "weapon");
     if (weaponIdx !== -1) {
-      const unequipped = side.field.findIndex((fc) => fc !== null && !fc.equippedWeapon);
+      const unequipped = side.field.findIndex((fc) => fc != null && !fc.equippedWeapon);
       if (unequipped !== -1) {
         const next = equipWeapon(s, weaponIdx, unequipped);
         if (next !== s) {
@@ -8792,14 +8792,14 @@ function performAITurn(state) {
       const spell = side.hand[spellIdx];
       if (spell.spellEffect) {
         if (spell.spellEffect.type === "damage") {
-          const targetIdx = s.player.field.findIndex((fc) => fc !== null);
+          const targetIdx = s.player.field.findIndex((fc) => fc != null);
           const next = castSpell(s, spellIdx, targetIdx >= 0 ? targetIdx : void 0);
           if (next !== s) {
             s = next;
             continue;
           }
         } else {
-          const allyIdx = side.field.findIndex((fc) => fc !== null);
+          const allyIdx = side.field.findIndex((fc) => fc != null);
           const next = castSpell(s, spellIdx, allyIdx >= 0 ? allyIdx : void 0);
           if (next !== s) {
             s = next;
@@ -8808,7 +8808,7 @@ function performAITurn(state) {
         }
       }
     }
-    const attackerIdx = side.field.findIndex((fc) => fc !== null && !fc.stunned && !fc.attackedThisTurn);
+    const attackerIdx = side.field.findIndex((fc) => fc != null && !fc.stunned && !fc.attackedThisTurn);
     if (attackerIdx !== -1) {
       const fc = side.field[attackerIdx];
       const shouldUseAbility = !fc.abilityUsed && fc.abilityRechargeIn === void 0 && (difficulty === "hard" ? true : s.rng() < 0.3);
