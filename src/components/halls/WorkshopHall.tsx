@@ -146,13 +146,8 @@ export default function WorkshopHall({
           });
           const qs = progressQuest(loadDailyQuests(), "craft_card");
           saveDailyQuests(qs);
-        } else {
-          toast({
-            title: "Fusion failed",
-            description: "Could not complete fusion. Check gold and card eligibility, then try again.",
-            variant: "destructive",
-          });
         }
+        // Online failure: usePlayerApi toast already shows the server message
       } else {
         const result = performFusion(playerState, activeFuseRecipe, ids);
         if (result) {
@@ -187,12 +182,6 @@ export default function WorkshopHall({
           clearAll();
           const qs = progressQuest(loadDailyQuests(), "craft_card");
           saveDailyQuests(qs);
-        } else {
-          toast({
-            title: "Sacrifice failed",
-            description: "Could not complete sacrifice. Try again.",
-            variant: "destructive",
-          });
         }
       } else {
         const result = performSacrifice(playerState, ids);

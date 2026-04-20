@@ -41,7 +41,7 @@ import * as raidCoop from "./raidCoopEngine.mjs";
 import { RAID_BOSS_GOLD_MULTIPLIER } from "./lib/raidBossGold.mjs";
 import { pickRandomDropCard, buildDropEmbed, processCardClaim } from "./lib/cardDrop.mjs";
 import { SEASONAL_EVENTS, getSeasonalEventById, isEventActive } from "./lib/seasonalEvents.mjs";
-import { getRewardForNextDay } from "./lib/dailyPathRewards.mjs";
+import { getRewardForNextDay, getRewardsForPath } from "./lib/dailyPathRewards.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: join(__dirname, "..", ".env") });
@@ -2935,6 +2935,74 @@ async function handleDailyLoginClaim(req, res) {
   }
 }
 
+/** Grants card rewards for already-claimed daily days when rows were never written (e.g. old client-only claims). Idempotent. */
+async function handleDailyLoginRepair(req, res) {
+  const user = await requireAuth(req, res);
+  if (!user) return;
+
+  try {
+    const out = await prisma.$transaction(async (tx) => {
+      const p = await tx.player.findUnique({
+        where: { discordId: user.id },
+        include: { cards: true },
+      });
+      if (!p) {
+        const err = new Error("Player not found");
+        err.statusCode = 404;
+        throw err;
+      }
+
+      const rawDl = p.dailyLogin && typeof p.dailyLogin === "object" ? p.dailyLogin : {};
+      const claimedDays = Array.isArray(rawDl.claimedDays)
+        ? rawDl.claimedDays.map(Number).filter((n) => n >= 1 && n <= 7)
+        : [];
+
+      if (claimedDays.length === 0) {
+        return { repaired: false, repairedCardIds: [], state: playerToClientState(p, p.cards) };
+      }
+
+      const owned = new Set(p.cards.map((c) => c.cardId));
+      const list = getRewardsForPath(p.selectedPath);
+      const repairedCardIds = [];
+      let stardustInc = 0;
+
+      for (const day of claimedDays) {
+        const reward = list.find((r) => r.day === day);
+        if (reward?.type === "card" && reward.cardId && !owned.has(reward.cardId)) {
+          const { stardustEarned } = await grantCardPullStyle(tx, p.id, reward.cardId);
+          stardustInc += stardustEarned;
+          repairedCardIds.push(reward.cardId);
+          owned.add(reward.cardId);
+        }
+      }
+
+      if (repairedCardIds.length === 0) {
+        return { repaired: false, repairedCardIds: [], state: playerToClientState(p, p.cards) };
+      }
+
+      if (stardustInc > 0) {
+        await tx.player.update({
+          where: { id: p.id },
+          data: { stardust: { increment: stardustInc } },
+        });
+      }
+
+      const updated = await tx.player.findUnique({
+        where: { id: p.id },
+        include: { cards: true },
+      });
+      return { repaired: true, repairedCardIds, state: playerToClientState(updated, updated.cards) };
+    });
+
+    return sendJson(res, 200, out);
+  } catch (e) {
+    const code = e?.statusCode || 500;
+    if (code === 404) return sendJson(res, 404, { error: e.message || "Not found" });
+    console.error("[daily-login/repair]", e);
+    return sendJson(res, 500, { error: "Repair failed" });
+  }
+}
+
 // ─── Card Pull API ─────────────────────────────────────────────────────────────
 
 async function handleCardPull(req, res) {
@@ -3565,6 +3633,10 @@ async function handleCraftFuse(req, res) {
   if (!Array.isArray(selectedCardIds) || selectedCardIds.length !== recipe.inputCount) {
     return sendJson(res, 400, { error: `Must select exactly ${recipe.inputCount} cards` });
   }
+  const uniqueIds = [...new Set(selectedCardIds.map((id) => String(id)))];
+  if (uniqueIds.length !== recipe.inputCount) {
+    return sendJson(res, 400, { error: "Fusion requires three different cards" });
+  }
 
   let resultCardId = "";
   try {
@@ -3585,7 +3657,7 @@ async function handleCraftFuse(req, res) {
           throw err;
         }
 
-        for (const cardId of selectedCardIds) {
+        for (const cardId of uniqueIds) {
           const sid = String(cardId);
           const owned = p.cards.find((c) => c.cardId === sid);
           if (!owned) {
@@ -3623,7 +3695,7 @@ async function handleCraftFuse(req, res) {
           throw err;
         }
 
-        for (const cardId of selectedCardIds) {
+        for (const cardId of uniqueIds) {
           const sid = String(cardId);
           const card = p.cards.find((c) => c.cardId === sid);
           if (card) await tx.cardProgress.delete({ where: { id: card.id } });
@@ -3646,11 +3718,15 @@ async function handleCraftFuse(req, res) {
 
         return chosen;
       },
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 5000, timeout: 15000 },
+      { maxWait: 5000, timeout: 15000 },
     );
   } catch (e) {
     const code = e?.statusCode || 500;
     if (code === 400 || code === 404) return sendJson(res, code, { error: e.message || "Bad request" });
+    const pCode = e?.code;
+    if (pCode === "P2034" || pCode === "P2028") {
+      return sendJson(res, 503, { error: "Fusion timed out — please try again" });
+    }
     console.error("[craft/fuse]", e);
     return sendJson(res, 500, { error: "Fusion failed" });
   }
@@ -3977,6 +4053,7 @@ const server = http.createServer(async (req, res) => {
     if (method === "GET" && path === "/api/cards") return await handleGetCards(req, res);
     if (method === "POST" && path === "/api/cards/pull") return await handleCardPull(req, res);
     if (method === "POST" && path === "/api/player/daily-login-claim") return await handleDailyLoginClaim(req, res);
+    if (method === "POST" && path === "/api/player/daily-login-repair") return await handleDailyLoginRepair(req, res);
     if (method === "GET" && path === "/api/decks") return await handleGetDecks(req, res);
     if (method === "POST" && path === "/api/decks") return await handlePostDeck(req, res);
     if (method === "POST" && path === "/api/battle/start") return await handleBattleStart(req, res);

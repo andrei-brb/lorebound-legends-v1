@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { type PlayerState, loadPlayerState, savePlayerState, normalizePlayerState, mergeClientOnlyPlayerState } from "./playerState";
+import { hasClaimedMissingDailyCardRewards } from "./dailyPathRewards";
 import { api, isAuthenticated } from "./apiClient";
+import { toast } from "@/hooks/use-toast";
 
 type LoadingStatus = "loading" | "ready" | "error";
 
@@ -73,8 +75,13 @@ export function usePlayerApi(): UsePlayerApiReturn {
   const online = isAuthenticated();
   const [status, setStatus] = useState<LoadingStatus>(online ? "loading" : "ready");
   const [playerState, setPlayerStateInternal] = useState<PlayerState>(loadPlayerState);
+  const playerRef = useRef<PlayerState>(loadPlayerState);
   const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bpSyncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    playerRef.current = playerState;
+  }, [playerState]);
 
   useEffect(() => {
     if (!online) return;
@@ -105,7 +112,15 @@ export function usePlayerApi(): UsePlayerApiReturn {
         localStorage.setItem(MIGRATION_KEY, "1");
         const freshLocal = loadPlayerState();
         const serverState = normalizePlayerState(await api.getPlayer() as PlayerState);
-        const merged = mergeClientOnlyPlayerState(serverState, freshLocal);
+        let merged = mergeClientOnlyPlayerState(serverState, freshLocal);
+        if (hasClaimedMissingDailyCardRewards(merged)) {
+          try {
+            const repair = await api.repairDailyLoginCards();
+            merged = mergeClientOnlyPlayerState(normalizePlayerState(repair.state), merged);
+          } catch (repairErr) {
+            console.error("[usePlayerApi] daily-login repair failed:", repairErr);
+          }
+        }
         if (!cancelled) {
           setPlayerStateInternal(merged);
           savePlayerState(merged);
@@ -245,6 +260,8 @@ export function usePlayerApi(): UsePlayerApiReturn {
         return { resultCardId: result.resultCardId };
       } catch (err) {
         console.error("[usePlayerApi] craftFuse failed:", err);
+        const msg = err instanceof Error ? err.message : "Fusion failed";
+        toast({ title: "Fusion failed", description: msg, variant: "destructive" });
         return null;
       }
     },
@@ -265,6 +282,8 @@ export function usePlayerApi(): UsePlayerApiReturn {
         return { totalStardust: result.totalStardust };
       } catch (err) {
         console.error("[usePlayerApi] craftSacrifice failed:", err);
+        const msg = err instanceof Error ? err.message : "Sacrifice failed";
+        toast({ title: "Sacrifice failed", description: msg, variant: "destructive" });
         return null;
       }
     },
@@ -315,13 +334,11 @@ export function usePlayerApi(): UsePlayerApiReturn {
     try {
       const result = await api.claimDailyLogin();
       const server = normalizePlayerState(result.state);
-      let merged: PlayerState | undefined;
-      setPlayerStateInternal((prev) => {
-        merged = mergeClientOnlyPlayerState(server, prev);
-        savePlayerState(merged);
-        return merged;
-      });
-      return { preview: result.preview, state: merged! };
+      const merged = mergeClientOnlyPlayerState(server, playerRef.current);
+      playerRef.current = merged;
+      savePlayerState(merged);
+      setPlayerStateInternal(merged);
+      return { preview: result.preview, state: merged };
     } catch (err) {
       console.error("[usePlayerApi] claimDailyLogin failed:", err);
       return null;

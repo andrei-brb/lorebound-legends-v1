@@ -7,7 +7,6 @@ import { GoldCurrencyIcon } from "@/components/CurrencyIcons";
 import { allCards, type Rarity } from "@/data/cards";
 import { FUSION_RECIPES, performFusion, performSacrifice, canFuse, type FusionRecipe } from "@/lib/craftingEngine";
 import type { PlayerState } from "@/lib/playerState";
-import { toast } from "@/hooks/use-toast";
 import { loadDailyQuests, progressQuest, saveDailyQuests } from "@/lib/questEngine";
 import SacrificeAnimation from "./SacrificeAnimation";
 import PackOpening from "./PackOpening";
@@ -63,8 +62,6 @@ export default function CraftingWorkshop({ playerState, onStateChange, isOnline,
           cardIsNew: [!preOwned.has(result.resultCardId)],
         });
         const qs = progressQuest(loadDailyQuests(), "craft_card"); saveDailyQuests(qs);
-      } else {
-        toast({ title: "Fusion failed", description: "Could not complete fusion. Try again.", variant: "destructive" });
       }
     } else {
       const result = performFusion(playerState, selectedRecipe, selectedCards);
@@ -90,8 +87,6 @@ export default function CraftingWorkshop({ playerState, onStateChange, isOnline,
       if (result) {
         setSacrificeAnim({ cardIds: sacrificedIds, stardust: result.totalStardust });
         const qs = progressQuest(loadDailyQuests(), "craft_card"); saveDailyQuests(qs);
-      } else {
-        toast({ title: "Sacrifice failed", description: "Could not complete sacrifice. Try again.", variant: "destructive" });
       }
     } else {
       const result = performSacrifice(playerState, selectedCards);
