@@ -3668,6 +3668,10 @@ async function handleCraftFuse(req, res) {
   if (uniqueIds.length !== recipe.inputCount) {
     return sendJson(res, 400, { error: "Fusion requires three different cards" });
   }
+  const invalidIds = uniqueIds.filter((id) => !ALL_CARD_IDS.includes(id));
+  if (invalidIds.length > 0) {
+    return sendJson(res, 400, { error: `Unknown card ids: ${invalidIds.slice(0, 12).join(", ")}` });
+  }
 
   let resultCardId = "";
   try {
@@ -3758,8 +3762,16 @@ async function handleCraftFuse(req, res) {
     if (pCode === "P2034" || pCode === "P2028") {
       return sendJson(res, 503, { error: "Fusion timed out — please try again" });
     }
+    // Surface a safe diagnostic so clients can report exact failure cause.
+    // (No secrets: only Prisma code + message.)
+    const diag = [
+      pCode ? `code=${String(pCode)}` : null,
+      e?.message ? `msg=${String(e.message).slice(0, 160)}` : null,
+    ]
+      .filter(Boolean)
+      .join(" ");
     console.error("[craft/fuse]", e);
-    return sendJson(res, 500, { error: "Fusion failed" });
+    return sendJson(res, 500, { error: diag ? `Fusion failed (${diag})` : "Fusion failed" });
   }
 
   const updated = await prisma.player.findUnique({ where: { discordId: user.id }, include: { cards: true } });
