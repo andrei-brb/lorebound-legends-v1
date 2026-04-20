@@ -130,15 +130,21 @@ export const api = {
     }>(res);
   },
 
-  async repairDailyLoginCards() {
+  async repairDailyLoginCards(payload?: {
+    claimedDays?: number[];
+    selectedPath?: string | null;
+    streak?: number;
+    lastClaimDate?: string | null;
+  }) {
     const res = await fetch(`${getApiBase()}/api/player/daily-login-repair`, {
       method: "POST",
       headers: getHeaders(),
-      body: JSON.stringify({}),
+      body: JSON.stringify(payload ?? {}),
     });
     return handleResponse<{
       repaired: boolean;
       repairedCardIds: string[];
+      syncedDailyLogin?: boolean;
       state: import("./playerState").PlayerState;
     }>(res);
   },

@@ -5,7 +5,6 @@ import {
   savePlayerState,
   normalizePlayerState,
   mergeClientOnlyPlayerState,
-  hasClaimedMissingDailyCardRewards,
 } from "./playerState";
 import { toast } from "@/hooks/use-toast";
 import { api, isAuthenticated } from "./apiClient";
@@ -119,9 +118,15 @@ export function usePlayerApi(): UsePlayerApiReturn {
         const freshLocal = loadPlayerState();
         const serverState = normalizePlayerState(await api.getPlayer() as PlayerState);
         let merged = mergeClientOnlyPlayerState(serverState, freshLocal);
-        if (hasClaimedMissingDailyCardRewards(merged)) {
+        const claimed = merged.dailyLogin?.claimedDays?.length ?? 0;
+        if (claimed > 0) {
           try {
-            const repair = await api.repairDailyLoginCards();
+            const repair = await api.repairDailyLoginCards({
+              claimedDays: merged.dailyLogin?.claimedDays ?? [],
+              selectedPath: merged.selectedPath ?? null,
+              streak: merged.dailyLogin?.streak,
+              lastClaimDate: merged.dailyLogin?.lastClaimDate ?? null,
+            });
             merged = mergeClientOnlyPlayerState(normalizePlayerState(repair.state), merged);
             if (repair.repaired && repair.repairedCardIds.length > 0) {
               toast({

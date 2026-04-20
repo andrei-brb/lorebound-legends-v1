@@ -2941,6 +2941,11 @@ async function handleDailyLoginRepair(req, res) {
   if (!user) return;
 
   try {
+    const body = await readJsonBody(req);
+    const bodyClaimed = Array.isArray(body.claimedDays)
+      ? body.claimedDays.map(Number).filter((n) => n >= 1 && n <= 7)
+      : [];
+
     const out = await prisma.$transaction(async (tx) => {
       const p = await tx.player.findUnique({
         where: { discordId: user.id },
@@ -2953,16 +2958,20 @@ async function handleDailyLoginRepair(req, res) {
       }
 
       const rawDl = p.dailyLogin && typeof p.dailyLogin === "object" ? p.dailyLogin : {};
-      const claimedDays = Array.isArray(rawDl.claimedDays)
+      const dbClaimed = Array.isArray(rawDl.claimedDays)
         ? rawDl.claimedDays.map(Number).filter((n) => n >= 1 && n <= 7)
         : [];
+      /** DB-only claims, or union with client when DB never stored streak (localStorage had progress). */
+      const claimedDays = [...new Set([...dbClaimed, ...bodyClaimed])].sort((a, b) => a - b);
 
       if (claimedDays.length === 0) {
         return { repaired: false, repairedCardIds: [], state: playerToClientState(p, p.cards) };
       }
 
+      const rawPath = p.selectedPath || body.selectedPath || null;
+      const path = rawPath && ["fire", "nature", "shadow"].includes(String(rawPath)) ? String(rawPath) : null;
       const owned = new Set(p.cards.map((c) => c.cardId));
-      const list = getRewardsForPath(p.selectedPath);
+      const list = getRewardsForPath(path);
       const repairedCardIds = [];
       let stardustInc = 0;
 
@@ -2976,16 +2985,38 @@ async function handleDailyLoginRepair(req, res) {
         }
       }
 
+      const dailyPatch = {
+        streak: Number(rawDl.streak) || Number(body.streak) || 0,
+        lastClaimDate: rawDl.lastClaimDate != null ? rawDl.lastClaimDate : (body.lastClaimDate ?? null),
+        claimedDays,
+      };
+
       if (repairedCardIds.length === 0) {
+        const needsDailyPersist =
+          claimedDays.length > 0 &&
+          (dbClaimed.length !== claimedDays.length ||
+            JSON.stringify([...dbClaimed].sort()) !== JSON.stringify(claimedDays));
+        if (needsDailyPersist) {
+          await tx.player.update({
+            where: { id: p.id },
+            data: { dailyLogin: dailyPatch },
+          });
+          const updated = await tx.player.findUnique({
+            where: { id: p.id },
+            include: { cards: true },
+          });
+          return { repaired: false, repairedCardIds: [], state: playerToClientState(updated, updated.cards), syncedDailyLogin: true };
+        }
         return { repaired: false, repairedCardIds: [], state: playerToClientState(p, p.cards) };
       }
 
-      if (stardustInc > 0) {
-        await tx.player.update({
-          where: { id: p.id },
-          data: { stardust: { increment: stardustInc } },
-        });
-      }
+      const data = { dailyLogin: dailyPatch };
+      if (stardustInc > 0) data.stardust = { increment: stardustInc };
+
+      await tx.player.update({
+        where: { id: p.id },
+        data,
+      });
 
       const updated = await tx.player.findUnique({
         where: { id: p.id },
