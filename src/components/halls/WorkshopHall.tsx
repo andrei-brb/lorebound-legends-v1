@@ -67,12 +67,14 @@ export default function WorkshopHall({
   const [fuseReveal, setFuseReveal] = useState<{ cardIds: string[]; cardIsNew: boolean[] } | null>(null);
   const [sacrificeAnim, setSacrificeAnim] = useState<{ cardIds: string[]; stardust: number } | null>(null);
 
+  // Crafting currently only supports the base set (server crafting pool mirrors `allCards`).
+  // Exclude seasonal/event cards here so they don't show up in fuse/sacrifice selection.
   const owned = useMemo(
     () =>
       playerState.ownedCardIds
-        .map((id) => allGameCards.find((c) => c.id === id))
-        .filter(Boolean) as typeof allGameCards,
-    [playerState.ownedCardIds]
+        .map((id) => allCards.find((c) => c.id === id))
+        .filter(Boolean) as typeof allCards,
+    [playerState.ownedCardIds],
   );
 
   const filtered = useMemo(
@@ -90,8 +92,8 @@ export default function WorkshopHall({
   const activeFuseRecipe = useMemo((): FusionRecipe | null => {
     if (mode !== "fuse" || filledSlots.length !== 3) return null;
     const cards = filledSlots
-      .map((id) => allGameCards.find((c) => c.id === id))
-      .filter(Boolean) as typeof allGameCards;
+      .map((id) => allCards.find((c) => c.id === id))
+      .filter(Boolean) as typeof allCards;
     if (cards.length !== 3) return null;
     const r = cards[0].rarity;
     if (!cards.every((c) => c.rarity === r)) return null;
@@ -145,6 +147,7 @@ export default function WorkshopHall({
   }, [filledSlots, mode]);
 
   const placeInSlot = (cardId: string) => {
+    if (!allCards.some((c) => c.id === cardId)) return;
     const idx = slots.findIndex((s) => s === null);
     if (idx === -1) return;
     setSlots((s) => s.map((v, i) => (i === idx ? cardId : v)));
