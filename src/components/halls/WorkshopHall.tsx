@@ -4,10 +4,22 @@ import { Sparkles, Flame, Plus, X, ChevronDown, Filter, ArrowRight } from "lucid
 import type { PlayerState } from "@/lib/playerState";
 import GlassPanel from "@/components/scene/GlassPanel";
 import GameCard from "@/components/GameCard";
+import PackOpening from "@/components/PackOpening";
+import SacrificeAnimation from "@/components/SacrificeAnimation";
 import { allGameCards } from "@/data/cardIndex";
 import type { Rarity } from "@/data/cards";
 import { cn } from "@/lib/utils";
 import { texForge } from "@/components/scene/panelTextures";
+import {
+  FUSION_RECIPES,
+  SACRIFICE_STARDUST,
+  canFuse,
+  performFusion,
+  performSacrifice,
+  type FusionRecipe,
+} from "@/lib/craftingEngine";
+import { loadDailyQuests, progressQuest, saveDailyQuests } from "@/lib/questEngine";
+import { toast } from "@/hooks/use-toast";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,7 +27,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-interface Props { playerState: PlayerState; onStateChange: (s: PlayerState) => void }
+interface Props {
+  playerState: PlayerState;
+  onStateChange: (s: PlayerState) => void;
+  isOnline: boolean;
+  craftFuse: (inputRarity: string, selectedCardIds: string[]) => Promise<{ resultCardId: string } | null>;
+  craftSacrifice: (cardIds: string[]) => Promise<{ totalStardust: number } | null>;
+}
 
 type Mode = "fuse" | "sacrifice";
 type RarityFilter = "all" | Rarity;
@@ -34,10 +52,19 @@ const NEXT_RARITY: Record<Rarity, Rarity> = {
   legendary: "legendary",
 };
 
-export default function WorkshopHall({ playerState }: Props) {
+export default function WorkshopHall({
+  playerState,
+  onStateChange,
+  isOnline,
+  craftFuse,
+  craftSacrifice,
+}: Props) {
   const [mode, setMode] = useState<Mode>("fuse");
   const [rarityFilter, setRarityFilter] = useState<RarityFilter>("all");
   const [slots, setSlots] = useState<(string | null)[]>([null, null, null]);
+  const [working, setWorking] = useState(false);
+  const [fuseReveal, setFuseReveal] = useState<{ cardIds: string[]; cardIsNew: boolean[] } | null>(null);
+  const [sacrificeAnim, setSacrificeAnim] = useState<{ cardIds: string[]; stardust: number } | null>(null);
 
   const owned = useMemo(
     () =>
@@ -58,6 +85,28 @@ export default function WorkshopHall({ playerState }: Props) {
 
   const filledSlots = slots.filter((s): s is string => s !== null);
   const ready = filledSlots.length === 3;
+
+  const activeFuseRecipe = useMemo((): FusionRecipe | null => {
+    if (mode !== "fuse" || filledSlots.length !== 3) return null;
+    const cards = filledSlots
+      .map((id) => allGameCards.find((c) => c.id === id))
+      .filter(Boolean) as typeof allGameCards;
+    if (cards.length !== 3) return null;
+    const r = cards[0].rarity;
+    if (!cards.every((c) => c.rarity === r)) return null;
+    return FUSION_RECIPES.find((rec) => rec.inputRarity === r) ?? null;
+  }, [mode, filledSlots]);
+
+  const fuseAllowed =
+    !!activeFuseRecipe && canFuse(playerState, activeFuseRecipe, filledSlots);
+
+  const sacrificePreview = useMemo(() => {
+    if (mode !== "sacrifice") return 0;
+    return filledSlots.reduce((sum, id) => {
+      const c = allGameCards.find((x) => x.id === id);
+      return sum + (c ? SACRIFICE_STARDUST[c.rarity] : 0);
+    }, 0);
+  }, [mode, filledSlots]);
 
   // Result preview: in fuse mode, show predicted next-rarity hint
   const resultRarity: Rarity | null = useMemo(() => {
@@ -80,6 +129,91 @@ export default function WorkshopHall({ playerState }: Props) {
   };
 
   const clearAll = () => setSlots([null, null, null]);
+
+  const handleFuse = async () => {
+    if (!activeFuseRecipe || !fuseAllowed || working) return;
+    const ids = [...filledSlots];
+    setWorking(true);
+    try {
+      if (isOnline) {
+        const preOwned = new Set(playerState.ownedCardIds);
+        const result = await craftFuse(activeFuseRecipe.inputRarity, ids);
+        if (result) {
+          clearAll();
+          setFuseReveal({
+            cardIds: [result.resultCardId],
+            cardIsNew: [!preOwned.has(result.resultCardId)],
+          });
+          const qs = progressQuest(loadDailyQuests(), "craft_card");
+          saveDailyQuests(qs);
+        } else {
+          toast({
+            title: "Fusion failed",
+            description: "Could not complete fusion. Check gold and card eligibility, then try again.",
+            variant: "destructive",
+          });
+        }
+      } else {
+        const result = performFusion(playerState, activeFuseRecipe, ids);
+        if (result) {
+          const wasNew = !playerState.ownedCardIds.includes(result.resultCardId);
+          onStateChange(result.playerState);
+          clearAll();
+          setFuseReveal({ cardIds: [result.resultCardId], cardIsNew: [wasNew] });
+          const qs = progressQuest(loadDailyQuests(), "craft_card");
+          saveDailyQuests(qs);
+        } else {
+          toast({
+            title: "Cannot fuse",
+            description: "Need three same-rarity cards (common or rare) and enough gold.",
+            variant: "destructive",
+          });
+        }
+      }
+    } finally {
+      setWorking(false);
+    }
+  };
+
+  const handleSacrifice = async () => {
+    if (filledSlots.length === 0 || working) return;
+    const ids = [...filledSlots];
+    setWorking(true);
+    try {
+      if (isOnline) {
+        const result = await craftSacrifice(ids);
+        if (result) {
+          setSacrificeAnim({ cardIds: ids, stardust: result.totalStardust });
+          clearAll();
+          const qs = progressQuest(loadDailyQuests(), "craft_card");
+          saveDailyQuests(qs);
+        } else {
+          toast({
+            title: "Sacrifice failed",
+            description: "Could not complete sacrifice. Try again.",
+            variant: "destructive",
+          });
+        }
+      } else {
+        const result = performSacrifice(playerState, ids);
+        if (result) {
+          onStateChange(result.playerState);
+          setSacrificeAnim({ cardIds: ids, stardust: result.totalStardust });
+          clearAll();
+          const qs = progressQuest(loadDailyQuests(), "craft_card");
+          saveDailyQuests(qs);
+        } else {
+          toast({
+            title: "Cannot sacrifice",
+            description: "Those cards could not be sacrificed (unsupported or not owned).",
+            variant: "destructive",
+          });
+        }
+      }
+    } finally {
+      setWorking(false);
+    }
+  };
 
   const outputHue = resultRarity ? RARITY_HUE[resultRarity] : "var(--epic)";
 
@@ -209,23 +343,46 @@ export default function WorkshopHall({ playerState }: Props) {
             )}
             {mode === "sacrifice" && filledSlots.length > 0 && (
               <span className="absolute bottom-1 inset-x-0 text-center text-[9px] font-heading uppercase tracking-wider text-[hsl(var(--rare))]">
-                +{filledSlots.length * 25}
+                +{sacrificePreview} stardust
               </span>
             )}
           </div>
         </div>
 
         {/* Action button */}
-        <div className="flex justify-center mb-6">
+        <div className="flex flex-col items-center gap-2 mb-6">
+          {mode === "fuse" && filledSlots.length === 3 && !activeFuseRecipe && (
+            <p className="text-[10px] text-center text-muted-foreground max-w-sm px-2">
+              Fusion needs three cards of the same rarity: three commons or three rares (three legendaries cannot be fused here).
+            </p>
+          )}
+          {mode === "fuse" && activeFuseRecipe && !fuseAllowed && (
+            <p className="text-[10px] text-center text-destructive/90 max-w-sm px-2">
+              Need {activeFuseRecipe.goldCost} gold to fuse (you have {playerState.gold}).
+            </p>
+          )}
           <button
-            disabled={mode === "fuse" ? !ready : filledSlots.length === 0}
+            type="button"
+            onClick={mode === "fuse" ? handleFuse : handleSacrifice}
+            disabled={
+              working ||
+              (mode === "fuse" ? !fuseAllowed : filledSlots.length === 0)
+            }
             className="px-8 py-2.5 rounded-full font-heading text-xs uppercase tracking-widest text-background disabled:opacity-30 disabled:cursor-not-allowed transition-all"
             style={{
               background: `linear-gradient(135deg, hsl(${outputHue}), hsl(var(--legendary)))`,
               boxShadow: ready || filledSlots.length > 0 ? `0 0 20px hsl(${outputHue} / 0.4)` : undefined,
             }}
           >
-            {mode === "fuse" ? "Forge" : "Sacrifice"}
+            {working
+              ? mode === "fuse"
+                ? "Fusing…"
+                : "Sacrificing…"
+              : mode === "fuse"
+                ? activeFuseRecipe
+                  ? `Fuse (${activeFuseRecipe.goldCost} gold)`
+                  : "Fuse"
+                : "Sacrifice"}
           </button>
         </div>
 
@@ -293,6 +450,26 @@ export default function WorkshopHall({ playerState }: Props) {
           </div>
         )}
       </GlassPanel>
+
+      <AnimatePresence>
+        {fuseReveal && (
+          <PackOpening
+            cardIds={fuseReveal.cardIds}
+            cardIsNew={fuseReveal.cardIsNew}
+            playerState={playerState}
+            onComplete={() => setFuseReveal(null)}
+          />
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {sacrificeAnim && (
+          <SacrificeAnimation
+            cardIds={sacrificeAnim.cardIds}
+            totalStardust={sacrificeAnim.stardust}
+            onComplete={() => setSacrificeAnim(null)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }

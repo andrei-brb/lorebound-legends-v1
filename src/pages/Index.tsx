@@ -558,7 +558,15 @@ export default function Index() {
               />
             )}
             {activeTab === "quests" && <QuestsHall playerState={playerState} onStateChange={setPlayerState} />}
-            {activeTab === "workshop" && <WorkshopHall playerState={playerState} onStateChange={setPlayerState} />}
+            {activeTab === "workshop" && (
+              <WorkshopHall
+                playerState={playerState}
+                onStateChange={setPlayerState}
+                isOnline={isOnline}
+                craftFuse={craftFuse}
+                craftSacrifice={craftSacrifice}
+              />
+            )}
             {activeTab === "achievements" && <BadgesHall playerState={playerState} />}
             {activeTab === "leaderboard" && <RanksHall playerState={playerState} isOnline={isOnline} />}
             {activeTab === "trade" && <TradeHall playerState={playerState} onStateChange={setPlayerState} />}
