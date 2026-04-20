@@ -37,6 +37,23 @@ interface UsePlayerApiReturn {
   craftFuse: (inputRarity: string, selectedCardIds: string[]) => Promise<{ resultCardId: string } | null>;
   craftSacrifice: (cardIds: string[]) => Promise<{ totalStardust: number } | null>;
   pullSeasonalPack: (eventId: string) => Promise<{ cardIds: string[]; state: PlayerState } | null>;
+  claimDailyLogin: () => Promise<{
+    preview: {
+      kind: string;
+      label: string;
+      amount?: number;
+      cardId?: string | null;
+      pullResults?: Array<{
+        cardId: string;
+        isDuplicate: boolean;
+        stardustEarned: number;
+        newGoldStar: boolean;
+        newRedStar: boolean;
+        rarity: string;
+      }>;
+    };
+    state: PlayerState;
+  } | null>;
   startPveBattle: (body: {
     deckCardIds: string[];
     raidBossId?: string;
@@ -293,6 +310,24 @@ export function usePlayerApi(): UsePlayerApiReturn {
     [online],
   );
 
+  const claimDailyLogin = useCallback(async () => {
+    if (!online) return null;
+    try {
+      const result = await api.claimDailyLogin();
+      const server = normalizePlayerState(result.state);
+      let merged: PlayerState | undefined;
+      setPlayerStateInternal((prev) => {
+        merged = mergeClientOnlyPlayerState(server, prev);
+        savePlayerState(merged);
+        return merged;
+      });
+      return { preview: result.preview, state: merged! };
+    } catch (err) {
+      console.error("[usePlayerApi] claimDailyLogin failed:", err);
+      return null;
+    }
+  }, [online]);
+
   return {
     playerState,
     setPlayerState,
@@ -305,6 +340,7 @@ export function usePlayerApi(): UsePlayerApiReturn {
     craftFuse,
     craftSacrifice,
     pullSeasonalPack,
+    claimDailyLogin,
     startPveBattle,
   };
 }

@@ -105,6 +105,31 @@ export const api = {
     }>(res);
   },
 
+  async claimDailyLogin() {
+    const res = await fetch(`${getApiBase()}/api/player/daily-login-claim`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({}),
+    });
+    return handleResponse<{
+      preview: {
+        kind: string;
+        label: string;
+        amount?: number;
+        cardId?: string | null;
+        pullResults?: Array<{
+          cardId: string;
+          isDuplicate: boolean;
+          stardustEarned: number;
+          newGoldStar: boolean;
+          newRedStar: boolean;
+          rarity: string;
+        }>;
+      };
+      state: import("./playerState").PlayerState;
+    }>(res);
+  },
+
   async patchCard(cardId: string, action: string, extra?: Record<string, unknown>) {
     const res = await fetch(`${getApiBase()}/api/cards/${cardId}`, {
       method: "PATCH",

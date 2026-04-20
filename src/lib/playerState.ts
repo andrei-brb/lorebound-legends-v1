@@ -285,13 +285,25 @@ export const CLIENT_ONLY_PLAYER_KEYS: (keyof PlayerState)[] = [
   "profile",
   "unlockedAvatars",
   "unlockedTitles",
-  "dailyLogin",
   "lastChestClaimAt",
   "firstWinDate",
   "mysteryBoxesPending",
   "settings",
   "tutorialsCompleted",
 ];
+
+function mergeDailyLoginPreferProgress(server: PlayerState, local: PlayerState): DailyLoginState {
+  const s = normalizeDailyLogin(server.dailyLogin);
+  const l = normalizeDailyLogin(local.dailyLogin);
+  const sn = s.claimedDays.length;
+  const ln = l.claimedDays.length;
+  if (ln > sn) return l;
+  if (sn > ln) return s;
+  const sDate = s.lastClaimDate ?? "";
+  const lDate = l.lastClaimDate ?? "";
+  if (lDate > sDate) return l;
+  return s;
+}
 
 /** Merge server-authoritative `server` with client-only fields from `local` (previous / localStorage). */
 export function mergeClientOnlyPlayerState(server: PlayerState, local: PlayerState): PlayerState {
@@ -302,6 +314,7 @@ export function mergeClientOnlyPlayerState(server: PlayerState, local: PlayerSta
       (merged as Record<string, unknown>)[key as string] = v as unknown;
     }
   }
+  merged.dailyLogin = mergeDailyLoginPreferProgress(server, local);
   return normalizePlayerState(merged);
 }
 

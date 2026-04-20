@@ -1,13 +1,44 @@
-import { Gift, Calendar, Coins, Sparkles, CheckCircle2, Lock, Star } from "lucide-react";
+/**
+ * Path rewards must match `server/lib/dailyPathRewards.mjs` for online claims.
+ */
+import { useState, useCallback } from "react";
+import { Gift, Calendar, Sparkles, CheckCircle2, Lock, Star, Package } from "lucide-react";
 import type { PlayerState, FactionPath } from "@/lib/playerState";
 import { addCardToCollection } from "@/lib/playerState";
-import { allCards } from "@/data/cards";
+import { allCards, type GameCard } from "@/data/cards";
+import { getCardById } from "@/data/cardIndex";
 import HallLayout, { HallSection, HallStat } from "@/components/scene/HallLayout";
 import GlassPanel from "@/components/scene/GlassPanel";
 import { texTreasure, texParchment, texVelvet, texGilded, texCosmic } from "@/components/scene/panelTextures";
 import { cn } from "@/lib/utils";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { toast } from "@/hooks/use-toast";
+import { GoldCurrencyIcon, StardustCurrencyIcon } from "@/components/CurrencyIcons";
+import GameCard from "@/components/GameCard";
+import { PACK_DEFINITIONS, pullCards } from "@/lib/gachaEngine";
+import bronzePackImg from "@/assets/packs/bronze-pack.jpg";
 
-interface Props { playerState: PlayerState; onStateChange: (s: PlayerState) => void }
+export type DailyClaimPreview = {
+  kind: string;
+  label: string;
+  amount?: number;
+  cardId?: string | null;
+  pullResults?: Array<{
+    cardId: string;
+    isDuplicate: boolean;
+    stardustEarned: number;
+    newGoldStar: boolean;
+    newRedStar: boolean;
+    rarity: string;
+  }>;
+};
+
+interface Props {
+  playerState: PlayerState;
+  onStateChange: (s: PlayerState) => void;
+  isOnline?: boolean;
+  claimDailyLogin?: () => Promise<{ preview: DailyClaimPreview; state: PlayerState } | null>;
+}
 
 type RewardType = "gold" | "stardust" | "pack" | "card";
 
@@ -21,42 +52,42 @@ interface DayReward {
 
 const FACTION_REWARDS: Record<FactionPath, DayReward[]> = {
   fire: [
-    { day: 1, type: "card", cardId: "terragon",      label: "Terragon" },
-    { day: 2, type: "card", cardId: "ferros",         label: "Ferros" },
-    { day: 3, type: "card", cardId: "hephara",        label: "Hephara (Rare)" },
-    { day: 4, type: "card", cardId: "aethon",         label: "Aethon" },
-    { day: 5, type: "card", cardId: "inferna",        label: "Inferna (Rare)" },
-    { day: 6, type: "gold", amount: 500,              label: "500 Gold" },
-    { day: 7, type: "pack", amount: 1,                label: "Bronze Pack" },
+    { day: 1, type: "card", cardId: "terragon", label: "Terragon" },
+    { day: 2, type: "card", cardId: "ferros", label: "Ferros" },
+    { day: 3, type: "card", cardId: "hephara", label: "Hephara (Rare)" },
+    { day: 4, type: "card", cardId: "aethon", label: "Aethon" },
+    { day: 5, type: "card", cardId: "inferna", label: "Inferna (Rare)" },
+    { day: 6, type: "gold", amount: 500, label: "500 Gold" },
+    { day: 7, type: "pack", amount: 1, label: "Bronze Pack" },
   ],
   nature: [
-    { day: 1, type: "card", cardId: "vitalis",        label: "Vitalis" },
-    { day: 2, type: "card", cardId: "healer",         label: "Healer" },
-    { day: 3, type: "card", cardId: "zephyros",       label: "Zephyros (Rare)" },
-    { day: 4, type: "card", cardId: "eirene",         label: "Eirene" },
-    { day: 5, type: "card", cardId: "verdantia",      label: "Verdantia (Rare)" },
-    { day: 6, type: "gold", amount: 500,              label: "500 Gold" },
-    { day: 7, type: "pack", amount: 1,                label: "Bronze Pack" },
+    { day: 1, type: "card", cardId: "vitalis", label: "Vitalis" },
+    { day: 2, type: "card", cardId: "healer", label: "Healer" },
+    { day: 3, type: "card", cardId: "zephyros", label: "Zephyros (Rare)" },
+    { day: 4, type: "card", cardId: "eirene", label: "Eirene" },
+    { day: 5, type: "card", cardId: "verdantia", label: "Verdantia (Rare)" },
+    { day: 6, type: "gold", amount: 500, label: "500 Gold" },
+    { day: 7, type: "pack", amount: 1, label: "Bronze Pack" },
   ],
   shadow: [
-    { day: 1, type: "card", cardId: "nekros",         label: "Nekros" },
-    { day: 2, type: "card", cardId: "obscura",        label: "Obscura" },
-    { day: 3, type: "card", cardId: "glacius",        label: "Glacius (Rare)" },
-    { day: 4, type: "card", cardId: "luminara",       label: "Luminara" },
-    { day: 5, type: "card", cardId: "umbra",          label: "Umbra (Rare)" },
-    { day: 6, type: "gold", amount: 500,              label: "500 Gold" },
-    { day: 7, type: "pack", amount: 1,                label: "Bronze Pack" },
+    { day: 1, type: "card", cardId: "nekros", label: "Nekros" },
+    { day: 2, type: "card", cardId: "obscura", label: "Obscura" },
+    { day: 3, type: "card", cardId: "glacius", label: "Glacius (Rare)" },
+    { day: 4, type: "card", cardId: "luminara", label: "Luminara" },
+    { day: 5, type: "card", cardId: "umbra", label: "Umbra (Rare)" },
+    { day: 6, type: "gold", amount: 500, label: "500 Gold" },
+    { day: 7, type: "pack", amount: 1, label: "Bronze Pack" },
   ],
 };
 
 const DEFAULT_REWARDS: DayReward[] = [
-  { day: 1, type: "gold",     amount: 50,  label: "50 Gold" },
-  { day: 2, type: "gold",     amount: 100, label: "100 Gold" },
-  { day: 3, type: "stardust", amount: 10,  label: "10 Stardust" },
-  { day: 4, type: "gold",     amount: 200, label: "200 Gold" },
-  { day: 5, type: "stardust", amount: 25,  label: "25 Stardust" },
-  { day: 6, type: "gold",     amount: 500, label: "500 Gold" },
-  { day: 7, type: "pack",     amount: 1,   label: "Bronze Pack" },
+  { day: 1, type: "gold", amount: 50, label: "50 Gold" },
+  { day: 2, type: "gold", amount: 100, label: "100 Gold" },
+  { day: 3, type: "stardust", amount: 10, label: "10 Stardust" },
+  { day: 4, type: "gold", amount: 200, label: "200 Gold" },
+  { day: 5, type: "stardust", amount: 25, label: "25 Stardust" },
+  { day: 6, type: "gold", amount: 500, label: "500 Gold" },
+  { day: 7, type: "pack", amount: 1, label: "Bronze Pack" },
 ];
 
 function getRewards(path: FactionPath | null): DayReward[] {
@@ -64,7 +95,45 @@ function getRewards(path: FactionPath | null): DayReward[] {
   return FACTION_REWARDS[path] ?? DEFAULT_REWARDS;
 }
 
-export default function DailyHall({ playerState, onStateChange }: Props) {
+function RewardTileArt({ r, cardInfo }: { r: DayReward; cardInfo?: GameCard | null }) {
+  if (r.type === "gold") {
+    return (
+      <div className="flex flex-col items-center justify-center gap-1 p-2">
+        <GoldCurrencyIcon className="w-10 h-10 drop-shadow-md" />
+        <span className="font-heading text-sm text-[hsl(var(--legendary))]">{r.amount}</span>
+      </div>
+    );
+  }
+  if (r.type === "stardust") {
+    return (
+      <div className="flex flex-col items-center justify-center gap-1 p-2">
+        <StardustCurrencyIcon className="w-10 h-10 drop-shadow-md" />
+        <span className="font-heading text-sm text-[hsl(var(--rare))]">{r.amount}</span>
+      </div>
+    );
+  }
+  if (r.type === "pack") {
+    return (
+      <div className="relative w-full h-full rounded-xl overflow-hidden">
+        <img src={bronzePackImg} alt="" className="absolute inset-0 w-full h-full object-cover opacity-85" />
+        <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
+        <div className="relative flex flex-col items-center justify-end h-full pb-2 gap-0.5">
+          <Package className="w-5 h-5 text-amber-400 drop-shadow" />
+          <span className="text-[9px] uppercase tracking-wide text-foreground/90 font-heading px-1 text-center leading-tight">Bronze</span>
+        </div>
+      </div>
+    );
+  }
+  if (cardInfo?.image) {
+    return <img src={cardInfo.image} alt={cardInfo.name} className="w-full h-full object-cover rounded-xl opacity-80" />;
+  }
+  return null;
+}
+
+export default function DailyHall({ playerState, onStateChange, isOnline, claimDailyLogin }: Props) {
+  const [claiming, setClaiming] = useState(false);
+  const [preview, setPreview] = useState<DailyClaimPreview | null>(null);
+
   const streak = playerState.dailyLogin?.streak ?? 0;
   const claimedDays = playerState.dailyLogin?.claimedDays ?? [];
   const today = new Date().toISOString().slice(0, 10);
@@ -73,30 +142,108 @@ export default function DailyHall({ playerState, onStateChange }: Props) {
 
   const rewards = getRewards(playerState.selectedPath ?? null);
 
-  const handleClaim = () => {
-    if (claimedToday || nextDay > 7) return;
+  const applyOfflineReward = useCallback(
+    (base: PlayerState, reward: DayReward): { state: PlayerState; preview: DailyClaimPreview } => {
+      let updated: PlayerState = {
+        ...base,
+        dailyLogin: {
+          streak: (base.dailyLogin?.streak ?? 0) + 1,
+          lastClaimDate: today,
+          claimedDays: [...(base.dailyLogin?.claimedDays ?? []), nextDay],
+        },
+      };
+
+      if (reward.type === "gold" && reward.amount) {
+        updated = { ...updated, gold: (updated.gold ?? 0) + reward.amount };
+        return {
+          state: updated,
+          preview: { kind: "gold", label: reward.label, amount: reward.amount },
+        };
+      }
+      if (reward.type === "stardust" && reward.amount) {
+        updated = { ...updated, stardust: (updated.stardust ?? 0) + reward.amount };
+        return {
+          state: updated,
+          preview: { kind: "stardust", label: reward.label, amount: reward.amount },
+        };
+      }
+      if (reward.type === "card" && reward.cardId) {
+        const result = addCardToCollection(updated, reward.cardId);
+        updated = result.state;
+        return {
+          state: updated,
+          preview: {
+            kind: "card",
+            label: reward.label,
+            cardId: reward.cardId,
+            pullResults: [
+              {
+                cardId: reward.cardId,
+                isDuplicate: result.isDuplicate,
+                stardustEarned: result.stardustEarned,
+                newGoldStar: result.newGoldStar,
+                newRedStar: result.newRedStar,
+                rarity: getCardById(reward.cardId)?.rarity ?? "common",
+              },
+            ],
+          },
+        };
+      }
+      if (reward.type === "pack") {
+        const pack = PACK_DEFINITIONS.find((p) => p.id === "bronze");
+        if (!pack) {
+          return { state: updated, preview: { kind: "pack", label: reward.label, pullResults: [] } };
+        }
+        const { cardIds, newPityCounter } = pullCards(pack, updated);
+        updated = { ...updated, pityCounter: newPityCounter };
+        const pullResults: NonNullable<DailyClaimPreview["pullResults"]> = [];
+        for (const id of cardIds) {
+          const r = addCardToCollection(updated, id);
+          updated = r.state;
+          pullResults.push({
+            cardId: id,
+            isDuplicate: r.isDuplicate,
+            stardustEarned: r.stardustEarned,
+            newGoldStar: r.newGoldStar,
+            newRedStar: r.newRedStar,
+            rarity: getCardById(id)?.rarity ?? "common",
+          });
+        }
+        return {
+          state: updated,
+          preview: { kind: "pack", label: reward.label, pullResults },
+        };
+      }
+      return { state: updated, preview: { kind: reward.type, label: reward.label } };
+    },
+    [nextDay, today],
+  );
+
+  const handleClaim = async () => {
+    if (claimedToday || nextDay > 7 || claiming) return;
     const reward = rewards[nextDay - 1];
     if (!reward) return;
 
-    let updated: PlayerState = {
-      ...playerState,
-      dailyLogin: {
-        streak: (playerState.dailyLogin?.streak ?? 0) + 1,
-        lastClaimDate: today,
-        claimedDays: [...claimedDays, nextDay],
-      },
-    };
+    setClaiming(true);
+    try {
+      if (isOnline && claimDailyLogin) {
+        const res = await claimDailyLogin();
+        if (!res) {
+          toast({ title: "Claim failed", description: "Could not reach the server. Try again.", variant: "destructive" });
+          return;
+        }
+        setPreview(res.preview);
+        toast({ title: "Daily reward", description: res.preview.label });
+        return;
+      }
 
-    if (reward.type === "gold" && reward.amount) {
-      updated = { ...updated, gold: (updated.gold ?? 0) + reward.amount };
-    } else if (reward.type === "stardust" && reward.amount) {
-      updated = { ...updated, stardust: (updated.stardust ?? 0) + reward.amount };
-    } else if (reward.type === "card" && reward.cardId) {
-      const result = addCardToCollection(updated, reward.cardId);
-      updated = result.state;
+      const { state, preview: p } = applyOfflineReward(playerState, reward);
+      onStateChange(state);
+      setPreview(p);
+      toast({ title: "Daily reward", description: reward.label });
+    } finally {
+      setClaiming(false);
     }
-    // pack type: handled by PackShop flow; here we just mark claimed and show notification
-    onStateChange(updated);
   };
 
   return (
@@ -133,11 +280,11 @@ export default function DailyHall({ playerState, onStateChange }: Props) {
               <h1 className="font-heading text-lg text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Day {Math.min(7, nextDay)}</h1>
             </div>
             <button
-              disabled={claimedToday || nextDay > 7}
-              onClick={handleClaim}
+              disabled={claimedToday || nextDay > 7 || claiming}
+              onClick={() => void handleClaim()}
               className="px-4 py-2 rounded-lg bg-gradient-to-r from-[hsl(var(--rare))] to-[hsl(var(--legendary))] text-background font-heading text-xs uppercase tracking-wider disabled:opacity-30 disabled:cursor-not-allowed shadow-lg"
             >
-              {claimedToday ? "Claimed" : "Claim Today"}
+              {claiming ? "…" : claimedToday ? "Claimed" : "Claim Today"}
             </button>
           </div>
         </GlassPanel>
@@ -149,33 +296,39 @@ export default function DailyHall({ playerState, onStateChange }: Props) {
           {rewards.map((r) => {
             const claimed = claimedDays.includes(r.day);
             const isToday = !claimedToday && nextDay === r.day;
-            const cardInfo = r.type === "card" && r.cardId ? allCards.find(c => c.id === r.cardId) : null;
+            const cardInfo = r.type === "card" && r.cardId ? allCards.find((c) => c.id === r.cardId) : null;
             return (
               <div key={r.day} className="flex flex-col items-center gap-1.5">
-                <div className={cn(
-                  "relative w-full aspect-square rounded-xl flex flex-col items-center justify-center transition-all",
-                  claimed
-                    ? "bg-[hsl(var(--legendary)/0.2)] ring-1 ring-[hsl(var(--legendary)/0.5)]"
-                    : isToday
-                      ? "bg-[hsl(var(--rare)/0.2)] ring-1 ring-[hsl(var(--rare)/0.5)] animate-pulse"
-                      : "bg-foreground/5 ring-1 ring-border/30 opacity-60"
-                )}>
-                  {cardInfo?.image ? (
-                    <img src={cardInfo.image} alt={cardInfo.name} className="w-full h-full object-cover rounded-xl opacity-70" />
-                  ) : null}
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-[10px] uppercase text-muted-foreground">Day</span>
-                    <span className={cn("font-heading text-base", claimed ? "text-[hsl(var(--legendary))]" : "text-foreground/80")}>{r.day}</span>
+                <div
+                  className={cn(
+                    "relative w-full aspect-square rounded-xl flex flex-col items-center justify-center transition-all overflow-hidden",
+                    claimed
+                      ? "bg-[hsl(var(--legendary)/0.2)] ring-1 ring-[hsl(var(--legendary)/0.5)]"
+                      : isToday
+                        ? "bg-[hsl(var(--rare)/0.2)] ring-1 ring-[hsl(var(--rare)/0.5)] animate-pulse"
+                        : "bg-foreground/5 ring-1 ring-border/30 opacity-60",
+                  )}
+                >
+                  <RewardTileArt r={r} cardInfo={cardInfo} />
+                  <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                    <span className="text-[10px] uppercase text-muted-foreground drop-shadow">Day</span>
+                    <span className={cn("font-heading text-base drop-shadow", claimed ? "text-[hsl(var(--legendary))]" : "text-foreground/90")}>
+                      {r.day}
+                    </span>
                   </div>
-                  {claimed && <CheckCircle2 className="absolute -top-1.5 -right-1.5 w-4 h-4 text-[hsl(var(--legendary))] bg-background rounded-full" />}
-                  {!claimed && !isToday && <Lock className="absolute -top-1.5 -right-1.5 w-4 h-4 text-muted-foreground bg-background rounded-full p-0.5" />}
+                  {claimed && <CheckCircle2 className="absolute -top-1.5 -right-1.5 w-4 h-4 text-[hsl(var(--legendary))] bg-background rounded-full z-10" />}
+                  {!claimed && !isToday && (
+                    <Lock className="absolute -top-1.5 -right-1.5 w-4 h-4 text-muted-foreground bg-background rounded-full p-0.5 z-10" />
+                  )}
                 </div>
                 <div className="flex items-center gap-1 text-[10px] text-muted-foreground text-center leading-tight">
-                  {r.type === "gold" && <Coins className="w-2.5 h-2.5 shrink-0" />}
-                  {r.type === "stardust" && <Sparkles className="w-2.5 h-2.5 shrink-0" />}
-                  {r.type === "pack" && <Gift className="w-2.5 h-2.5 shrink-0" />}
+                  {r.type === "gold" && <GoldCurrencyIcon className="w-2.5 h-2.5 shrink-0" />}
+                  {r.type === "stardust" && <StardustCurrencyIcon className="w-2.5 h-2.5 shrink-0" />}
+                  {r.type === "pack" && <Package className="w-2.5 h-2.5 shrink-0 text-amber-500" />}
                   {r.type === "card" && <Star className="w-2.5 h-2.5 shrink-0 text-[hsl(var(--rare))]" />}
-                  <span className="truncate">{r.type === "gold" || r.type === "stardust" ? r.amount : r.type === "card" ? cardInfo?.name ?? r.label : r.label}</span>
+                  <span className="truncate">
+                    {r.type === "gold" || r.type === "stardust" ? r.amount : r.type === "card" ? (cardInfo?.name ?? r.label) : r.label}
+                  </span>
                 </div>
               </div>
             );
@@ -195,6 +348,70 @@ export default function DailyHall({ playerState, onStateChange }: Props) {
           </button>
         </div>
       </GlassPanel>
+
+      <Dialog open={!!preview} onOpenChange={(open) => !open && setPreview(null)}>
+        <DialogContent className="max-w-md border-[hsl(var(--legendary))]/30">
+          {preview && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="font-heading text-lg">{preview.label}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                {preview.kind === "gold" && preview.amount != null && (
+                  <div className="flex flex-col items-center gap-3 py-4">
+                    <GoldCurrencyIcon className="w-16 h-16" />
+                    <p className="text-2xl font-heading text-[hsl(var(--legendary))]">+{preview.amount} gold</p>
+                  </div>
+                )}
+                {preview.kind === "stardust" && preview.amount != null && (
+                  <div className="flex flex-col items-center gap-3 py-4">
+                    <StardustCurrencyIcon className="w-16 h-16" />
+                    <p className="text-2xl font-heading text-[hsl(var(--rare))]">+{preview.amount} stardust</p>
+                  </div>
+                )}
+                {preview.kind === "pack" && (
+                  <div className="space-y-3">
+                    <div className="rounded-lg overflow-hidden border border-border">
+                      <img src={bronzePackImg} alt="" className="w-full max-h-36 object-cover" />
+                    </div>
+                    {preview.pullResults && preview.pullResults.length > 0 && (
+                      <div className="grid grid-cols-5 gap-2">
+                        {preview.pullResults.map((pr) => {
+                          const c = getCardById(pr.cardId);
+                          return c ? (
+                            <GameCard
+                              key={pr.cardId}
+                              card={c}
+                              size="sm"
+                              cardProgress={playerState.cardProgress[pr.cardId]}
+                            />
+                          ) : null;
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {preview.kind === "card" && preview.pullResults && preview.pullResults.length > 0 && (
+                  <div className="flex flex-col items-center gap-3">
+                    {preview.pullResults.map((pr) => {
+                      const c = getCardById(pr.cardId);
+                      if (!c) return null;
+                      return (
+                        <div key={pr.cardId} className="w-full max-w-[220px] mx-auto">
+                          <GameCard card={c} size="lg" cardProgress={playerState.cardProgress[pr.cardId]} />
+                          <p className="text-xs text-center text-muted-foreground mt-2">
+                            {pr.isDuplicate ? `Duplicate — +${pr.stardustEarned} stardust` : "Added to your collection"}
+                          </p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </HallLayout>
   );
 }

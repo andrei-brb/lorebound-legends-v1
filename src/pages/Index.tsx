@@ -126,7 +126,7 @@ export default function Index() {
     guildTag: string;
     fromUsername: string;
   } | null>(null);
-  const { playerState, setPlayerState, status, isOnline, pullCards, submitBattleResult, completeOnboarding, syncEconomy, craftFuse, craftSacrifice, pullSeasonalPack, startPveBattle } = usePlayerApi();
+  const { playerState, setPlayerState, status, isOnline, pullCards, submitBattleResult, completeOnboarding, syncEconomy, craftFuse, craftSacrifice, pullSeasonalPack, claimDailyLogin, startPveBattle } = usePlayerApi();
   const isDiscordActivityHost = typeof window !== "undefined" && window.location.hostname.endsWith("discordsays.com");
   const discordOverlayInset = "calc(64px + env(safe-area-inset-top))";
   const ambientParticles = useMemo(
@@ -611,7 +611,14 @@ export default function Index() {
             {activeTab === "boost" && <BoostHall playerState={playerState} />}
             {activeTab === "pass" && <PassHall playerState={playerState} onStateChange={setPlayerState} />}
             {activeTab === "profile" && <ProfileHall playerState={playerState} onStateChange={setPlayerState} />}
-            {activeTab === "daily" && <DailyHall playerState={playerState} onStateChange={setPlayerState} />}
+            {activeTab === "daily" && (
+              <DailyHall
+                playerState={playerState}
+                onStateChange={setPlayerState}
+                isOnline={isOnline}
+                claimDailyLogin={claimDailyLogin}
+              />
+            )}
             {activeTab === "friends" && <FriendsHall isOnline={isOnline} />}
             {activeTab === "chat" && <ChatHall isOnline={isOnline} playerState={playerState} />}
             {activeTab === "guild" && <GuildHall isOnline={isOnline} playerState={playerState} />}

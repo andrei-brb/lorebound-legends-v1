@@ -41,6 +41,7 @@ import * as raidCoop from "./raidCoopEngine.mjs";
 import { RAID_BOSS_GOLD_MULTIPLIER } from "./lib/raidBossGold.mjs";
 import { pickRandomDropCard, buildDropEmbed, processCardClaim } from "./lib/cardDrop.mjs";
 import { SEASONAL_EVENTS, getSeasonalEventById, isEventActive } from "./lib/seasonalEvents.mjs";
+import { getRewardForNextDay } from "./lib/dailyPathRewards.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: join(__dirname, "..", ".env") });
@@ -599,6 +600,70 @@ async function handleTokenExchange(req, res) {
 
 // ─── Player API ────────────────────────────────────────────────────────────────
 
+function normalizeDailyLoginForClient(raw) {
+  if (!raw || typeof raw !== "object") return undefined;
+  const claimedDays = Array.isArray(raw.claimedDays)
+    ? raw.claimedDays.map((n) => Number(n)).filter((n) => n >= 1 && n <= 7)
+    : [];
+  return {
+    streak: Number(raw.streak) || 0,
+    lastClaimDate: raw.lastClaimDate ?? null,
+    claimedDays,
+  };
+}
+
+async function grantCardPullStyle(tx, playerId, cardId) {
+  const existing = await tx.cardProgress.findUnique({
+    where: { playerId_cardId: { playerId, cardId } },
+  });
+  if (existing) {
+    const dupeResult = processDuplicatePull(existing, cardId);
+    await tx.cardProgress.update({
+      where: { id: existing.id },
+      data: {
+        dupeCount: dupeResult.dupeCount,
+        goldStars: dupeResult.goldStars,
+        redStars: dupeResult.redStars,
+        xp: existing.xp + dupeResult.xpBonus,
+      },
+    });
+    return {
+      pullResult: {
+        cardId,
+        isDuplicate: true,
+        stardustEarned: dupeResult.stardustEarned,
+        newGoldStar: dupeResult.newGoldStar,
+        newRedStar: dupeResult.newRedStar,
+        rarity: getCardRarity(cardId),
+      },
+      stardustEarned: dupeResult.stardustEarned,
+    };
+  }
+  await tx.cardProgress.create({
+    data: {
+      playerId,
+      cardId,
+      level: 1,
+      xp: 0,
+      prestigeLevel: 0,
+      dupeCount: 0,
+      goldStars: 0,
+      redStars: 0,
+    },
+  });
+  return {
+    pullResult: {
+      cardId,
+      isDuplicate: false,
+      stardustEarned: 0,
+      newGoldStar: false,
+      newRedStar: false,
+      rarity: getCardRarity(cardId),
+    },
+    stardustEarned: 0,
+  };
+}
+
 function playerToClientState(player, cards) {
   const cardProgress = {};
   const ownedCardIds = [];
@@ -628,6 +693,7 @@ function playerToClientState(player, cards) {
     cosmeticsEquipped: player.cosmeticsEquipped ?? undefined,
     battlePassXpBoostExpiresAt: player.battlePassXpBoostExpiresAt ? player.battlePassXpBoostExpiresAt.getTime() : null,
     deckPresets: player.deckPresets ?? undefined,
+    dailyLogin: normalizeDailyLoginForClient(player.dailyLogin),
   };
 }
 
@@ -2752,6 +2818,123 @@ async function handleLiveAction(req, res, matchId) {
   }
 }
 
+// ─── Daily login claim (path rewards + collection sync) ───────────────────────
+
+async function handleDailyLoginClaim(req, res) {
+  const user = await requireAuth(req, res);
+  if (!user) return;
+
+  const today = new Date().toISOString().slice(0, 10);
+
+  try {
+    const { preview, state } = await prisma.$transaction(
+      async (tx) => {
+        const p = await tx.player.findUnique({
+          where: { discordId: user.id },
+          include: { cards: true },
+        });
+        if (!p) {
+          const err = new Error("Player not found");
+          err.statusCode = 404;
+          throw err;
+        }
+
+        const rawDl = p.dailyLogin && typeof p.dailyLogin === "object" ? p.dailyLogin : {};
+        const claimedDays = Array.isArray(rawDl.claimedDays)
+          ? rawDl.claimedDays.map(Number).filter((n) => n >= 1 && n <= 7)
+          : [];
+
+        if (rawDl.lastClaimDate === today) {
+          const err = new Error("Already claimed today");
+          err.statusCode = 400;
+          throw err;
+        }
+
+        const { nextDay, reward } = getRewardForNextDay(p.selectedPath, claimedDays);
+        if (!reward || nextDay > 7) {
+          const err = new Error("No reward to claim this cycle");
+          err.statusCode = 400;
+          throw err;
+        }
+
+        let goldInc = 0;
+        let stardustInc = 0;
+        let pityCounter = p.pityCounter;
+        let totalPullsInc = 0;
+        /** @type {Array<{ cardId: string; isDuplicate: boolean; stardustEarned: number; newGoldStar: boolean; newRedStar: boolean; rarity: string }>} */
+        const packPullResults = [];
+
+        const previewBase = {
+          kind: reward.type,
+          label: reward.label,
+          amount: reward.amount,
+          cardId: reward.cardId ?? null,
+          pullResults: /** @type {typeof packPullResults} */ ([]),
+        };
+
+        if (reward.type === "gold" && reward.amount) {
+          goldInc = reward.amount;
+        } else if (reward.type === "stardust" && reward.amount) {
+          stardustInc = reward.amount;
+        } else if (reward.type === "card" && reward.cardId) {
+          const { pullResult, stardustEarned } = await grantCardPullStyle(tx, p.id, reward.cardId);
+          previewBase.pullResults = [pullResult];
+          stardustInc += stardustEarned;
+        } else if (reward.type === "pack") {
+          const pack = PACK_DEFINITIONS.bronze;
+          const { cardIds, newPityCounter } = pullCards("bronze", pityCounter);
+          pityCounter = newPityCounter;
+          totalPullsInc = pack.cardCount;
+          let packStardust = 0;
+          for (const cardId of cardIds) {
+            const { pullResult, stardustEarned } = await grantCardPullStyle(tx, p.id, cardId);
+            packPullResults.push(pullResult);
+            packStardust += stardustEarned;
+          }
+          stardustInc += packStardust;
+          previewBase.pullResults = packPullResults;
+        } else {
+          const err = new Error("Unknown reward type");
+          err.statusCode = 400;
+          throw err;
+        }
+
+        const newStreak = (Number(rawDl.streak) || 0) + 1;
+        const newDailyLogin = {
+          streak: newStreak,
+          lastClaimDate: today,
+          claimedDays: [...claimedDays, nextDay],
+        };
+
+        await tx.player.update({
+          where: { id: p.id },
+          data: {
+            gold: goldInc ? { increment: goldInc } : undefined,
+            stardust: stardustInc ? { increment: stardustInc } : undefined,
+            pityCounter,
+            totalPulls: totalPullsInc ? { increment: totalPullsInc } : undefined,
+            dailyLogin: newDailyLogin,
+          },
+        });
+
+        const updated = await tx.player.findUnique({
+          where: { id: p.id },
+          include: { cards: true },
+        });
+        return { preview: previewBase, state: playerToClientState(updated, updated.cards) };
+      },
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 5000, timeout: 15000 },
+    );
+
+    return sendJson(res, 200, { preview, state });
+  } catch (e) {
+    const code = e?.statusCode || 500;
+    if (code === 400 || code === 404) return sendJson(res, code, { error: e.message || "Bad request" });
+    console.error("[daily-login/claim]", e);
+    return sendJson(res, 500, { error: "Claim failed — try again" });
+  }
+}
+
 // ─── Card Pull API ─────────────────────────────────────────────────────────────
 
 async function handleCardPull(req, res) {
@@ -3793,6 +3976,7 @@ const server = http.createServer(async (req, res) => {
     if (method === "POST" && path === "/api/onboarding/complete") return await handleOnboardingComplete(req, res);
     if (method === "GET" && path === "/api/cards") return await handleGetCards(req, res);
     if (method === "POST" && path === "/api/cards/pull") return await handleCardPull(req, res);
+    if (method === "POST" && path === "/api/player/daily-login-claim") return await handleDailyLoginClaim(req, res);
     if (method === "GET" && path === "/api/decks") return await handleGetDecks(req, res);
     if (method === "POST" && path === "/api/decks") return await handlePostDeck(req, res);
     if (method === "POST" && path === "/api/battle/start") return await handleBattleStart(req, res);

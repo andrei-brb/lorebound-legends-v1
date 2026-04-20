@@ -84,6 +84,8 @@ model Player {
   cosmeticsEquipped          Json?
   battlePassXpBoostExpiresAt DateTime?
   deckPresets                Json?
+  /// Streak, last ISO date (UTC) claim, and claimed day indices 1–7 for the weekly path UI.
+  dailyLogin                 Json?
   lastSeenAt                 DateTime?
   guildId                    Int?
   createdAt                  DateTime             @default(now())
