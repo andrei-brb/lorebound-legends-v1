@@ -7,6 +7,7 @@ import GameCard from "@/components/GameCard";
 import PackOpening from "@/components/PackOpening";
 import SacrificeAnimation from "@/components/SacrificeAnimation";
 import { allGameCards } from "@/data/cardIndex";
+import { allCards } from "@/data/cards";
 import type { Rarity } from "@/data/cards";
 import { cn } from "@/lib/utils";
 import { texForge } from "@/components/scene/panelTextures";
@@ -99,6 +100,31 @@ export default function WorkshopHall({
 
   const fuseAllowed =
     !!activeFuseRecipe && canFuse(playerState, activeFuseRecipe, filledSlots);
+
+  const fuseBlockedReason = useMemo((): string | null => {
+    if (mode !== "fuse") return null;
+    if (filledSlots.length !== 3) return null;
+    if (!activeFuseRecipe) {
+      return "Fusion needs three cards of the same rarity: three commons or three rares (three legendaries cannot be fused here).";
+    }
+
+    if (playerState.gold < activeFuseRecipe.goldCost) {
+      return `Need ${activeFuseRecipe.goldCost} gold to fuse (you have ${playerState.gold}).`;
+    }
+
+    // This can happen if the client lists cards the crafting engine/server doesn't know about yet
+    // (e.g. seasonal/event cards not included in the base crafting pool).
+    const missingFromBaseSet = filledSlots.filter((id) => !allCards.some((c) => c.id === id));
+    if (missingFromBaseSet.length > 0) {
+      return "Some selected cards can’t be fused yet (event/seasonal cards are not supported for fusion).";
+    }
+
+    if (!fuseAllowed) {
+      return "Selected cards aren’t eligible to fuse (must be owned and match the recipe).";
+    }
+
+    return null;
+  }, [activeFuseRecipe, filledSlots, fuseAllowed, mode, playerState.gold]);
 
   const sacrificePreview = useMemo(() => {
     if (mode !== "sacrifice") return 0;
@@ -340,14 +366,14 @@ export default function WorkshopHall({
 
         {/* Action button */}
         <div className="flex flex-col items-center gap-2 mb-6">
-          {mode === "fuse" && filledSlots.length === 3 && !activeFuseRecipe && (
-            <p className="text-[10px] text-center text-muted-foreground max-w-sm px-2">
-              Fusion needs three cards of the same rarity: three commons or three rares (three legendaries cannot be fused here).
-            </p>
-          )}
-          {mode === "fuse" && activeFuseRecipe && !fuseAllowed && (
-            <p className="text-[10px] text-center text-destructive/90 max-w-sm px-2">
-              Need {activeFuseRecipe.goldCost} gold to fuse (you have {playerState.gold}).
+          {mode === "fuse" && fuseBlockedReason && (
+            <p
+              className={cn(
+                "text-[10px] text-center max-w-sm px-2",
+                fuseAllowed ? "text-muted-foreground" : "text-destructive/90",
+              )}
+            >
+              {fuseBlockedReason}
             </p>
           )}
           <button
