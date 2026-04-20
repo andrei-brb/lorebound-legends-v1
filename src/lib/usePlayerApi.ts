@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { type PlayerState, loadPlayerState, savePlayerState, normalizePlayerState, mergeClientOnlyPlayerState } from "./playerState";
-import { hasClaimedMissingDailyCardRewards } from "./dailyPathRewards";
+import { hasClaimedMissingDailyCardRewards } from "@/lib/dailyPathRewards";
 import { toast } from "@/hooks/use-toast";
 import { api, isAuthenticated } from "./apiClient";
-import { toast } from "@/hooks/use-toast";
 
 type LoadingStatus = "loading" | "ready" | "error";
 
