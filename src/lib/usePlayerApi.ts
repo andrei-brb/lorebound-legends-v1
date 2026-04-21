@@ -75,12 +75,18 @@ interface UsePlayerApiReturn {
 }
 
 const MIGRATION_KEY = "lorebound-migrated";
+function safeLsGet(key: string): string | null {
+  try { return localStorage.getItem(key); } catch { return null; }
+}
+function safeLsSet(key: string, value: string): void {
+  try { localStorage.setItem(key, value); } catch { /* ignore */ }
+}
 
 export function usePlayerApi(): UsePlayerApiReturn {
   const online = isAuthenticated();
   const [status, setStatus] = useState<LoadingStatus>(online ? "loading" : "ready");
   const [playerState, setPlayerStateInternal] = useState<PlayerState>(loadPlayerState);
-  const playerRef = useRef<PlayerState>(loadPlayerState);
+  const playerRef = useRef<PlayerState>(loadPlayerState());
   const syncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bpSyncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -96,13 +102,13 @@ export function usePlayerApi(): UsePlayerApiReturn {
     async function init() {
       try {
         const localState = loadPlayerState();
-        const migrated = localStorage.getItem(MIGRATION_KEY);
+        const migrated = safeLsGet(MIGRATION_KEY);
 
         if (!migrated && localState.totalPulls > 0) {
           try {
             const raw = await api.importLocalState(localState) as PlayerState;
             const imported = mergeClientOnlyPlayerState(normalizePlayerState(raw), localState);
-            localStorage.setItem(MIGRATION_KEY, "1");
+            safeLsSet(MIGRATION_KEY, "1");
             if (!cancelled) {
               setPlayerStateInternal(imported);
               savePlayerState(imported);
@@ -114,7 +120,7 @@ export function usePlayerApi(): UsePlayerApiReturn {
           }
         }
 
-        localStorage.setItem(MIGRATION_KEY, "1");
+        safeLsSet(MIGRATION_KEY, "1");
         const freshLocal = loadPlayerState();
         const serverState = normalizePlayerState(await api.getPlayer() as PlayerState);
         let merged = mergeClientOnlyPlayerState(serverState, freshLocal);

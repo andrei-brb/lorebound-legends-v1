@@ -361,7 +361,11 @@ export function normalizePlayerState(state: PlayerState): PlayerState {
 }
 
 export function savePlayerState(state: PlayerState): void {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // Safari Private mode (and some embedded contexts) can throw on localStorage writes.
+  }
 }
 
 export function getCardProgress(state: PlayerState, cardId: string): CardProgress {
