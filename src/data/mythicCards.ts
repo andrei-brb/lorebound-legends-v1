@@ -12,10 +12,9 @@ import godNeutral from "@/assets/cards/mythic/god-neutral-equilix.png";
 import heroFire from "@/assets/cards/mythic/hero-fire-vyraka.png";
 import heroWater from "@/assets/cards/mythic/hero-water-marenthil.png";
 import heroNature from "@/assets/cards/mythic/hero-nature-thalwen.png";
-// Note: shadow/neutral hero art not provided yet — fallback to matching mythic god art for now.
-const heroShadow = godShadow;
+import heroShadow from "@/assets/cards/mythic/hero-shadow-vexar.png";
 import heroLight from "@/assets/cards/mythic/hero-light-seraphine.png";
-const heroNeutral = godNeutral;
+import heroNeutral from "@/assets/cards/mythic/hero-neutral-kaidran.png";
 
 // Weapons
 import wpnFire from "@/assets/cards/mythic/weapon-fire-emberfang.png";
