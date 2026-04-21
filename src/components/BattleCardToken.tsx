@@ -65,9 +65,9 @@ export default function BattleCardToken({
       {show3d && (
         <CardCharacter3D
           url={gaiaraModelUrl}
-          scale={0.9}
+          scale={0.7}
           className={cn(
-            "pointer-events-none absolute left-1/2 -translate-x-1/2 -top-[74px] w-[150px] h-[150px] sm:-top-[92px] sm:w-[190px] sm:h-[190px] z-30",
+            "pointer-events-none absolute left-1/2 -translate-x-1/2 -top-[62px] w-[120px] h-[120px] sm:-top-[78px] sm:w-[150px] sm:h-[150px] z-30",
             stunned && "opacity-70",
           )}
         />

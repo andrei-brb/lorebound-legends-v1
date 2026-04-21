@@ -1,6 +1,6 @@
 import { Suspense, useMemo } from "react";
 import { Canvas } from "@react-three/fiber";
-import { useGLTF } from "@react-three/drei";
+import { Center, useGLTF } from "@react-three/drei";
 import type { Group } from "three";
 import { clone } from "three/examples/jsm/utils/SkeletonUtils.js";
 
@@ -9,14 +9,30 @@ type Props = {
   url: string;
   /** Scales the model uniformly. */
   scale?: number;
+  /** Extra offset applied after auto-centering. */
+  position?: [number, number, number];
   /** Extra className applied to the canvas wrapper. */
   className?: string;
 };
 
-function Model({ url, scale = 1 }: { url: string; scale?: number }) {
+function Model({
+  url,
+  scale = 1,
+  position = [0, 0, 0],
+}: {
+  url: string;
+  scale?: number;
+  position?: [number, number, number];
+}) {
   const gltf = useGLTF(url);
   const scene = useMemo(() => clone(gltf.scene) as Group, [gltf.scene]);
-  return <primitive object={scene} scale={scale} />;
+  return (
+    <Center>
+      <group position={position}>
+        <primitive object={scene} scale={scale} />
+      </group>
+    </Center>
+  );
 }
 
 /**
@@ -35,9 +51,7 @@ export default function CardCharacter3D({ url, scale = 1, className }: Props) {
         <directionalLight position={[3, 5, 2]} intensity={1.0} />
         <directionalLight position={[-3, 2, -2]} intensity={0.5} />
         <Suspense fallback={null}>
-          <group position={[0, -0.65, 0]}>
-            <Model url={url} scale={scale} />
-          </group>
+          <Model url={url} scale={scale} position={[0, -0.55, 0]} />
         </Suspense>
       </Canvas>
     </div>
