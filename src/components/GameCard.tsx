@@ -22,30 +22,35 @@ interface GameCardProps {
 }
 
 const rarityBadge: Record<string, string> = {
+  mythic: "bg-destructive text-destructive-foreground",
   legendary: "bg-legendary text-primary-foreground",
   rare: "bg-rare text-foreground",
   common: "bg-common text-foreground",
 };
 
 const rarityBadgeLabel: Record<string, string> = {
+  mythic: "✦ Mythic",
   legendary: "★ Legendary",
   rare: "◆ Rare",
   common: "Common",
 };
 
 const rarityFrameClass: Record<string, string> = {
+  mythic: "card-frame-mythic",
   legendary: "card-frame-legendary",
   rare: "card-frame-rare",
   common: "card-frame-common",
 };
 
 const rarityGlowClass: Record<string, string> = {
+  mythic: "card-glow-mythic",
   legendary: "card-glow-legendary",
   rare: "card-glow-rare",
   common: "card-glow-common",
 };
 
 const rarityCornerClass: Record<string, string> = {
+  mythic: "card-corners-mythic",
   legendary: "card-corners-legendary",
   rare: "card-corners-rare",
   common: "card-corners-common",
@@ -67,6 +72,7 @@ const sizeClasses: Record<string, string> = {
 
 // Tilt intensity per rarity
 const tiltIntensity: Record<string, number> = {
+  mythic: 24,
   legendary: 20,
   rare: 14,
   common: 8,
@@ -74,6 +80,7 @@ const tiltIntensity: Record<string, number> = {
 
 // Holo opacity per rarity
 const holoOpacity: Record<string, number> = {
+  mythic: 0.45,
   legendary: 0.35,
   rare: 0.2,
   common: 0.1,
@@ -81,6 +88,7 @@ const holoOpacity: Record<string, number> = {
 
 // Ember count per rarity on hover
 const emberCount: Record<string, number> = {
+  mythic: 12,
   legendary: 8,
   rare: 4,
   common: 0,

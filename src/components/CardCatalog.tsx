@@ -32,9 +32,10 @@ const typeFilters: { id: CardType | "all"; label: string; icon: React.ReactNode 
   { id: "trap", label: "Traps", icon: <AlertTriangle className="w-3.5 h-3.5" /> },
 ];
 
-const rarityOrder = ["legendary", "rare", "common"] as const;
+const rarityOrder = ["mythic", "legendary", "rare", "common"] as const;
 
 const rarityLabels: Record<string, { label: string; icon: string }> = {
+  mythic: { label: "Mythic", icon: "✦" },
   legendary: { label: "Legendary", icon: "⚜️" },
   rare: { label: "Rare", icon: "💎" },
   common: { label: "Common", icon: "🗡️" },

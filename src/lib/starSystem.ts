@@ -5,6 +5,7 @@ const GOLD_STAR_DUPES: Record<Rarity, number[]> = {
   common:    [5, 10, 15, 20, 25],    // total 75
   rare:      [3,  6,  9, 12, 15],    // total 45
   legendary: [2,  4,  6,  8, 10],    // total 30
+  mythic:    [2,  4,  6,  8, 10],    // total 30 (top tier; same dupe pace as legendary)
 };
 
 // Dupes needed for each red star (after all gold stars, cumulative)
@@ -12,6 +13,7 @@ const RED_STAR_DUPES: Record<Rarity, number[]> = {
   common:    [10, 20, 30, 40, 50],   // total 150
   rare:      [ 6, 12, 18, 24, 30],   // total 90
   legendary: [ 4,  8, 12, 16, 20],   // total 60
+  mythic:    [ 4,  8, 12, 16, 20],   // total 60
 };
 
 // Stat bonuses per star
@@ -19,12 +21,14 @@ const GOLD_STAR_BONUS: Record<Rarity, { attack: number; defense: number; hp: num
   common:    { attack: 1, defense: 1, hp: 0 },
   rare:      { attack: 2, defense: 2, hp: 0 },
   legendary: { attack: 3, defense: 3, hp: 0 },
+  mythic:    { attack: 4, defense: 4, hp: 0 },
 };
 
 const RED_STAR_BONUS: Record<Rarity, { attack: number; defense: number; hp: number }> = {
   common:    { attack: 2, defense: 2, hp: 3 },
   rare:      { attack: 3, defense: 3, hp: 5 },
   legendary: { attack: 5, defense: 5, hp: 8 },
+  mythic:    { attack: 6, defense: 6, hp: 10 },
 };
 
 // Stardust per dupe
@@ -32,6 +36,7 @@ const STARDUST_PER_DUPE: Record<Rarity, number> = {
   common: 5,
   rare: 15,
   legendary: 50,
+  mythic: 120,
 };
 
 export interface StarProgress {

@@ -25,10 +25,10 @@ export const FACTION_STARTER_CARDS = {
 };
 
 const PACK_DEFINITIONS = {
-  bronze: { cost: 100, cardCount: 5, rates: { common: 60, rare: 30, legendary: 10 } },
-  silver: { cost: 300, cardCount: 5, rates: { common: 40, rare: 40, legendary: 20 } },
-  gold:   { cost: 800, cardCount: 5, rates: { common: 20, rare: 40, legendary: 40 } },
-  free:   { cost: 0,   cardCount: 2, rates: { common: 60, rare: 30, legendary: 10 } },
+  bronze: { cost: 100, cardCount: 5, rates: { common: 60, rare: 30, legendary: 9.9, mythic: 0.1 } },
+  silver: { cost: 300, cardCount: 5, rates: { common: 40, rare: 40, legendary: 19.7, mythic: 0.3 } },
+  gold:   { cost: 800, cardCount: 5, rates: { common: 20, rare: 40, legendary: 39.0, mythic: 1.0 } },
+  free:   { cost: 0,   cardCount: 2, rates: { common: 60, rare: 30, legendary: 9.9, mythic: 0.1 } },
 };
 
 export { PACK_DEFINITIONS };
@@ -56,10 +56,14 @@ export function pullCards(packId, pityCounter) {
       pity = 0;
     } else {
       const roll = Math.random() * 100;
-      if (roll < pack.rates.legendary) {
+      const mythicRate = pack.rates.mythic || 0;
+      if (roll < mythicRate) {
+        rarity = "mythic";
+        pity = 0;
+      } else if (roll < mythicRate + pack.rates.legendary) {
         rarity = "legendary";
         pity = 0;
-      } else if (roll < pack.rates.legendary + pack.rates.rare) {
+      } else if (roll < mythicRate + pack.rates.legendary + pack.rates.rare) {
         rarity = "rare";
       } else {
         rarity = "common";
@@ -79,15 +83,17 @@ const GOLD_STAR_DUPES = {
   common:    [5, 10, 15, 20, 25],
   rare:      [3,  6,  9, 12, 15],
   legendary: [2,  4,  6,  8, 10],
+  mythic:    [2,  4,  6,  8, 10],
 };
 
 const RED_STAR_DUPES = {
   common:    [10, 20, 30, 40, 50],
   rare:      [ 6, 12, 18, 24, 30],
   legendary: [ 4,  8, 12, 16, 20],
+  mythic:    [ 4,  8, 12, 16, 20],
 };
 
-const STARDUST_PER_DUPE = { common: 5, rare: 15, legendary: 50 };
+const STARDUST_PER_DUPE = { common: 5, rare: 15, legendary: 50, mythic: 120 };
 
 export function calculateStars(dupeCount, rarity) {
   let goldStars = 0;
@@ -142,7 +148,7 @@ export const FUSION_RECIPES = [
   { inputRarity: "rare",   inputCount: 3, outputRarity: "legendary", goldCost: 500 },
 ];
 
-export const SACRIFICE_STARDUST = { common: 10, rare: 30, legendary: 100 };
+export const SACRIFICE_STARDUST = { common: 10, rare: 30, legendary: 100, mythic: 250 };
 
 export function processDuplicatePull(cardRow, cardId) {
   const rarity = getCardRarity(cardId);

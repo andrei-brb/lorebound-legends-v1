@@ -11,14 +11,16 @@ import { cn } from "@/lib/utils";
 import GlassPanel from "@/components/scene/GlassPanel";
 import { texLibrary } from "@/components/scene/panelTextures";
 
-const rarityOrder: Rarity[] = ["legendary", "rare", "common"];
+const rarityOrder: Rarity[] = ["mythic", "legendary", "rare", "common"];
 const rarityLabels: Record<Rarity, string> = {
+  mythic: "✦ Mythic",
   legendary: "⚜️ Legendary",
   rare: "💎 Rare",
   common: "🗡️ Common",
 };
 
 const rarityColors: Record<Rarity, string> = {
+  mythic: "text-[hsl(var(--mythic))]",
   legendary: "text-[hsl(var(--legendary))]",
   rare: "text-[hsl(var(--rare))]",
   common: "text-muted-foreground",
@@ -47,7 +49,7 @@ interface CollectionViewProps {
   onArcFilterChange?: (arc: string | null) => void;
 }
 
-const rarityRank: Record<Rarity, number> = { common: 1, rare: 2, legendary: 3 };
+const rarityRank: Record<Rarity, number> = { common: 1, rare: 2, legendary: 3, mythic: 4 };
 
 function applyDiscovery({
   cards,

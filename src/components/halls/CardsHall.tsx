@@ -14,9 +14,10 @@ const RARITY_HUE: Record<Rarity, string> = {
   common: "var(--muted-foreground)",
   rare: "var(--rare)",
   legendary: "var(--legendary)",
+  mythic: "var(--mythic)",
 };
 
-const RARITY_ORDER: Rarity[] = ["legendary", "rare", "common"];
+const RARITY_ORDER: Rarity[] = ["mythic", "legendary", "rare", "common"];
 
 export default function CardsHall({ playerState }: Props) {
   const [filter, setFilter] = useState<"all" | "owned" | "missing">("all");

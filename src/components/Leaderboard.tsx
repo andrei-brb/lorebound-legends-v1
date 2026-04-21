@@ -72,7 +72,7 @@ function generateMockLeaderboard(playerState: PlayerState, tab: LeaderboardTab):
   }
 
   // Rarest cards owned
-  const rarityScore: Record<string, number> = { legendary: 10, rare: 3, common: 1 };
+  const rarityScore: Record<string, number> = { mythic: 25, legendary: 10, rare: 3, common: 1 };
   const playerScore = playerState.ownedCardIds.reduce((sum, id) => {
     const card = allCards.find(c => c.id === id);
     return sum + (rarityScore[card?.rarity || "common"] || 1);
@@ -92,7 +92,7 @@ function generateMockLeaderboard(playerState: PlayerState, tab: LeaderboardTab):
 const tabConfig: { id: LeaderboardTab; label: string; icon: React.ReactNode; desc: string }[] = [
   { id: "wins", label: "Wins", icon: <Swords className="w-4 h-4" />, desc: "Most battle victories" },
   { id: "collection", label: "Collection", icon: <BookOpen className="w-4 h-4" />, desc: "Collection completion %" },
-  { id: "rarest", label: "Rarest", icon: <Star className="w-4 h-4" />, desc: "Rarity score (Legendary=10, Rare=3)" },
+  { id: "rarest", label: "Rarest", icon: <Star className="w-4 h-4" />, desc: "Rarity score (Mythic=25, Legendary=10, Rare=3)" },
 ];
 
 const rankIcons = [

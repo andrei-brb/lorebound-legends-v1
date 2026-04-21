@@ -43,14 +43,16 @@ const RARITY_HUE: Record<Rarity, string> = {
   common: "var(--muted-foreground)",
   rare: "var(--rare)",
   legendary: "var(--legendary)",
+  mythic: "var(--mythic)",
 };
 
-const RARITIES: RarityFilter[] = ["all", "common", "rare", "legendary"];
+const RARITIES: RarityFilter[] = ["all", "common", "rare", "legendary", "mythic"];
 
 const NEXT_RARITY: Record<Rarity, Rarity> = {
   common: "rare",
   rare: "legendary",
   legendary: "legendary",
+  mythic: "mythic",
 };
 
 export default function WorkshopHall({

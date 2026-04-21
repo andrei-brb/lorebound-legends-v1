@@ -15,6 +15,7 @@ interface PackOpeningProps {
 }
 
 const rarityGlowBg: Record<string, string> = {
+  mythic: "shadow-[0_0_70px_24px_hsl(0,90%,55%,0.65)]",
   legendary: "shadow-[0_0_60px_20px_hsl(40,90%,55%,0.6)]",
   rare: "shadow-[0_0_40px_15px_hsl(220,80%,60%,0.5)]",
   common: "shadow-[0_0_20px_10px_hsl(230,10%,50%,0.3)]",
@@ -178,7 +179,16 @@ export default function PackOpening({ cardIds, onComplete, playerState, cardIsNe
                       initial={{ scale: 1.3 }}
                       animate={{ scale: 1 }}
                       className="w-full h-full rounded-xl border-2 overflow-hidden relative"
-                      style={{ borderColor: card.rarity === "legendary" ? "hsl(40 90% 55%)" : card.rarity === "rare" ? "hsl(220 80% 60%)" : "hsl(230 10% 50%)" }}
+                      style={{
+                        borderColor:
+                          card.rarity === "mythic"
+                            ? "hsl(0 80% 55%)"
+                            : card.rarity === "legendary"
+                              ? "hsl(40 90% 55%)"
+                              : card.rarity === "rare"
+                                ? "hsl(220 80% 60%)"
+                                : "hsl(230 10% 50%)",
+                      }}
                     >
                       {isNewCard && (
                         <motion.div
@@ -196,7 +206,7 @@ export default function PackOpening({ cardIds, onComplete, playerState, cardIsNe
                         <p className="text-[10px] text-white/70 uppercase">{card.rarity}</p>
                       </div>
                       {/* Rarity particles */}
-                      {card.rarity === "legendary" && (
+                      {(card.rarity === "legendary" || card.rarity === "mythic") && (
                         <div className="absolute inset-0 pointer-events-none">
                           {(legendaryBurstSeeds[i] || []).map((seed, j) => (
                             <motion.div

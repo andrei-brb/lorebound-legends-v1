@@ -237,8 +237,9 @@ import crystalGuardianImg from "@/assets/cards/crystal-guardian.jpg";
 import { inferElementFromTags, type Element } from "@/lib/elementSystem";
 import type { CardGameRules, WeaponGameRules } from "./cardGameRules";
 import type { BattleKeywordId } from "@/lib/keywords";
+import { mythicCards } from "./mythicCards";
 
-export type Rarity = "legendary" | "rare" | "common";
+export type Rarity = "mythic" | "legendary" | "rare" | "common";
 export type CardType = "hero" | "god" | "weapon" | "spell" | "trap";
 
 export interface CardAbility {
@@ -2610,7 +2611,7 @@ const trapCards: GameCard[] = [
 
 // =================== EXPORT ===================
 
-export const allCards: GameCard[] = withElements([...godCards, ...heroCards, ...weaponCards, ...spellCards, ...trapCards]);
+export const allCards: GameCard[] = withElements([...godCards, ...heroCards, ...weaponCards, ...spellCards, ...trapCards, ...mythicCards]);
 
 export const loreArcs = [
   { id: "crown-of-storms", name: "The Crown of Storms", cardIds: ["warrior-king", "storm-god", "enchanted-sword", "jin", "thor-axeborn", "storm-witch"] },

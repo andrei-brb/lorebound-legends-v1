@@ -19,7 +19,7 @@ export const PACK_DEFINITIONS: PackDefinition[] = [
     name: "Bronze Pack",
     cost: 100,
     cardCount: 5,
-    rates: { common: 60, rare: 30, legendary: 10 },
+    rates: { common: 60, rare: 30, legendary: 9.9, mythic: 0.1 },
     description: "A basic pack with mostly common cards.",
     color: "from-amber-700 to-amber-900",
   },
@@ -28,7 +28,7 @@ export const PACK_DEFINITIONS: PackDefinition[] = [
     name: "Silver Pack",
     cost: 300,
     cardCount: 5,
-    rates: { common: 40, rare: 40, legendary: 20 },
+    rates: { common: 40, rare: 40, legendary: 19.7, mythic: 0.3 },
     description: "Better odds for rare cards.",
     color: "from-slate-300 to-slate-500",
   },
@@ -37,7 +37,7 @@ export const PACK_DEFINITIONS: PackDefinition[] = [
     name: "Gold Pack",
     cost: 800,
     cardCount: 5,
-    rates: { common: 20, rare: 40, legendary: 40 },
+    rates: { common: 20, rare: 40, legendary: 39.0, mythic: 1.0 },
     description: "The best odds for legendary cards!",
     color: "from-yellow-400 to-amber-600",
   },
@@ -54,14 +54,18 @@ export function pullCards(pack: PackDefinition, playerState: PlayerState): { car
     let rarity: Rarity;
 
     if (pity >= PITY_THRESHOLD) {
+      // Pity guarantees at least legendary (mythic remains its own ultra-rare roll).
       rarity = "legendary";
       pity = 0;
     } else {
       const roll = Math.random() * 100;
-      if (roll < pack.rates.legendary) {
+      if (roll < (pack.rates.mythic || 0)) {
+        rarity = "mythic";
+        pity = 0;
+      } else if (roll < (pack.rates.mythic || 0) + pack.rates.legendary) {
         rarity = "legendary";
         pity = 0;
-      } else if (roll < pack.rates.legendary + pack.rates.rare) {
+      } else if (roll < (pack.rates.mythic || 0) + pack.rates.legendary + pack.rates.rare) {
         rarity = "rare";
       } else {
         rarity = "common";

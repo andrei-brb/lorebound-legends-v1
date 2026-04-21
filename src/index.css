@@ -38,6 +38,8 @@
 
     --legendary: 40 90% 55%;
     --legendary-glow: 40 100% 65%;
+    --mythic: 0 80% 55%;
+    --mythic-glow: 0 100% 65%;
     --rare: 220 80% 60%;
     --rare-glow: 220 90% 70%;
     --common: 230 10% 50%;
@@ -291,6 +293,13 @@
 
 /* ===== Card Rarity Frames ===== */
 
+.card-frame-mythic {
+  border: 3px solid hsl(var(--mythic));
+  border-radius: inherit;
+  box-shadow:
+    inset 0 0 22px hsl(var(--mythic) / 0.18),
+    0 0 28px hsl(var(--mythic-glow) / 0.25);
+}
 .card-frame-legendary {
   border: 3px solid hsl(40 90% 55%);
   border-radius: inherit;
@@ -308,6 +317,12 @@
 }
 
 /* Corner flourishes per rarity */
+.card-corners-mythic .card-corner-tl,
+.card-corners-mythic .card-corner-tr,
+.card-corners-mythic .card-corner-bl,
+.card-corners-mythic .card-corner-br {
+  border-color: hsl(var(--mythic) / 0.75);
+}
 .card-corners-legendary .card-corner-tl,
 .card-corners-legendary .card-corner-tr,
 .card-corners-legendary .card-corner-bl,
@@ -352,11 +367,13 @@
 }
 
 /* Rarity glow pulses */
+.card-glow-mythic,
 .card-glow-legendary,
 .card-glow-rare {
   position: relative;
 }
 
+.card-glow-mythic::before,
 .card-glow-legendary::before,
 .card-glow-rare::before {
   content: "";
@@ -370,6 +387,11 @@
   will-change: transform, opacity;
   opacity: 0.65;
   animation: rarity-glow-pulse 2.5s ease-in-out infinite;
+}
+
+.card-glow-mythic::before {
+  background: radial-gradient(circle at 50% 50%, hsl(var(--mythic) / 0.55), transparent 70%);
+  animation-duration: 2.2s;
 }
 
 .card-glow-legendary::before {

@@ -25,6 +25,7 @@ export const SACRIFICE_STARDUST: Record<Rarity, number> = {
   common: 10,
   rare: 30,
   legendary: 100,
+  mythic: 250,
 };
 
 export function getEligibleFusionCards(playerState: PlayerState, rarity: Rarity): string[] {
