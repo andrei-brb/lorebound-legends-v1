@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef, useMemo, type SetStateAction } from "react";
 import battleBg from "@/assets/battle-bg.jpg";
 import { motion, AnimatePresence } from "framer-motion";
 import { Trophy, Skull, Sparkles, ArrowLeft } from "lucide-react";
@@ -61,7 +61,7 @@ interface BattleArenaProps {
   rankedSubtitle?: string | null;
   onExit: () => void;
   playerState: PlayerState;
-  onStateChange: (state: PlayerState) => void;
+  onStateChange: (next: SetStateAction<PlayerState>) => void;
   isOnline?: boolean;
   startPveBattleApi?: (body: {
     deckCardIds: string[];
@@ -1098,16 +1098,8 @@ export default function BattleArena({
 
       {/* ===== Logs drawer (overlay; doesn't steal board space) ===== */}
       {logsOpen && (
-        <div className="absolute inset-0 z-40">
-          <button
-            type="button"
-            className="absolute inset-0 bg-black/25"
-            onClick={() => setLogsOpen(false)}
-            aria-label="Close logs"
-          />
-          <div className="absolute left-3 top-3 bottom-3 w-[min(320px,90vw)]">
-            <BattleLogPanel logs={state.logs} className="h-full" />
-          </div>
+        <div className="absolute left-3 bottom-3 z-40 w-[min(300px,92vw)] h-[220px] sm:h-[260px] md:h-[300px]">
+          <BattleLogPanel logs={state.logs} className="h-full" />
         </div>
       )}
 

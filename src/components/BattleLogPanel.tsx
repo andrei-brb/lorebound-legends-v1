@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import type { BattleLog } from "@/lib/battleEngine";
 import { cn } from "@/lib/utils";
+import { ScrollText } from "lucide-react";
 
 type Props = {
   logs: BattleLog[];
@@ -49,21 +50,31 @@ export default function BattleLogPanel({ logs, className }: Props) {
   return (
     <div
       className={cn(
-        "rounded-2xl border border-border/40 bg-card/70 backdrop-blur-sm overflow-hidden",
+        "rounded-2xl overflow-hidden",
+        "border border-amber-400/25",
+        "bg-gradient-to-b from-black/55 via-black/35 to-black/55",
+        "shadow-[0_10px_30px_rgba(0,0,0,0.55)]",
+        "ring-1 ring-amber-200/10",
         className,
       )}
     >
-      <div className="px-3 py-2 border-b border-border/40 flex items-center justify-between">
-        <span className="text-[10px] font-heading font-bold uppercase tracking-wider text-muted-foreground">
-          Battle Log
-        </span>
-        <span className="text-[10px] text-muted-foreground tabular-nums">{logs.length}</span>
+      <div className="px-3 py-2 border-b border-amber-400/20 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <ScrollText className="w-3.5 h-3.5 text-amber-200/90" />
+          <span className="text-[10px] font-heading font-bold uppercase tracking-[0.18em] text-amber-100/90 drop-shadow">
+            Combat Log
+          </span>
+        </div>
+        <span className="text-[10px] text-amber-100/70 tabular-nums">{logs.length}</span>
       </div>
-      <div className="h-full max-h-[520px] overflow-y-auto px-3 py-2 space-y-1">
+      <div className="h-full overflow-y-auto px-3 py-2 space-y-1">
         {visible.map((l, idx) => (
-          <div key={`${l.timestamp}-${idx}`} className="text-[11px] leading-snug">
-            <span className={cn("font-medium", logTone(l.type))}>{l.message}</span>
-            {l.source ? <span className="ml-1 text-[10px] text-muted-foreground/80">({l.source})</span> : null}
+          <div key={`${l.timestamp}-${idx}`} className="text-[11px] leading-[1.15] flex gap-2">
+            <span className="text-amber-100/40 select-none">»</span>
+            <div className="min-w-0">
+              <span className={cn("font-heading font-semibold", logTone(l.type))}>{l.message}</span>
+              {l.source ? <span className="ml-1 text-[10px] text-amber-100/55">({l.source})</span> : null}
+            </div>
           </div>
         ))}
         <div ref={endRef} />
