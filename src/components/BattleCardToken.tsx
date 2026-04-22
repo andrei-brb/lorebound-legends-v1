@@ -4,7 +4,8 @@ import type { FieldCard } from "@/lib/battleEngine";
 import { cn } from "@/lib/utils";
 import { elementEmoji } from "@/lib/elementSystem";
 import CardCharacter3D from "@/components/three/CardCharacter3D";
-import gaiaraModelUrl from "@/assets/models/gaiara-earth-mother.glb";
+import { getLegendaryModelUrl } from "@/assets/models/legendaryModels";
+import { getMythicModelUrl } from "@/assets/models/mythicModels";
 
 interface BattleCardTokenProps {
   fieldCard: FieldCard;
@@ -38,7 +39,8 @@ export default function BattleCardToken({
   animateDeath,
 }: BattleCardTokenProps) {
   const { card, currentHp, maxHp, attack, equippedWeapon, stunned, abilityUsed } = fieldCard;
-  const show3d = card.id === "gaiara" && !animateDeath;
+  const modelUrl = !animateDeath ? (getLegendaryModelUrl(card.id) ?? getMythicModelUrl(card.id)) : undefined;
+  const show3d = Boolean(modelUrl);
 
   const lungeVariants = {
     idle: { y: 0, scale: 1, opacity: 1 },
@@ -64,7 +66,7 @@ export default function BattleCardToken({
       {/* 3D character layer (test: Gaiara) — sits ABOVE the clipped card. */}
       {show3d && (
         <CardCharacter3D
-          url={gaiaraModelUrl}
+          url={modelUrl!}
           scale={0.7}
           className={cn(
             "pointer-events-none absolute left-1/2 -translate-x-1/2 -top-[62px] w-[120px] h-[120px] sm:-top-[78px] sm:w-[150px] sm:h-[150px] z-30",

@@ -1470,9 +1470,21 @@ var require_hero_nature_thalwen = __commonJS({
   }
 });
 
+// src/assets/cards/mythic/hero-shadow-vexar.png
+var require_hero_shadow_vexar = __commonJS({
+  "src/assets/cards/mythic/hero-shadow-vexar.png"() {
+  }
+});
+
 // src/assets/cards/mythic/hero-light-seraphine.png
 var require_hero_light_seraphine = __commonJS({
   "src/assets/cards/mythic/hero-light-seraphine.png"() {
+  }
+});
+
+// src/assets/cards/mythic/hero-neutral-kaidran.png
+var require_hero_neutral_kaidran = __commonJS({
+  "src/assets/cards/mythic/hero-neutral-kaidran.png"() {
   }
 });
 
@@ -2082,7 +2094,9 @@ var import_god_neutral_equilix = __toESM(require_god_neutral_equilix(), 1);
 var import_hero_fire_vyraka = __toESM(require_hero_fire_vyraka(), 1);
 var import_hero_water_marenthil = __toESM(require_hero_water_marenthil(), 1);
 var import_hero_nature_thalwen = __toESM(require_hero_nature_thalwen(), 1);
+var import_hero_shadow_vexar = __toESM(require_hero_shadow_vexar(), 1);
 var import_hero_light_seraphine = __toESM(require_hero_light_seraphine(), 1);
+var import_hero_neutral_kaidran = __toESM(require_hero_neutral_kaidran(), 1);
 var import_weapon_fire_emberfang = __toESM(require_weapon_fire_emberfang(), 1);
 var import_weapon_water_tidecaller = __toESM(require_weapon_water_tidecaller(), 1);
 var import_weapon_nature_verdantbow = __toESM(require_weapon_nature_verdantbow(), 1);
@@ -2101,8 +2115,6 @@ var import_skill_nature_worldtree = __toESM(require_skill_nature_worldtree(), 1)
 var import_skill_shadow_eclipse = __toESM(require_skill_shadow_eclipse(), 1);
 var import_skill_light_judgment = __toESM(require_skill_light_judgment(), 1);
 var import_skill_neutral_chronoshift = __toESM(require_skill_neutral_chronoshift(), 1);
-var heroShadow = import_god_shadow_noxareth.default;
-var heroNeutral = import_god_neutral_equilix.default;
 var mythicCards = [
   // ============= FIRE =============
   {
@@ -2418,7 +2430,7 @@ var mythicCards = [
     name: "Vexar, Hollow Blade",
     type: "hero",
     rarity: "mythic",
-    image: heroShadow,
+    image: import_hero_shadow_vexar.default,
     attack: 17,
     defense: 8,
     hp: 26,
@@ -2610,7 +2622,7 @@ var mythicCards = [
     name: "Kaidran, the Iron Wanderer",
     type: "hero",
     rarity: "mythic",
-    image: heroNeutral,
+    image: import_hero_neutral_kaidran.default,
     attack: 14,
     defense: 13,
     hp: 34,
