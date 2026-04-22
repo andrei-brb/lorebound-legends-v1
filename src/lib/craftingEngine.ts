@@ -1,6 +1,6 @@
 import { allCards, type Rarity } from "@/data/cards";
 import type { PlayerState, CardProgress } from "./playerState";
-import { getDefaultStarProgress } from "./starSystem";
+import { getDefaultStarProgress, processDuplicate } from "./starSystem";
 
 export type CraftAction = "fuse" | "sacrifice";
 
@@ -18,6 +18,8 @@ export interface SacrificeResult {
 export const FUSION_RECIPES: FusionRecipe[] = [
   { inputRarity: "common", inputCount: 3, outputRarity: "rare", goldCost: 150 },
   { inputRarity: "rare", inputCount: 3, outputRarity: "legendary", goldCost: 500 },
+  // Legendary fusion is a special case: 3 legendary dubs -> 3% mythic, else legendary.
+  { inputRarity: "legendary", inputCount: 3, outputRarity: "legendary", goldCost: 1200 },
 ];
 
 /** Stardust granted per card when sacrificing (by rarity). */
@@ -29,30 +31,35 @@ export const SACRIFICE_STARDUST: Record<Rarity, number> = {
 };
 
 export function getEligibleFusionCards(playerState: PlayerState, rarity: Rarity): string[] {
-  // Cards of the given rarity that the player owns
-  return playerState.ownedCardIds.filter(id => {
-    const card = allCards.find(c => c.id === id);
-    return card && card.rarity === rarity;
+  const dubs = playerState.cardDubs || {};
+  return Object.keys(dubs).filter((id) => {
+    const n = Math.max(0, Math.floor(Number(dubs[id] || 0)));
+    if (n <= 0) return false;
+    const card = allCards.find((c) => c.id === id);
+    return !!card && card.rarity === rarity;
   });
 }
 
 export function getDuplicateCards(playerState: PlayerState): string[] {
-  // Cards where the player has dupes (dupeCount > 0 in star progress)
-  return playerState.ownedCardIds.filter(id => {
-    const progress = playerState.cardProgress[id];
-    return progress && progress.starProgress && progress.starProgress.dupeCount > 0;
-  });
+  const dubs = playerState.cardDubs || {};
+  return Object.keys(dubs).filter((id) => Math.max(0, Math.floor(Number(dubs[id] || 0))) > 0);
 }
 
 export function canFuse(playerState: PlayerState, recipe: FusionRecipe, selectedCardIds: string[]): boolean {
   if (selectedCardIds.length !== recipe.inputCount) return false;
   if (playerState.gold < recipe.goldCost) return false;
 
-  // All selected cards must be owned and match the input rarity
+  // All selected cards must have dubs available and match the input rarity.
+  const dubs = playerState.cardDubs || {};
+  const needed: Record<string, number> = {};
   for (const id of selectedCardIds) {
-    if (!playerState.ownedCardIds.includes(id)) return false;
-    const card = allCards.find(c => c.id === id);
+    const card = allCards.find((c) => c.id === id);
     if (!card || card.rarity !== recipe.inputRarity) return false;
+    needed[id] = (needed[id] || 0) + 1;
+  }
+  for (const [id, n] of Object.entries(needed)) {
+    const have = Math.max(0, Math.floor(Number(dubs[id] || 0)));
+    if (have < n) return false;
   }
 
   return true;
@@ -65,30 +72,28 @@ export function performFusion(
 ): { playerState: PlayerState; resultCardId: string } | null {
   if (!canFuse(playerState, recipe, selectedCardIds)) return null;
 
-  // Pick random card of output rarity
-  const outputPool = allCards.filter(c => c.rarity === recipe.outputRarity && (c.type === "hero" || c.type === "god"));
+  // Determine output rarity (legendary fusion: 3% mythic).
+  const outputRarity =
+    recipe.inputRarity === "legendary"
+      ? (Math.random() < 0.03 ? "mythic" : "legendary")
+      : recipe.outputRarity;
+
+  // Pick random card of output rarity (offline crafting mirrors server pool: base set `allCards`).
+  const outputPool = allCards.filter(c => c.rarity === outputRarity);
   if (outputPool.length === 0) return null;
   const resultCard = outputPool[Math.floor(Math.random() * outputPool.length)];
 
-  const newState = { ...playerState };
+  const newState: PlayerState = { ...playerState, cardProgress: { ...playerState.cardProgress }, cardDubs: { ...(playerState.cardDubs || {}) } };
   newState.gold -= recipe.goldCost;
 
-  // Remove sacrificed cards from collection
-  const idsToRemove = new Set(selectedCardIds);
-  newState.ownedCardIds = newState.ownedCardIds.filter(id => {
-    if (idsToRemove.has(id)) {
-      idsToRemove.delete(id); // Remove only one instance per selected ID
-      return false;
-    }
-    return true;
-  });
-
-  // Clean up card progress for removed cards
-  newState.cardProgress = { ...newState.cardProgress };
-  for (const id of selectedCardIds) {
-    if (!newState.ownedCardIds.includes(id)) {
-      delete newState.cardProgress[id];
-    }
+  // Spend dubs
+  const needed: Record<string, number> = {};
+  for (const id of selectedCardIds) needed[id] = (needed[id] || 0) + 1;
+  for (const [id, n] of Object.entries(needed)) {
+    const have = Math.max(0, Math.floor(Number(newState.cardDubs?.[id] || 0)));
+    const next = have - n;
+    if (next <= 0) delete newState.cardDubs![id];
+    else newState.cardDubs![id] = next;
   }
 
   // Add result card
@@ -98,6 +103,42 @@ export function performFusion(
   }
 
   return { playerState: newState, resultCardId: resultCard.id };
+}
+
+export function canApplyDub(playerState: PlayerState, cardId: string): boolean {
+  if (!playerState.ownedCardIds.includes(cardId)) return false;
+  const have = Math.max(0, Math.floor(Number(playerState.cardDubs?.[cardId] || 0)));
+  return have > 0;
+}
+
+export function applyDubUpgrade(
+  playerState: PlayerState,
+  cardId: string
+): { playerState: PlayerState; stardustEarned: number; newGoldStar: boolean; newRedStar: boolean } | null {
+  if (!canApplyDub(playerState, cardId)) return null;
+  const card = allCards.find((c) => c.id === cardId);
+  if (!card) return null;
+
+  const newState: PlayerState = { ...playerState, cardProgress: { ...playerState.cardProgress }, cardDubs: { ...(playerState.cardDubs || {}) } };
+  const have = Math.max(0, Math.floor(Number(newState.cardDubs?.[cardId] || 0)));
+  const next = have - 1;
+  if (next <= 0) delete newState.cardDubs![cardId];
+  else newState.cardDubs![cardId] = next;
+
+  const rarity = card.rarity;
+  const currentProgress: CardProgress = { ...(newState.cardProgress[cardId] || { level: 1, xp: 0, prestigeLevel: 0, starProgress: getDefaultStarProgress() }) };
+  const starResult = processDuplicate(currentProgress.starProgress || getDefaultStarProgress(), rarity);
+  currentProgress.starProgress = starResult.progress;
+  currentProgress.xp += 50;
+  newState.cardProgress[cardId] = currentProgress;
+  newState.stardust = (newState.stardust || 0) + starResult.stardustEarned;
+
+  return {
+    playerState: newState,
+    stardustEarned: starResult.stardustEarned,
+    newGoldStar: starResult.newGoldStar,
+    newRedStar: starResult.newRedStar,
+  };
 }
 
 export function canSacrifice(playerState: PlayerState, cardId: string): boolean {

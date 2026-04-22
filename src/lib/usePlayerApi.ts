@@ -43,6 +43,7 @@ interface UsePlayerApiReturn {
   syncEconomy: (gold?: number, stardust?: number) => Promise<void>;
   craftFuse: (inputRarity: string, selectedCardIds: string[]) => Promise<{ resultCardId: string } | null>;
   craftSacrifice: (cardIds: string[]) => Promise<{ totalStardust: number } | null>;
+  applyDub: (cardId: string) => Promise<{ stardustEarned: number; newGoldStar: boolean; newRedStar: boolean } | null>;
   pullSeasonalPack: (eventId: string) => Promise<{ cardIds: string[]; state: PlayerState } | null>;
   claimDailyLogin: () => Promise<{
     preview: {
@@ -313,6 +314,32 @@ export function usePlayerApi(): UsePlayerApiReturn {
     [online],
   );
 
+  const applyDub = useCallback(
+    async (cardId: string) => {
+      if (!online) return null;
+      try {
+        const result = await api.applyDub(cardId);
+        const server = normalizePlayerState(result.state);
+        setPlayerStateInternal((prev) => {
+          const merged = mergeClientOnlyPlayerState(server, prev);
+          savePlayerState(merged);
+          return merged;
+        });
+        return {
+          stardustEarned: result.stardustEarned,
+          newGoldStar: result.newGoldStar,
+          newRedStar: result.newRedStar,
+        };
+      } catch (err) {
+        console.error("[usePlayerApi] applyDub failed:", err);
+        const msg = err instanceof Error ? err.message : "Apply dub failed";
+        toast({ title: "Level up failed", description: msg, variant: "destructive" });
+        return null;
+      }
+    },
+    [online],
+  );
+
   const startPveBattle = useCallback(
     async (body: {
       deckCardIds: string[];
@@ -379,6 +406,7 @@ export function usePlayerApi(): UsePlayerApiReturn {
     syncEconomy,
     craftFuse,
     craftSacrifice,
+    applyDub,
     pullSeasonalPack,
     claimDailyLogin,
     startPveBattle,

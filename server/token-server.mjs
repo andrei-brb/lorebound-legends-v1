@@ -681,6 +681,7 @@ function playerToClientState(player, cards) {
     stardust: player.stardust,
     ownedCardIds,
     cardProgress,
+    cardDubs: player.cardDubs ?? {},
     pityCounter: player.pityCounter,
     lastFreePackTime: player.lastFreePackTime ? player.lastFreePackTime.getTime() : null,
     totalPulls: player.totalPulls,
@@ -3079,25 +3080,71 @@ async function handleCardPull(req, res) {
           });
 
           if (existing) {
-            const dupeResult = processDuplicatePull(existing, cardId);
-            await tx.cardProgress.update({
-              where: { id: existing.id },
-              data: {
-                dupeCount: dupeResult.dupeCount,
-                goldStars: dupeResult.goldStars,
-                redStars: dupeResult.redStars,
-                xp: existing.xp + dupeResult.xpBonus,
-              },
-            });
-            totalStardustEarned += dupeResult.stardustEarned;
-            pullResults.push({
-              cardId,
-              isDuplicate: true,
-              stardustEarned: dupeResult.stardustEarned,
-              newGoldStar: dupeResult.newGoldStar,
-              newRedStar: dupeResult.newRedStar,
-              rarity: getCardRarity(cardId),
-            });
+            const rarity = getCardRarity(cardId);
+
+            // Mythic dupes always apply immediately (no dub storage).
+            if (rarity === "mythic") {
+              const dupeResult = processDuplicatePull(existing, cardId);
+              await tx.cardProgress.update({
+                where: { id: existing.id },
+                data: {
+                  dupeCount: dupeResult.dupeCount,
+                  goldStars: dupeResult.goldStars,
+                  redStars: dupeResult.redStars,
+                  xp: existing.xp + dupeResult.xpBonus,
+                },
+              });
+              totalStardustEarned += dupeResult.stardustEarned;
+              pullResults.push({
+                cardId,
+                isDuplicate: true,
+                stardustEarned: dupeResult.stardustEarned,
+                newGoldStar: dupeResult.newGoldStar,
+                newRedStar: dupeResult.newRedStar,
+                rarity,
+              });
+            } else {
+              // Non-mythic dupes: store as a “dub” up to 3; 4th+ auto-applies.
+              const dubs = (p.cardDubs && typeof p.cardDubs === "object") ? { ...p.cardDubs } : {};
+              const current = Math.max(0, Math.min(3, Math.floor(Number(dubs[cardId] || 0))));
+              if (current < 3) {
+                dubs[cardId] = current + 1;
+                // Persist immediately so subsequent pulls in this transaction see updated counts.
+                await tx.player.update({
+                  where: { id: p.id },
+                  data: { cardDubs: dubs },
+                });
+                p.cardDubs = dubs;
+                pullResults.push({
+                  cardId,
+                  isDuplicate: true,
+                  stardustEarned: 0,
+                  newGoldStar: false,
+                  newRedStar: false,
+                  rarity,
+                });
+              } else {
+                const dupeResult = processDuplicatePull(existing, cardId);
+                await tx.cardProgress.update({
+                  where: { id: existing.id },
+                  data: {
+                    dupeCount: dupeResult.dupeCount,
+                    goldStars: dupeResult.goldStars,
+                    redStars: dupeResult.redStars,
+                    xp: existing.xp + dupeResult.xpBonus,
+                  },
+                });
+                totalStardustEarned += dupeResult.stardustEarned;
+                pullResults.push({
+                  cardId,
+                  isDuplicate: true,
+                  stardustEarned: dupeResult.stardustEarned,
+                  newGoldStar: dupeResult.newGoldStar,
+                  newRedStar: dupeResult.newRedStar,
+                  rarity,
+                });
+              }
+            }
           } else {
             await tx.cardProgress.create({
               data: {
@@ -3664,11 +3711,8 @@ async function handleCraftFuse(req, res) {
   if (!Array.isArray(selectedCardIds) || selectedCardIds.length !== recipe.inputCount) {
     return sendJson(res, 400, { error: `Must select exactly ${recipe.inputCount} cards` });
   }
-  const uniqueIds = [...new Set(selectedCardIds.map((id) => String(id)))];
-  if (uniqueIds.length !== recipe.inputCount) {
-    return sendJson(res, 400, { error: "Fusion requires three different cards" });
-  }
-  const invalidIds = uniqueIds.filter((id) => !ALL_CARD_IDS.includes(id));
+  const ids = selectedCardIds.map((id) => String(id));
+  const invalidIds = ids.filter((id) => !ALL_CARD_IDS.includes(id));
   if (invalidIds.length > 0) {
     return sendJson(res, 400, { error: `Unknown card ids: ${invalidIds.slice(0, 12).join(", ")}` });
   }
@@ -3692,26 +3736,38 @@ async function handleCraftFuse(req, res) {
           throw err;
         }
 
-        for (const cardId of uniqueIds) {
-          const sid = String(cardId);
-          const owned = p.cards.find((c) => c.cardId === sid);
-          if (!owned) {
-            const err = new Error(`Card not owned: ${sid}`);
-            err.statusCode = 400;
-            throw err;
-          }
+        const dubs = (p.cardDubs && typeof p.cardDubs === "object") ? { ...p.cardDubs } : {};
+        // Validate: card ids match the recipe rarity, and player has enough dubs to spend.
+        /** @type {Record<string, number>} */
+        const needed = {};
+        for (const sid of ids) {
           if (getCardRarity(sid) !== recipe.inputRarity) {
             const err = new Error(`Card ${sid} is not ${recipe.inputRarity}`);
             err.statusCode = 400;
             throw err;
           }
+          needed[sid] = (needed[sid] || 0) + 1;
+        }
+        for (const [sid, n] of Object.entries(needed)) {
+          const have = Math.max(0, Math.floor(Number(dubs[sid] || 0)));
+          if (have < n) {
+            const err = new Error(`Not enough dubs for ${sid} (need ${n}, have ${have})`);
+            err.statusCode = 400;
+            throw err;
+          }
+        }
+
+        // Roll output rarity.
+        let outputRarity = recipe.outputRarity;
+        if (recipe.inputRarity === "legendary") {
+          outputRarity = Math.random() < 0.03 ? "mythic" : "legendary";
         }
 
         const outputPool = ALL_CARD_IDS.filter((id) => {
-          if (getCardRarity(id) !== recipe.outputRarity) return false;
+          if (getCardRarity(id) !== outputRarity) return false;
           return !p.cards.find((c) => c.cardId === id);
         });
-        const fallbackPool = ALL_CARD_IDS.filter((id) => getCardRarity(id) === recipe.outputRarity);
+        const fallbackPool = ALL_CARD_IDS.filter((id) => getCardRarity(id) === outputRarity);
         const finalPool = outputPool.length > 0 ? outputPool : fallbackPool;
         if (finalPool.length === 0) {
           const err = new Error("No cards available for fusion");
@@ -3730,11 +3786,15 @@ async function handleCraftFuse(req, res) {
           throw err;
         }
 
-        for (const cardId of uniqueIds) {
-          const sid = String(cardId);
-          const card = p.cards.find((c) => c.cardId === sid);
-          if (card) await tx.cardProgress.delete({ where: { id: card.id } });
+        // Spend dubs.
+        for (const [sid, n] of Object.entries(needed)) {
+          dubs[sid] = Math.max(0, Math.floor(Number(dubs[sid] || 0)) - n);
+          if (dubs[sid] <= 0) delete dubs[sid];
         }
+        await tx.player.update({
+          where: { id: p.id },
+          data: { cardDubs: dubs },
+        });
 
         await tx.cardProgress.upsert({
           where: { playerId_cardId: { playerId: p.id, cardId: chosen } },
@@ -3816,6 +3876,89 @@ async function handleCraftSacrifice(req, res) {
 
   const updated = await prisma.player.findUnique({ where: { id: player.id }, include: { cards: true } });
   sendJson(res, 200, { totalStardust, state: playerToClientState(updated, updated.cards) });
+}
+
+async function handleApplyDub(req, res) {
+  const user = await requireAuth(req, res);
+  if (!user) return;
+
+  const body = await readJsonBody(req);
+  const cardId = String(body?.cardId || "");
+  if (!cardId) return sendJson(res, 400, { error: "cardId required" });
+  if (!ALL_CARD_IDS.includes(cardId)) return sendJson(res, 400, { error: "Unknown card id" });
+
+  try {
+    const out = await prisma.$transaction(async (tx) => {
+      const p = await tx.player.findUnique({
+        where: { discordId: user.id },
+        include: { cards: true },
+      });
+      if (!p) {
+        const err = new Error("Player not found");
+        err.statusCode = 404;
+        throw err;
+      }
+
+      const owned = p.cards.find((c) => c.cardId === cardId);
+      if (!owned) {
+        const err = new Error("Card not owned");
+        err.statusCode = 400;
+        throw err;
+      }
+
+      const dubs = (p.cardDubs && typeof p.cardDubs === "object") ? { ...p.cardDubs } : {};
+      const have = Math.max(0, Math.floor(Number(dubs[cardId] || 0)));
+      if (have <= 0) {
+        const err = new Error("No dubs available for that card");
+        err.statusCode = 400;
+        throw err;
+      }
+
+      // Spend 1 dub.
+      const next = have - 1;
+      if (next <= 0) delete dubs[cardId];
+      else dubs[cardId] = next;
+
+      // Apply as a normal dupe (mythic included; dubs shouldn't exist for mythic but this is safe).
+      const dupeResult = processDuplicatePull(owned, cardId);
+      await tx.cardProgress.update({
+        where: { id: owned.id },
+        data: {
+          dupeCount: dupeResult.dupeCount,
+          goldStars: dupeResult.goldStars,
+          redStars: dupeResult.redStars,
+          xp: owned.xp + dupeResult.xpBonus,
+        },
+      });
+
+      await tx.player.update({
+        where: { id: p.id },
+        data: {
+          cardDubs: dubs,
+          stardust: { increment: dupeResult.stardustEarned },
+        },
+      });
+
+      const updated = await tx.player.findUnique({
+        where: { id: p.id },
+        include: { cards: true },
+      });
+
+      return {
+        stardustEarned: dupeResult.stardustEarned,
+        newGoldStar: dupeResult.newGoldStar,
+        newRedStar: dupeResult.newRedStar,
+        state: playerToClientState(updated, updated.cards),
+      };
+    });
+
+    return sendJson(res, 200, out);
+  } catch (e) {
+    const code = e?.statusCode || 500;
+    if (code === 400 || code === 404) return sendJson(res, code, { error: e.message || "Bad request" });
+    console.error("[cards/apply-dub]", e);
+    return sendJson(res, 500, { error: "Apply dub failed" });
+  }
 }
 
 // ─── Leaderboard API ───────────────────────────────────────────────────────────
@@ -4095,6 +4238,7 @@ const server = http.createServer(async (req, res) => {
     if (method === "POST" && path === "/api/onboarding/complete") return await handleOnboardingComplete(req, res);
     if (method === "GET" && path === "/api/cards") return await handleGetCards(req, res);
     if (method === "POST" && path === "/api/cards/pull") return await handleCardPull(req, res);
+    if (method === "POST" && path === "/api/cards/apply-dub") return await handleApplyDub(req, res);
     if (method === "POST" && path === "/api/player/daily-login-claim") return await handleDailyLoginClaim(req, res);
     if (method === "POST" && path === "/api/player/daily-login-repair") return await handleDailyLoginRepair(req, res);
     if (method === "GET" && path === "/api/decks") return await handleGetDecks(req, res);

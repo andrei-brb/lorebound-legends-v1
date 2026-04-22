@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Sparkles, Flame, Plus, X, ChevronDown, Filter, ArrowRight } from "lucide-react";
+import { Sparkles, Flame, Plus, X, ChevronDown, Filter, ArrowRight, ArrowUp } from "lucide-react";
 import type { PlayerState } from "@/lib/playerState";
 import GlassPanel from "@/components/scene/GlassPanel";
 import GameCard from "@/components/GameCard";
@@ -17,6 +17,7 @@ import {
   canFuse,
   performFusion,
   performSacrifice,
+  applyDubUpgrade,
   type FusionRecipe,
 } from "@/lib/craftingEngine";
 import { loadDailyQuests, progressQuest, saveDailyQuests } from "@/lib/questEngine";
@@ -34,9 +35,10 @@ interface Props {
   isOnline: boolean;
   craftFuse: (inputRarity: string, selectedCardIds: string[]) => Promise<{ resultCardId: string } | null>;
   craftSacrifice: (cardIds: string[]) => Promise<{ totalStardust: number } | null>;
+  applyDub: (cardId: string) => Promise<{ stardustEarned: number; newGoldStar: boolean; newRedStar: boolean } | null>;
 }
 
-type Mode = "fuse" | "sacrifice";
+type Mode = "fuse" | "sacrifice" | "levelUp";
 type RarityFilter = "all" | Rarity;
 
 const RARITY_HUE: Record<Rarity, string> = {
@@ -61,6 +63,7 @@ export default function WorkshopHall({
   isOnline,
   craftFuse,
   craftSacrifice,
+  applyDub,
 }: Props) {
   const [mode, setMode] = useState<Mode>("fuse");
   const [rarityFilter, setRarityFilter] = useState<RarityFilter>("all");
@@ -69,23 +72,42 @@ export default function WorkshopHall({
   const [fuseReveal, setFuseReveal] = useState<{ cardIds: string[]; cardIsNew: boolean[] } | null>(null);
   const [sacrificeAnim, setSacrificeAnim] = useState<{ cardIds: string[]; stardust: number } | null>(null);
 
-  // Crafting currently only supports the base set (server crafting pool mirrors `allCards`).
-  // Exclude seasonal/event cards here so they don't show up in fuse/sacrifice selection.
-  const owned = useMemo(
-    () =>
-      playerState.ownedCardIds
-        .map((id) => allCards.find((c) => c.id === id))
-        .filter(Boolean) as typeof allCards,
-    [playerState.ownedCardIds],
-  );
+  const countSelected = useMemo(() => {
+    const out: Record<string, number> = {};
+    for (const id of slots) {
+      if (!id) continue;
+      out[id] = (out[id] || 0) + 1;
+    }
+    return out;
+  }, [slots]);
 
   const filtered = useMemo(
-    () =>
-      owned.filter(
-        (c) =>
-          (rarityFilter === "all" || c.rarity === rarityFilter) && !slots.includes(c.id)
-      ),
-    [owned, rarityFilter, slots]
+    () => {
+      if (mode === "sacrifice") {
+        // Exclude seasonal/event cards here so they don't show up in sacrifice selection.
+        const owned = playerState.ownedCardIds
+          .map((id) => allCards.find((c) => c.id === id))
+          .filter(Boolean) as typeof allCards;
+        return owned.filter(
+          (c) => (rarityFilter === "all" || c.rarity === rarityFilter) && !slots.includes(c.id)
+        );
+      }
+
+      if (mode === "fuse") {
+        // Fuse uses dubs, not owned cards. Show only cards with remaining dubs after current slot selection.
+        const dubs = playerState.cardDubs || {};
+        return allCards.filter((c) => {
+          if (rarityFilter !== "all" && c.rarity !== rarityFilter) return false;
+          const have = Math.max(0, Math.floor(Number(dubs[c.id] || 0)));
+          const used = countSelected[c.id] || 0;
+          return have - used > 0;
+        });
+      }
+
+      // levelUp: selection grid is replaced with a dedicated list below.
+      return [];
+    },
+    [countSelected, mode, playerState.cardDubs, playerState.ownedCardIds, rarityFilter, slots]
   );
 
   const filledSlots = slots.filter((s): s is string => s !== null);
@@ -109,7 +131,7 @@ export default function WorkshopHall({
     if (mode !== "fuse") return null;
     if (filledSlots.length !== 3) return null;
     if (!activeFuseRecipe) {
-      return "Fusion needs three cards of the same rarity: three commons or three rares (three legendaries cannot be fused here).";
+      return "Fusion needs three dubs of the same rarity: three commons, three rares, or three legendaries.";
     }
 
     if (playerState.gold < activeFuseRecipe.goldCost) {
@@ -124,7 +146,7 @@ export default function WorkshopHall({
     }
 
     if (!fuseAllowed) {
-      return "Selected cards aren’t eligible to fuse (must be owned and match the recipe).";
+      return "Selected cards aren’t eligible to fuse (need enough dubs and a matching recipe).";
     }
 
     return null;
@@ -140,7 +162,7 @@ export default function WorkshopHall({
 
   // Result preview: in fuse mode, show predicted next-rarity hint
   const resultRarity: Rarity | null = useMemo(() => {
-    if (mode === "sacrifice") return null;
+    if (mode !== "fuse") return null;
     if (filledSlots.length === 0) return null;
     const cards = filledSlots.map((id) => allGameCards.find((c) => c.id === id)!).filter(Boolean);
     const r = cards[0]?.rarity;
@@ -152,7 +174,18 @@ export default function WorkshopHall({
     if (!allCards.some((c) => c.id === cardId)) return;
     const idx = slots.findIndex((s) => s === null);
     if (idx === -1) return;
-    setSlots((s) => s.map((v, i) => (i === idx ? cardId : v)));
+    if (mode === "sacrifice") {
+      if (!playerState.ownedCardIds.includes(cardId)) return;
+      if (slots.includes(cardId)) return;
+      setSlots((s) => s.map((v, i) => (i === idx ? cardId : v)));
+      return;
+    }
+    if (mode === "fuse") {
+      const have = Math.max(0, Math.floor(Number(playerState.cardDubs?.[cardId] || 0)));
+      const used = countSelected[cardId] || 0;
+      if (have - used <= 0) return;
+      setSlots((s) => s.map((v, i) => (i === idx ? cardId : v)));
+    }
   };
 
   const removeFromSlot = (idx: number) => {
@@ -191,7 +224,7 @@ export default function WorkshopHall({
         } else {
           toast({
             title: "Cannot fuse",
-            description: "Need three same-rarity cards (common or rare) and enough gold.",
+            description: "Need three same-rarity dubs (common/rare/legendary) and enough gold.",
             variant: "destructive",
           });
         }
@@ -243,10 +276,10 @@ export default function WorkshopHall({
         {/* Mode toggle — top center */}
         <div className="flex justify-center mb-6">
           <div className="inline-flex p-1 rounded-full bg-background/40 ring-1 ring-foreground/10">
-            {(["fuse", "sacrifice"] as const).map((m) => {
+            {(["fuse", "sacrifice", "levelUp"] as const).map((m) => {
               const active = mode === m;
-              const Icon = m === "fuse" ? Sparkles : Flame;
-              const hue = m === "fuse" ? "var(--epic)" : "var(--destructive)";
+              const Icon = m === "fuse" ? Sparkles : m === "sacrifice" ? Flame : ArrowUp;
+              const hue = m === "fuse" ? "var(--epic)" : m === "sacrifice" ? "var(--destructive)" : "var(--legendary)";
               return (
                 <button
                   key={m}
@@ -265,7 +298,7 @@ export default function WorkshopHall({
                   }
                 >
                   <Icon className="w-3.5 h-3.5" />
-                  {m}
+                  {m === "levelUp" ? "level up" : m}
                 </button>
               );
             })}
@@ -369,7 +402,7 @@ export default function WorkshopHall({
           </div>
         </div>
 
-        {/* Action button */}
+        {/* Action button (fuse/sacrifice only) */}
         <div className="flex flex-col items-center gap-2 mb-6">
           {mode === "fuse" && fuseBlockedReason && (
             <p
@@ -381,35 +414,37 @@ export default function WorkshopHall({
               {fuseBlockedReason}
             </p>
           )}
-          <button
-            type="button"
-            onClick={mode === "fuse" ? handleFuse : handleSacrifice}
-            disabled={
-              working ||
-              (mode === "fuse" ? !fuseAllowed : filledSlots.length === 0)
-            }
-            className="px-8 py-2.5 rounded-full font-heading text-xs uppercase tracking-widest text-background disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-            style={{
-              background: `linear-gradient(135deg, hsl(${outputHue}), hsl(var(--legendary)))`,
-              boxShadow: ready || filledSlots.length > 0 ? `0 0 20px hsl(${outputHue} / 0.4)` : undefined,
-            }}
-          >
-            {working
-              ? mode === "fuse"
-                ? "Fusing…"
-                : "Sacrificing…"
-              : mode === "fuse"
-                ? activeFuseRecipe
-                  ? `Fuse (${activeFuseRecipe.goldCost} gold)`
-                  : "Fuse"
-                : "Sacrifice"}
-          </button>
+          {mode !== "levelUp" && (
+            <button
+              type="button"
+              onClick={mode === "fuse" ? handleFuse : handleSacrifice}
+              disabled={
+                working ||
+                (mode === "fuse" ? !fuseAllowed : filledSlots.length === 0)
+              }
+              className="px-8 py-2.5 rounded-full font-heading text-xs uppercase tracking-widest text-background disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+              style={{
+                background: `linear-gradient(135deg, hsl(${outputHue}), hsl(var(--legendary)))`,
+                boxShadow: ready || filledSlots.length > 0 ? `0 0 20px hsl(${outputHue} / 0.4)` : undefined,
+              }}
+            >
+              {working
+                ? mode === "fuse"
+                  ? "Fusing…"
+                  : "Sacrificing…"
+                : mode === "fuse"
+                  ? activeFuseRecipe
+                    ? `Fuse (${activeFuseRecipe.goldCost} gold)`
+                    : "Fuse"
+                  : "Sacrifice"}
+            </button>
+          )}
         </div>
 
         {/* Filter — small, dropdown reveals */}
         <div className="flex items-center justify-between mb-3 px-1">
           <span className="text-[10px] uppercase tracking-widest text-muted-foreground">
-            {filtered.length} cards
+            {mode === "levelUp" ? "dub inventory" : `${filtered.length} cards`}
           </span>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -439,35 +474,110 @@ export default function WorkshopHall({
           </DropdownMenu>
         </div>
 
-        {/* Card grid — original card shape, smaller */}
-        {filtered.length === 0 ? (
-          <p className="text-center text-sm text-muted-foreground py-12">no cards available</p>
-        ) : (
-          <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-y-1 justify-items-center">
-            {filtered.slice(0, 60).map((c) => {
-              const slotsFull = filledSlots.length >= 3;
-              return (
-                <motion.button
-                  key={c.id}
-                  onClick={() => !slotsFull && placeInSlot(c.id)}
-                  disabled={slotsFull}
-                  whileHover={!slotsFull ? { y: -4, scale: 1.05 } : undefined}
-                  whileTap={!slotsFull ? { scale: 0.95 } : undefined}
-                  className={cn(
-                    "relative transition-opacity",
-                    slotsFull && "opacity-40 cursor-not-allowed"
-                  )}
-                  style={{ width: 80, height: 112 }}
-                >
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="origin-center scale-[0.35]">
-                      <GameCard card={c} size="md" />
+        {mode === "levelUp" ? (
+          (() => {
+            const dubs = playerState.cardDubs || {};
+            const entries = Object.entries(dubs)
+              .map(([id, n]) => ({ id, n: Math.max(0, Math.floor(Number(n || 0))) }))
+              .filter((x) => x.n > 0)
+              .map((x) => ({ ...x, card: allGameCards.find((c) => c.id === x.id) || null }))
+              .filter((x) => !!x.card) as Array<{ id: string; n: number; card: (typeof allGameCards)[number] }>;
+
+            const shown = entries.filter((x) => (rarityFilter === "all" ? true : x.card.rarity === rarityFilter));
+
+            if (shown.length === 0) {
+              return <p className="text-center text-sm text-muted-foreground py-12">no dubbed cards available</p>;
+            }
+
+            return (
+              <div className="space-y-2">
+                {shown.slice(0, 80).map(({ id, n, card }) => (
+                  <div key={id} className="flex items-center gap-3 rounded-xl bg-background/30 ring-1 ring-foreground/10 p-2">
+                    <div className="shrink-0" style={{ width: 64, height: 90 }}>
+                      <div className="origin-top-left scale-[0.28]">
+                        <GameCard card={card} size="md" />
+                      </div>
                     </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-heading font-bold truncate">{card.name}</p>
+                      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
+                        Dubbed x{n}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      disabled={working}
+                      onClick={async () => {
+                        if (working) return;
+                        setWorking(true);
+                        try {
+                          if (isOnline) {
+                            const r = await applyDub(id);
+                            if (r) {
+                              const qs = progressQuest(loadDailyQuests(), "craft_card");
+                              saveDailyQuests(qs);
+                              toast({
+                                title: "Level up applied",
+                                description: r.stardustEarned > 0 ? `+${r.stardustEarned} stardust` : "Dub consumed",
+                              });
+                            }
+                          } else {
+                            const r = applyDubUpgrade(playerState, id);
+                            if (r) {
+                              onStateChange(r.playerState);
+                              const qs = progressQuest(loadDailyQuests(), "craft_card");
+                              saveDailyQuests(qs);
+                              toast({
+                                title: "Level up applied",
+                                description: r.stardustEarned > 0 ? `+${r.stardustEarned} stardust` : "Dub consumed",
+                              });
+                            }
+                          }
+                        } finally {
+                          setWorking(false);
+                        }
+                      }}
+                      className="px-3 py-2 rounded-full font-heading text-[10px] uppercase tracking-wider text-background disabled:opacity-40"
+                      style={{ background: "linear-gradient(135deg, hsl(var(--legendary)), hsl(var(--rare)))" }}
+                    >
+                      Level up
+                    </button>
                   </div>
-                </motion.button>
-              );
-            })}
-          </div>
+                ))}
+              </div>
+            );
+          })()
+        ) : (
+          /* Card grid — original card shape, smaller */
+          filtered.length === 0 ? (
+            <p className="text-center text-sm text-muted-foreground py-12">no cards available</p>
+          ) : (
+            <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-y-1 justify-items-center">
+              {filtered.slice(0, 60).map((c) => {
+                const slotsFull = filledSlots.length >= 3;
+                return (
+                  <motion.button
+                    key={c.id}
+                    onClick={() => !slotsFull && placeInSlot(c.id)}
+                    disabled={slotsFull}
+                    whileHover={!slotsFull ? { y: -4, scale: 1.05 } : undefined}
+                    whileTap={!slotsFull ? { scale: 0.95 } : undefined}
+                    className={cn(
+                      "relative transition-opacity",
+                      slotsFull && "opacity-40 cursor-not-allowed"
+                    )}
+                    style={{ width: 80, height: 112 }}
+                  >
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="origin-center scale-[0.35]">
+                        <GameCard card={c} size="md" />
+                      </div>
+                    </div>
+                  </motion.button>
+                );
+              })}
+            </div>
+          )
         )}
       </GlassPanel>
 

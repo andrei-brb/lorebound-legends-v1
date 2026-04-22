@@ -146,6 +146,9 @@ export const ALL_CARD_IDS = allCardMeta.map((c) => c.id);
 export const FUSION_RECIPES = [
   { inputRarity: "common", inputCount: 3, outputRarity: "rare",      goldCost: 150 },
   { inputRarity: "rare",   inputCount: 3, outputRarity: "legendary", goldCost: 500 },
+  // Legendary fusion is handled as a special case:
+  // 3 legendary dubs -> 3% chance mythic, otherwise legendary.
+  { inputRarity: "legendary", inputCount: 3, outputRarity: "legendary", goldCost: 1200 },
 ];
 
 export const SACRIFICE_STARDUST = { common: 10, rare: 30, legendary: 100, mythic: 250 };

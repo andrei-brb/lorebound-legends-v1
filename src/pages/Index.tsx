@@ -126,7 +126,7 @@ export default function Index() {
     guildTag: string;
     fromUsername: string;
   } | null>(null);
-  const { playerState, setPlayerState, status, isOnline, pullCards, submitBattleResult, completeOnboarding, syncEconomy, craftFuse, craftSacrifice, pullSeasonalPack, claimDailyLogin, startPveBattle } = usePlayerApi();
+  const { playerState, setPlayerState, status, isOnline, pullCards, submitBattleResult, completeOnboarding, syncEconomy, craftFuse, craftSacrifice, applyDub, pullSeasonalPack, claimDailyLogin, startPveBattle } = usePlayerApi();
   const isDiscordActivityHost = typeof window !== "undefined" && window.location.hostname.endsWith("discordsays.com");
   const discordOverlayInset = "calc(64px + env(safe-area-inset-top))";
   const ambientParticles = useMemo(
@@ -565,6 +565,7 @@ export default function Index() {
                 isOnline={isOnline}
                 craftFuse={craftFuse}
                 craftSacrifice={craftSacrifice}
+                applyDub={applyDub}
               />
             )}
             {activeTab === "achievements" && <BadgesHall playerState={playerState} />}

@@ -34,6 +34,12 @@ export interface PlayerState {
   stardust: number;
   ownedCardIds: string[];
   cardProgress: Record<string, CardProgress>;
+  /**
+   * Stored duplicates (“dubs”) per card id.
+   * - Non-mythic cards: 0–3 dubs can be stored.
+   * - Mythic cards: always apply dupes directly (no dubs).
+   */
+  cardDubs?: Record<string, number>;
   pityCounter: number; // pulls since last legendary
   lastFreePackTime: number | null;
   totalPulls: number;
@@ -328,6 +334,14 @@ export function normalizePlayerState(state: PlayerState): PlayerState {
   }
 
   const lfpt = state.lastFreePackTime;
+  const rawDubs = (state.cardDubs && typeof state.cardDubs === "object" && !Array.isArray(state.cardDubs))
+    ? state.cardDubs as Record<string, unknown>
+    : {};
+  const safeDubs: Record<string, number> = {};
+  for (const [id, n] of Object.entries(rawDubs)) {
+    const v = Math.max(0, Math.min(3, Math.floor(Number(n) || 0)));
+    if (v > 0) safeDubs[id] = v;
+  }
   const normalized: PlayerState = {
     ...state,
     gold: Number(state.gold) || 0,
@@ -336,6 +350,7 @@ export function normalizePlayerState(state: PlayerState): PlayerState {
     totalPulls: Number(state.totalPulls) || 0,
     ownedCardIds: Array.isArray(state.ownedCardIds) ? state.ownedCardIds : [],
     cardProgress: safeCardProgress,
+    cardDubs: safeDubs,
     lastFreePackTime: (typeof lfpt === "number") ? lfpt : (typeof lfpt === "string" ? new Date(lfpt).getTime() : null),
     hasCompletedOnboarding: !!state.hasCompletedOnboarding,
     selectedPath: state.selectedPath ?? null,
@@ -389,12 +404,27 @@ export function freePackTimeRemaining(state: PlayerState): number {
 }
 
 export function addCardToCollection(state: PlayerState, cardId: string): { state: PlayerState; isDuplicate: boolean; stardustEarned: number; newGoldStar: boolean; newRedStar: boolean } {
-  const newState = { ...state, cardProgress: { ...state.cardProgress } };
+  const newState = { ...state, cardProgress: { ...state.cardProgress }, cardDubs: { ...(state.cardDubs || {}) } };
   
   if (newState.ownedCardIds.includes(cardId)) {
-    // Duplicate: process star system
     const card = allCards.find(c => c.id === cardId);
     const rarity = card?.rarity || "common";
+    if (rarity !== "mythic") {
+      const current = Math.max(0, Math.min(3, Math.floor(Number(newState.cardDubs?.[cardId] || 0))));
+      if (current < 3) {
+        newState.cardDubs![cardId] = current + 1;
+        return {
+          state: newState,
+          isDuplicate: true,
+          stardustEarned: 0,
+          newGoldStar: false,
+          newRedStar: false,
+        };
+      }
+      // 4th+ dupe: auto-apply normal dupe rewards
+    }
+
+    // Duplicate: apply star system (mythic always applies; non-mythic applies on 4th+)
     const currentProgress = { ...(newState.cardProgress[cardId] || { level: 1, xp: 0, prestigeLevel: 0, starProgress: getDefaultStarProgress() }) };
     const starResult = processDuplicate(currentProgress.starProgress || getDefaultStarProgress(), rarity);
     

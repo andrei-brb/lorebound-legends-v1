@@ -79,6 +79,8 @@ model Player {
   hasCompletedOnboarding     Boolean              @default(true)
   selectedPath               String?
   tutorialBattlesCompleted   Int                  @default(0)
+  /// Stored duplicates (“dubs”) per card id (0–3). Mythic dupes never become dubs.
+  cardDubs                   Json?
   battlePass                 Json?
   cosmeticsOwned             Json?
   cosmeticsEquipped          Json?

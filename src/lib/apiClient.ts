@@ -105,6 +105,20 @@ export const api = {
     }>(res);
   },
 
+  async applyDub(cardId: string) {
+    const res = await fetch(`${getApiBase()}/api/cards/apply-dub`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({ cardId }),
+    });
+    return handleResponse<{
+      stardustEarned: number;
+      newGoldStar: boolean;
+      newRedStar: boolean;
+      state: import("./playerState").PlayerState;
+    }>(res);
+  },
+
   async claimDailyLogin() {
     const res = await fetch(`${getApiBase()}/api/player/daily-login-claim`, {
       method: "POST",
