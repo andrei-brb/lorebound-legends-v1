@@ -39,7 +39,12 @@ export default function BattleCardToken({
   animateDeath,
 }: BattleCardTokenProps) {
   const { card, currentHp, maxHp, attack, equippedWeapon, stunned, abilityUsed } = fieldCard;
-  const modelUrl = !animateDeath ? (getLegendaryModelUrl(card.id) ?? getMythicModelUrl(card.id)) : undefined;
+  // Feature toggle: 3D character overlays on field tokens.
+  // Turn back on later once we have a layout plan that guarantees no off-screen overlap.
+  const ENABLE_3D_FIELD_CHARACTERS = false;
+
+  const modelUrl =
+    ENABLE_3D_FIELD_CHARACTERS && !animateDeath ? (getLegendaryModelUrl(card.id) ?? getMythicModelUrl(card.id)) : undefined;
   const show3d = Boolean(modelUrl);
 
   const lungeVariants = {
@@ -115,6 +120,13 @@ export default function BattleCardToken({
           <Sword className="w-2.5 h-2.5 text-destructive" />
           <span className="text-[9px] font-bold text-destructive-foreground">{attack}</span>
         </div>
+
+        {/* Exhausted indicator (attacked already this turn) */}
+        {fieldCard.attackedThisTurn && !stunned && (
+          <div className="absolute bottom-[18px] left-0.5 bg-black/70 rounded px-1 py-0.5">
+            <span className="text-[8px] font-bold text-muted-foreground uppercase tracking-wider">Exhausted</span>
+          </div>
+        )}
 
         {/* HP badge bottom-right */}
         <div className={cn(
