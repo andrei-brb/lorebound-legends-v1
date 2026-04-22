@@ -30,6 +30,7 @@ import HeroPortrait from "./HeroPortrait";
 import BattleInfoPanel from "./BattleInfoPanel";
 import CardLevelUp from "./CardLevelUp";
 import BattleLogPanel from "./BattleLogPanel";
+import BattleCardInspectPanel, { type Inspect } from "./BattleCardInspectPanel";
 import { type PlayerState, type CardProgress, getCardProgress, addCardToCollection } from "@/lib/playerState";
 import { awardXp, type LevelUpResult } from "@/lib/progressionEngine";
 import { getBattleGoldReward, getRaidGoldReward } from "@/lib/gachaEngine";
@@ -41,6 +42,7 @@ import { rollMysteryBox, claimFirstWin, FIRST_WIN_GOLD, FIRST_WIN_BP_XP } from "
 import { getCosmeticById } from "@/data/cosmetics";
 import LegendaryPicker from "./LegendaryPicker";
 import { useIsMobile } from "@/hooks/use-mobile";
+import Tier61CardPlace from "./Tier61CardPlace";
 
 interface BattleArenaProps {
   playerDeckIds: string[];
@@ -141,7 +143,8 @@ export default function BattleArena({
   const pveActionLogRef = useRef<BattleLockstepIntent[]>([]);
   const pveMatchIdRef = useRef<string | null>(null);
   const isMobile = useIsMobile();
-  const [mobileLogsOpen, setMobileLogsOpen] = useState(false);
+  const [logsOpen, setLogsOpen] = useState(false);
+  const [inspect, setInspect] = useState<Inspect>({ kind: "none" });
 
   const queueBattleIntent = (intent: BattleLockstepIntent) => {
     if (livePvP) return;
@@ -667,11 +670,6 @@ export default function BattleArena({
       {showLevelUps && <CardLevelUp levelUps={levelUps} onClose={() => setShowLevelUps(false)} />}
 
       <div className="relative flex">
-        {/* ===== Battle logs (left sidebar) ===== */}
-        <div className="hidden lg:block w-[320px] p-3 sm:p-4">
-          <BattleLogPanel logs={state.logs} className="h-full" />
-        </div>
-
         {/* ===== Main Battlefield ===== */}
         <div className="flex-1 flex flex-col min-h-0">
           {/* Retreat button */}
@@ -682,15 +680,13 @@ export default function BattleArena({
             >
               <ArrowLeft className="w-3 h-3" /> Retreat
             </button>
-            {isMobile && (
-              <button
-                type="button"
-                onClick={() => setMobileLogsOpen((v) => !v)}
-                className="flex items-center gap-1 px-2 py-1 rounded-lg bg-secondary/80 text-secondary-foreground text-[10px] font-bold hover:bg-secondary transition-colors backdrop-blur-sm"
-              >
-                {mobileLogsOpen ? "Hide logs" : "Show logs"}
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => setLogsOpen((v) => !v)}
+              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-secondary/80 text-secondary-foreground text-[10px] font-bold hover:bg-secondary transition-colors backdrop-blur-sm"
+            >
+              {logsOpen ? "Hide logs" : "Logs"}
+            </button>
             {rankedSubtitle || soloBoss ? (
               <span className="text-[9px] text-muted-foreground font-heading leading-tight bg-background/70 px-2 py-1 rounded-md border border-border/50">
                 {rankedSubtitle ?? (soloBoss ? `Raid — ${soloBoss.name}` : "")}
@@ -704,12 +700,6 @@ export default function BattleArena({
           </div>
 
           <div className="p-3 sm:p-4 space-y-2">
-            {/* Mobile logs (top) */}
-            {isMobile && mobileLogsOpen && (
-              <div className="mb-2">
-                <BattleLogPanel logs={state.logs} />
-              </div>
-            )}
             {/* ===== Enemy Hero ===== */}
             <div className="flex justify-center">
               <HeroPortrait
@@ -759,6 +749,8 @@ export default function BattleArena({
                           side="enemy"
                           selectable={actionMode === "select-attack-target" || (actionMode === "select-spell-target" && state.player.hand[selectedHandIndex!]?.spellEffect?.target === "single_enemy")}
                           onClick={() => handleFieldCardClick("enemy", i)}
+                          onHover={() => setInspect({ kind: "field", fieldCard: fc })}
+                          onHoverEnd={() => setInspect((prev) => (prev.kind === "field" ? { kind: "none" } : prev))}
                         />
                         {/* Hover tooltip */}
                         <div className="hidden group-hover:block absolute z-50 top-full mt-1 left-1/2 -translate-x-1/2">
@@ -857,6 +849,8 @@ export default function BattleArena({
                             (actionMode === "select-spell-target" && state.player.hand[selectedHandIndex!]?.spellEffect?.target === "single_ally")
                           }
                           onClick={() => handleFieldCardClick("player", i)}
+                          onHover={() => setInspect({ kind: "field", fieldCard: fc })}
+                          onHoverEnd={() => setInspect((prev) => (prev.kind === "field" ? { kind: "none" } : prev))}
                         />
 
                         {/* Hover tooltip */}
@@ -930,6 +924,16 @@ export default function BattleArena({
               </div>
             )}
 
+            {/* T61 placement demo (temporary) */}
+            <details className="mt-3 rounded-xl border border-border/40 bg-background/60 backdrop-blur-sm p-3">
+              <summary className="cursor-pointer select-none text-[11px] font-bold text-muted-foreground">
+                T61 placement demo
+              </summary>
+              <div className="mt-3">
+                <Tier61CardPlace />
+              </div>
+            </details>
+
             {/* ===== Hand + End Turn ===== */}
             <div className="bg-card/80 backdrop-blur-sm border border-border rounded-xl p-2 sm:p-3">
               <div className="flex items-center justify-between mb-1.5">
@@ -959,6 +963,8 @@ export default function BattleArena({
                       !isPlayerTurn && "opacity-50 pointer-events-none"
                     )}
                     onClick={() => isPlayerTurn && handleHandCardClick(i)}
+                    onMouseEnter={() => setInspect({ kind: "hand", card })}
+                    onMouseLeave={() => setInspect((prev) => (prev.kind === "hand" ? { kind: "none" } : prev))}
                   >
                     <div
                       className="absolute top-0.5 right-0.5 z-10 rounded px-1 py-0.5 text-[8px] font-heading font-bold leading-none tabular-nums border border-amber-400/50 bg-black/80 text-amber-100 shadow-[0_1px_2px_rgba(0,0,0,0.9)]"
@@ -1000,6 +1006,26 @@ export default function BattleArena({
         </div>
 
       </div>
+
+      {/* ===== Right-side hover inspect (desktop) ===== */}
+      <div className="hidden md:block absolute top-3 right-3 z-30 w-[320px] pointer-events-none">
+        <BattleCardInspectPanel inspect={inspect} className={inspect.kind === "none" ? "hidden" : ""} />
+      </div>
+
+      {/* ===== Logs drawer (overlay; doesn't steal board space) ===== */}
+      {logsOpen && (
+        <div className="absolute inset-0 z-40">
+          <button
+            type="button"
+            className="absolute inset-0 bg-black/25"
+            onClick={() => setLogsOpen(false)}
+            aria-label="Close logs"
+          />
+          <div className="absolute left-3 top-3 bottom-3 w-[min(320px,90vw)]">
+            <BattleLogPanel logs={state.logs} className="h-full" />
+          </div>
+        </div>
+      )}
 
       {/* ===== Game Over Overlay ===== */}
       <AnimatePresence>
