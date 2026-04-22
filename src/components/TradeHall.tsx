@@ -59,6 +59,8 @@ export default function TradeHall({ playerState, onStateChange }: TradeHallProps
   const reduceMotion = !!playerState.settings?.reduceMotion;
   const [partner, setPartner] = useState<Friend | null>(null);
   const [friends, setFriends] = useState<Friend[]>([]);
+  const [searchingUsers, setSearchingUsers] = useState(false);
+  const [userResults, setUserResults] = useState<Friend[]>([]);
   const [offered, setOffered] = useState<string[]>([]);
   const [requested, setRequested] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,6 +78,33 @@ export default function TradeHall({ playerState, onStateChange }: TradeHallProps
     return () => { alive = false; };
   }, []);
 
+  // Live player search (not limited to friends).
+  useEffect(() => {
+    const q = friendQuery.trim();
+    if (q.length < 2) {
+      setUserResults([]);
+      setSearchingUsers(false);
+      return;
+    }
+
+    let alive = true;
+    setSearchingUsers(true);
+    const t = setTimeout(() => {
+      api.searchUsers(q)
+        .then((r) => {
+          if (!alive) return;
+          setUserResults((r.users || []) as Friend[]);
+        })
+        .catch(() => { if (alive) setUserResults([]); })
+        .finally(() => { if (alive) setSearchingUsers(false); });
+    }, 200);
+
+    return () => {
+      alive = false;
+      clearTimeout(t);
+    };
+  }, [friendQuery]);
+
   const ownedCards = useMemo(
     () => playerState.ownedCardIds.map((id) => allCards.find((c) => c.id === id)).filter(Boolean) as typeof allCards,
     [playerState.ownedCardIds]
@@ -89,6 +118,15 @@ export default function TradeHall({ playerState, onStateChange }: TradeHallProps
     const q = friendQuery.trim().toLowerCase();
     return q ? friends.filter((f) => f.username.toLowerCase().includes(q)) : friends;
   }, [friends, friendQuery]);
+
+  const combinedPartnerResults = useMemo(() => {
+    const q = friendQuery.trim();
+    if (q.length < 2) return [];
+    const byId = new Map<number, Friend>();
+    for (const f of filteredFriends) byId.set(f.id, f);
+    for (const u of userResults) byId.set(u.id, u);
+    return Array.from(byId.values()).slice(0, 8);
+  }, [filteredFriends, friendQuery, userResults]);
 
   const pickerCards = useMemo(() => {
     const src = picker === "yours" ? ownedCards : catalogCards;
@@ -141,10 +179,43 @@ export default function TradeHall({ playerState, onStateChange }: TradeHallProps
                 <Input
                   value={friendQuery}
                   onChange={(e) => setFriendQuery(e.target.value)}
-                  placeholder="Search…"
+                  placeholder="Search players…"
                   className="h-8 pl-7 text-xs bg-background/60 border-border/40"
                 />
+                {searchingUsers && (
+                  <Loader2 className="absolute right-2 top-1/2 -translate-y-1/2 w-3.5 h-3.5 animate-spin text-muted-foreground" />
+                )}
               </div>
+              {combinedPartnerResults.length > 0 && (
+                <div className="mb-2 rounded-lg border border-border/40 bg-background/55 backdrop-blur-sm overflow-hidden">
+                  {combinedPartnerResults.map((f) => {
+                    const sel = partner?.id === f.id;
+                    return (
+                      <button
+                        key={`sr-${f.id}`}
+                        type="button"
+                        onClick={() => setPartner(f)}
+                        className={cn(
+                          "w-full flex items-center gap-2.5 px-2 py-1.5 text-left text-xs hover:bg-foreground/10 transition-colors",
+                          sel && "bg-primary/20",
+                        )}
+                      >
+                        <HexAvatar
+                          size={28}
+                          hue={sel ? "var(--legendary)" : "var(--primary)"}
+                          src={f.avatar ? `https://cdn.discordapp.com/avatars/${f.discordId}/${f.avatar}.png?size=64` : null}
+                        >
+                          {f.username.slice(0, 1).toUpperCase()}
+                        </HexAvatar>
+                        <span className="truncate text-foreground/90">{f.username}</span>
+                        {friends.some((x) => x.id === f.id) && (
+                          <span className="ml-auto text-[10px] text-muted-foreground">friend</span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
               {loading ? (
                 <div className="flex justify-center py-4"><Loader2 className="w-4 h-4 animate-spin text-primary" /></div>
               ) : filteredFriends.length === 0 ? (
