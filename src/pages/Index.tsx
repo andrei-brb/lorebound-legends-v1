@@ -575,6 +575,7 @@ export default function Index() {
             {activeTab === "pvp" && (
               <PvPPanel
                 playerState={playerState}
+                isOnline={isOnline}
                 onNavigateBattle={(matchId) => {
                   sessionStorage.setItem("pvp.live.matchId", String(matchId));
                   setRankedBattle(null);

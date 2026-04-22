@@ -13,13 +13,14 @@ import { texArena, texGilded, texThrone } from "@/components/scene/panelTextures
 
 type Props = {
   playerState: PlayerState;
+  isOnline: boolean;
   /** Live duel: open Battle tab with LivePvPBattleground */
   onNavigateBattle?: (matchId: number) => void;
   /** Ranked: load decks and open Battle tab vs AI (opponent's deck) */
   onStartRankedBattle?: (matchId: number) => Promise<void>;
 };
 
-export default function PvPPanel({ playerState, onNavigateBattle, onStartRankedBattle }: Props) {
+export default function PvPPanel({ playerState, isOnline, onNavigateBattle, onStartRankedBattle }: Props) {
   const [friends, setFriends] = useState<Awaited<ReturnType<typeof api.getFriends>> | null>(null);
   const [history, setHistory] = useState<Awaited<ReturnType<typeof api.pvpHistory>>["matches"]>([]);
   const [loading, setLoading] = useState(false);
@@ -35,6 +36,14 @@ export default function PvPPanel({ playerState, onNavigateBattle, onStartRankedB
   const [pvpRating, setPvpRating] = useState<{ mmr: number; rankTier: string; gamesPlayed: number } | null>(null);
 
   const refresh = async () => {
+    if (!isOnline) {
+      toast({
+        title: "PvP requires Discord auth",
+        description: "Reload the Activity. If it still fails, the Discord embedded auth handshake is not completing.",
+        variant: "destructive",
+      });
+      return;
+    }
     setLoading(true);
     try {
       const [friendsRes, histRes] = await Promise.all([api.getFriends(), api.pvpHistory()]);
@@ -54,8 +63,9 @@ export default function PvPPanel({ playerState, onNavigateBattle, onStartRankedB
   };
 
   useEffect(() => {
+    if (!isOnline) return;
     refresh();
-  }, []);
+  }, [isOnline]);
 
   const acceptedFriends = friends?.accepted || [];
   const filteredLiveFriends = liveOpponentQuery.trim()
@@ -64,6 +74,16 @@ export default function PvPPanel({ playerState, onNavigateBattle, onStartRankedB
 
   return (
     <div className="space-y-6 px-4 sm:px-6 max-w-7xl mx-auto pb-8">
+      {!isOnline && (
+        <GlassPanel hue="var(--destructive)" glow={0.25} padding="md" bg={texGilded} bgTint={0.4}>
+          <div className="text-sm text-foreground/90">
+            <p className="font-heading font-bold mb-1">Not authenticated</p>
+            <p className="text-xs text-muted-foreground">
+              PvP needs Discord embedded auth. Reload the Activity (or fully close and reopen it) and try again.
+            </p>
+          </div>
+        </GlassPanel>
+      )}
       <GlassPanel hue="var(--legendary)" glow={0.42} padding="md" bg={texGilded} bgTint={0.55}>
         <div className="flex items-start justify-between gap-4">
           <div>
@@ -86,10 +106,11 @@ export default function PvPPanel({ playerState, onNavigateBattle, onStartRankedB
           </div>
           <button
             onClick={refresh}
-            disabled={loading}
+            disabled={loading || !isOnline}
             className={cn(
               "px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 bg-secondary/90 text-secondary-foreground hover:bg-secondary border border-border/50 drop-shadow-[0_1px_2px_rgba(0,0,0,0.6)]",
               loading && "opacity-50 cursor-not-allowed",
+              !isOnline && "opacity-50 cursor-not-allowed",
             )}
           >
             <RefreshCw className={cn("w-4 h-4", loading && "animate-spin")} /> Refresh
@@ -129,7 +150,7 @@ export default function PvPPanel({ playerState, onNavigateBattle, onStartRankedB
                 </SelectContent>
               </Select>
               <button
-                disabled={!rankedPreset}
+                disabled={!rankedPreset || !isOnline}
                 onClick={async () => {
                   if (!rankedPreset) return;
                   try {
@@ -160,7 +181,7 @@ export default function PvPPanel({ playerState, onNavigateBattle, onStartRankedB
                     setQueueLoading(false);
                   }
                 }}
-                disabled={queueLoading}
+                disabled={queueLoading || !isOnline}
                 className="px-4 py-2 rounded-lg bg-secondary text-secondary-foreground font-heading font-bold text-sm flex items-center gap-2 disabled:opacity-50"
               >
                 {queueLoading && <Loader2 className="w-4 h-4 animate-spin" />}
@@ -171,7 +192,7 @@ export default function PvPPanel({ playerState, onNavigateBattle, onStartRankedB
                   <div className="text-sm font-heading font-bold text-foreground">vs {queuedMatch.opponentName}</div>
                   <p className="text-[10px] text-muted-foreground">Opens the same battle board as vs AI — their deck, AI pilot.</p>
                   <button
-                    disabled={!onStartRankedBattle || rankedFightLoading}
+                    disabled={!onStartRankedBattle || rankedFightLoading || !isOnline}
                     onClick={async () => {
                       if (!onStartRankedBattle) return;
                       setRankedFightLoading(true);
@@ -191,6 +212,7 @@ export default function PvPPanel({ playerState, onNavigateBattle, onStartRankedB
                   </button>
                   <button
                     type="button"
+                    disabled={!isOnline}
                     onClick={async () => {
                       try {
                         const res = await api.pvpResolveAsync(queuedMatch.matchId);
@@ -295,7 +317,7 @@ export default function PvPPanel({ playerState, onNavigateBattle, onStartRankedB
                 )}
               </div>
               <button
-                disabled={!liveOpponentId}
+                disabled={!liveOpponentId || !isOnline}
                 onClick={async () => {
                   if (!liveOpponentId) return;
                   try {
@@ -322,7 +344,7 @@ export default function PvPPanel({ playerState, onNavigateBattle, onStartRankedB
               />
               <div className="flex gap-2">
                 <button
-                  disabled={!liveMatchId}
+                  disabled={!liveMatchId || !isOnline}
                   onClick={async () => {
                     if (!liveMatchId) return;
                     try {
@@ -338,7 +360,7 @@ export default function PvPPanel({ playerState, onNavigateBattle, onStartRankedB
                   Join
                 </button>
                 <button
-                  disabled={!liveMatchId}
+                  disabled={!liveMatchId || !isOnline}
                   onClick={() => liveMatchId && onNavigateBattle?.(liveMatchId)}
                   className="px-4 py-2 rounded-lg bg-secondary text-secondary-foreground font-heading font-bold text-sm disabled:opacity-40"
                 >
