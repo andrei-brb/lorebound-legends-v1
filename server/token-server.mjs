@@ -842,10 +842,17 @@ async function handlePatchPlayer(req, res) {
     data.shareCollectionWithFriends = body.shareCollectionWithFriends;
   }
   if (typeof body.tutorialBattlesCompleted === "number") {
-    // Only allow incrementing — never allow jumping past 5
-    const current = body.tutorialBattlesCompleted;
-    if (current >= 0 && current <= 5) {
-      data.tutorialBattlesCompleted = current;
+    // Only allow monotonic progress, max 5.
+    const requested = Math.floor(body.tutorialBattlesCompleted);
+    if (requested >= 0 && requested <= 5) {
+      const existing = await prisma.player.findUnique({
+        where: { discordId: user.id },
+        select: { tutorialBattlesCompleted: true },
+      });
+      const cur = existing?.tutorialBattlesCompleted ?? 0;
+      if (requested === cur || requested === cur + 1) {
+        data.tutorialBattlesCompleted = requested;
+      }
     }
   }
 

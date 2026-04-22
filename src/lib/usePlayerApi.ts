@@ -166,7 +166,7 @@ export function usePlayerApi(): UsePlayerApiReturn {
         const next = typeof update === "function" ? update(prev) : update;
         savePlayerState(next);
 
-        // Online: persist battle pass + cosmetics (debounced).
+        // Online: persist small player JSON fields (debounced).
         if (online) {
           if (bpSyncTimer.current) clearTimeout(bpSyncTimer.current);
           bpSyncTimer.current = setTimeout(() => {
@@ -176,6 +176,7 @@ export function usePlayerApi(): UsePlayerApiReturn {
               cosmeticsEquipped: next.cosmeticsEquipped,
               battlePassXpBoostExpiresAt: next.battlePassXpBoostExpiresAt,
               deckPresets: next.deckPresets,
+              tutorialBattlesCompleted: next.tutorialBattlesCompleted ?? 0,
             }).catch(() => {});
           }, 600);
         }
