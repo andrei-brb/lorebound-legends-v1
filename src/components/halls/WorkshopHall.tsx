@@ -83,6 +83,14 @@ export default function WorkshopHall({
 
   const filtered = useMemo(
     () => {
+      if (mode === "fuse") {
+        // Fuse shows owned base-set cards (like sacrifice), but only cards with dubs are selectable.
+        const owned = playerState.ownedCardIds
+          .map((id) => allCards.find((c) => c.id === id))
+          .filter(Boolean) as typeof allCards;
+        return owned.filter((c) => (rarityFilter === "all" || c.rarity === rarityFilter));
+      }
+
       if (mode === "sacrifice") {
         // Exclude seasonal/event cards here so they don't show up in sacrifice selection.
         const owned = playerState.ownedCardIds
@@ -91,17 +99,6 @@ export default function WorkshopHall({
         return owned.filter(
           (c) => (rarityFilter === "all" || c.rarity === rarityFilter) && !slots.includes(c.id)
         );
-      }
-
-      if (mode === "fuse") {
-        // Fuse uses dubs, not owned cards. Show only cards with remaining dubs after current slot selection.
-        const dubs = playerState.cardDubs || {};
-        return allCards.filter((c) => {
-          if (rarityFilter !== "all" && c.rarity !== rarityFilter) return false;
-          const have = Math.max(0, Math.floor(Number(dubs[c.id] || 0)));
-          const used = countSelected[c.id] || 0;
-          return have - used > 0;
-        });
       }
 
       // levelUp: selection grid is replaced with a dedicated list below.
@@ -557,16 +554,21 @@ export default function WorkshopHall({
             <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-10 gap-y-1 justify-items-center">
               {filtered.slice(0, 60).map((c) => {
                 const slotsFull = filledSlots.length >= 3;
+                const dubs = playerState.cardDubs || {};
+                const have = Math.max(0, Math.floor(Number(dubs[c.id] || 0)));
+                const used = countSelected[c.id] || 0;
+                const remaining = Math.max(0, have - used);
+                const fuseSelectable = mode === "fuse" ? remaining > 0 : true;
                 return (
                   <motion.button
                     key={c.id}
                     onClick={() => !slotsFull && placeInSlot(c.id)}
-                    disabled={slotsFull}
+                    disabled={slotsFull || (mode === "fuse" && !fuseSelectable)}
                     whileHover={!slotsFull ? { y: -4, scale: 1.05 } : undefined}
                     whileTap={!slotsFull ? { scale: 0.95 } : undefined}
                     className={cn(
                       "relative transition-opacity",
-                      slotsFull && "opacity-40 cursor-not-allowed"
+                      (slotsFull || (mode === "fuse" && !fuseSelectable)) && "opacity-40 cursor-not-allowed"
                     )}
                     style={{ width: 80, height: 112 }}
                   >
@@ -575,6 +577,11 @@ export default function WorkshopHall({
                         <GameCard card={c} size="md" />
                       </div>
                     </div>
+                    {mode === "fuse" && have > 0 && (
+                      <div className="absolute top-1 right-1 z-20 px-1.5 py-0.5 rounded-full bg-black/60 ring-1 ring-white/15">
+                        <span className="text-[10px] font-bold text-white">{remaining}</span>
+                      </div>
+                    )}
                   </motion.button>
                 );
               })}
