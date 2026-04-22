@@ -275,7 +275,8 @@ export default function WorkshopHall({
       <GlassPanel hue="var(--epic)" glow={0.4} padding="lg" bg={texForge} bgTint={0.7}>
         {/* Mode toggle — top center */}
         <div className="flex justify-center mb-6">
-          <div className="inline-flex p-1 rounded-full bg-background/40 ring-1 ring-foreground/10">
+          <div className="max-w-full overflow-x-auto">
+            <div className="inline-flex flex-wrap sm:flex-nowrap p-1 rounded-full bg-background/40 ring-1 ring-foreground/10">
             {(["fuse", "sacrifice", "levelUp"] as const).map((m) => {
               const active = mode === m;
               const Icon = m === "fuse" ? Sparkles : m === "sacrifice" ? Flame : ArrowUp;
@@ -285,7 +286,7 @@ export default function WorkshopHall({
                   key={m}
                   onClick={() => { setMode(m); clearAll(); }}
                   className={cn(
-                    "relative px-5 py-2 rounded-full flex items-center gap-2 text-xs font-heading uppercase tracking-wider transition-all",
+                    "relative px-3 sm:px-5 py-2 rounded-full flex items-center gap-2 text-xs font-heading uppercase tracking-wider transition-all whitespace-nowrap",
                     active ? "text-background" : "text-muted-foreground hover:text-foreground"
                   )}
                   style={
@@ -302,6 +303,7 @@ export default function WorkshopHall({
                 </button>
               );
             })}
+            </div>
           </div>
         </div>
 
