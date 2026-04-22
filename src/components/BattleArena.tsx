@@ -29,6 +29,7 @@ import BattleRadialMenu from "./BattleRadialMenu";
 import HeroPortrait from "./HeroPortrait";
 import BattleInfoPanel from "./BattleInfoPanel";
 import CardLevelUp from "./CardLevelUp";
+import BattleLogPanel from "./BattleLogPanel";
 import { type PlayerState, type CardProgress, getCardProgress, addCardToCollection } from "@/lib/playerState";
 import { awardXp, type LevelUpResult } from "@/lib/progressionEngine";
 import { getBattleGoldReward, getRaidGoldReward } from "@/lib/gachaEngine";
@@ -140,6 +141,7 @@ export default function BattleArena({
   const pveActionLogRef = useRef<BattleLockstepIntent[]>([]);
   const pveMatchIdRef = useRef<string | null>(null);
   const isMobile = useIsMobile();
+  const [mobileLogsOpen, setMobileLogsOpen] = useState(false);
 
   const queueBattleIntent = (intent: BattleLockstepIntent) => {
     if (livePvP) return;
@@ -665,6 +667,11 @@ export default function BattleArena({
       {showLevelUps && <CardLevelUp levelUps={levelUps} onClose={() => setShowLevelUps(false)} />}
 
       <div className="relative flex">
+        {/* ===== Battle logs (left sidebar) ===== */}
+        <div className="hidden lg:block w-[320px] p-3 sm:p-4">
+          <BattleLogPanel logs={state.logs} className="h-full" />
+        </div>
+
         {/* ===== Main Battlefield ===== */}
         <div className="flex-1 flex flex-col min-h-0">
           {/* Retreat button */}
@@ -675,6 +682,15 @@ export default function BattleArena({
             >
               <ArrowLeft className="w-3 h-3" /> Retreat
             </button>
+            {isMobile && (
+              <button
+                type="button"
+                onClick={() => setMobileLogsOpen((v) => !v)}
+                className="flex items-center gap-1 px-2 py-1 rounded-lg bg-secondary/80 text-secondary-foreground text-[10px] font-bold hover:bg-secondary transition-colors backdrop-blur-sm"
+              >
+                {mobileLogsOpen ? "Hide logs" : "Show logs"}
+              </button>
+            )}
             {rankedSubtitle || soloBoss ? (
               <span className="text-[9px] text-muted-foreground font-heading leading-tight bg-background/70 px-2 py-1 rounded-md border border-border/50">
                 {rankedSubtitle ?? (soloBoss ? `Raid — ${soloBoss.name}` : "")}
@@ -688,6 +704,12 @@ export default function BattleArena({
           </div>
 
           <div className="p-3 sm:p-4 space-y-2">
+            {/* Mobile logs (top) */}
+            {isMobile && mobileLogsOpen && (
+              <div className="mb-2">
+                <BattleLogPanel logs={state.logs} />
+              </div>
+            )}
             {/* ===== Enemy Hero ===== */}
             <div className="flex justify-center">
               <HeroPortrait
