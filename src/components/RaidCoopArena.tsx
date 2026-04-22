@@ -33,6 +33,7 @@ import { awardBattlePassXp } from "@/lib/battlePassEngine";
 import { rollMysteryBox, claimFirstWin, FIRST_WIN_GOLD, FIRST_WIN_BP_XP } from "@/lib/dailyEngine";
 import { getCosmeticById } from "@/data/cosmetics";
 import { getRaidBoss } from "@/lib/raid/bosses";
+import Tier61CardPlace from "./Tier61CardPlace";
 
 type ActionMode = "none" | "select-attack-target" | "select-equip-target" | "select-spell-target";
 
@@ -590,6 +591,16 @@ export default function RaidCoopArena({
                 ))}
               </div>
             </div>
+
+            {/* T61 placement demo (temporary) */}
+            <details className="mt-3 rounded-xl border border-border/40 bg-background/60 backdrop-blur-sm p-3">
+              <summary className="cursor-pointer select-none text-[11px] font-bold text-muted-foreground">
+                T61 placement demo
+              </summary>
+              <div className="mt-3">
+                <Tier61CardPlace />
+              </div>
+            </details>
           </>
         )}
       </div>
