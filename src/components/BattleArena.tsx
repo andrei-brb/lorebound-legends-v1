@@ -96,6 +96,9 @@ interface BattleArenaProps {
 
 type ActionMode = "none" | "select-attack-target" | "select-equip-target" | "select-spell-target";
 
+type Rect = { x: number; y: number; w: number; h: number };
+type FlyingCard = { id: number; img: string; name: string; from: Rect; to: Rect };
+
 export default function BattleArena({
   playerDeckIds,
   opponentDeckIds,
@@ -116,6 +119,14 @@ export default function BattleArena({
   playerStateRef.current = playerState;
 
   const [soloState, setSoloState] = useState<BattleState | null>(null);
+  // Hand → Field placement animation (real gameplay)
+  const placementContainerRef = useRef<HTMLDivElement>(null);
+  const playerSlotRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const handCardRefs = useRef<Record<number, HTMLDivElement | null>>({});
+  const flyIdRef = useRef(0);
+  const lastStateRef = useRef<BattleState | null>(null);
+  const pendingPlayRef = useRef<{ cardId: string; img: string; name: string; from: Rect } | null>(null);
+  const [flyingCards, setFlyingCards] = useState<FlyingCard[]>([]);
   const liveDisplayState = useMemo(() => {
     if (!livePvP) return null;
     const canonical = replayBattleFromActions(
@@ -488,6 +499,19 @@ export default function BattleArena({
 
     if (card.type === "hero" || card.type === "god" || card.type === "trap") {
       cardsPlayedRef.current += 1;
+      // Capture start rect before the card leaves hand.
+      const containerEl = placementContainerRef.current;
+      const handEl = handCardRefs.current[index];
+      if (containerEl && handEl) {
+        pendingPlayRef.current = {
+          cardId: card.id,
+          img: card.image,
+          name: card.name,
+          from: rectInContainer(handEl, containerEl),
+        };
+      } else {
+        pendingPlayRef.current = null;
+      }
       queueBattleIntent({ kind: "play-card", handIndex: index });
       setAnimating(true);
       setTimeout(() => {
@@ -660,6 +684,39 @@ export default function BattleArena({
   const boardSkinImage = boardSkinId ? (getCosmeticById(boardSkinId)?.image || null) : null;
   const noEnemyField = !state.enemy.field.some((fc) => fc != null);
 
+  const rectInContainer = (el: HTMLElement, container: HTMLElement): Rect => {
+    const c = container.getBoundingClientRect();
+    const r = el.getBoundingClientRect();
+    return { x: r.left - c.left, y: r.top - c.top, w: r.width, h: r.height };
+  };
+
+  const consumePendingIntoFlight = (nextState: BattleState) => {
+    const pending = pendingPlayRef.current;
+    const prevState = lastStateRef.current;
+    const containerEl = placementContainerRef.current;
+    if (!pending || !prevState || !containerEl) return;
+
+    const prevField = prevState.player.field;
+    const nextField = nextState.player.field;
+    const slotIndex = nextField.findIndex((fc, i) => prevField[i] == null && fc?.card?.id === pending.cardId);
+    if (slotIndex < 0) return;
+
+    const slotEl = playerSlotRefs.current[slotIndex];
+    if (!slotEl) return;
+
+    const to = rectInContainer(slotEl, containerEl);
+    const fly: FlyingCard = { id: flyIdRef.current++, img: pending.img, name: pending.name, from: pending.from, to };
+    pendingPlayRef.current = null;
+    setFlyingCards((arr) => [...arr, fly]);
+  };
+
+  useEffect(() => {
+    if (!state) return;
+    consumePendingIntoFlight(state);
+    lastStateRef.current = state;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
+
   return (
     <div
       className="relative rounded-2xl border border-border/40 overflow-hidden"
@@ -698,7 +755,36 @@ export default function BattleArena({
             <span className="text-[9px] text-muted-foreground font-heading mr-2">Turn {state.turnNumber}</span>
           </div>
 
-          <div className="p-3 sm:p-4 space-y-2">
+          <div ref={placementContainerRef} className="relative p-3 sm:p-4 space-y-2">
+            {/* Flying card layer (hand → field) */}
+            <AnimatePresence>
+              {flyingCards.map((f) => (
+                <motion.div
+                  key={f.id}
+                  className="absolute pointer-events-none rounded-lg overflow-hidden border-2 shadow-2xl z-40"
+                  style={{
+                    top: 0,
+                    left: 0,
+                    width: f.from.w,
+                    height: f.from.h,
+                    borderColor: "rgba(251,191,36,0.75)",
+                  }}
+                  initial={{ x: f.from.x, y: f.from.y, width: f.from.w, height: f.from.h, opacity: 1 }}
+                  animate={{ x: f.to.x, y: f.to.y, width: f.to.w, height: f.to.h, opacity: 1 }}
+                  transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+                  onAnimationComplete={() => setFlyingCards((arr) => arr.filter((x) => x.id !== f.id))}
+                >
+                  <img src={f.img} alt={f.name} className="w-full h-full object-cover" />
+                  <motion.div
+                    className="absolute inset-0 rounded-lg"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: [0, 0.8, 0.2] }}
+                    transition={{ duration: 0.7 }}
+                    style={{ boxShadow: "0 0 30px 6px rgba(251,191,36,0.65)" }}
+                  />
+                </motion.div>
+              ))}
+            </AnimatePresence>
             {/* ===== Enemy Hero ===== */}
             <div className="flex justify-center">
               <HeroPortrait
@@ -835,7 +921,13 @@ export default function BattleArena({
               </div>
               <div className="flex justify-center gap-2 sm:gap-3 min-h-[104px]">
                 {state.player.field.map((fc, i) => (
-                  <div key={i} className="relative group">
+                  <div
+                    key={i}
+                    ref={(el) => {
+                      playerSlotRefs.current[i] = el;
+                    }}
+                    className="relative group"
+                  >
                     {fc ? (
                       <>
                         <BattleCardToken
@@ -942,6 +1034,9 @@ export default function BattleArena({
                 {state.player.hand.map((card, i) => (
                   <div
                     key={`${card.id}-${i}`}
+                    ref={(el) => {
+                      handCardRefs.current[i] = el;
+                    }}
                     className={cn(
                       "relative flex-shrink-0 w-[68px] sm:w-20 rounded-lg border-2 overflow-hidden cursor-pointer",
                       "transition-[transform,box-shadow,border-color] duration-150 ease-out will-change-transform",

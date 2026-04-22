@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import battleBg from "@/assets/battle-bg.jpg";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft } from "lucide-react";
 import { GoldCurrencyIcon } from "@/components/CurrencyIcons";
 import { cn } from "@/lib/utils";
@@ -33,9 +33,11 @@ import { awardBattlePassXp } from "@/lib/battlePassEngine";
 import { rollMysteryBox, claimFirstWin, FIRST_WIN_GOLD, FIRST_WIN_BP_XP } from "@/lib/dailyEngine";
 import { getCosmeticById } from "@/data/cosmetics";
 import { getRaidBoss } from "@/lib/raid/bosses";
-import Tier61CardPlace from "./Tier61CardPlace";
 
 type ActionMode = "none" | "select-attack-target" | "select-equip-target" | "select-spell-target";
+
+type Rect = { x: number; y: number; w: number; h: number };
+type FlyingCard = { id: number; img: string; name: string; from: Rect; to: Rect };
 
 type Props = {
   raid: RaidCoopState;
@@ -88,6 +90,13 @@ export default function RaidCoopArena({
   syncEconomyApi,
 }: Props) {
   const state = raidGetBattleView(raid);
+  const placementContainerRef = useRef<HTMLDivElement>(null);
+  const playerSlotRefs = useRef<(HTMLDivElement | null)[]>([]);
+  const handCardRefs = useRef<Record<number, HTMLButtonElement | null>>({});
+  const flyIdRef = useRef(0);
+  const lastStateRef = useRef<ReturnType<typeof raidGetBattleView> | null>(null);
+  const pendingPlayRef = useRef<{ cardId: string; img: string; name: string; from: Rect } | null>(null);
+  const [flyingCards, setFlyingCards] = useState<FlyingCard[]>([]);
   const [animating, setAnimating] = useState(false);
   const [rewardsGiven, setRewardsGiven] = useState(false);
   const [goldEarned, setGoldEarned] = useState(0);
@@ -99,6 +108,39 @@ export default function RaidCoopArena({
   const cardsPlayedRef = useRef(0);
   const pveMatchIdRef = useRef<string | null>(null);
   const bossMeta = getRaidBoss(raid.bossId);
+
+  const rectInContainer = (el: HTMLElement, container: HTMLElement): Rect => {
+    const c = container.getBoundingClientRect();
+    const r = el.getBoundingClientRect();
+    return { x: r.left - c.left, y: r.top - c.top, w: r.width, h: r.height };
+  };
+
+  const consumePendingIntoFlight = (nextState: typeof state) => {
+    const pending = pendingPlayRef.current;
+    const prevState = lastStateRef.current;
+    const containerEl = placementContainerRef.current;
+    if (!pending || !prevState || !containerEl) return;
+
+    const prevField = prevState.player.field;
+    const nextField = nextState.player.field;
+    const slotIndex = nextField.findIndex((fc, i) => prevField[i] == null && fc?.card?.id === pending.cardId);
+    if (slotIndex < 0) return;
+
+    const slotEl = playerSlotRefs.current[slotIndex];
+    if (!slotEl) return;
+
+    const to = rectInContainer(slotEl, containerEl);
+    const fly: FlyingCard = { id: flyIdRef.current++, img: pending.img, name: pending.name, from: pending.from, to };
+    pendingPlayRef.current = null;
+    setFlyingCards((arr) => [...arr, fly]);
+  };
+
+  useEffect(() => {
+    if (!state) return;
+    consumePendingIntoFlight(state);
+    lastStateRef.current = state;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [state]);
 
   const startPveSession = useCallback(async () => {
     pveMatchIdRef.current = null;
@@ -292,6 +334,19 @@ export default function RaidCoopArena({
 
     const play = async () => {
       cardsPlayedRef.current += 1;
+      // Capture start rect before the card leaves hand.
+      const containerEl = placementContainerRef.current;
+      const handEl = handCardRefs.current[index];
+      if (containerEl && handEl) {
+        pendingPlayRef.current = {
+          cardId: card.id,
+          img: card.image,
+          name: card.name,
+          from: rectInContainer(handEl, containerEl),
+        };
+      } else {
+        pendingPlayRef.current = null;
+      }
       setAnimating(true);
       setTimeout(async () => {
         await applyIntent({ kind: "play-card", handIndex: index });
@@ -425,7 +480,36 @@ export default function RaidCoopArena({
       <div className="absolute inset-0 pointer-events-none rounded-2xl bg-background/60" />
       {showLevelUps && <CardLevelUp levelUps={levelUps} onClose={() => setShowLevelUps(false)} />}
 
-      <div className="relative p-3 sm:p-4 space-y-2">
+      <div ref={placementContainerRef} className="relative p-3 sm:p-4 space-y-2">
+        {/* Flying card layer (hand → field) */}
+        <AnimatePresence>
+          {flyingCards.map((f) => (
+            <motion.div
+              key={f.id}
+              className="absolute pointer-events-none rounded-md overflow-hidden border-2 shadow-2xl z-40"
+              style={{
+                top: 0,
+                left: 0,
+                width: f.from.w,
+                height: f.from.h,
+                borderColor: "rgba(251,191,36,0.75)",
+              }}
+              initial={{ x: f.from.x, y: f.from.y, width: f.from.w, height: f.from.h, opacity: 1 }}
+              animate={{ x: f.to.x, y: f.to.y, width: f.to.w, height: f.to.h, opacity: 1 }}
+              transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
+              onAnimationComplete={() => setFlyingCards((arr) => arr.filter((x) => x.id !== f.id))}
+            >
+              <img src={f.img} alt={f.name} className="w-full h-full object-cover" />
+              <motion.div
+                className="absolute inset-0 rounded-md"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: [0, 0.8, 0.2] }}
+                transition={{ duration: 0.7 }}
+                style={{ boxShadow: "0 0 30px 6px rgba(251,191,36,0.65)" }}
+              />
+            </motion.div>
+          ))}
+        </AnimatePresence>
         <div className="flex justify-between items-start gap-2">
           <button
             type="button"
@@ -502,7 +586,13 @@ export default function RaidCoopArena({
 
             <div className="flex justify-center gap-2 flex-wrap min-h-[100px]">
               {state.player.field.map((fc, i) => (
-                <div key={i} className="relative group">
+                <div
+                  key={i}
+                  ref={(el) => {
+                    playerSlotRefs.current[i] = el;
+                  }}
+                  className="relative group"
+                >
                   {fc ? (
                     <>
                       <BattleCardToken
@@ -572,6 +662,9 @@ export default function RaidCoopArena({
                 {state.player.hand.map((card, i) => (
                   <button
                     key={`${card.id}-${i}`}
+                    ref={(el) => {
+                      handCardRefs.current[i] = el;
+                    }}
                     type="button"
                     disabled={!isPlayerTurn}
                     onClick={() => handleHandCardClick(i)}
@@ -591,16 +684,6 @@ export default function RaidCoopArena({
                 ))}
               </div>
             </div>
-
-            {/* T61 placement demo (temporary) */}
-            <details className="mt-3 rounded-xl border border-border/40 bg-background/60 backdrop-blur-sm p-3">
-              <summary className="cursor-pointer select-none text-[11px] font-bold text-muted-foreground">
-                T61 placement demo
-              </summary>
-              <div className="mt-3">
-                <Tier61CardPlace />
-              </div>
-            </details>
           </>
         )}
       </div>
