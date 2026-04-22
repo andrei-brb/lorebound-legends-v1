@@ -5,7 +5,7 @@ import type { Group } from "three";
 import { clone } from "three/examples/jsm/utils/SkeletonUtils.js";
 
 type Props = {
-  /** URL imported by Vite, e.g. `import modelUrl from "@/assets/models/foo.glb"` */
+  /** URL to a GLB file (CDN, public path, etc.). */
   url: string;
   /** Scales the model uniformly. */
   scale?: number;

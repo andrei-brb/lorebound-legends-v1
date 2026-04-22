@@ -1,34 +1,31 @@
 // Central registry of mythic hero/god 3D models.
 // Keys are `GameCard.id` values from `src/data/mythicCards.ts`.
+// Values are CDN paths (no bundling/importing of GLBs).
 
-import godFirePyrahkan from "@/assets/models/mythic/god-fire-pyrahkan.glb";
-import godWaterThalassor from "@/assets/models/mythic/god-water-thalassor.glb";
-import godNatureSylvarion from "@/assets/models/mythic/god-nature-sylvarion.glb";
-import godShadowNoxareth from "@/assets/models/mythic/god-shadow-noxareth.glb";
-import godLightAurelia from "@/assets/models/mythic/god-light-aurelia.glb";
-import godNeutralEquilix from "@/assets/models/mythic/god-neutral-equilix.glb";
+function cdnBase(): string {
+  const base = (import.meta as any).env?.VITE_MODEL_CDN_BASE_URL as string | undefined;
+  return (base ?? "").replace(/\/+$/, "");
+}
 
-import heroFireVyraka from "@/assets/models/mythic/hero-fire-vyraka.glb";
-import heroWaterMarenthil from "@/assets/models/mythic/hero-water-marenthil.glb";
-import heroNatureThalwen from "@/assets/models/mythic/hero-nature-thalwen.glb";
-import heroShadowVexar from "@/assets/models/mythic/hero-shadow-vexar.glb";
-import heroLightSeraphine from "@/assets/models/mythic/hero-light-seraphine.glb";
-import heroNeutralKaidran from "@/assets/models/mythic/hero-neutral-kaidran.glb";
+function toUrl(path: string): string {
+  const base = cdnBase();
+  return base ? `${base}/${path.replace(/^\/+/, "")}` : `/${path.replace(/^\/+/, "")}`;
+}
 
 export const mythicModelUrlByCardId: Readonly<Record<string, string>> = Object.freeze({
-  "myth-pyrahkan": godFirePyrahkan,
-  "myth-thalassor": godWaterThalassor,
-  "myth-sylvarion": godNatureSylvarion,
-  "myth-noxareth": godShadowNoxareth,
-  "myth-aurelia": godLightAurelia,
-  "myth-equilix": godNeutralEquilix,
+  "myth-pyrahkan": toUrl("models/mythic/god-fire-pyrahkan.glb"),
+  "myth-thalassor": toUrl("models/mythic/god-water-thalassor.glb"),
+  "myth-sylvarion": toUrl("models/mythic/god-nature-sylvarion.glb"),
+  "myth-noxareth": toUrl("models/mythic/god-shadow-noxareth.glb"),
+  "myth-aurelia": toUrl("models/mythic/god-light-aurelia.glb"),
+  "myth-equilix": toUrl("models/mythic/god-neutral-equilix.glb"),
 
-  "myth-vyraka": heroFireVyraka,
-  "myth-marenthil": heroWaterMarenthil,
-  "myth-thalwen": heroNatureThalwen,
-  "myth-vexar": heroShadowVexar,
-  "myth-seraphine": heroLightSeraphine,
-  "myth-kaidran": heroNeutralKaidran,
+  "myth-vyraka": toUrl("models/mythic/hero-fire-vyraka.glb"),
+  "myth-marenthil": toUrl("models/mythic/hero-water-marenthil.glb"),
+  "myth-thalwen": toUrl("models/mythic/hero-nature-thalwen.glb"),
+  "myth-vexar": toUrl("models/mythic/hero-shadow-vexar.glb"),
+  "myth-seraphine": toUrl("models/mythic/hero-light-seraphine.glb"),
+  "myth-kaidran": toUrl("models/mythic/hero-neutral-kaidran.glb"),
 });
 
 export function getMythicModelUrl(cardId: string): string | undefined {
