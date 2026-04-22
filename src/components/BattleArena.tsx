@@ -673,17 +673,6 @@ export default function BattleArena({
     }, 150);
   };
 
-  if (!state) return null;
-
-  const isPlayerTurn =
-    state.turn === "player" &&
-    !animating &&
-    state.phase !== "game-over" &&
-    !livePvP?.isSubmitting;
-  const boardSkinId = playerState.cosmeticsEquipped?.boardSkinId || null;
-  const boardSkinImage = boardSkinId ? (getCosmeticById(boardSkinId)?.image || null) : null;
-  const noEnemyField = !state.enemy.field.some((fc) => fc != null);
-
   const rectInContainer = (el: HTMLElement, container: HTMLElement): Rect => {
     const c = container.getBoundingClientRect();
     const r = el.getBoundingClientRect();
@@ -716,6 +705,17 @@ export default function BattleArena({
     lastStateRef.current = state;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
+
+  if (!state) return null;
+
+  const isPlayerTurn =
+    state.turn === "player" &&
+    !animating &&
+    state.phase !== "game-over" &&
+    !livePvP?.isSubmitting;
+  const boardSkinId = playerState.cosmeticsEquipped?.boardSkinId || null;
+  const boardSkinImage = boardSkinId ? (getCosmeticById(boardSkinId)?.image || null) : null;
+  const noEnemyField = !state.enemy.field.some((fc) => fc != null);
 
   return (
     <div
