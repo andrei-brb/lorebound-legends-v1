@@ -38,7 +38,9 @@ export interface FieldCard {
   abilityUsed: boolean;
   attackedThisTurn: boolean;
   stunned: boolean; // can't act this turn
+  stunTurnsRemaining?: number;
   tempBuffs: TempBuff[];
+  tempShield?: { value: number; turnsRemaining: number };
   /** Temporary taunt from abilities (card keyword "taunt" is implicit while on field). */
   tauntTurnsRemaining?: number;
   /** Damage at start of this unit's controller's turn. */
@@ -90,6 +92,8 @@ export interface PlayerSide {
   ap: number;
   fatigue: number;
   hasCastSpellThisTurn: boolean;
+  /** ygoHybrid: 1 Normal Summon (hero/god) per turn. */
+  normalSummonUsed?: boolean;
 }
 
 export interface BattleLog {
@@ -105,8 +109,12 @@ export interface BattleState {
   player: PlayerSide;
   enemy: PlayerSide;
   turn: "player" | "enemy";
-  /** Start → main actions → end (Phase D UX) */
-  turnPhase: "start" | "main" | "end";
+  /** Ruleset toggle to keep legacy battles intact. */
+  ruleset: "legacy" | "ygoHybrid";
+  /** Rules phase (legacy uses start/main/end; ygoHybrid uses draw/main/battle/end). */
+  turnPhase: "start" | "main" | "end" | "draw" | "battle";
+  /** Monotonic phase step for ordering windows/resolution. */
+  phaseStepId: number;
   phase: "select-action" | "select-target" | "animating" | "game-over";
   logs: BattleLog[];
   winner: "player" | "enemy" | "draw" | null;
@@ -121,7 +129,21 @@ export interface BattleState {
   playerCardProgress?: Record<string, CardProgress>;
   /** AI difficulty tier (Fix 4). */
   aiDifficulty?: "easy" | "normal" | "hard";
+  /** ygoHybrid: when set, opponent may respond with 0–1 quick action. */
+  responseWindow?: ResponseWindow | null;
 }
+
+export type ResponseWindowCause = "on_enemy_play" | "on_spell_cast" | "on_attacked";
+export type ResponseWindow = {
+  id: number;
+  cause: ResponseWindowCause;
+  responder: "player" | "enemy";
+  chainLocked: boolean;
+  openedOnPhaseStepId: number;
+  pendingAttack?: { attackerFieldIndex: number; targetFieldIndex: number | "direct" };
+  pendingPlay?: { playedFieldIndex: number };
+  pendingSpellCast?: { casterTurn: "player" | "enemy" };
+};
 
 export type PendingAction =
   | { type: "play-card"; cardIndex: number }
@@ -163,6 +185,7 @@ function createSide(
     ap: 0,
     fatigue: 0,
     hasCastSpellThisTurn: false,
+    normalSummonUsed: false,
   };
 }
 
@@ -184,6 +207,7 @@ export function initBattle(
     enemyHero?: { hp?: number; shield?: number };
     playerCardProgress?: Record<string, CardProgress>;
     aiDifficulty?: "easy" | "normal" | "hard";
+    ruleset?: "legacy" | "ygoHybrid";
   },
 ): BattleState {
   const rng = opts?.rng ?? (opts?.seed !== undefined ? createSeededRng(opts.seed) : Math.random);
@@ -191,7 +215,9 @@ export function initBattle(
     player: createSide(playerDeckIds, rng),
     enemy: createSide(enemyDeckIds, rng, opts?.enemyHero),
     turn: "player",
+    ruleset: opts?.ruleset ?? "legacy",
     turnPhase: "start",
+    phaseStepId: 0,
     phase: "select-action",
     logs: [{ message: "⚔️ Battle begins! Draw your weapons!", type: "info", timestamp: 0 }],
     winner: null,
@@ -202,6 +228,7 @@ export function initBattle(
     rngSeed: opts?.seed,
     playerCardProgress: opts?.playerCardProgress,
     aiDifficulty: opts?.aiDifficulty ?? "normal",
+    responseWindow: null,
   };
   return startTurn(state);
 }
@@ -463,10 +490,18 @@ function processTokenAutoStrikes(state: BattleState, side: PlayerSide, otherSide
   }
 }
 
+function applyTempShieldAbsorb(fc: FieldCard, dmg: number): number {
+  if (!fc.tempShield || fc.tempShield.value <= 0 || dmg <= 0) return dmg;
+  const abs = Math.min(fc.tempShield.value, dmg);
+  fc.tempShield.value -= abs;
+  return dmg - abs;
+}
+
 export function startTurn(state: BattleState): BattleState {
   if (state.phase === "game-over") return state;
 
-  state.turnPhase = "start";
+  state.phaseStepId += 1;
+  state.turnPhase = state.ruleset === "ygoHybrid" ? "draw" : "start";
   const side = getActiveSide(state);
   const otherSide = getOtherSide(state);
   const sideLabel = state.turn === "player" ? "You" : "Enemy";
@@ -474,6 +509,7 @@ export function startTurn(state: BattleState): BattleState {
   // AP ramps from 2 up to 6 over the first 5 turns
   side.ap = getApCapForTurn(state.turnNumber);
   side.hasCastSpellThisTurn = false;
+  side.normalSummonUsed = false;
   for (const fc of side.field) {
     if (!fc) continue;
     fc.attackedThisTurn = false;
@@ -525,35 +561,46 @@ export function startTurn(state: BattleState): BattleState {
   checkWinCondition(state);
   if (state.phase === "game-over") return state;
 
-  // Draw 1 card at start of turn; apply fatigue only on empty deck.
-  if (side.deck.length > 0) {
-    side.hand.push(side.deck.shift()!);
-    // Fix 2: hand cap at 7 — discard oldest card on overdraw
-    if (side.hand.length > 7) {
-      const discarded = side.hand.shift()!;
-      side.graveyard.push(discarded);
-      addLog(state, `📤 Hand full — ${discarded.name} was discarded!`, "info");
+  // Legacy rules: draw + fatigue handled in startTurn.
+  if (state.ruleset !== "ygoHybrid") {
+    // Draw 1 card at start of turn; apply fatigue only on empty deck.
+    if (side.deck.length > 0) {
+      side.hand.push(side.deck.shift()!);
+      // Fix 2: hand cap at 7 — discard oldest card on overdraw
+      if (side.hand.length > 7) {
+        const discarded = side.hand.shift()!;
+        side.graveyard.push(discarded);
+        addLog(state, `📤 Hand full — ${discarded.name} was discarded!`, "info");
+      }
+    } else {
+      side.fatigue += 1;
+      side.hp = Math.max(0, side.hp - side.fatigue);
+      addLog(state, `📦 ${sideLabel} fatigues for ${side.fatigue} damage!`, "info");
     }
-  } else {
-    side.fatigue += 1;
-    side.hp = Math.max(0, side.hp - side.fatigue);
-    addLog(state, `📦 ${sideLabel} fatigues for ${side.fatigue} damage!`, "info");
-  }
 
-  // Fix 8: comeback mechanic — draw 1 extra card when HP ≤ 30% (≤15 of 50 default)
-  if (side.hp > 0 && side.hp <= 15 && side.deck.length > 0) {
-    side.hand.push(side.deck.shift()!);
-    if (side.hand.length > 7) {
-      const discarded = side.hand.shift()!;
-      side.graveyard.push(discarded);
+    // Fix 8: comeback mechanic — draw 1 extra card when HP ≤ 30% (≤15 of 50 default)
+    if (side.hp > 0 && side.hp <= 15 && side.deck.length > 0) {
+      side.hand.push(side.deck.shift()!);
+      if (side.hand.length > 7) {
+        const discarded = side.hand.shift()!;
+        side.graveyard.push(discarded);
+      }
+      addLog(state, `💢 ${sideLabel} draws from desperation!`, "info");
     }
-    addLog(state, `💢 ${sideLabel} draws from desperation!`, "info");
   }
 
   applyWeaponTurnStartPassives(state, side);
   processTokenAutoStrikes(state, side, otherSide);
 
   state.turnPhase = "main";
+
+  // ygoHybrid: draw is mandatory and automatic; we still model it as its own phase,
+  // but we immediately resolve it so the player lands in Main Phase.
+  if (state.ruleset === "ygoHybrid") {
+    state.turnPhase = "draw";
+    return advancePhase(state);
+  }
+
   return checkWinCondition(state);
 }
 
@@ -563,7 +610,10 @@ export function getApCapForTurn(turnNumber: number): number {
 }
 
 /** AP to play this card from hand (play / equip / set trap / cast spell). */
-export function getHandPlayApCost(card: GameCard): number {
+export function getHandPlayApCost(card: GameCard, ruleset: "legacy" | "ygoHybrid" = "legacy"): number {
+  if (ruleset === "ygoHybrid") {
+    if (card.type === "hero" || card.type === "god" || card.type === "trap" || card.type === "weapon") return 0;
+  }
   if (card.type === "spell") return card.id === "time-stop" ? 2 : 1;
   if (card.type === "hero" || card.type === "god" || card.type === "trap" || card.type === "weapon") return 1;
   return 1;
@@ -582,12 +632,16 @@ function spendAp(state: BattleState, cost: number): void {
 function maybeAutoEndTurn(state: BattleState): BattleState {
   const side = getActiveSide(state);
   if (state.phase === "game-over") return state;
+  if (state.ruleset === "ygoHybrid") return state;
   if (side.ap > 0) return state;
   return endTurn(state);
 }
 
 export function endTurnAction(state: BattleState): BattleState {
   const newState = deepCopy(state);
+  if (newState.ruleset === "ygoHybrid") {
+    return advancePhase(newState);
+  }
   return endTurn(newState);
 }
 
@@ -651,16 +705,299 @@ function checkWinCondition(state: BattleState): BattleState {
   return state;
 }
 
+// =================== Phase Control (ygoHybrid) ===================
+
+function applyHandCap7(state: BattleState, side: PlayerSide): void {
+  while (side.hand.length > 7) {
+    const discarded = side.hand.shift();
+    if (!discarded) break;
+    side.graveyard.push(discarded);
+    addLog(state, `📤 Hand full — ${discarded.name} was discarded!`, "info");
+  }
+}
+
+/** Advance the rules phase (only meaningful for ygoHybrid). */
+export function advancePhase(state: BattleState): BattleState {
+  const s = deepCopy(state);
+  if (s.phase === "game-over") return s;
+  if (s.ruleset !== "ygoHybrid") return s;
+  if (s.turn !== "player" && s.turn !== "enemy") return s;
+  if (s.responseWindow) return s;
+
+  s.phaseStepId += 1;
+  const side = getActiveSide(s);
+  const sideLabel = s.turn === "player" ? "You" : "Enemy";
+
+  switch (s.turnPhase) {
+    case "draw": {
+      // Yu-Gi-Oh style deck-out: if you cannot draw at the start of Draw Phase, you lose immediately.
+      if (side.deck.length <= 0) {
+        s.phase = "game-over";
+        s.winner = s.turn === "player" ? "enemy" : "player";
+        addLog(s, `📭 ${sideLabel} cannot draw — deck out!`, "defeat", { ruleTag: "ygo_deckout" });
+        return s;
+      }
+      side.hand.push(side.deck.shift()!);
+      applyHandCap7(s, side);
+      addLog(s, `🃏 ${sideLabel} draws 1 card.`, "info", { ruleTag: "ygo_draw" });
+      s.turnPhase = "main";
+      return checkWinCondition(s);
+    }
+    case "main": {
+      s.turnPhase = "battle";
+      addLog(s, `⚔️ ${sideLabel} enters Battle Phase.`, "info", { ruleTag: "ygo_phase" });
+      return s;
+    }
+    case "battle": {
+      s.turnPhase = "end";
+      addLog(s, `🏁 ${sideLabel} enters End Phase.`, "info", { ruleTag: "ygo_phase" });
+      return s;
+    }
+    case "end": {
+      // Reuse existing endTurn logic to flip turn + cleanup, then we will be in draw.
+      return endTurn(s);
+    }
+    default: {
+      // If legacy phase leaked in, normalize.
+      s.turnPhase = "draw";
+      return s;
+    }
+  }
+}
+
+function openResponseWindow(
+  state: BattleState,
+  cause: ResponseWindowCause,
+  responder: "player" | "enemy",
+  payload?: Pick<ResponseWindow, "pendingAttack" | "pendingPlay" | "pendingSpellCast">,
+): void {
+  state.responseWindow = {
+    id: (state.responseWindow?.id ?? 0) + 1,
+    cause,
+    responder,
+    chainLocked: false,
+    openedOnPhaseStepId: state.phaseStepId,
+    ...payload,
+  };
+}
+
+export function passResponseWindow(state: BattleState): BattleState {
+  const s = deepCopy(state);
+  const rw = s.responseWindow;
+  if (!rw) return s;
+  if (rw.pendingAttack) {
+    const { attackerFieldIndex, targetFieldIndex } = rw.pendingAttack;
+    s.responseWindow = null;
+    // Resume attack resolution without opening another response window.
+    return attackTargetLegacyResolve(s, attackerFieldIndex, targetFieldIndex);
+  }
+  s.responseWindow = null;
+  return s;
+}
+
+export function activateTrapFromResponseWindow(state: BattleState, trapIndex: number): BattleState {
+  const s = deepCopy(state);
+  const rw = s.responseWindow;
+  if (!rw) return s;
+  const responderSide = rw.responder === "player" ? s.player : s.enemy;
+  const actingSide = rw.responder === "player" ? s.enemy : s.player;
+  const trap = responderSide.traps[trapIndex];
+  if (!trap || !trap.faceDown || !trap.card.trapEffect) return state;
+  if (trap.card.trapEffect.trigger !== rw.cause) return state;
+
+  const effect = trap.card.trapEffect;
+  const responderLabel = rw.responder === "player" ? "You" : "Enemy";
+
+  if (rw.cause === "on_enemy_play" && rw.pendingPlay) {
+    const fc = actingSide.field[rw.pendingPlay.playedFieldIndex];
+    if (fc) {
+      if (effect.effect === "damage" || effect.effect === "reflect_damage") {
+        fc.currentHp = Math.max(1, fc.currentHp - effect.value);
+        addLog(s, `🪤 ${responderLabel} activated ${trap.card.name}! Deals ${effect.value} damage!`, "trap");
+      } else if (effect.effect === "stun") {
+        fc.stunned = true;
+        fc.stunTurnsRemaining = effect.duration ?? 1;
+        addLog(s, `🪤 ${responderLabel} activated ${trap.card.name}! ${fc.card.name} is stunned!`, "trap");
+      } else if (effect.effect === "debuff_attack" || effect.effect === "debuff_defense") {
+        const stat = effect.effect === "debuff_attack" ? "attack" : "defense";
+        fc.tempBuffs.push({ stat, value: -effect.value, turnsRemaining: effect.duration ?? 2 });
+        addLog(s, `🪤 ${responderLabel} activated ${trap.card.name}! -${effect.value} ${stat.toUpperCase()} for ${effect.duration ?? 2} turn(s).`, "trap");
+      } else if (effect.effect === "shield") {
+        responderSide.shield += effect.value;
+        addLog(s, `🪤 ${responderLabel} activated ${trap.card.name}! +${effect.value} shield.`, "trap");
+      }
+    }
+  } else if (rw.cause === "on_spell_cast" && rw.pendingSpellCast) {
+    // Apply to caster hero HP (damage) or stun first caster unit (stun), mirroring legacy behavior.
+    if (effect.effect === "damage") {
+      let dmg = effect.value;
+      if (actingSide.shield > 0) {
+        const abs = Math.min(actingSide.shield, dmg);
+        actingSide.shield -= abs;
+        dmg -= abs;
+      }
+      actingSide.hp = Math.max(0, actingSide.hp - dmg);
+      addLog(s, `🪤 ${responderLabel} activated ${trap.card.name}! Deals ${effect.value} damage to the caster!`, "trap");
+    } else if (effect.effect === "stun") {
+      const casterCards = actingSide.field.filter(Boolean) as FieldCard[];
+      if (casterCards.length > 0) {
+        casterCards[0].stunned = true;
+        casterCards[0].stunTurnsRemaining = effect.duration ?? 1;
+        addLog(s, `🪤 ${responderLabel} activated ${trap.card.name}! ${casterCards[0].card.name} is stunned!`, "trap");
+      }
+    } else if (effect.effect === "shield") {
+      responderSide.shield += effect.value;
+      addLog(s, `🪤 ${responderLabel} activated ${trap.card.name}! +${effect.value} shield.`, "trap");
+    }
+  } else if (rw.cause === "on_attacked" && rw.pendingAttack) {
+    const attacker = actingSide.field[rw.pendingAttack.attackerFieldIndex];
+    if (attacker) {
+      if (effect.effect === "reflect_damage" || effect.effect === "damage") {
+        attacker.currentHp = Math.max(0, attacker.currentHp - effect.value);
+        addLog(s, `🪤 ${responderLabel} activated ${trap.card.name}! ${effect.effect === "reflect_damage" ? "Reflects" : "Deals"} ${effect.value} damage!`, "trap");
+      } else if (effect.effect === "stun") {
+        attacker.stunned = true;
+        attacker.stunTurnsRemaining = effect.duration ?? 1;
+        addLog(s, `🪤 ${responderLabel} activated ${trap.card.name}! ${attacker.card.name} is stunned!`, "trap");
+      } else if (effect.effect === "debuff_attack" || effect.effect === "debuff_defense") {
+        const stat = effect.effect === "debuff_attack" ? "attack" : "defense";
+        attacker.tempBuffs.push({ stat, value: -effect.value, turnsRemaining: effect.duration ?? 2 });
+        addLog(s, `🪤 ${responderLabel} activated ${trap.card.name}! -${effect.value} ${stat.toUpperCase()} for ${effect.duration ?? 2} turn(s).`, "trap");
+      } else if (effect.effect === "shield") {
+        responderSide.shield += effect.value;
+        addLog(s, `🪤 ${responderLabel} activated ${trap.card.name}! +${effect.value} shield.`, "trap");
+      }
+    }
+  }
+
+  // Consume trap
+  responderSide.traps[trapIndex] = null;
+  responderSide.graveyard.push(trap.card);
+
+  // Close window and resume any pending attack
+  s.responseWindow = null;
+  const resumed = rw.pendingAttack ? attackTargetLegacyResolve(s, rw.pendingAttack.attackerFieldIndex, rw.pendingAttack.targetFieldIndex) : s;
+  return recalcFieldStats(checkWinCondition(resumed));
+}
+
+export function activateQuickSpellFromResponseWindow(state: BattleState, handIndex: number): BattleState {
+  const s = deepCopy(state);
+  const rw = s.responseWindow;
+  if (!rw) return s;
+  const responderSide = rw.responder === "player" ? s.player : s.enemy;
+  const actingSide = rw.responder === "player" ? s.enemy : s.player;
+
+  const card = responderSide.hand[handIndex];
+  if (!card || card.type !== "spell" || !card.spellEffect) return state;
+  if (card.spellSpeed !== "quick") return state;
+
+  // ygoHybrid: quick spells are only playable in a response window.
+  if (s.ruleset !== "ygoHybrid") return state;
+
+  // Choose a default target based on context.
+  const eff = card.spellEffect;
+  let targetFieldIndex: number | undefined = undefined;
+
+  const firstAlly = responderSide.field.findIndex((fc) => fc != null);
+  const firstEnemy = actingSide.field.findIndex((fc) => fc != null);
+
+  if (rw.cause === "on_attacked" && rw.pendingAttack) {
+    // Defender can respond: if quick spell targets ally, prefer the attacked ally (if any).
+    if (eff.target === "single_ally") {
+      if (rw.pendingAttack.targetFieldIndex !== "direct") targetFieldIndex = rw.pendingAttack.targetFieldIndex;
+      else if (firstAlly !== -1) targetFieldIndex = firstAlly;
+    } else if (eff.target === "single_enemy") {
+      targetFieldIndex = rw.pendingAttack.attackerFieldIndex;
+    }
+  } else if (rw.cause === "on_enemy_play" && rw.pendingPlay) {
+    if (eff.target === "single_enemy") targetFieldIndex = rw.pendingPlay.playedFieldIndex;
+    else if (eff.target === "single_ally" && firstAlly !== -1) targetFieldIndex = firstAlly;
+  } else if (rw.cause === "on_spell_cast") {
+    if (eff.target === "single_enemy" && firstEnemy !== -1) targetFieldIndex = firstEnemy;
+    if (eff.target === "single_ally" && firstAlly !== -1) targetFieldIndex = firstAlly;
+  }
+
+  // Temporarily treat it as a legacy cast to reuse effect resolution, but:
+  // - prevent opening another response window
+  // - cast from the responder's perspective
+  const saved = s.responseWindow;
+  s.responseWindow = null;
+
+  // Swap viewpoint so existing castSpell logic casts from active side.
+  const viewerIsResponder = rw.responder === s.turn;
+  let castState = s;
+  if (!viewerIsResponder) {
+    castState = {
+      ...s,
+      player: s.enemy,
+      enemy: s.player,
+      turn: s.turn === "enemy" ? "player" : "enemy",
+      winner:
+        s.winner === "player"
+          ? "enemy"
+          : s.winner === "enemy"
+            ? "player"
+            : s.winner,
+      activeSynergies: {
+        player: s.activeSynergies.enemy,
+        enemy: s.activeSynergies.player,
+      },
+    };
+  }
+
+  // Cast quick spell from response context.
+  const casted = castSpellInternal(castState, handIndex, targetFieldIndex, {
+    allowQuick: true,
+    allowOutsideMain: true,
+    allowDuringResponseWindow: true,
+  });
+
+  // Swap back if we swapped
+  let back = casted;
+  if (!viewerIsResponder) {
+    back = {
+      ...casted,
+      player: casted.enemy,
+      enemy: casted.player,
+      turn: casted.turn === "enemy" ? "player" : "enemy",
+      winner:
+        casted.winner === "player"
+          ? "enemy"
+          : casted.winner === "enemy"
+            ? "player"
+            : casted.winner,
+      activeSynergies: {
+        player: casted.activeSynergies.enemy,
+        enemy: casted.activeSynergies.player,
+      },
+    };
+  }
+
+  // Close window and resume pending attack if any.
+  back.responseWindow = null;
+  const resumed = saved?.pendingAttack
+    ? attackTargetLegacyResolve(back, saved.pendingAttack.attackerFieldIndex, saved.pendingAttack.targetFieldIndex)
+    : back;
+
+  return recalcFieldStats(checkWinCondition(resumed));
+}
+
 // =================== Turn Actions ===================
 
 export function playCard(state: BattleState, handIndex: number): BattleState {
   const newState = deepCopy(state);
+  if (newState.ruleset === "ygoHybrid" && newState.responseWindow) return state;
   const side = getActiveSide(newState);
   const card = side.hand[handIndex];
   if (!card) return state;
 
   if (card.type === "hero" || card.type === "god") {
-    if (!canSpendAp(newState, 1)) return state;
+    if (newState.ruleset === "ygoHybrid") {
+      if (newState.turnPhase !== "main") return state;
+      if (side.normalSummonUsed) return state;
+    }
+    const cost = newState.ruleset === "ygoHybrid" ? 0 : 1;
+    if (!canSpendAp(newState, cost)) return state;
     const slotIndex = side.field.findIndex(s => s === null);
     if (slotIndex === -1) {
       addLog(newState, "❌ Field is full! Max 4 cards.", "info");
@@ -687,16 +1024,24 @@ export function playCard(state: BattleState, handIndex: number): BattleState {
     }
     side.field[slotIndex] = fc;
     side.hand.splice(handIndex, 1);
-    spendAp(newState, 1);
+    spendAp(newState, cost);
+    if (newState.ruleset === "ygoHybrid") side.normalSummonUsed = true;
 
     const sideLabel = newState.turn === "player" ? "You" : "Enemy";
     addLog(newState, `🃏 ${sideLabel} played ${card.name} to the field!`, "info");
 
+    if (newState.ruleset === "ygoHybrid") {
+      openResponseWindow(newState, "on_enemy_play", newState.turn === "player" ? "enemy" : "player", {
+        pendingPlay: { playedFieldIndex: slotIndex },
+      });
+      return recalcFieldStats(checkWinCondition(newState));
+    }
     return maybeAutoEndTurn(recalcFieldStats(newState));
   }
 
   if (card.type === "trap") {
-    if (!canSpendAp(newState, 1)) return state;
+    const cost = newState.ruleset === "ygoHybrid" ? 0 : 1;
+    if (!canSpendAp(newState, cost)) return state;
     const trapSlot = side.traps.findIndex(s => s === null);
     if (trapSlot === -1) {
       addLog(newState, "❌ Trap slots full! Max 2 traps.", "info");
@@ -704,7 +1049,7 @@ export function playCard(state: BattleState, handIndex: number): BattleState {
     }
     side.traps[trapSlot] = { card, faceDown: true };
     side.hand.splice(handIndex, 1);
-    spendAp(newState, 1);
+    spendAp(newState, cost);
     const sideLabel = newState.turn === "player" ? "You" : "Enemy";
     addLog(newState, `🪤 ${sideLabel} set a trap face-down!`, "trap");
     return maybeAutoEndTurn(newState);
@@ -715,12 +1060,14 @@ export function playCard(state: BattleState, handIndex: number): BattleState {
 
 export function equipWeapon(state: BattleState, handIndex: number, fieldIndex: number): BattleState {
   const newState = deepCopy(state);
+  if (newState.ruleset === "ygoHybrid" && newState.responseWindow) return state;
   const side = getActiveSide(newState);
   const card = side.hand[handIndex];
   const target = side.field[fieldIndex];
 
   if (!card || card.type !== "weapon" || !target) return state;
-  if (!canSpendAp(newState, 1)) return state;
+  const cost = newState.ruleset === "ygoHybrid" ? 0 : 1;
+  if (!canSpendAp(newState, cost)) return state;
   if (target.equippedWeapon) {
     addLog(newState, "❌ This card already has a weapon equipped!", "info");
     return state;
@@ -728,7 +1075,7 @@ export function equipWeapon(state: BattleState, handIndex: number, fieldIndex: n
 
   target.equippedWeapon = card;
   side.hand.splice(handIndex, 1);
-  spendAp(newState, 1);
+  spendAp(newState, cost);
 
   const sideLabel = newState.turn === "player" ? "You" : "Enemy";
   addLog(newState, `⚔️ ${sideLabel} equipped ${card.name} to ${target.card.name}! (+${card.weaponBonus?.attack || 0} ATK, +${card.weaponBonus?.defense || 0} DEF)`, "weapon");
@@ -741,13 +1088,24 @@ function getSpellApCost(card: GameCard): number {
   return 1;
 }
 
-export function castSpell(state: BattleState, handIndex: number, targetFieldIndex?: number): BattleState {
+function castSpellInternal(
+  state: BattleState,
+  handIndex: number,
+  targetFieldIndex: number | undefined,
+  opts: { allowQuick: boolean; allowOutsideMain: boolean; allowDuringResponseWindow: boolean },
+): BattleState {
   const newState = deepCopy(state);
+  if (newState.ruleset === "ygoHybrid" && newState.responseWindow && !opts.allowDuringResponseWindow) return state;
   const side = getActiveSide(newState);
   const otherSide = getOtherSide(newState);
   const card = side.hand[handIndex];
 
   if (!card || card.type !== "spell" || !card.spellEffect) return state;
+  if (newState.ruleset === "ygoHybrid") {
+    const spd = card.spellSpeed ?? "normal";
+    if (!opts.allowOutsideMain && spd !== "quick" && newState.turnPhase !== "main") return state;
+    if (!opts.allowQuick && spd === "quick") return state;
+  }
   const apCost = getSpellApCost(card);
   if (!canSpendAp(newState, apCost)) return state;
   if (side.hasCastSpellThisTurn) {
@@ -764,7 +1122,8 @@ export function castSpell(state: BattleState, handIndex: number, targetFieldInde
         const target = otherSide.field[targetFieldIndex];
         if (target) {
           const dmg = Math.max(1, effect.value - Math.floor(target.defense * 0.25));
-          target.currentHp = Math.max(0, target.currentHp - dmg);
+          const rem = applyTempShieldAbsorb(target, dmg);
+          target.currentHp = Math.max(0, target.currentHp - rem);
           addLog(newState, `🔥 ${sideLabel} cast ${card.name}! Deals ${dmg} damage to ${target.card.name}!`, "spell");
           if (target.currentHp <= 0) {
             addLog(newState, `💀 ${target.card.name} was destroyed!`, "defeat");
@@ -778,7 +1137,8 @@ export function castSpell(state: BattleState, handIndex: number, targetFieldInde
           const target = otherSide.field[i];
           if (!target) continue;
           const dmg = Math.max(1, effect.value - Math.floor(target.defense * 0.25));
-          target.currentHp = Math.max(0, target.currentHp - dmg);
+          const rem = applyTempShieldAbsorb(target, dmg);
+          target.currentHp = Math.max(0, target.currentHp - rem);
           if (target.currentHp <= 0) {
             addLog(newState, `💀 ${target.card.name} was destroyed by ${card.name}!`, "defeat");
             otherSide.graveyard.push(target.card);
@@ -830,12 +1190,87 @@ export function castSpell(state: BattleState, handIndex: number, targetFieldInde
       addLog(newState, `❄️ ${sideLabel} cast ${card.name}! -${effect.value} ${stat.toUpperCase()} to enemies for ${effect.duration || 2} turns!`, "spell");
       break;
     }
+    case "draw": {
+      const n = Math.max(0, Math.min(5, effect.value));
+      let drew = 0;
+      for (let i = 0; i < n; i++) {
+        if (side.deck.length <= 0) break;
+        side.hand.push(side.deck.shift()!);
+        drew += 1;
+      }
+      // Cap at 7 like usual
+      while (side.hand.length > 7) {
+        const discarded = side.hand.shift()!;
+        side.graveyard.push(discarded);
+      }
+      addLog(newState, `📚 ${sideLabel} cast ${card.name}! Drew ${drew} card${drew === 1 ? "" : "s"}.`, "spell");
+      break;
+    }
+    case "tutor": {
+      const wantType = effect.pick;
+      const idx = side.deck.findIndex((c) => c.type === wantType);
+      if (idx === -1) {
+        addLog(newState, `🔎 ${sideLabel} cast ${card.name}! No ${wantType} found.`, "spell");
+        break;
+      }
+      const [picked] = side.deck.splice(idx, 1);
+      side.hand.push(picked);
+      while (side.hand.length > 7) {
+        const discarded = side.hand.shift()!;
+        side.graveyard.push(discarded);
+      }
+      addLog(
+        newState,
+        `🔎 ${sideLabel} cast ${card.name}! Tutored 1 ${wantType}${effect.reveal ? ` (${picked.name})` : ""}.`,
+        "spell",
+      );
+      break;
+    }
+    case "shield": {
+      const dur = Math.max(1, Math.min(4, effect.duration ?? 1));
+      if (effect.target === "all_allies") {
+        for (const fc of side.field) {
+          if (!fc) continue;
+          fc.tempShield = { value: effect.value, turnsRemaining: dur };
+        }
+        addLog(newState, `🛡️ ${sideLabel} cast ${card.name}! Shielded all allies (+${effect.value}) for ${dur} turn(s).`, "spell");
+      } else if (effect.target === "self") {
+        side.shield += effect.value;
+        addLog(newState, `🛡️ ${sideLabel} cast ${card.name}! Gained +${effect.value} shield.`, "spell");
+      } else if (effect.target === "single_ally" && targetFieldIndex !== undefined) {
+        const target = side.field[targetFieldIndex];
+        if (target) {
+          target.tempShield = { value: effect.value, turnsRemaining: dur };
+          addLog(newState, `🛡️ ${sideLabel} cast ${card.name}! Shielded ${target.card.name} (+${effect.value}) for ${dur} turn(s).`, "spell");
+        }
+      }
+      break;
+    }
+    case "stun": {
+      const dur = Math.max(1, Math.min(3, effect.duration));
+      if (targetFieldIndex !== undefined) {
+        const target = otherSide.field[targetFieldIndex];
+        if (target) {
+          target.stunned = true;
+          target.stunTurnsRemaining = dur;
+          addLog(newState, `😵 ${sideLabel} cast ${card.name}! Stunned ${target.card.name} for ${dur} turn(s).`, "spell");
+        }
+      }
+      break;
+    }
   }
 
   side.hand.splice(handIndex, 1);
   side.graveyard.push(card);
   side.hasCastSpellThisTurn = true;
   spendAp(newState, apCost);
+
+  if (newState.ruleset === "ygoHybrid") {
+    openResponseWindow(newState, "on_spell_cast", newState.turn === "player" ? "enemy" : "player", {
+      pendingSpellCast: { casterTurn: newState.turn },
+    });
+    return recalcFieldStats(checkWinCondition(newState));
+  }
 
   // Fix 10: on_spell_cast trap — fires when the opponent casts a spell
   for (let ti = 0; ti < otherSide.traps.length; ti++) {
@@ -866,16 +1301,34 @@ export function castSpell(state: BattleState, handIndex: number, targetFieldInde
   return maybeAutoEndTurn(recalcFieldStats(checkWinCondition(newState)));
 }
 
+export function castSpell(state: BattleState, handIndex: number, targetFieldIndex?: number): BattleState {
+  // Normal cast from hand (not a response): disallow quick spells in ygoHybrid.
+  return castSpellInternal(state, handIndex, targetFieldIndex, {
+    allowQuick: false,
+    allowOutsideMain: false,
+    allowDuringResponseWindow: false,
+  });
+}
+
 export function attackTarget(state: BattleState, attackerFieldIndex: number, targetFieldIndex: number | "direct"): BattleState {
   const newState = deepCopy(state);
+  if (newState.ruleset === "ygoHybrid" && newState.responseWindow) return state;
   const side = getActiveSide(newState);
   const otherSide = getOtherSide(newState);
   const attacker = side.field[attackerFieldIndex];
 
   if (!attacker || attacker.stunned || attacker.attackedThisTurn) return state;
-  if (!canSpendAp(newState, 1)) return state;
+  const atkCost = newState.ruleset === "ygoHybrid" ? 0 : 1;
+  if (!canSpendAp(newState, atkCost)) return state;
 
   const sideLabel = newState.turn === "player" ? "You" : "Enemy";
+
+  if (newState.ruleset === "ygoHybrid") {
+    openResponseWindow(newState, "on_attacked", newState.turn === "player" ? "enemy" : "player", {
+      pendingAttack: { attackerFieldIndex, targetFieldIndex },
+    });
+    return newState;
+  }
 
   // Blind: attacks may miss
   if (attacker.blind && attacker.blind.turnsRemaining > 0) {
@@ -985,7 +1438,7 @@ export function attackTarget(state: BattleState, attackerFieldIndex: number, tar
       }
     }
 
-    spendAp(newState, 1);
+    spendAp(newState, atkCost);
     attacker.attackedThisTurn = true;
     return maybeAutoEndTurn(recalcFieldStats(checkWinCondition(newState)));
   }
@@ -1023,7 +1476,7 @@ export function attackTarget(state: BattleState, attackerFieldIndex: number, tar
         side.graveyard.push(attacker.card);
         if (attacker.equippedWeapon) side.graveyard.push(attacker.equippedWeapon);
         side.field[attackerFieldIndex] = null;
-        spendAp(newState, 1);
+        spendAp(newState, atkCost);
         return maybeAutoEndTurn(recalcFieldStats(checkWinCondition(newState)));
       }
       break;
@@ -1032,7 +1485,7 @@ export function attackTarget(state: BattleState, attackerFieldIndex: number, tar
 
   if (attacker.stunned) {
     addLog(newState, `😵 ${attacker.card.name} is stunned — attack interrupted!`, "info");
-    spendAp(newState, 1);
+      spendAp(newState, atkCost);
     attacker.attackedThisTurn = true;
     return maybeAutoEndTurn(recalcFieldStats(checkWinCondition(newState)));
   }
@@ -1063,8 +1516,9 @@ export function attackTarget(state: BattleState, attackerFieldIndex: number, tar
     }
   }
 
-  target.currentHp = Math.max(0, target.currentHp - dmg);
-  let totalDealt = dmg;
+  const rem = applyTempShieldAbsorb(target, dmg);
+  target.currentHp = Math.max(0, target.currentHp - rem);
+  let totalDealt = rem;
 
   let attackMsg = `⚔️ ${attacker.card.name} attacks ${target.card.name} for ${dmg} damage!`;
   if (elemLabel) {
@@ -1131,6 +1585,18 @@ export function attackTarget(state: BattleState, attackerFieldIndex: number, tar
   spendAp(newState, 1);
   attacker.attackedThisTurn = true;
   return maybeAutoEndTurn(recalcFieldStats(checkWinCondition(newState)));
+}
+
+function attackTargetLegacyResolve(state: BattleState, attackerFieldIndex: number, targetFieldIndex: number | "direct"): BattleState {
+  // Call into the existing (legacy) attack resolver by temporarily forcing legacy behavior.
+  // ygoHybrid uses this after a response window closes.
+  const s = deepCopy(state);
+  const prevRuleset = s.ruleset;
+  // Ensure we don't reopen a response window inside attackTarget.
+  s.ruleset = "legacy";
+  const resolved = attackTarget(s, attackerFieldIndex, targetFieldIndex);
+  resolved.ruleset = prevRuleset;
+  return resolved;
 }
 
 function flattenAbilityEffects(effect: AbilityEffect): AbilityEffect[] {
@@ -1515,6 +1981,7 @@ function applyResolvedAbility(
 
 export function activateAbility(state: BattleState, fieldIndex: number): BattleState {
   const newState = deepCopy(state);
+  if (newState.ruleset === "ygoHybrid" && newState.responseWindow) return state;
   const side = getActiveSide(newState);
   const fc = side.field[fieldIndex];
 
@@ -1553,6 +2020,7 @@ export function endTurn(state: BattleState): BattleState {
 
   const side = getActiveSide(state);
   state.turnPhase = "end";
+  state.responseWindow = null;
 
   // Tick down temp buffs and temporary taunt
   for (const fc of side.field) {
@@ -1560,6 +2028,10 @@ export function endTurn(state: BattleState): BattleState {
     fc.tempBuffs = fc.tempBuffs
       .map(b => ({ ...b, turnsRemaining: b.turnsRemaining - 1 }))
       .filter(b => b.turnsRemaining > 0);
+    if (fc.tempShield) {
+      fc.tempShield.turnsRemaining -= 1;
+      if (fc.tempShield.turnsRemaining <= 0) delete fc.tempShield;
+    }
     if (fc.tauntTurnsRemaining && fc.tauntTurnsRemaining > 0) {
       fc.tauntTurnsRemaining -= 1;
     }
@@ -1567,7 +2039,13 @@ export function endTurn(state: BattleState): BattleState {
       fc.blind.turnsRemaining -= 1;
       if (fc.blind.turnsRemaining <= 0) delete fc.blind;
     }
-    fc.stunned = false;
+    if (fc.stunTurnsRemaining && fc.stunTurnsRemaining > 0) {
+      fc.stunTurnsRemaining -= 1;
+      fc.stunned = fc.stunTurnsRemaining > 0;
+      if (fc.stunTurnsRemaining <= 0) delete fc.stunTurnsRemaining;
+    } else {
+      fc.stunned = false;
+    }
   }
 
   tickTokenDurations(side);
@@ -1583,7 +2061,166 @@ export function endTurn(state: BattleState): BattleState {
 
 // =================== AI ===================
 
+function performAITurnLegacyOneStep(state: BattleState): BattleState {
+  // One action attempt using the legacy AI logic, without looping multiple actions.
+  // This is used by ygoHybrid mode to take at most one action between phase advances.
+  let s = state;
+  const difficulty = s.aiDifficulty ?? "normal";
+  if (s.phase === "game-over") return s;
+  if (s.turn !== "enemy") return s;
+  if (s.enemy.ap <= 0) return s;
+
+  const side = s.enemy;
+
+  // ── Easy: random play ───────────────────────────────────────────────────
+  if (difficulty === "easy") {
+    const playableCards = side.hand.map((c, idx) => ({ c, idx }));
+    if (playableCards.length > 0 && s.rng() < 0.6) {
+      const pick = playableCards[Math.floor(s.rng() * playableCards.length)];
+      const next = playCard(s, pick.idx);
+      if (next !== s) return next;
+    }
+    const attackerIdx = side.field.findIndex((fc) => fc != null && !fc.stunned && !fc.attackedThisTurn);
+    if (attackerIdx !== -1) {
+      const playerCards = s.player.field
+        .map((fc2, idx) => (fc2 ? { fc: fc2, idx } : null))
+        .filter(Boolean) as { fc: FieldCard; idx: number }[];
+      if (playerCards.length > 0) {
+        const rndTarget = playerCards[Math.floor(s.rng() * playerCards.length)];
+        const next = attackTarget(s, attackerIdx, rndTarget.idx);
+        if (next !== s) return next;
+      } else {
+        const next = attackTarget(s, attackerIdx, "direct");
+        if (next !== s) return next;
+      }
+    }
+    return s;
+  }
+
+  // ── Normal & Hard: priority-based ───────────────────────────────────────
+  const emptySlot = side.field.findIndex((slot) => slot === null);
+  if (emptySlot !== -1) {
+    const unitCards = side.hand
+      .map((c, idx) => ({ c, idx }))
+      .filter(({ c }) => c.type === "hero" || c.type === "god");
+    if (unitCards.length > 0) {
+      const unitIdx =
+        difficulty === "hard"
+          ? unitCards.sort((a, b) => (b.c.attack ?? 0) - (a.c.attack ?? 0))[0].idx
+          : unitCards[0].idx;
+      const next = playCard(s, unitIdx);
+      if (next !== s) return next;
+    }
+  }
+
+  const weaponIdx = side.hand.findIndex((c) => c.type === "weapon");
+  if (weaponIdx !== -1) {
+    const unequipped = side.field.findIndex((fc) => fc != null && !fc.equippedWeapon);
+    if (unequipped !== -1) {
+      const next = equipWeapon(s, weaponIdx, unequipped);
+      if (next !== s) return next;
+    }
+  }
+
+  const spellIdx = side.hand.findIndex((c) => c.type === "spell");
+  if (spellIdx !== -1 && !side.hasCastSpellThisTurn) {
+    const spell = side.hand[spellIdx];
+    if (spell.spellEffect) {
+      if (spell.spellEffect.type === "damage") {
+        const targetIdx = s.player.field.findIndex((fc) => fc != null);
+        const next = castSpell(s, spellIdx, targetIdx >= 0 ? targetIdx : undefined);
+        if (next !== s) return next;
+      } else {
+        const allyIdx = side.field.findIndex((fc) => fc != null);
+        const next = castSpell(s, spellIdx, allyIdx >= 0 ? allyIdx : undefined);
+        if (next !== s) return next;
+      }
+    }
+  }
+
+  const attackerIdx = side.field.findIndex((fc) => fc != null && !fc.stunned && !fc.attackedThisTurn);
+  if (attackerIdx !== -1) {
+    const fc = side.field[attackerIdx]!;
+    const shouldUseAbility =
+      !fc.abilityUsed &&
+      fc.abilityRechargeIn === undefined &&
+      (difficulty === "hard" ? true : s.rng() < 0.3);
+    if (shouldUseAbility) {
+      const next = activateAbility(s, attackerIdx);
+      if (next !== s) return next;
+    }
+
+    const playerFieldCards = s.player.field
+      .map((fc2, idx) => (fc2 ? { fc: fc2, idx } : null))
+      .filter(Boolean) as { fc: FieldCard; idx: number }[];
+    if (playerFieldCards.length > 0) {
+      const target = playerFieldCards.sort((a, b) => b.fc.attack - a.fc.attack)[0];
+      const next = attackTarget(s, attackerIdx, target.idx);
+      if (next !== s) return next;
+    } else {
+      const next = attackTarget(s, attackerIdx, "direct");
+      if (next !== s) return next;
+    }
+  }
+
+  const trapIdx = side.hand.findIndex((c) => c.type === "trap");
+  if (trapIdx !== -1) {
+    const next = playCard(s, trapIdx);
+    if (next !== s) return next;
+  }
+
+  return s;
+}
+
 export function performAITurn(state: BattleState): BattleState {
+  // ygoHybrid: AI advances phases when stuck (Main → Battle → End → turn switch).
+  if (state.ruleset === "ygoHybrid") {
+    let s = state;
+    const MAX_STEPS = 10;
+    for (let i = 0; i < MAX_STEPS; i++) {
+      if (s.phase === "game-over") return s;
+      if (s.turn !== "enemy") return s;
+
+      if (s.responseWindow && s.responseWindow.responder === "enemy") {
+        s = passResponseWindow(s);
+        continue;
+      }
+
+      const before = JSON.stringify({
+        turn: s.turn,
+        turnPhase: s.turnPhase,
+        ap: s.enemy.ap,
+        hand: s.enemy.hand.length,
+        field: s.enemy.field.map((x) => (x ? x.card.id : null)),
+        traps: s.enemy.traps.map((x) => (x ? x.card.id : null)),
+      });
+
+      // Reuse existing AI action selection, but only allow actions in Main/Battle for now.
+      if (s.turnPhase !== "main" && s.turnPhase !== "battle") {
+        s = advancePhase(s);
+        continue;
+      }
+
+      // Run one "normal" AI action step (existing logic below) by temporarily falling through.
+      // If nothing changes, advance the phase.
+      const afterAction = performAITurnLegacyOneStep(s);
+      const after = JSON.stringify({
+        turn: afterAction.turn,
+        turnPhase: afterAction.turnPhase,
+        ap: afterAction.enemy.ap,
+        hand: afterAction.enemy.hand.length,
+        field: afterAction.enemy.field.map((x) => (x ? x.card.id : null)),
+        traps: afterAction.enemy.traps.map((x) => (x ? x.card.id : null)),
+      });
+      if (after === before) {
+        s = advancePhase(s);
+      } else {
+        s = afterAction;
+      }
+    }
+    return s;
+  }
+
   // Enemy may take multiple actions per turn based on AP.
   let s = state;
   const MAX_ACTIONS = 6; // guard against accidental loops

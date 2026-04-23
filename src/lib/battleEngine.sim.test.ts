@@ -10,6 +10,7 @@ import {
   activateAbility,
   generateEnemyDeck,
   endTurnAction,
+  passResponseWindow,
   type BattleState,
 } from "@/lib/battleEngine";
 
@@ -29,6 +30,9 @@ function pickPlayerDeck(size = 10): string[] {
 }
 
 function playerHeuristicTurn(state: BattleState): BattleState {
+  if (state.responseWindow && state.responseWindow.responder === "player") {
+    return passResponseWindow(state);
+  }
   const side = state.player;
 
   // Spend AP until done; if no good action, end turn.
@@ -84,11 +88,19 @@ function playerHeuristicTurn(state: BattleState): BattleState {
 function runOneBattle(seedLabel: string): BattleState {
   const playerDeck = pickPlayerDeck(10);
   const enemyDeck = generateEnemyDeck(10);
-  let state = initBattle(playerDeck, enemyDeck);
+  let state = initBattle(playerDeck, enemyDeck, { ruleset: "ygoHybrid" });
 
   const MAX_STEPS = 300;
   for (let step = 0; step < MAX_STEPS; step++) {
     if (state.phase === "game-over") break;
+    if (state.responseWindow && state.responseWindow.responder === "player") {
+      state = passResponseWindow(state);
+      continue;
+    }
+    if (state.responseWindow && state.responseWindow.responder === "enemy") {
+      state = passResponseWindow(state);
+      continue;
+    }
 
     const before = JSON.stringify({ turn: state.turn, turnNumber: state.turnNumber, phase: state.phase });
     if (state.turn === "enemy") state = performAITurn(state);

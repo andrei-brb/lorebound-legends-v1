@@ -17,6 +17,9 @@ import {
   endTurnAction,
   getApCapForTurn,
   getHandPlayApCost,
+  passResponseWindow,
+  activateTrapFromResponseWindow,
+  activateQuickSpellFromResponseWindow,
 } from "@/lib/battleEngine";
 import {
   replayBattleFromActions,
@@ -229,6 +232,7 @@ export default function BattleArena({
         initBattle(playerDeckIds, enemyIds, {
           ...initOpts,
           playerCardProgress: playerCardProgress as Record<string, CardProgress>,
+          ruleset: "ygoHybrid",
         }),
       );
       setRewardsGiven(false);
@@ -284,6 +288,8 @@ export default function BattleArena({
     setSelectedFieldIndex(null);
     setSelectedHandIndex(null);
   };
+
+  const canPlayerRespond = Boolean(state?.responseWindow && state.responseWindow.responder === "player");
 
   // Award rewards on game over (ranked MMR submit first when applicable)
   useEffect(() => {
@@ -725,6 +731,86 @@ export default function BattleArena({
       <div className="absolute inset-0 pointer-events-none rounded-2xl bg-background/60" />
       {showLevelUps && <CardLevelUp levelUps={levelUps} onClose={() => setShowLevelUps(false)} />}
 
+      {/* ygoHybrid Response Window (player-side) */}
+      <AnimatePresence>
+        {state?.responseWindow && state.responseWindow.responder === "player" && state.phase !== "game-over" && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="w-[min(92vw,420px)] rounded-2xl border border-border bg-card p-4 shadow-2xl"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Response Window</p>
+                  <h3 className="font-heading text-base font-bold text-foreground mt-1">
+                    Opponent action — respond?
+                  </h3>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Trigger: <span className="font-mono">{state.responseWindow.cause}</span>
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-2 mt-4">
+                <button
+                  onClick={() => setSoloState((prev) => (prev ? passResponseWindow(prev) : prev))}
+                  className="flex-1 px-3 py-2 rounded-xl bg-secondary text-secondary-foreground font-heading font-bold text-sm hover:bg-secondary/80"
+                >
+                  No (Pass)
+                </button>
+                <div className="flex-1 space-y-2">
+                  <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Activate</div>
+                  <div className="space-y-1">
+                    {state.player.traps
+                      .map((t, idx) => ({ t, idx }))
+                      .filter(({ t }) => t && t.faceDown && t.card.trapEffect?.trigger === state.responseWindow?.cause)
+                      .map(({ t, idx }) => (
+                        <button
+                          key={`trap-${idx}`}
+                          onClick={() => setSoloState((prev) => (prev ? activateTrapFromResponseWindow(prev, idx) : prev))}
+                          className="w-full px-3 py-2 rounded-xl bg-primary text-primary-foreground font-heading font-bold text-xs hover:brightness-110 text-left"
+                        >
+                          🪤 {t!.card.name}
+                        </button>
+                      ))}
+
+                    {state.player.hand
+                      .map((c, idx) => ({ c, idx }))
+                      .filter(({ c }) => c.type === "spell" && c.spellSpeed === "quick")
+                      .map(({ c, idx }) => (
+                        <button
+                          key={`qs-${c.id}-${idx}`}
+                          onClick={() => setSoloState((prev) => (prev ? activateQuickSpellFromResponseWindow(prev, idx) : prev))}
+                          className="w-full px-3 py-2 rounded-xl bg-legendary/90 text-white font-heading font-bold text-xs hover:brightness-110 text-left"
+                        >
+                          ⚡ {c.name}
+                        </button>
+                      ))}
+
+                    {state.player.hand.every((c) => !(c.type === "spell" && c.spellSpeed === "quick")) &&
+                      state.player.traps.every((t) => !(t && t.faceDown && t.card.trapEffect?.trigger === state.responseWindow?.cause)) && (
+                        <div className="text-[11px] text-muted-foreground">
+                          No eligible traps or quick spells.
+                        </div>
+                      )}
+                  </div>
+                </div>
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-3">
+                Pick 1 response. After activation, the window closes and play continues.
+              </p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="relative flex">
         {/* ===== Main Battlefield ===== */}
         <div className="flex-1 flex flex-col min-h-0">
@@ -1054,7 +1140,7 @@ export default function BattleArena({
                       className="absolute top-0.5 right-0.5 z-10 rounded px-1 py-0.5 text-[8px] font-heading font-bold leading-none tabular-nums border border-amber-400/50 bg-black/80 text-amber-100 shadow-[0_1px_2px_rgba(0,0,0,0.9)]"
                       title="AP to play from hand"
                     >
-                      {getHandPlayApCost(card)} AP
+                      {getHandPlayApCost(card, state.ruleset)} AP
                     </div>
                     <div className="w-full h-16 sm:h-20 overflow-hidden">
                       <img src={card.image} alt={card.name} className="w-full h-full object-cover" />
@@ -1146,7 +1232,7 @@ export default function BattleArena({
                   <button
                     onClick={() => {
                       const enemyIds = generateEnemyDeck(playerDeckIds.length);
-                      setSoloState(initBattle(playerDeckIds, enemyIds));
+                      setSoloState(initBattle(playerDeckIds, enemyIds, { ruleset: "ygoHybrid" }));
                       setRewardsGiven(false);
                       setGoldEarned(0);
                       setLevelUps([]);

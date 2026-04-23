@@ -2694,6 +2694,322 @@ var mythicCards = [
   }
 ];
 
+// src/data/ygoHybridInteractionPack.ts
+var img = (id) => `/cards/interaction-pack/${id}.png`;
+function toGameCard(c) {
+  const base = {
+    id: c.id,
+    name: c.name,
+    type: c.type,
+    rarity: c.rarity,
+    image: c.image,
+    attack: 0,
+    defense: 0,
+    hp: 0,
+    tags: ["interaction-pack", c.element],
+    specialAbility: c.specialAbility,
+    lore: c.lore,
+    synergies: c.synergies,
+    level: 1,
+    xp: 0,
+    xpToNext: 100,
+    element: c.element
+  };
+  if (c.type === "spell" && c.spellEffect) {
+    base.spellSpeed = c.spellSpeed ?? "normal";
+    const e = c.spellEffect;
+    if (e.type === "stun") {
+      base.spellEffect = { type: "stun", target: "single_enemy", duration: e.duration };
+    } else if (e.type === "draw") {
+      base.spellEffect = { type: "draw", value: e.value };
+    } else if (e.type === "tutor") {
+      base.spellEffect = { type: "tutor", pick: e.pick, reveal: e.reveal };
+    } else if (e.type === "shield") {
+      base.spellEffect = { type: "shield", value: e.value, target: e.target === "all_allies" ? "all_allies" : e.target === "single_ally" ? "single_ally" : "self", duration: e.duration };
+    } else {
+      base.spellEffect = e;
+    }
+  }
+  if (c.type === "trap" && c.trapEffect) {
+    const te = c.trapEffect;
+    const eff = te.effect;
+    base.trapEffect = {
+      trigger: te.trigger,
+      effect: eff.type,
+      value: eff.value ?? 0,
+      duration: eff.duration
+    };
+  }
+  return base;
+}
+var ygoHybridInteractionPackCards = [
+  // NORMAL SPELLS (10)
+  {
+    id: "ember-lance",
+    name: "Ember Lance",
+    type: "spell",
+    rarity: "common",
+    element: "fire",
+    spellSpeed: "normal",
+    spellEffect: { type: "damage", target: "single_enemy", value: 3 },
+    lore: "A focused dart of flame that punches through scale and ward alike.",
+    specialAbility: { name: "Pierce", description: "Main Phase: Deal 3 damage to one enemy.", cost: 0 },
+    synergies: [{ partnerId: "tide-surge", name: "Steam Volley", description: "If you also run Tide Surge, your damage spells gain extra reach.", boostedStat: "attack", boostValue: 1 }],
+    image: img("ember-lance")
+  },
+  {
+    id: "tide-surge",
+    name: "Tide Surge",
+    type: "spell",
+    rarity: "common",
+    element: "water",
+    spellSpeed: "normal",
+    spellEffect: { type: "damage", target: "all_enemies", value: 1 },
+    lore: "A breaking wave that washes the entire enemy line.",
+    specialAbility: { name: "Wash Over", description: "Main Phase: Deal 1 damage to all enemies.", cost: 0 },
+    synergies: [{ partnerId: "ember-lance", name: "Steam Volley", description: "Pairs with Ember Lance for combined elemental coverage.", boostedStat: "attack", boostValue: 1 }],
+    image: img("tide-surge")
+  },
+  {
+    id: "meteor-shard",
+    name: "Meteor Shard",
+    type: "spell",
+    rarity: "rare",
+    element: "fire",
+    spellSpeed: "normal",
+    spellEffect: { type: "damage", target: "single_enemy", value: 5 },
+    lore: "A jagged splinter of star-iron, hurled with ruinous intent.",
+    specialAbility: { name: "Crater", description: "Main Phase: Deal 5 damage to one enemy.", cost: 0 },
+    synergies: [],
+    image: img("meteor-shard")
+  },
+  {
+    id: "warbanner-rite",
+    name: "Warbanner Rite",
+    type: "spell",
+    rarity: "common",
+    element: "fire",
+    spellSpeed: "normal",
+    spellEffect: { type: "buff_attack", target: "all_allies", value: 1, duration: 2 },
+    lore: "A rallying chant raised over the line of battle.",
+    specialAbility: { name: "Rally", description: "Main Phase: All allies gain +1 ATK for 2 turns.", cost: 0 },
+    synergies: [{ partnerId: "stone-aegis", name: "Iron Wall, Iron Will", description: "Pair with Stone Aegis for a balanced offense + defense buff.", boostedStat: "attack", boostValue: 1 }],
+    image: img("warbanner-rite")
+  },
+  {
+    id: "stone-aegis",
+    name: "Stone Aegis",
+    type: "spell",
+    rarity: "common",
+    element: "nature",
+    spellSpeed: "normal",
+    spellEffect: { type: "buff_defense", target: "all_allies", value: 2, duration: 2 },
+    lore: "Roots of the deep mountains lend their endurance to your line.",
+    specialAbility: { name: "Bedrock", description: "Main Phase: All allies gain +2 DEF for 2 turns.", cost: 0 },
+    synergies: [{ partnerId: "warbanner-rite", name: "Iron Wall, Iron Will", description: "Pair with Warbanner Rite to buff both ATK and DEF together.", boostedStat: "defense", boostValue: 1 }],
+    image: img("stone-aegis")
+  },
+  {
+    id: "withering-curse",
+    name: "Withering Curse",
+    type: "spell",
+    rarity: "rare",
+    element: "shadow",
+    spellSpeed: "normal",
+    spellEffect: { type: "debuff_attack", target: "all_enemies", value: 2, duration: 2 },
+    lore: "A whispered hex that saps the strength from sword arms.",
+    specialAbility: { name: "Sap Strength", description: "Main Phase: All enemies lose 2 ATK for 2 turns.", cost: 0 },
+    synergies: [{ partnerId: "fogbind-trap", name: "Crippling Veil", description: "Stacks defensive value with Fogbind Trap to neutralize attackers.", boostedStat: "defense", boostValue: 1 }],
+    image: img("withering-curse")
+  },
+  {
+    id: "scholars-insight",
+    name: "Scholar's Insight",
+    type: "spell",
+    rarity: "common",
+    element: "light",
+    spellSpeed: "normal",
+    spellEffect: { type: "draw", value: 1 },
+    lore: "A page of forgotten lore turns of its own accord.",
+    specialAbility: { name: "Study", description: "Main Phase: Draw 1 card.", cost: 0 },
+    synergies: [],
+    image: img("scholars-insight")
+  },
+  {
+    id: "arcane-archive",
+    name: "Arcane Archive",
+    type: "spell",
+    rarity: "rare",
+    element: "neutral",
+    spellSpeed: "normal",
+    spellEffect: { type: "draw", value: 2 },
+    lore: "A vault of memory opened only to the prepared mind.",
+    specialAbility: { name: "Open the Vault", description: "Main Phase: Draw 2 cards.", cost: 0 },
+    synergies: [],
+    image: img("arcane-archive")
+  },
+  {
+    id: "trapsmiths-call",
+    name: "Trapsmith's Call",
+    type: "spell",
+    rarity: "rare",
+    element: "shadow",
+    spellSpeed: "normal",
+    spellEffect: { type: "tutor", pick: "trap", reveal: false },
+    lore: "Hidden mechanisms answer the master's quiet summons.",
+    specialAbility: { name: "Hidden Wire", description: "Main Phase: Search your deck for 1 trap and add it to your hand (do not reveal).", cost: 0 },
+    synergies: [{ partnerId: "mirror-bulwark", name: "Set the Stage", description: "Great for fetching Mirror Bulwark before a known attack.", boostedStat: "defense", boostValue: 1 }],
+    image: img("trapsmiths-call")
+  },
+  {
+    id: "spellseekers-rite",
+    name: "Spellseeker's Rite",
+    type: "spell",
+    rarity: "rare",
+    element: "light",
+    spellSpeed: "normal",
+    spellEffect: { type: "tutor", pick: "spell", reveal: true },
+    lore: "An open invocation \u2014 let all see the answer you seek.",
+    specialAbility: { name: "Reveal the Tome", description: "Main Phase: Search your deck for 1 spell, reveal it, and add it to your hand.", cost: 0 },
+    synergies: [{ partnerId: "arcane-archive", name: "Library Run", description: "Combos with Arcane Archive to fuel a heavy spell turn.", boostedStat: "attack", boostValue: 1 }],
+    image: img("spellseekers-rite")
+  },
+  // QUICK SPELLS (8)
+  {
+    id: "guardians-bulwark",
+    name: "Guardian's Bulwark",
+    type: "spell",
+    rarity: "common",
+    element: "light",
+    spellSpeed: "quick",
+    spellEffect: { type: "shield", target: "single_ally", value: 4, duration: 1 },
+    lore: `A radiant ward snapped into being at the moment of need.
+Response Prompt: When eligible, show popup "Activate Guardian's Bulwark?" YES/NO.`,
+    specialAbility: { name: "Snap Ward", description: "Quick: Grant one ally a 4 shield for 1 turn. Prompt: Activate now? (YES/NO)", cost: 0 },
+    synergies: [{ partnerId: "mirror-bulwark", name: "Layered Defense", description: "Stacks with Mirror Bulwark for a near-impassable wall.", boostedStat: "defense", boostValue: 1 }],
+    image: img("guardians-bulwark")
+  },
+  {
+    id: "mending-current",
+    name: "Mending Current",
+    type: "spell",
+    rarity: "common",
+    element: "water",
+    spellSpeed: "quick",
+    spellEffect: { type: "heal", target: "single_ally", value: 3 },
+    lore: 'Cool water finds the wound before the wound finds the grave.\nResponse Prompt: When eligible, show popup "Activate Mending Current?" YES/NO.',
+    specialAbility: { name: "Tide-Mend", description: "Quick: Heal one ally for 3. Prompt: Activate now? (YES/NO)", cost: 0 },
+    synergies: [],
+    image: img("mending-current")
+  },
+  {
+    id: "rootbrace",
+    name: "Rootbrace",
+    type: "spell",
+    rarity: "common",
+    element: "nature",
+    spellSpeed: "quick",
+    spellEffect: { type: "buff_defense", target: "single_ally", value: 3, duration: 1 },
+    lore: `Living vines lash an ally's stance to the earth.
+Response Prompt: When eligible, show popup "Activate Rootbrace?" YES/NO.`,
+    specialAbility: { name: "Anchor", description: "Quick: Give one ally +3 DEF for 1 turn. Prompt: Activate now? (YES/NO)", cost: 0 },
+    synergies: [{ partnerId: "stone-aegis", name: "Mountain Hold", description: "Layers with Stone Aegis to make a single ally nearly untouchable.", boostedStat: "defense", boostValue: 1 }],
+    image: img("rootbrace")
+  },
+  {
+    id: "hex-of-stillness",
+    name: "Hex of Stillness",
+    type: "spell",
+    rarity: "rare",
+    element: "shadow",
+    spellSpeed: "quick",
+    spellEffect: { type: "stun", target: "single_enemy", duration: 1 },
+    lore: 'A single syllable, and the foe forgets how to move.\nResponse Prompt: When eligible, show popup "Activate Hex of Stillness?" YES/NO.',
+    specialAbility: { name: "Bind", description: "Quick: Stun one enemy for 1 turn. Prompt: Activate now? (YES/NO)", cost: 0 },
+    synergies: [{ partnerId: "snare-of-silence", name: "Total Lockdown", description: "Combos with Snare of Silence to fully shut down a key attacker.", boostedStat: "defense", boostValue: 1 }],
+    image: img("hex-of-stillness")
+  },
+  {
+    id: "sapping-mist",
+    name: "Sapping Mist",
+    type: "spell",
+    rarity: "common",
+    element: "water",
+    spellSpeed: "quick",
+    spellEffect: { type: "debuff_attack", target: "single_enemy", value: 2, duration: 2 },
+    lore: `A creeping fog that drinks the iron from a swordsman's arm.
+Response Prompt: When eligible, show popup "Activate Sapping Mist?" YES/NO.`,
+    specialAbility: { name: "Drain", description: "Quick: One enemy loses 2 ATK for 2 turns. Prompt: Activate now? (YES/NO)", cost: 0 },
+    synergies: [],
+    image: img("sapping-mist")
+  },
+  {
+    id: "shroud-pierce",
+    name: "Shroud Pierce",
+    type: "spell",
+    rarity: "rare",
+    element: "shadow",
+    spellSpeed: "quick",
+    spellEffect: { type: "debuff_defense", target: "single_enemy", value: 3, duration: 2 },
+    lore: 'An unseen blade slips through ward and gambeson alike.\nResponse Prompt: When eligible, show popup "Activate Shroud Pierce?" YES/NO.',
+    specialAbility: { name: "Expose", description: "Quick: One enemy loses 3 DEF for 2 turns. Prompt: Activate now? (YES/NO)", cost: 0 },
+    synergies: [{ partnerId: "meteor-shard", name: "Open & Strike", description: "Set up Meteor Shard for a devastating follow-up.", boostedStat: "attack", boostValue: 1 }],
+    image: img("shroud-pierce")
+  },
+  {
+    id: "quickdraw-omen",
+    name: "Quickdraw Omen",
+    type: "spell",
+    rarity: "common",
+    element: "neutral",
+    spellSpeed: "quick",
+    spellEffect: { type: "draw", value: 1 },
+    lore: 'A flicker at the edge of fate \u2014 and a card slides into your hand.\nResponse Prompt: When eligible, show popup "Activate Quickdraw Omen?" YES/NO.',
+    specialAbility: { name: "Snap-Draw", description: "Quick: Draw 1 card. Prompt: Activate now? (YES/NO)", cost: 0 },
+    synergies: [],
+    image: img("quickdraw-omen")
+  },
+  {
+    id: "spark-jab",
+    name: "Spark Jab",
+    type: "spell",
+    rarity: "common",
+    element: "fire",
+    spellSpeed: "quick",
+    spellEffect: { type: "damage", target: "single_enemy", value: 2 },
+    lore: 'A short, sharp lash of flame, more insult than spell.\nResponse Prompt: When eligible, show popup "Activate Spark Jab?" YES/NO.',
+    specialAbility: { name: "Jab", description: "Quick: Deal 2 damage to one enemy. Prompt: Activate now? (YES/NO)", cost: 0 },
+    synergies: [{ partnerId: "ember-lance", name: "Burn Chain", description: "Stacks with Ember Lance for finishing damage.", boostedStat: "attack", boostValue: 1 }],
+    image: img("spark-jab")
+  },
+  // TRAPS (12) — using simplified trapEffect (effect/value/duration)
+  {
+    id: "mirror-bulwark",
+    name: "Mirror Bulwark",
+    type: "trap",
+    rarity: "rare",
+    element: "light",
+    trapEffect: { trigger: "on_attacked", effect: "shield", value: 5, duration: 1 },
+    lore: 'A hidden glass disk flares to mirror-bright at the first blow.\nResponse Prompt: When eligible, show popup "Activate Mirror Bulwark?" YES/NO.',
+    specialAbility: { name: "Glass Ward", description: "Trap: When attacked, grant the target a 5 shield for 1 turn. Prompt: Activate now? (YES/NO)", cost: 0 },
+    synergies: [{ partnerId: "guardians-bulwark", name: "Layered Defense", description: "Stacks with Guardian's Bulwark for an outright wall.", boostedStat: "defense", boostValue: 1 }],
+    image: img("mirror-bulwark")
+  },
+  { id: "thornwall-snare", name: "Thornwall Snare", type: "trap", rarity: "common", element: "nature", trapEffect: { trigger: "on_attacked", effect: "reflect_damage", value: 2 }, lore: 'A bramble wall springs from nowhere \u2014 and bleeds the brave.\nResponse Prompt: When eligible, show popup "Activate Thornwall Snare?" YES/NO.', specialAbility: { name: "Thornlash", description: "Trap: When attacked, reflect 2 damage to the attacker. Prompt: Activate now? (YES/NO)", cost: 0 }, synergies: [], image: img("thornwall-snare") },
+  { id: "blinding-flare", name: "Blinding Flare", type: "trap", rarity: "common", element: "light", trapEffect: { trigger: "on_attacked", effect: "stun", value: 1, duration: 1 }, lore: 'A flash of holy light staggers the attacker mid-swing.\nResponse Prompt: When eligible, show popup "Activate Blinding Flare?" YES/NO.', specialAbility: { name: "Daze", description: "Trap: When attacked, stun the attacker for 1 turn. Prompt: Activate now? (YES/NO)", cost: 0 }, synergies: [{ partnerId: "hex-of-stillness", name: "Lockstep", description: "Combos with Hex of Stillness to chain crowd control.", boostedStat: "defense", boostValue: 1 }], image: img("blinding-flare") },
+  { id: "fogbind-trap", name: "Fogbind Trap", type: "trap", rarity: "common", element: "shadow", trapEffect: { trigger: "on_attacked", effect: "debuff_attack", value: 2, duration: 2 }, lore: 'Cold mist coils around the attacker, weighing the blade arm.\nResponse Prompt: When eligible, show popup "Activate Fogbind Trap?" YES/NO.', specialAbility: { name: "Smother", description: "Trap: When attacked, the attacker loses 2 ATK for 2 turns. Prompt: Activate now? (YES/NO)", cost: 0 }, synergies: [{ partnerId: "withering-curse", name: "Crippling Veil", description: "Stacks attack debuffs with Withering Curse.", boostedStat: "defense", boostValue: 1 }], image: img("fogbind-trap") },
+  { id: "spellbreakers-toll", name: "Spellbreaker's Toll", type: "trap", rarity: "rare", element: "shadow", trapEffect: { trigger: "on_spell_cast", effect: "damage", value: 3 }, lore: `Every incantation rings a bell \u2014 and bells call debts due.
+Response Prompt: When eligible, show popup "Activate Spellbreaker's Toll?" YES/NO.`, specialAbility: { name: "Toll", description: "Trap: When an enemy casts a spell, deal 3 damage to that caster. Prompt: Activate now? (YES/NO)", cost: 0 }, synergies: [], image: img("spellbreakers-toll") },
+  { id: "echo-rebound", name: "Echo Rebound", type: "trap", rarity: "rare", element: "water", trapEffect: { trigger: "on_spell_cast", effect: "reflect_damage", value: 3 }, lore: `The spell's own resonance turns and bites its maker.
+Response Prompt: When eligible, show popup "Activate Echo Rebound?" YES/NO.`, specialAbility: { name: "Resonate", description: "Trap: When an enemy casts a spell, reflect 3 damage back to them. Prompt: Activate now? (YES/NO)", cost: 0 }, synergies: [{ partnerId: "spellbreakers-toll", name: "Caster's Burden", description: "Doubles the punishment for opposing spell decks alongside Spellbreaker's Toll.", boostedStat: "attack", boostValue: 1 }], image: img("echo-rebound") },
+  { id: "snare-of-silence", name: "Snare of Silence", type: "trap", rarity: "rare", element: "shadow", trapEffect: { trigger: "on_spell_cast", effect: "stun", value: 1, duration: 1 }, lore: 'Words die in the throat as the snare closes.\nResponse Prompt: When eligible, show popup "Activate Snare of Silence?" YES/NO.', specialAbility: { name: "Silence", description: "Trap: When an enemy casts a spell, stun the caster for 1 turn. Prompt: Activate now? (YES/NO)", cost: 0 }, synergies: [{ partnerId: "hex-of-stillness", name: "Total Lockdown", description: "Pair with Hex of Stillness to lock a key target completely.", boostedStat: "defense", boostValue: 1 }], image: img("snare-of-silence") },
+  { id: "warding-sigil", name: "Warding Sigil", type: "trap", rarity: "common", element: "light", trapEffect: { trigger: "on_spell_cast", effect: "shield", value: 3, duration: 1 }, lore: 'A glyph etched on the floorstones flares when magic answers magic.\nResponse Prompt: When eligible, show popup "Activate Warding Sigil?" YES/NO.', specialAbility: { name: "Sanctify", description: "Trap: When an enemy casts a spell, grant one ally a 3 shield for 1 turn. Prompt: Activate now? (YES/NO)", cost: 0 }, synergies: [], image: img("warding-sigil") },
+  { id: "ambush-pit", name: "Ambush Pit", type: "trap", rarity: "common", element: "nature", trapEffect: { trigger: "on_enemy_play", effect: "damage", value: 2 }, lore: 'The unwary set foot \u2014 the unwary fall.\nResponse Prompt: When eligible, show popup "Activate Ambush Pit?" YES/NO.', specialAbility: { name: "Spike Floor", description: "Trap: When an enemy plays a card, deal 2 damage to them. Prompt: Activate now? (YES/NO)", cost: 0 }, synergies: [], image: img("ambush-pit") },
+  { id: "doomtide-omen", name: "Doomtide Omen", type: "trap", rarity: "legendary", element: "water", trapEffect: { trigger: "on_enemy_play", effect: "debuff_defense", value: 3, duration: 2 }, lore: 'When the tide turns black, all walls feel thinner.\nResponse Prompt: When eligible, show popup "Activate Doomtide Omen?" YES/NO.', specialAbility: { name: "Black Tide", description: "Trap: When an enemy plays a card, that enemy loses 3 DEF for 2 turns. Prompt: Activate now? (YES/NO)", cost: 0 }, synergies: [{ partnerId: "shroud-pierce", name: "Total Exposure", description: "Stacks defense reduction with Shroud Pierce for a guaranteed kill window.", boostedStat: "attack", boostValue: 2 }], image: img("doomtide-omen") },
+  { id: "shadow-bind", name: "Shadow Bind", type: "trap", rarity: "rare", element: "shadow", trapEffect: { trigger: "on_enemy_play", effect: "stun", value: 1, duration: 1 }, lore: 'Shadows reach up from the played card itself, holding it fast.\nResponse Prompt: When eligible, show popup "Activate Shadow Bind?" YES/NO.', specialAbility: { name: "Hold Fast", description: "Trap: When an enemy plays a card, stun that card's owner for 1 turn. Prompt: Activate now? (YES/NO)", cost: 0 }, synergies: [], image: img("shadow-bind") },
+  { id: "auroral-decree", name: "Auroral Decree", type: "trap", rarity: "legendary", element: "light", trapEffect: { trigger: "on_enemy_play", effect: "shield", value: 5, duration: 2 }, lore: 'When the foe acts, the dawn answers \u2014 and your line is made bright.\nResponse Prompt: When eligible, show popup "Activate Auroral Decree?" YES/NO.', specialAbility: { name: "Dawn's Answer", description: "Trap: When an enemy plays a card, grant all allies a 5 shield for 2 turns. Prompt: Activate now? (YES/NO)", cost: 0 }, synergies: [{ partnerId: "stone-aegis", name: "Bastion of Dawn", description: "Combines with Stone Aegis for a near-impassable defensive turn.", boostedStat: "defense", boostValue: 2 }], image: img("auroral-decree") }
+].map(toGameCard);
+
 // src/data/cards.ts
 function withElements(cards) {
   for (const card of cards) {
@@ -7095,7 +7411,15 @@ var trapCards = [
     xpToNext: 60
   }
 ];
-var allCards = withElements([...godCards, ...heroCards, ...weaponCards, ...spellCards, ...trapCards, ...mythicCards]);
+var allCards = withElements([
+  ...godCards,
+  ...heroCards,
+  ...weaponCards,
+  ...spellCards,
+  ...trapCards,
+  ...ygoHybridInteractionPackCards,
+  ...mythicCards
+]);
 
 // src/data/seasonalCards.ts
 var import_shadow_wraith_king = __toESM(require_shadow_wraith_king(), 1);
@@ -8337,7 +8661,8 @@ function createSide(deckIds, rng, heroStats) {
     graveyard: [],
     ap: 0,
     fatigue: 0,
-    hasCastSpellThisTurn: false
+    hasCastSpellThisTurn: false,
+    normalSummonUsed: false
   };
 }
 function initBattle(playerDeckIds, enemyDeckIds, opts) {
@@ -8346,7 +8671,9 @@ function initBattle(playerDeckIds, enemyDeckIds, opts) {
     player: createSide(playerDeckIds, rng),
     enemy: createSide(enemyDeckIds, rng, opts?.enemyHero),
     turn: "player",
+    ruleset: opts?.ruleset ?? "legacy",
     turnPhase: "start",
+    phaseStepId: 0,
     phase: "select-action",
     logs: [{ message: "\u2694\uFE0F Battle begins! Draw your weapons!", type: "info", timestamp: 0 }],
     winner: null,
@@ -8356,7 +8683,8 @@ function initBattle(playerDeckIds, enemyDeckIds, opts) {
     rng,
     rngSeed: opts?.seed,
     playerCardProgress: opts?.playerCardProgress,
-    aiDifficulty: opts?.aiDifficulty ?? "normal"
+    aiDifficulty: opts?.aiDifficulty ?? "normal",
+    responseWindow: null
   };
   return startTurn(state);
 }
@@ -8567,14 +8895,22 @@ function processTokenAutoStrikes(state, side, otherSide) {
     }
   }
 }
+function applyTempShieldAbsorb(fc, dmg) {
+  if (!fc.tempShield || fc.tempShield.value <= 0 || dmg <= 0) return dmg;
+  const abs = Math.min(fc.tempShield.value, dmg);
+  fc.tempShield.value -= abs;
+  return dmg - abs;
+}
 function startTurn(state) {
   if (state.phase === "game-over") return state;
-  state.turnPhase = "start";
+  state.phaseStepId += 1;
+  state.turnPhase = state.ruleset === "ygoHybrid" ? "draw" : "start";
   const side = getActiveSide(state);
   const otherSide = getOtherSide(state);
   const sideLabel = state.turn === "player" ? "You" : "Enemy";
   side.ap = getApCapForTurn(state.turnNumber);
   side.hasCastSpellThisTurn = false;
+  side.normalSummonUsed = false;
   for (const fc of side.field) {
     if (!fc) continue;
     fc.attackedThisTurn = false;
@@ -8619,29 +8955,35 @@ function startTurn(state) {
   }
   checkWinCondition(state);
   if (state.phase === "game-over") return state;
-  if (side.deck.length > 0) {
-    side.hand.push(side.deck.shift());
-    if (side.hand.length > 7) {
-      const discarded = side.hand.shift();
-      side.graveyard.push(discarded);
-      addLog(state, `\u{1F4E4} Hand full \u2014 ${discarded.name} was discarded!`, "info");
+  if (state.ruleset !== "ygoHybrid") {
+    if (side.deck.length > 0) {
+      side.hand.push(side.deck.shift());
+      if (side.hand.length > 7) {
+        const discarded = side.hand.shift();
+        side.graveyard.push(discarded);
+        addLog(state, `\u{1F4E4} Hand full \u2014 ${discarded.name} was discarded!`, "info");
+      }
+    } else {
+      side.fatigue += 1;
+      side.hp = Math.max(0, side.hp - side.fatigue);
+      addLog(state, `\u{1F4E6} ${sideLabel} fatigues for ${side.fatigue} damage!`, "info");
     }
-  } else {
-    side.fatigue += 1;
-    side.hp = Math.max(0, side.hp - side.fatigue);
-    addLog(state, `\u{1F4E6} ${sideLabel} fatigues for ${side.fatigue} damage!`, "info");
-  }
-  if (side.hp > 0 && side.hp <= 15 && side.deck.length > 0) {
-    side.hand.push(side.deck.shift());
-    if (side.hand.length > 7) {
-      const discarded = side.hand.shift();
-      side.graveyard.push(discarded);
+    if (side.hp > 0 && side.hp <= 15 && side.deck.length > 0) {
+      side.hand.push(side.deck.shift());
+      if (side.hand.length > 7) {
+        const discarded = side.hand.shift();
+        side.graveyard.push(discarded);
+      }
+      addLog(state, `\u{1F4A2} ${sideLabel} draws from desperation!`, "info");
     }
-    addLog(state, `\u{1F4A2} ${sideLabel} draws from desperation!`, "info");
   }
   applyWeaponTurnStartPassives(state, side);
   processTokenAutoStrikes(state, side, otherSide);
   state.turnPhase = "main";
+  if (state.ruleset === "ygoHybrid") {
+    state.turnPhase = "draw";
+    return advancePhase(state);
+  }
   return checkWinCondition(state);
 }
 function getApCapForTurn(turnNumber) {
@@ -8658,11 +9000,15 @@ function spendAp(state, cost2) {
 function maybeAutoEndTurn(state) {
   const side = getActiveSide(state);
   if (state.phase === "game-over") return state;
+  if (state.ruleset === "ygoHybrid") return state;
   if (side.ap > 0) return state;
   return endTurn(state);
 }
 function endTurnAction(state) {
   const newState = deepCopy(state);
+  if (newState.ruleset === "ygoHybrid") {
+    return advancePhase(newState);
+  }
   return endTurn(newState);
 }
 function checkWinCondition(state) {
@@ -8695,13 +9041,91 @@ function checkWinCondition(state) {
   }
   return state;
 }
+function applyHandCap7(state, side) {
+  while (side.hand.length > 7) {
+    const discarded = side.hand.shift();
+    if (!discarded) break;
+    side.graveyard.push(discarded);
+    addLog(state, `\u{1F4E4} Hand full \u2014 ${discarded.name} was discarded!`, "info");
+  }
+}
+function advancePhase(state) {
+  const s = deepCopy(state);
+  if (s.phase === "game-over") return s;
+  if (s.ruleset !== "ygoHybrid") return s;
+  if (s.turn !== "player" && s.turn !== "enemy") return s;
+  if (s.responseWindow) return s;
+  s.phaseStepId += 1;
+  const side = getActiveSide(s);
+  const sideLabel = s.turn === "player" ? "You" : "Enemy";
+  switch (s.turnPhase) {
+    case "draw": {
+      if (side.deck.length <= 0) {
+        s.phase = "game-over";
+        s.winner = s.turn === "player" ? "enemy" : "player";
+        addLog(s, `\u{1F4ED} ${sideLabel} cannot draw \u2014 deck out!`, "defeat", { ruleTag: "ygo_deckout" });
+        return s;
+      }
+      side.hand.push(side.deck.shift());
+      applyHandCap7(s, side);
+      addLog(s, `\u{1F0CF} ${sideLabel} draws 1 card.`, "info", { ruleTag: "ygo_draw" });
+      s.turnPhase = "main";
+      return checkWinCondition(s);
+    }
+    case "main": {
+      s.turnPhase = "battle";
+      addLog(s, `\u2694\uFE0F ${sideLabel} enters Battle Phase.`, "info", { ruleTag: "ygo_phase" });
+      return s;
+    }
+    case "battle": {
+      s.turnPhase = "end";
+      addLog(s, `\u{1F3C1} ${sideLabel} enters End Phase.`, "info", { ruleTag: "ygo_phase" });
+      return s;
+    }
+    case "end": {
+      return endTurn(s);
+    }
+    default: {
+      s.turnPhase = "draw";
+      return s;
+    }
+  }
+}
+function openResponseWindow(state, cause, responder, payload) {
+  state.responseWindow = {
+    id: (state.responseWindow?.id ?? 0) + 1,
+    cause,
+    responder,
+    chainLocked: false,
+    openedOnPhaseStepId: state.phaseStepId,
+    ...payload
+  };
+}
+function passResponseWindow(state) {
+  const s = deepCopy(state);
+  const rw = s.responseWindow;
+  if (!rw) return s;
+  if (rw.pendingAttack) {
+    const { attackerFieldIndex, targetFieldIndex } = rw.pendingAttack;
+    s.responseWindow = null;
+    return attackTargetLegacyResolve(s, attackerFieldIndex, targetFieldIndex);
+  }
+  s.responseWindow = null;
+  return s;
+}
 function playCard(state, handIndex) {
   const newState = deepCopy(state);
+  if (newState.ruleset === "ygoHybrid" && newState.responseWindow) return state;
   const side = getActiveSide(newState);
   const card = side.hand[handIndex];
   if (!card) return state;
   if (card.type === "hero" || card.type === "god") {
-    if (!canSpendAp(newState, 1)) return state;
+    if (newState.ruleset === "ygoHybrid") {
+      if (newState.turnPhase !== "main") return state;
+      if (side.normalSummonUsed) return state;
+    }
+    const cost2 = newState.ruleset === "ygoHybrid" ? 0 : 1;
+    if (!canSpendAp(newState, cost2)) return state;
     const slotIndex = side.field.findIndex((s) => s === null);
     if (slotIndex === -1) {
       addLog(newState, "\u274C Field is full! Max 4 cards.", "info");
@@ -8725,13 +9149,21 @@ function playCard(state, handIndex) {
     }
     side.field[slotIndex] = fc;
     side.hand.splice(handIndex, 1);
-    spendAp(newState, 1);
+    spendAp(newState, cost2);
+    if (newState.ruleset === "ygoHybrid") side.normalSummonUsed = true;
     const sideLabel = newState.turn === "player" ? "You" : "Enemy";
     addLog(newState, `\u{1F0CF} ${sideLabel} played ${card.name} to the field!`, "info");
+    if (newState.ruleset === "ygoHybrid") {
+      openResponseWindow(newState, "on_enemy_play", newState.turn === "player" ? "enemy" : "player", {
+        pendingPlay: { playedFieldIndex: slotIndex }
+      });
+      return recalcFieldStats(checkWinCondition(newState));
+    }
     return maybeAutoEndTurn(recalcFieldStats(newState));
   }
   if (card.type === "trap") {
-    if (!canSpendAp(newState, 1)) return state;
+    const cost2 = newState.ruleset === "ygoHybrid" ? 0 : 1;
+    if (!canSpendAp(newState, cost2)) return state;
     const trapSlot = side.traps.findIndex((s) => s === null);
     if (trapSlot === -1) {
       addLog(newState, "\u274C Trap slots full! Max 2 traps.", "info");
@@ -8739,7 +9171,7 @@ function playCard(state, handIndex) {
     }
     side.traps[trapSlot] = { card, faceDown: true };
     side.hand.splice(handIndex, 1);
-    spendAp(newState, 1);
+    spendAp(newState, cost2);
     const sideLabel = newState.turn === "player" ? "You" : "Enemy";
     addLog(newState, `\u{1FAA4} ${sideLabel} set a trap face-down!`, "trap");
     return maybeAutoEndTurn(newState);
@@ -8748,18 +9180,20 @@ function playCard(state, handIndex) {
 }
 function equipWeapon(state, handIndex, fieldIndex) {
   const newState = deepCopy(state);
+  if (newState.ruleset === "ygoHybrid" && newState.responseWindow) return state;
   const side = getActiveSide(newState);
   const card = side.hand[handIndex];
   const target = side.field[fieldIndex];
   if (!card || card.type !== "weapon" || !target) return state;
-  if (!canSpendAp(newState, 1)) return state;
+  const cost2 = newState.ruleset === "ygoHybrid" ? 0 : 1;
+  if (!canSpendAp(newState, cost2)) return state;
   if (target.equippedWeapon) {
     addLog(newState, "\u274C This card already has a weapon equipped!", "info");
     return state;
   }
   target.equippedWeapon = card;
   side.hand.splice(handIndex, 1);
-  spendAp(newState, 1);
+  spendAp(newState, cost2);
   const sideLabel = newState.turn === "player" ? "You" : "Enemy";
   addLog(newState, `\u2694\uFE0F ${sideLabel} equipped ${card.name} to ${target.card.name}! (+${card.weaponBonus?.attack || 0} ATK, +${card.weaponBonus?.defense || 0} DEF)`, "weapon");
   return maybeAutoEndTurn(recalcFieldStats(newState));
@@ -8768,12 +9202,18 @@ function getSpellApCost(card) {
   if (card.id === "time-stop") return 2;
   return 1;
 }
-function castSpell(state, handIndex, targetFieldIndex) {
+function castSpellInternal(state, handIndex, targetFieldIndex, opts) {
   const newState = deepCopy(state);
+  if (newState.ruleset === "ygoHybrid" && newState.responseWindow && !opts.allowDuringResponseWindow) return state;
   const side = getActiveSide(newState);
   const otherSide = getOtherSide(newState);
   const card = side.hand[handIndex];
   if (!card || card.type !== "spell" || !card.spellEffect) return state;
+  if (newState.ruleset === "ygoHybrid") {
+    const spd = card.spellSpeed ?? "normal";
+    if (!opts.allowOutsideMain && spd !== "quick" && newState.turnPhase !== "main") return state;
+    if (!opts.allowQuick && spd === "quick") return state;
+  }
   const apCost = getSpellApCost(card);
   if (!canSpendAp(newState, apCost)) return state;
   if (side.hasCastSpellThisTurn) {
@@ -8788,7 +9228,8 @@ function castSpell(state, handIndex, targetFieldIndex) {
         const target = otherSide.field[targetFieldIndex];
         if (target) {
           const dmg = Math.max(1, effect.value - Math.floor(target.defense * 0.25));
-          target.currentHp = Math.max(0, target.currentHp - dmg);
+          const rem = applyTempShieldAbsorb(target, dmg);
+          target.currentHp = Math.max(0, target.currentHp - rem);
           addLog(newState, `\u{1F525} ${sideLabel} cast ${card.name}! Deals ${dmg} damage to ${target.card.name}!`, "spell");
           if (target.currentHp <= 0) {
             addLog(newState, `\u{1F480} ${target.card.name} was destroyed!`, "defeat");
@@ -8802,7 +9243,8 @@ function castSpell(state, handIndex, targetFieldIndex) {
           const target = otherSide.field[i];
           if (!target) continue;
           const dmg = Math.max(1, effect.value - Math.floor(target.defense * 0.25));
-          target.currentHp = Math.max(0, target.currentHp - dmg);
+          const rem = applyTempShieldAbsorb(target, dmg);
+          target.currentHp = Math.max(0, target.currentHp - rem);
           if (target.currentHp <= 0) {
             addLog(newState, `\u{1F480} ${target.card.name} was destroyed by ${card.name}!`, "defeat");
             otherSide.graveyard.push(target.card);
@@ -8854,11 +9296,84 @@ function castSpell(state, handIndex, targetFieldIndex) {
       addLog(newState, `\u2744\uFE0F ${sideLabel} cast ${card.name}! -${effect.value} ${stat.toUpperCase()} to enemies for ${effect.duration || 2} turns!`, "spell");
       break;
     }
+    case "draw": {
+      const n = Math.max(0, Math.min(5, effect.value));
+      let drew = 0;
+      for (let i = 0; i < n; i++) {
+        if (side.deck.length <= 0) break;
+        side.hand.push(side.deck.shift());
+        drew += 1;
+      }
+      while (side.hand.length > 7) {
+        const discarded = side.hand.shift();
+        side.graveyard.push(discarded);
+      }
+      addLog(newState, `\u{1F4DA} ${sideLabel} cast ${card.name}! Drew ${drew} card${drew === 1 ? "" : "s"}.`, "spell");
+      break;
+    }
+    case "tutor": {
+      const wantType = effect.pick;
+      const idx = side.deck.findIndex((c) => c.type === wantType);
+      if (idx === -1) {
+        addLog(newState, `\u{1F50E} ${sideLabel} cast ${card.name}! No ${wantType} found.`, "spell");
+        break;
+      }
+      const [picked] = side.deck.splice(idx, 1);
+      side.hand.push(picked);
+      while (side.hand.length > 7) {
+        const discarded = side.hand.shift();
+        side.graveyard.push(discarded);
+      }
+      addLog(
+        newState,
+        `\u{1F50E} ${sideLabel} cast ${card.name}! Tutored 1 ${wantType}${effect.reveal ? ` (${picked.name})` : ""}.`,
+        "spell"
+      );
+      break;
+    }
+    case "shield": {
+      const dur = Math.max(1, Math.min(4, effect.duration ?? 1));
+      if (effect.target === "all_allies") {
+        for (const fc of side.field) {
+          if (!fc) continue;
+          fc.tempShield = { value: effect.value, turnsRemaining: dur };
+        }
+        addLog(newState, `\u{1F6E1}\uFE0F ${sideLabel} cast ${card.name}! Shielded all allies (+${effect.value}) for ${dur} turn(s).`, "spell");
+      } else if (effect.target === "self") {
+        side.shield += effect.value;
+        addLog(newState, `\u{1F6E1}\uFE0F ${sideLabel} cast ${card.name}! Gained +${effect.value} shield.`, "spell");
+      } else if (effect.target === "single_ally" && targetFieldIndex !== void 0) {
+        const target = side.field[targetFieldIndex];
+        if (target) {
+          target.tempShield = { value: effect.value, turnsRemaining: dur };
+          addLog(newState, `\u{1F6E1}\uFE0F ${sideLabel} cast ${card.name}! Shielded ${target.card.name} (+${effect.value}) for ${dur} turn(s).`, "spell");
+        }
+      }
+      break;
+    }
+    case "stun": {
+      const dur = Math.max(1, Math.min(3, effect.duration));
+      if (targetFieldIndex !== void 0) {
+        const target = otherSide.field[targetFieldIndex];
+        if (target) {
+          target.stunned = true;
+          target.stunTurnsRemaining = dur;
+          addLog(newState, `\u{1F635} ${sideLabel} cast ${card.name}! Stunned ${target.card.name} for ${dur} turn(s).`, "spell");
+        }
+      }
+      break;
+    }
   }
   side.hand.splice(handIndex, 1);
   side.graveyard.push(card);
   side.hasCastSpellThisTurn = true;
   spendAp(newState, apCost);
+  if (newState.ruleset === "ygoHybrid") {
+    openResponseWindow(newState, "on_spell_cast", newState.turn === "player" ? "enemy" : "player", {
+      pendingSpellCast: { casterTurn: newState.turn }
+    });
+    return recalcFieldStats(checkWinCondition(newState));
+  }
   for (let ti = 0; ti < otherSide.traps.length; ti++) {
     const trap = otherSide.traps[ti];
     if (!trap || !trap.faceDown || trap.card.trapEffect?.trigger !== "on_spell_cast") continue;
@@ -8885,14 +9400,29 @@ function castSpell(state, handIndex, targetFieldIndex) {
   }
   return maybeAutoEndTurn(recalcFieldStats(checkWinCondition(newState)));
 }
+function castSpell(state, handIndex, targetFieldIndex) {
+  return castSpellInternal(state, handIndex, targetFieldIndex, {
+    allowQuick: false,
+    allowOutsideMain: false,
+    allowDuringResponseWindow: false
+  });
+}
 function attackTarget(state, attackerFieldIndex, targetFieldIndex) {
   const newState = deepCopy(state);
+  if (newState.ruleset === "ygoHybrid" && newState.responseWindow) return state;
   const side = getActiveSide(newState);
   const otherSide = getOtherSide(newState);
   const attacker = side.field[attackerFieldIndex];
   if (!attacker || attacker.stunned || attacker.attackedThisTurn) return state;
-  if (!canSpendAp(newState, 1)) return state;
+  const atkCost = newState.ruleset === "ygoHybrid" ? 0 : 1;
+  if (!canSpendAp(newState, atkCost)) return state;
   const sideLabel = newState.turn === "player" ? "You" : "Enemy";
+  if (newState.ruleset === "ygoHybrid") {
+    openResponseWindow(newState, "on_attacked", newState.turn === "player" ? "enemy" : "player", {
+      pendingAttack: { attackerFieldIndex, targetFieldIndex }
+    });
+    return newState;
+  }
   if (attacker.blind && attacker.blind.turnsRemaining > 0) {
     const missChance = Math.max(0, Math.min(0.95, attacker.blind.missChance));
     if (newState.rng() < missChance) {
@@ -8987,7 +9517,7 @@ function attackTarget(state, attackerFieldIndex, targetFieldIndex) {
         addLog(newState, `\u{1F49A} ${attacker.card.name} siphons ${healed} HP!`, "attack");
       }
     }
-    spendAp(newState, 1);
+    spendAp(newState, atkCost);
     attacker.attackedThisTurn = true;
     return maybeAutoEndTurn(recalcFieldStats(checkWinCondition(newState)));
   }
@@ -9019,7 +9549,7 @@ function attackTarget(state, attackerFieldIndex, targetFieldIndex) {
         side.graveyard.push(attacker.card);
         if (attacker.equippedWeapon) side.graveyard.push(attacker.equippedWeapon);
         side.field[attackerFieldIndex] = null;
-        spendAp(newState, 1);
+        spendAp(newState, atkCost);
         return maybeAutoEndTurn(recalcFieldStats(checkWinCondition(newState)));
       }
       break;
@@ -9027,7 +9557,7 @@ function attackTarget(state, attackerFieldIndex, targetFieldIndex) {
   }
   if (attacker.stunned) {
     addLog(newState, `\u{1F635} ${attacker.card.name} is stunned \u2014 attack interrupted!`, "info");
-    spendAp(newState, 1);
+    spendAp(newState, atkCost);
     attacker.attackedThisTurn = true;
     return maybeAutoEndTurn(recalcFieldStats(checkWinCondition(newState)));
   }
@@ -9053,8 +9583,9 @@ function attackTarget(state, attackerFieldIndex, targetFieldIndex) {
       addLog(newState, `\u{1F6E1}\uFE0F ${target.card.name}'s Iron Skin softens the blow!`, "attack");
     }
   }
-  target.currentHp = Math.max(0, target.currentHp - dmg);
-  let totalDealt = dmg;
+  const rem = applyTempShieldAbsorb(target, dmg);
+  target.currentHp = Math.max(0, target.currentHp - rem);
+  let totalDealt = rem;
   let attackMsg = `\u2694\uFE0F ${attacker.card.name} attacks ${target.card.name} for ${dmg} damage!`;
   if (elemLabel) {
     attackMsg += ` ${elementEmoji[attackerElement]} ${elemLabel}`;
@@ -9110,6 +9641,14 @@ function attackTarget(state, attackerFieldIndex, targetFieldIndex) {
   spendAp(newState, 1);
   attacker.attackedThisTurn = true;
   return maybeAutoEndTurn(recalcFieldStats(checkWinCondition(newState)));
+}
+function attackTargetLegacyResolve(state, attackerFieldIndex, targetFieldIndex) {
+  const s = deepCopy(state);
+  const prevRuleset = s.ruleset;
+  s.ruleset = "legacy";
+  const resolved = attackTarget(s, attackerFieldIndex, targetFieldIndex);
+  resolved.ruleset = prevRuleset;
+  return resolved;
 }
 function flattenAbilityEffects(effect) {
   if (effect.kind === "sequence") return effect.steps.flatMap(flattenAbilityEffects);
@@ -9468,6 +10007,7 @@ function applyResolvedAbility(newState, fc, fieldIndex, effect) {
 }
 function activateAbility(state, fieldIndex) {
   const newState = deepCopy(state);
+  if (newState.ruleset === "ygoHybrid" && newState.responseWindow) return state;
   const side = getActiveSide(newState);
   const fc = side.field[fieldIndex];
   if (!fc || fc.abilityUsed || fc.stunned || fc.abilityRechargeIn !== void 0) return state;
@@ -9496,9 +10036,14 @@ function endTurn(state) {
   if (state.phase === "game-over") return state;
   const side = getActiveSide(state);
   state.turnPhase = "end";
+  state.responseWindow = null;
   for (const fc of side.field) {
     if (!fc) continue;
     fc.tempBuffs = fc.tempBuffs.map((b) => ({ ...b, turnsRemaining: b.turnsRemaining - 1 })).filter((b) => b.turnsRemaining > 0);
+    if (fc.tempShield) {
+      fc.tempShield.turnsRemaining -= 1;
+      if (fc.tempShield.turnsRemaining <= 0) delete fc.tempShield;
+    }
     if (fc.tauntTurnsRemaining && fc.tauntTurnsRemaining > 0) {
       fc.tauntTurnsRemaining -= 1;
     }
@@ -9506,7 +10051,13 @@ function endTurn(state) {
       fc.blind.turnsRemaining -= 1;
       if (fc.blind.turnsRemaining <= 0) delete fc.blind;
     }
-    fc.stunned = false;
+    if (fc.stunTurnsRemaining && fc.stunTurnsRemaining > 0) {
+      fc.stunTurnsRemaining -= 1;
+      fc.stunned = fc.stunTurnsRemaining > 0;
+      if (fc.stunTurnsRemaining <= 0) delete fc.stunTurnsRemaining;
+    } else {
+      fc.stunned = false;
+    }
   }
   tickTokenDurations(side);
   state.turn = state.turn === "player" ? "enemy" : "player";
@@ -9515,7 +10066,131 @@ function endTurn(state) {
   state.pendingAction = null;
   return startTurn(checkWinCondition(state));
 }
+function performAITurnLegacyOneStep(state) {
+  let s = state;
+  const difficulty = s.aiDifficulty ?? "normal";
+  if (s.phase === "game-over") return s;
+  if (s.turn !== "enemy") return s;
+  if (s.enemy.ap <= 0) return s;
+  const side = s.enemy;
+  if (difficulty === "easy") {
+    const playableCards = side.hand.map((c, idx) => ({ c, idx }));
+    if (playableCards.length > 0 && s.rng() < 0.6) {
+      const pick = playableCards[Math.floor(s.rng() * playableCards.length)];
+      const next = playCard(s, pick.idx);
+      if (next !== s) return next;
+    }
+    const attackerIdx2 = side.field.findIndex((fc) => fc != null && !fc.stunned && !fc.attackedThisTurn);
+    if (attackerIdx2 !== -1) {
+      const playerCards = s.player.field.map((fc2, idx) => fc2 ? { fc: fc2, idx } : null).filter(Boolean);
+      if (playerCards.length > 0) {
+        const rndTarget = playerCards[Math.floor(s.rng() * playerCards.length)];
+        const next = attackTarget(s, attackerIdx2, rndTarget.idx);
+        if (next !== s) return next;
+      } else {
+        const next = attackTarget(s, attackerIdx2, "direct");
+        if (next !== s) return next;
+      }
+    }
+    return s;
+  }
+  const emptySlot = side.field.findIndex((slot) => slot === null);
+  if (emptySlot !== -1) {
+    const unitCards = side.hand.map((c, idx) => ({ c, idx })).filter(({ c }) => c.type === "hero" || c.type === "god");
+    if (unitCards.length > 0) {
+      const unitIdx = difficulty === "hard" ? unitCards.sort((a, b) => (b.c.attack ?? 0) - (a.c.attack ?? 0))[0].idx : unitCards[0].idx;
+      const next = playCard(s, unitIdx);
+      if (next !== s) return next;
+    }
+  }
+  const weaponIdx = side.hand.findIndex((c) => c.type === "weapon");
+  if (weaponIdx !== -1) {
+    const unequipped = side.field.findIndex((fc) => fc != null && !fc.equippedWeapon);
+    if (unequipped !== -1) {
+      const next = equipWeapon(s, weaponIdx, unequipped);
+      if (next !== s) return next;
+    }
+  }
+  const spellIdx = side.hand.findIndex((c) => c.type === "spell");
+  if (spellIdx !== -1 && !side.hasCastSpellThisTurn) {
+    const spell = side.hand[spellIdx];
+    if (spell.spellEffect) {
+      if (spell.spellEffect.type === "damage") {
+        const targetIdx = s.player.field.findIndex((fc) => fc != null);
+        const next = castSpell(s, spellIdx, targetIdx >= 0 ? targetIdx : void 0);
+        if (next !== s) return next;
+      } else {
+        const allyIdx = side.field.findIndex((fc) => fc != null);
+        const next = castSpell(s, spellIdx, allyIdx >= 0 ? allyIdx : void 0);
+        if (next !== s) return next;
+      }
+    }
+  }
+  const attackerIdx = side.field.findIndex((fc) => fc != null && !fc.stunned && !fc.attackedThisTurn);
+  if (attackerIdx !== -1) {
+    const fc = side.field[attackerIdx];
+    const shouldUseAbility = !fc.abilityUsed && fc.abilityRechargeIn === void 0 && (difficulty === "hard" ? true : s.rng() < 0.3);
+    if (shouldUseAbility) {
+      const next = activateAbility(s, attackerIdx);
+      if (next !== s) return next;
+    }
+    const playerFieldCards = s.player.field.map((fc2, idx) => fc2 ? { fc: fc2, idx } : null).filter(Boolean);
+    if (playerFieldCards.length > 0) {
+      const target = playerFieldCards.sort((a, b) => b.fc.attack - a.fc.attack)[0];
+      const next = attackTarget(s, attackerIdx, target.idx);
+      if (next !== s) return next;
+    } else {
+      const next = attackTarget(s, attackerIdx, "direct");
+      if (next !== s) return next;
+    }
+  }
+  const trapIdx = side.hand.findIndex((c) => c.type === "trap");
+  if (trapIdx !== -1) {
+    const next = playCard(s, trapIdx);
+    if (next !== s) return next;
+  }
+  return s;
+}
 function performAITurn(state) {
+  if (state.ruleset === "ygoHybrid") {
+    let s2 = state;
+    const MAX_STEPS = 10;
+    for (let i = 0; i < MAX_STEPS; i++) {
+      if (s2.phase === "game-over") return s2;
+      if (s2.turn !== "enemy") return s2;
+      if (s2.responseWindow && s2.responseWindow.responder === "enemy") {
+        s2 = passResponseWindow(s2);
+        continue;
+      }
+      const before = JSON.stringify({
+        turn: s2.turn,
+        turnPhase: s2.turnPhase,
+        ap: s2.enemy.ap,
+        hand: s2.enemy.hand.length,
+        field: s2.enemy.field.map((x) => x ? x.card.id : null),
+        traps: s2.enemy.traps.map((x) => x ? x.card.id : null)
+      });
+      if (s2.turnPhase !== "main" && s2.turnPhase !== "battle") {
+        s2 = advancePhase(s2);
+        continue;
+      }
+      const afterAction = performAITurnLegacyOneStep(s2);
+      const after = JSON.stringify({
+        turn: afterAction.turn,
+        turnPhase: afterAction.turnPhase,
+        ap: afterAction.enemy.ap,
+        hand: afterAction.enemy.hand.length,
+        field: afterAction.enemy.field.map((x) => x ? x.card.id : null),
+        traps: afterAction.enemy.traps.map((x) => x ? x.card.id : null)
+      });
+      if (after === before) {
+        s2 = advancePhase(s2);
+      } else {
+        s2 = afterAction;
+      }
+    }
+    return s2;
+  }
   let s = state;
   const MAX_ACTIONS = 6;
   const difficulty = s.aiDifficulty ?? "normal";
@@ -9788,7 +10463,8 @@ function replayRankedFromPlayerActions(seed, deckA, deckB, playerActions, initOp
   let s = initBattle(deckA, deckB, {
     seed,
     enemyHero: initOpts?.enemyHero,
-    playerCardProgress: initOpts?.playerCardProgress
+    playerCardProgress: initOpts?.playerCardProgress,
+    ruleset: "ygoHybrid"
   });
   let qi = 0;
   let steps = 0;
@@ -9824,7 +10500,7 @@ function applyBattleLockstepIntent(state, intent) {
   }
 }
 function replayBattleFromActions(seed, deckA, deckB, actions) {
-  let s = initBattle(deckA, deckB, { seed });
+  let s = initBattle(deckA, deckB, { seed, ruleset: "ygoHybrid" });
   for (const a of actions) {
     s = applyBattleLockstepIntent(s, a);
   }

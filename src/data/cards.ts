@@ -238,6 +238,7 @@ import { inferElementFromTags, type Element } from "@/lib/elementSystem";
 import type { CardGameRules, WeaponGameRules } from "./cardGameRules";
 import type { BattleKeywordId } from "@/lib/keywords";
 import { mythicCards } from "./mythicCards";
+import { ygoHybridInteractionPackCards } from "./ygoHybridInteractionPack";
 
 export type Rarity = "mythic" | "legendary" | "rare" | "common";
 export type CardType = "hero" | "god" | "weapon" | "spell" | "trap";
@@ -262,17 +263,23 @@ export interface WeaponBonus {
   defense: number;
 }
 
-export interface SpellEffect {
-  type: "damage" | "heal" | "buff_attack" | "buff_defense" | "debuff_attack" | "debuff_defense";
-  value: number;
-  target: "single_enemy" | "all_enemies" | "single_ally" | "all_allies" | "self";
-  duration?: number; // turns for buffs/debuffs
-}
+export type SpellEffect =
+  | {
+      type: "damage" | "heal" | "buff_attack" | "buff_defense" | "debuff_attack" | "debuff_defense";
+      value: number;
+      target: "single_enemy" | "all_enemies" | "single_ally" | "all_allies" | "self";
+      duration?: number; // turns for buffs/debuffs
+    }
+  | { type: "draw"; value: number }
+  | { type: "tutor"; pick: "trap" | "spell"; reveal: boolean }
+  | { type: "shield"; value: number; target: "single_ally" | "all_allies" | "self"; duration?: number }
+  | { type: "stun"; target: "single_enemy"; duration: number };
 
 export interface TrapEffect {
-  trigger: "on_attacked" | "on_enemy_play" | "on_enemy_ability";
-  effect: "reflect_damage" | "redirect" | "stun" | "damage";
+  trigger: "on_attacked" | "on_enemy_play" | "on_enemy_ability" | "on_spell_cast";
+  effect: "reflect_damage" | "redirect" | "stun" | "damage" | "shield" | "debuff_attack" | "debuff_defense";
   value: number;
+  duration?: number;
 }
 
 export interface GameCard {
@@ -296,6 +303,8 @@ export interface GameCard {
   weaponBonus?: WeaponBonus;
   // Spell-specific
   spellEffect?: SpellEffect;
+  /** ygoHybrid: spell timing classification (normal vs quick). */
+  spellSpeed?: "normal" | "quick";
   // Trap-specific
   trapEffect?: TrapEffect;
   // Passive ability (always active on field)
@@ -2611,7 +2620,15 @@ const trapCards: GameCard[] = [
 
 // =================== EXPORT ===================
 
-export const allCards: GameCard[] = withElements([...godCards, ...heroCards, ...weaponCards, ...spellCards, ...trapCards, ...mythicCards]);
+export const allCards: GameCard[] = withElements([
+  ...godCards,
+  ...heroCards,
+  ...weaponCards,
+  ...spellCards,
+  ...trapCards,
+  ...ygoHybridInteractionPackCards,
+  ...mythicCards,
+]);
 
 export const loreArcs = [
   { id: "crown-of-storms", name: "The Crown of Storms", cardIds: ["warrior-king", "storm-god", "enchanted-sword", "jin", "thor-axeborn", "storm-witch"] },

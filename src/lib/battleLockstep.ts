@@ -39,6 +39,7 @@ export function replayRankedFromPlayerActions(
     seed,
     enemyHero: initOpts?.enemyHero,
     playerCardProgress: initOpts?.playerCardProgress,
+    ruleset: "ygoHybrid",
   });
   let qi = 0;
   let steps = 0;
@@ -90,7 +91,7 @@ export function replayBattleFromActions(
   deckB: string[],
   actions: BattleLockstepIntent[]
 ): BattleState {
-  let s = initBattle(deckA, deckB, { seed });
+  let s = initBattle(deckA, deckB, { seed, ruleset: "ygoHybrid" });
   for (const a of actions) {
     s = applyBattleLockstepIntent(s, a);
   }
