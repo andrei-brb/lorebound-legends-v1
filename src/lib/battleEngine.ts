@@ -795,6 +795,34 @@ export function passResponseWindow(state: BattleState): BattleState {
   return s;
 }
 
+/** ygoHybrid: resolve an enemy (AI) response window with 0–1 action, then close it. */
+export function resolveAiResponseWindow(state: BattleState): BattleState {
+  const rw = state.responseWindow;
+  if (!rw) return state;
+  if (state.ruleset !== "ygoHybrid") return state;
+  if (rw.responder !== "enemy") return state;
+
+  const responderSide = state.enemy;
+
+  // Prefer an eligible face-down trap that matches the window cause.
+  for (let i = 0; i < responderSide.traps.length; i++) {
+    const t = responderSide.traps[i];
+    if (!t || !t.faceDown) continue;
+    if (t.card.trapEffect?.trigger !== rw.cause) continue;
+    return activateTrapFromResponseWindow(state, i);
+  }
+
+  // Otherwise, try a quick spell from hand.
+  for (let i = 0; i < responderSide.hand.length; i++) {
+    const c = responderSide.hand[i];
+    if (c.type === "spell" && c.spellSpeed === "quick" && c.spellEffect) {
+      return activateQuickSpellFromResponseWindow(state, i);
+    }
+  }
+
+  return passResponseWindow(state);
+}
+
 export function activateTrapFromResponseWindow(state: BattleState, trapIndex: number): BattleState {
   const s = deepCopy(state);
   const rw = s.responseWindow;
@@ -2182,7 +2210,7 @@ export function performAITurn(state: BattleState): BattleState {
       if (s.turn !== "enemy") return s;
 
       if (s.responseWindow && s.responseWindow.responder === "enemy") {
-        s = passResponseWindow(s);
+        s = resolveAiResponseWindow(s);
         continue;
       }
 

@@ -20,6 +20,7 @@ import {
   passResponseWindow,
   activateTrapFromResponseWindow,
   activateQuickSpellFromResponseWindow,
+  resolveAiResponseWindow,
 } from "@/lib/battleEngine";
 import {
   replayBattleFromActions,
@@ -271,6 +272,21 @@ export default function BattleArena({
     return () => clearTimeout(timer);
   }, [state, animating, livePvP]);
 
+  /** ygoHybrid: enemy response windows block the engine until resolved — auto-resolve after a short beat. */
+  useEffect(() => {
+    if (livePvP) return;
+    if (!state || state.phase === "game-over") return;
+    if (state.ruleset !== "ygoHybrid") return;
+    if (state.turn !== "player") return;
+    if (!state.responseWindow || state.responseWindow.responder !== "enemy") return;
+    if (animating) return;
+
+    const t = window.setTimeout(() => {
+      setSoloState((prev) => (prev ? resolveAiResponseWindow(prev) : prev));
+    }, 450);
+    return () => window.clearTimeout(t);
+  }, [state, livePvP, animating]);
+
   const handleEndTurn = () => {
     if (!state || state.phase === "game-over" || animating) return;
     if (livePvP) {
@@ -283,7 +299,14 @@ export default function BattleArena({
     }
     if (state.turn !== "player") return;
     queueBattleIntent({ kind: "end-turn" });
-    setSoloState((prev) => (prev ? endTurnAction(prev) : prev));
+    setSoloState((prev) => {
+      if (!prev) return prev;
+      let s = prev;
+      if (s.ruleset === "ygoHybrid" && s.responseWindow?.responder === "enemy") {
+        s = resolveAiResponseWindow(s);
+      }
+      return endTurnAction(s);
+    });
     setActionMode("none");
     setSelectedFieldIndex(null);
     setSelectedHandIndex(null);
@@ -521,7 +544,35 @@ export default function BattleArena({
       queueBattleIntent({ kind: "play-card", handIndex: index });
       setAnimating(true);
       setTimeout(() => {
-        setSoloState(prev => prev ? playCard(prev, index) : prev);
+        setSoloState((prev) => {
+          if (!prev) return prev;
+          const next = playCard(prev, index);
+          if (next === prev && prev.ruleset === "ygoHybrid") {
+            cardsPlayedRef.current = Math.max(0, cardsPlayedRef.current - 1);
+            if (prev.responseWindow?.responder === "enemy") {
+              toast({
+                title: "Opponent is responding",
+                description: "Wait for the response window to finish.",
+                variant: "destructive",
+              });
+            } else if (card.type === "hero" || card.type === "god") {
+              if (prev.turnPhase !== "main") {
+                toast({
+                  title: "Wrong phase",
+                  description: "Normal Summon only in Main Phase. Use Next Phase to advance.",
+                  variant: "destructive",
+                });
+              } else if (prev.player.normalSummonUsed) {
+                toast({
+                  title: "Normal Summon used",
+                  description: "You can only Normal Summon 1 hero or god per turn.",
+                  variant: "destructive",
+                });
+              }
+            }
+          }
+          return next;
+        });
         setAnimating(false);
         setActionMode("none");
       }, 150);
@@ -534,7 +585,42 @@ export default function BattleArena({
         queueBattleIntent({ kind: "cast-spell", handIndex: index });
         setAnimating(true);
         setTimeout(() => {
-          setSoloState(prev => prev ? castSpell(prev, index) : prev);
+          setSoloState((prev) => {
+            if (!prev) return prev;
+            const next = castSpell(prev, index);
+            if (next === prev && prev.ruleset === "ygoHybrid") {
+              cardsPlayedRef.current = Math.max(0, cardsPlayedRef.current - 1);
+              const sc = prev.player.hand[index];
+              if (sc?.type === "spell" && sc.spellSpeed === "quick") {
+                toast({
+                  title: "Quick spell",
+                  description: "Quick spells can only be activated during a response window.",
+                  variant: "destructive",
+                });
+              } else if (sc?.type === "spell") {
+                if (prev.turnPhase !== "main") {
+                  toast({
+                    title: "Wrong phase",
+                    description: "Cast normal spells in Main Phase.",
+                    variant: "destructive",
+                  });
+                } else if (prev.player.hasCastSpellThisTurn) {
+                  toast({
+                    title: "Spell limit",
+                    description: "You can only cast 1 spell per turn.",
+                    variant: "destructive",
+                  });
+                } else if (prev.player.ap < 1) {
+                  toast({
+                    title: "Not enough AP",
+                    description: "Spells cost AP.",
+                    variant: "destructive",
+                  });
+                }
+              }
+            }
+            return next;
+          });
           setAnimating(false);
           setActionMode("none");
         }, 150);
@@ -629,9 +715,24 @@ export default function BattleArena({
     if (!state || !isPlayerTurn || animating || selectedFieldIndex === null) return;
     if (livePvP?.isSubmitting) return;
     const fc = state.player.field[selectedFieldIndex];
-    if (!fc || fc.stunned || fc.attackedThisTurn) return;
-    if (state.player.ap < 1) {
+    if (!fc || fc.stunned || fc.attackedThisTurn) {
+      if (fc?.stunned) {
+        toast({ title: "Stunned", description: "This unit cannot attack this turn.", variant: "destructive" });
+      } else if (fc?.attackedThisTurn) {
+        toast({ title: "Already attacked", description: "This unit has already attacked this turn.", variant: "destructive" });
+      }
+      return;
+    }
+    if (state.ruleset !== "ygoHybrid" && state.player.ap < 1) {
       toast({ title: "No AP", description: "You need at least 1 AP to attack.", variant: "destructive" });
+      return;
+    }
+    if (state.ruleset === "ygoHybrid" && state.turnPhase !== "battle") {
+      toast({
+        title: "Wrong phase",
+        description: "Attacks are only in Battle Phase. Use Next Phase to advance.",
+        variant: "destructive",
+      });
       return;
     }
     setActionMode("select-attack-target");
@@ -640,6 +741,14 @@ export default function BattleArena({
   const handleDirectAttack = () => {
     if (!state || selectedFieldIndex === null || animating) return;
     if (livePvP?.isSubmitting) return;
+    if (!livePvP && state.ruleset === "ygoHybrid" && state.turnPhase !== "battle") {
+      toast({
+        title: "Wrong phase",
+        description: "Direct attacks are only in Battle Phase. Use Next Phase to advance.",
+        variant: "destructive",
+      });
+      return;
+    }
     if (livePvP) {
       void livePvP.onIntent({ kind: "attack", attackerFieldIndex: selectedFieldIndex, targetFieldIndex: "direct" });
       setActionMode("none");
@@ -719,6 +828,32 @@ export default function BattleArena({
     !animating &&
     state.phase !== "game-over" &&
     !livePvP?.isSubmitting;
+
+  const phaseLabel =
+    state.ruleset === "ygoHybrid"
+      ? state.turnPhase === "draw"
+        ? "Draw"
+        : state.turnPhase === "main"
+          ? "Main"
+          : state.turnPhase === "battle"
+            ? "Battle"
+            : state.turnPhase === "end"
+              ? "End"
+              : state.turnPhase
+      : null;
+
+  const phaseHelpText =
+    state.ruleset === "ygoHybrid"
+      ? state.turnPhase === "main"
+        ? "Main: Normal Summon 1 unit, set traps, equip weapons, cast 1 spell."
+        : state.turnPhase === "battle"
+          ? "Battle: Attack with units that haven’t attacked."
+          : state.turnPhase === "end"
+            ? "End: Cleanup, then turn passes."
+            : state.turnPhase === "draw"
+              ? "Draw: Draw 1 card."
+              : null
+      : null;
   const boardSkinId = playerState.cosmeticsEquipped?.boardSkinId || null;
   const boardSkinImage = boardSkinId ? (getCosmeticById(boardSkinId)?.image || null) : null;
   const noEnemyField = !state.enemy.field.some((fc) => fc != null);
@@ -809,6 +944,29 @@ export default function BattleArena({
             </motion.div>
           </motion.div>
         )}
+      </AnimatePresence>
+
+      {/* ygoHybrid: brief overlay while the AI resolves its response window */}
+      <AnimatePresence>
+        {state?.responseWindow &&
+          state.responseWindow.responder === "enemy" &&
+          state.ruleset === "ygoHybrid" &&
+          state.turn === "player" &&
+          state.phase !== "game-over" && (
+            <motion.div
+              key="enemy-response"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 z-[55] flex items-center justify-center bg-black/35 backdrop-blur-[2px] pointer-events-none"
+            >
+              <div className="rounded-xl border border-border bg-card/95 px-4 py-3 shadow-xl max-w-[min(92vw,320px)] text-center">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Response window</p>
+                <p className="font-heading text-sm font-bold text-foreground mt-1">Opponent is responding…</p>
+                <p className="text-[11px] text-muted-foreground mt-1 font-mono">{state.responseWindow.cause}</p>
+              </div>
+            </motion.div>
+          )}
       </AnimatePresence>
 
       <div className="relative flex">
@@ -966,8 +1124,21 @@ export default function BattleArena({
               >
                 {state.turn === "player" ? "Your Turn" : "Enemy Turn"}
               </motion.span>
+            {phaseLabel && (
+              <span className="px-2 py-1 rounded-full text-[10px] font-heading font-bold uppercase tracking-wider bg-secondary/60 text-secondary-foreground border border-border/50">
+                {phaseLabel} Phase
+              </span>
+            )}
               <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
             </div>
+
+          {phaseHelpText && (
+            <div className="flex justify-center">
+              <span className="text-[10px] text-muted-foreground bg-background/50 px-2 py-1 rounded-md border border-border/40">
+                {phaseHelpText}
+              </span>
+            </div>
+          )}
 
             {/* ===== Player Field ===== */}
             <div className="space-y-1.5">
@@ -1040,9 +1211,20 @@ export default function BattleArena({
                           <BattleRadialMenu
                             fieldCard={fc}
                             visible
-                            canAttack={!fc.stunned && !fc.attackedThisTurn && state.player.ap >= 1}
+                            canAttack={
+                              !fc.stunned &&
+                              !fc.attackedThisTurn &&
+                              (state.ruleset === "ygoHybrid"
+                                ? state.turnPhase === "battle"
+                                : state.player.ap >= 1)
+                            }
                             canAbility={!fc.abilityUsed && !fc.stunned}
-                            canDirectAttack={noEnemyField && !fc.stunned && !fc.attackedThisTurn && state.player.ap >= 1}
+                            canDirectAttack={
+                              noEnemyField &&
+                              !fc.stunned &&
+                              !fc.attackedThisTurn &&
+                              (state.ruleset === "ygoHybrid" ? state.turnPhase === "battle" : state.player.ap >= 1)
+                            }
                             ap={state.player.ap}
                             onAttack={beginAttackFromRadial}
                             onAbility={() => handleUseAbility(i)}
@@ -1112,7 +1294,7 @@ export default function BattleArena({
                     onClick={handleEndTurn}
                     className="text-[10px] px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:brightness-110 transition-colors font-heading font-bold animate-glow-pulse"
                   >
-                    End Turn
+                    {state.ruleset === "ygoHybrid" ? "Next Phase" : "End Turn"}
                   </button>
                 )}
               </div>

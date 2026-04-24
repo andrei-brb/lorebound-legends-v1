@@ -9113,6 +9113,171 @@ function passResponseWindow(state) {
   s.responseWindow = null;
   return s;
 }
+function resolveAiResponseWindow(state) {
+  const rw = state.responseWindow;
+  if (!rw) return state;
+  if (state.ruleset !== "ygoHybrid") return state;
+  if (rw.responder !== "enemy") return state;
+  const responderSide = state.enemy;
+  for (let i = 0; i < responderSide.traps.length; i++) {
+    const t = responderSide.traps[i];
+    if (!t || !t.faceDown) continue;
+    if (t.card.trapEffect?.trigger !== rw.cause) continue;
+    return activateTrapFromResponseWindow(state, i);
+  }
+  for (let i = 0; i < responderSide.hand.length; i++) {
+    const c = responderSide.hand[i];
+    if (c.type === "spell" && c.spellSpeed === "quick" && c.spellEffect) {
+      return activateQuickSpellFromResponseWindow(state, i);
+    }
+  }
+  return passResponseWindow(state);
+}
+function activateTrapFromResponseWindow(state, trapIndex) {
+  const s = deepCopy(state);
+  const rw = s.responseWindow;
+  if (!rw) return s;
+  const responderSide = rw.responder === "player" ? s.player : s.enemy;
+  const actingSide = rw.responder === "player" ? s.enemy : s.player;
+  const trap = responderSide.traps[trapIndex];
+  if (!trap || !trap.faceDown || !trap.card.trapEffect) return state;
+  if (trap.card.trapEffect.trigger !== rw.cause) return state;
+  const effect = trap.card.trapEffect;
+  const responderLabel = rw.responder === "player" ? "You" : "Enemy";
+  if (rw.cause === "on_enemy_play" && rw.pendingPlay) {
+    const fc = actingSide.field[rw.pendingPlay.playedFieldIndex];
+    if (fc) {
+      if (effect.effect === "damage" || effect.effect === "reflect_damage") {
+        fc.currentHp = Math.max(1, fc.currentHp - effect.value);
+        addLog(s, `\u{1FAA4} ${responderLabel} activated ${trap.card.name}! Deals ${effect.value} damage!`, "trap");
+      } else if (effect.effect === "stun") {
+        fc.stunned = true;
+        fc.stunTurnsRemaining = effect.duration ?? 1;
+        addLog(s, `\u{1FAA4} ${responderLabel} activated ${trap.card.name}! ${fc.card.name} is stunned!`, "trap");
+      } else if (effect.effect === "debuff_attack" || effect.effect === "debuff_defense") {
+        const stat = effect.effect === "debuff_attack" ? "attack" : "defense";
+        fc.tempBuffs.push({ stat, value: -effect.value, turnsRemaining: effect.duration ?? 2 });
+        addLog(s, `\u{1FAA4} ${responderLabel} activated ${trap.card.name}! -${effect.value} ${stat.toUpperCase()} for ${effect.duration ?? 2} turn(s).`, "trap");
+      } else if (effect.effect === "shield") {
+        responderSide.shield += effect.value;
+        addLog(s, `\u{1FAA4} ${responderLabel} activated ${trap.card.name}! +${effect.value} shield.`, "trap");
+      }
+    }
+  } else if (rw.cause === "on_spell_cast" && rw.pendingSpellCast) {
+    if (effect.effect === "damage") {
+      let dmg = effect.value;
+      if (actingSide.shield > 0) {
+        const abs = Math.min(actingSide.shield, dmg);
+        actingSide.shield -= abs;
+        dmg -= abs;
+      }
+      actingSide.hp = Math.max(0, actingSide.hp - dmg);
+      addLog(s, `\u{1FAA4} ${responderLabel} activated ${trap.card.name}! Deals ${effect.value} damage to the caster!`, "trap");
+    } else if (effect.effect === "stun") {
+      const casterCards = actingSide.field.filter(Boolean);
+      if (casterCards.length > 0) {
+        casterCards[0].stunned = true;
+        casterCards[0].stunTurnsRemaining = effect.duration ?? 1;
+        addLog(s, `\u{1FAA4} ${responderLabel} activated ${trap.card.name}! ${casterCards[0].card.name} is stunned!`, "trap");
+      }
+    } else if (effect.effect === "shield") {
+      responderSide.shield += effect.value;
+      addLog(s, `\u{1FAA4} ${responderLabel} activated ${trap.card.name}! +${effect.value} shield.`, "trap");
+    }
+  } else if (rw.cause === "on_attacked" && rw.pendingAttack) {
+    const attacker = actingSide.field[rw.pendingAttack.attackerFieldIndex];
+    if (attacker) {
+      if (effect.effect === "reflect_damage" || effect.effect === "damage") {
+        attacker.currentHp = Math.max(0, attacker.currentHp - effect.value);
+        addLog(s, `\u{1FAA4} ${responderLabel} activated ${trap.card.name}! ${effect.effect === "reflect_damage" ? "Reflects" : "Deals"} ${effect.value} damage!`, "trap");
+      } else if (effect.effect === "stun") {
+        attacker.stunned = true;
+        attacker.stunTurnsRemaining = effect.duration ?? 1;
+        addLog(s, `\u{1FAA4} ${responderLabel} activated ${trap.card.name}! ${attacker.card.name} is stunned!`, "trap");
+      } else if (effect.effect === "debuff_attack" || effect.effect === "debuff_defense") {
+        const stat = effect.effect === "debuff_attack" ? "attack" : "defense";
+        attacker.tempBuffs.push({ stat, value: -effect.value, turnsRemaining: effect.duration ?? 2 });
+        addLog(s, `\u{1FAA4} ${responderLabel} activated ${trap.card.name}! -${effect.value} ${stat.toUpperCase()} for ${effect.duration ?? 2} turn(s).`, "trap");
+      } else if (effect.effect === "shield") {
+        responderSide.shield += effect.value;
+        addLog(s, `\u{1FAA4} ${responderLabel} activated ${trap.card.name}! +${effect.value} shield.`, "trap");
+      }
+    }
+  }
+  responderSide.traps[trapIndex] = null;
+  responderSide.graveyard.push(trap.card);
+  s.responseWindow = null;
+  const resumed = rw.pendingAttack ? attackTargetLegacyResolve(s, rw.pendingAttack.attackerFieldIndex, rw.pendingAttack.targetFieldIndex) : s;
+  return recalcFieldStats(checkWinCondition(resumed));
+}
+function activateQuickSpellFromResponseWindow(state, handIndex) {
+  const s = deepCopy(state);
+  const rw = s.responseWindow;
+  if (!rw) return s;
+  const responderSide = rw.responder === "player" ? s.player : s.enemy;
+  const actingSide = rw.responder === "player" ? s.enemy : s.player;
+  const card = responderSide.hand[handIndex];
+  if (!card || card.type !== "spell" || !card.spellEffect) return state;
+  if (card.spellSpeed !== "quick") return state;
+  if (s.ruleset !== "ygoHybrid") return state;
+  const eff = card.spellEffect;
+  let targetFieldIndex = void 0;
+  const firstAlly = responderSide.field.findIndex((fc) => fc != null);
+  const firstEnemy = actingSide.field.findIndex((fc) => fc != null);
+  if (rw.cause === "on_attacked" && rw.pendingAttack) {
+    if (eff.target === "single_ally") {
+      if (rw.pendingAttack.targetFieldIndex !== "direct") targetFieldIndex = rw.pendingAttack.targetFieldIndex;
+      else if (firstAlly !== -1) targetFieldIndex = firstAlly;
+    } else if (eff.target === "single_enemy") {
+      targetFieldIndex = rw.pendingAttack.attackerFieldIndex;
+    }
+  } else if (rw.cause === "on_enemy_play" && rw.pendingPlay) {
+    if (eff.target === "single_enemy") targetFieldIndex = rw.pendingPlay.playedFieldIndex;
+    else if (eff.target === "single_ally" && firstAlly !== -1) targetFieldIndex = firstAlly;
+  } else if (rw.cause === "on_spell_cast") {
+    if (eff.target === "single_enemy" && firstEnemy !== -1) targetFieldIndex = firstEnemy;
+    if (eff.target === "single_ally" && firstAlly !== -1) targetFieldIndex = firstAlly;
+  }
+  const saved = s.responseWindow;
+  s.responseWindow = null;
+  const viewerIsResponder = rw.responder === s.turn;
+  let castState = s;
+  if (!viewerIsResponder) {
+    castState = {
+      ...s,
+      player: s.enemy,
+      enemy: s.player,
+      turn: s.turn === "enemy" ? "player" : "enemy",
+      winner: s.winner === "player" ? "enemy" : s.winner === "enemy" ? "player" : s.winner,
+      activeSynergies: {
+        player: s.activeSynergies.enemy,
+        enemy: s.activeSynergies.player
+      }
+    };
+  }
+  const casted = castSpellInternal(castState, handIndex, targetFieldIndex, {
+    allowQuick: true,
+    allowOutsideMain: true,
+    allowDuringResponseWindow: true
+  });
+  let back = casted;
+  if (!viewerIsResponder) {
+    back = {
+      ...casted,
+      player: casted.enemy,
+      enemy: casted.player,
+      turn: casted.turn === "enemy" ? "player" : "enemy",
+      winner: casted.winner === "player" ? "enemy" : casted.winner === "enemy" ? "player" : casted.winner,
+      activeSynergies: {
+        player: casted.activeSynergies.enemy,
+        enemy: casted.activeSynergies.player
+      }
+    };
+  }
+  back.responseWindow = null;
+  const resumed = saved?.pendingAttack ? attackTargetLegacyResolve(back, saved.pendingAttack.attackerFieldIndex, saved.pendingAttack.targetFieldIndex) : back;
+  return recalcFieldStats(checkWinCondition(resumed));
+}
 function playCard(state, handIndex) {
   const newState = deepCopy(state);
   if (newState.ruleset === "ygoHybrid" && newState.responseWindow) return state;
@@ -10159,7 +10324,7 @@ function performAITurn(state) {
       if (s2.phase === "game-over") return s2;
       if (s2.turn !== "enemy") return s2;
       if (s2.responseWindow && s2.responseWindow.responder === "enemy") {
-        s2 = passResponseWindow(s2);
+        s2 = resolveAiResponseWindow(s2);
         continue;
       }
       const before = JSON.stringify({
