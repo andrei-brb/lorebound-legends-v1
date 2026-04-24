@@ -9092,6 +9092,12 @@ function advancePhase(state) {
   }
 }
 function openResponseWindow(state, cause, responder, payload) {
+  const responderSide = responder === "player" ? state.player : state.enemy;
+  const hasTrap = responderSide.traps.some((t) => t && t.faceDown && t.card.trapEffect?.trigger === cause);
+  const hasQuickSpell = responderSide.hand.some(
+    (c) => c.type === "spell" && c.spellSpeed === "quick" && Boolean(c.spellEffect)
+  );
+  if (!hasTrap && !hasQuickSpell) return;
   state.responseWindow = {
     id: (state.responseWindow?.id ?? 0) + 1,
     cause,
@@ -9749,8 +9755,10 @@ function attackTarget(state, attackerFieldIndex, targetFieldIndex) {
     }
   }
   const rem = applyTempShieldAbsorb(target, dmg);
+  const hpBefore = target.currentHp;
   target.currentHp = Math.max(0, target.currentHp - rem);
   let totalDealt = rem;
+  let overflowToHero = Math.max(0, rem - hpBefore);
   let attackMsg = `\u2694\uFE0F ${attacker.card.name} attacks ${target.card.name} for ${dmg} damage!`;
   if (elemLabel) {
     attackMsg += ` ${elementEmoji[attackerElement]} ${elemLabel}`;
@@ -9766,9 +9774,25 @@ function attackTarget(state, attackerFieldIndex, targetFieldIndex) {
       if (defMs2.damageReduction > 0) {
         dmg2 = Math.max(1, Math.round(dmg2 * (1 - defMs2.damageReduction)));
       }
+      const hpBefore2 = target.currentHp;
       target.currentHp = Math.max(0, target.currentHp - dmg2);
       totalDealt += dmg2;
+      overflowToHero += Math.max(0, dmg2 - hpBefore2);
       addLog(newState, `\u2694\uFE0F ${attacker.card.name} strikes again for ${dmg2}!`, "attack");
+    }
+  }
+  if (overflowToHero > 0 && target.currentHp <= 0) {
+    let spill = overflowToHero;
+    if (otherSide.shield > 0) {
+      const absorbed = Math.min(otherSide.shield, spill);
+      otherSide.shield -= absorbed;
+      spill -= absorbed;
+    }
+    if (spill > 0) {
+      otherSide.hp = Math.max(0, otherSide.hp - spill);
+      addLog(newState, `\u{1F4A5} Overflow damage: ${spill} to hero HP!`, "direct");
+    } else {
+      addLog(newState, `\u{1F6E1}\uFE0F Overflow damage absorbed by shield!`, "direct");
     }
   }
   if (newState.turn === "enemy") {
@@ -10327,13 +10351,17 @@ function performAITurn(state) {
         s2 = resolveAiResponseWindow(s2);
         continue;
       }
+      if (s2.responseWindow && s2.responseWindow.responder === "player") {
+        return s2;
+      }
       const before = JSON.stringify({
         turn: s2.turn,
         turnPhase: s2.turnPhase,
         ap: s2.enemy.ap,
         hand: s2.enemy.hand.length,
         field: s2.enemy.field.map((x) => x ? x.card.id : null),
-        traps: s2.enemy.traps.map((x) => x ? x.card.id : null)
+        traps: s2.enemy.traps.map((x) => x ? x.card.id : null),
+        responseWindow: s2.responseWindow ? { id: s2.responseWindow.id, cause: s2.responseWindow.cause, responder: s2.responseWindow.responder } : null
       });
       if (s2.turnPhase !== "main" && s2.turnPhase !== "battle") {
         s2 = advancePhase(s2);
@@ -10346,7 +10374,8 @@ function performAITurn(state) {
         ap: afterAction.enemy.ap,
         hand: afterAction.enemy.hand.length,
         field: afterAction.enemy.field.map((x) => x ? x.card.id : null),
-        traps: afterAction.enemy.traps.map((x) => x ? x.card.id : null)
+        traps: afterAction.enemy.traps.map((x) => x ? x.card.id : null),
+        responseWindow: afterAction.responseWindow ? { id: afterAction.responseWindow.id, cause: afterAction.responseWindow.cause, responder: afterAction.responseWindow.responder } : null
       });
       if (after === before) {
         s2 = advancePhase(s2);

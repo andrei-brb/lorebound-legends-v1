@@ -12,6 +12,7 @@ interface BattleZoneProps {
   /** Owner side — flips card facing */
   side: "player" | "opponent";
   hpLabel?: string | null;
+  atkLabel?: string | null;
   onClick?: (e: ThreeEvent<MouseEvent>) => void;
   onPointerOver?: (e: ThreeEvent<PointerEvent>) => void;
   onPointerOut?: (e: ThreeEvent<PointerEvent>) => void;
@@ -44,6 +45,7 @@ export default function BattleZone({
   cardImage,
   side,
   hpLabel = null,
+  atkLabel = null,
   onClick,
   onPointerOver,
   onPointerOut,
@@ -166,25 +168,46 @@ export default function BattleZone({
         </mesh>
       )}
 
-      {cardImage && hpLabel && (
+      {cardImage && (hpLabel || atkLabel) && (
         <group position={[0, 0.62 + (hovered ? 0.12 : 0), 0.12]}>
           <Html center transform occlude={false} distanceFactor={8}>
-            <div
-              style={{
-                pointerEvents: "none",
-                padding: "2px 6px",
-                borderRadius: 999,
-                fontSize: 10,
-                fontWeight: 800,
-                letterSpacing: "0.08em",
-                color: "rgba(236, 253, 245, 0.95)",
-                background: "rgba(5, 46, 22, 0.65)",
-                border: "1px solid rgba(16, 185, 129, 0.45)",
-                boxShadow: "0 0 16px rgba(16, 185, 129, 0.25)",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {hpLabel}
+            <div style={{ display: "flex", gap: 6, alignItems: "center", pointerEvents: "none" }}>
+              {typeof atkLabel === "string" && atkLabel.length > 0 && (
+                <div
+                  style={{
+                    padding: "2px 6px",
+                    borderRadius: 999,
+                    fontSize: 10,
+                    fontWeight: 800,
+                    letterSpacing: "0.08em",
+                    color: "rgba(255, 247, 237, 0.95)",
+                    background: "rgba(69, 10, 10, 0.55)",
+                    border: "1px solid rgba(251, 146, 60, 0.45)",
+                    boxShadow: "0 0 16px rgba(251, 146, 60, 0.18)",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {atkLabel}
+                </div>
+              )}
+              {typeof hpLabel === "string" && hpLabel.length > 0 && (
+                <div
+                  style={{
+                    padding: "2px 6px",
+                    borderRadius: 999,
+                    fontSize: 10,
+                    fontWeight: 800,
+                    letterSpacing: "0.08em",
+                    color: "rgba(236, 253, 245, 0.95)",
+                    background: "rgba(5, 46, 22, 0.65)",
+                    border: "1px solid rgba(16, 185, 129, 0.45)",
+                    boxShadow: "0 0 16px rgba(16, 185, 129, 0.25)",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {hpLabel}
+                </div>
+              )}
             </div>
           </Html>
         </group>

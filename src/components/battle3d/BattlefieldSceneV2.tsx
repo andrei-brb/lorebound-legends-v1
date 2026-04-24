@@ -9,6 +9,7 @@ export interface ZoneState {
   characterColor?: string;
   characterAccent?: string;
   hpLabel?: string | null;
+  atkLabel?: string | null;
 }
 
 export interface SideState {
@@ -104,6 +105,7 @@ export default function BattlefieldSceneV2({
               kind="spell"
               cardImage={z.cardImage}
               hpLabel={z.hpLabel ?? null}
+              atkLabel={z.atkLabel ?? null}
               side="opponent"
               highlight={isHighlighted("opponent", "spells", i)}
               targetable={isTargetable("opponent", "spells", i)}
@@ -124,6 +126,7 @@ export default function BattlefieldSceneV2({
               kind="monster"
               cardImage={z.cardImage}
               hpLabel={z.hpLabel ?? null}
+              atkLabel={z.atkLabel ?? null}
               side="opponent"
               highlight={isHighlighted("opponent", "monsters", i)}
               targetable={isTargetable("opponent", "monsters", i)}
@@ -144,6 +147,7 @@ export default function BattlefieldSceneV2({
               kind="monster"
               cardImage={z.cardImage}
               hpLabel={z.hpLabel ?? null}
+              atkLabel={z.atkLabel ?? null}
               side="player"
               highlight={isHighlighted("player", "monsters", i)}
               attacking={eq(attackingZone, "player", "monsters", i)}
@@ -164,6 +168,7 @@ export default function BattlefieldSceneV2({
               kind="spell"
               cardImage={z.cardImage}
               hpLabel={z.hpLabel ?? null}
+              atkLabel={z.atkLabel ?? null}
               side="player"
               highlight={isHighlighted("player", "spells", i)}
               hovered={eq(hoveredZone, "player", "spells", i)}

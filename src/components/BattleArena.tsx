@@ -927,12 +927,13 @@ export default function BattleArena({
       return {
         cardImage: fc?.card.image ?? null,
         hpLabel: fc ? `${fc.currentHp}` : null,
+        atkLabel: fc ? `ATK ${fc.attack}` : null,
       };
     });
     const spells = Array.from({ length: 5 }).map((_, i) => {
       const t = side.traps[i] ?? null;
       const img = t ? (t.faceDown ? defaultCardBack : t.card.image) : null;
-      return { cardImage: img, hpLabel: null };
+      return { cardImage: img, hpLabel: null, atkLabel: null };
     });
     return { monsters, spells };
   };

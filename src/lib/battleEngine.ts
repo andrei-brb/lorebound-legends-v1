@@ -1553,8 +1553,10 @@ export function attackTarget(state: BattleState, attackerFieldIndex: number, tar
   }
 
   const rem = applyTempShieldAbsorb(target, dmg);
+  const hpBefore = target.currentHp;
   target.currentHp = Math.max(0, target.currentHp - rem);
   let totalDealt = rem;
+  let overflowToHero = Math.max(0, rem - hpBefore);
 
   let attackMsg = `⚔️ ${attacker.card.name} attacks ${target.card.name} for ${dmg} damage!`;
   if (elemLabel) {
@@ -1572,9 +1574,27 @@ export function attackTarget(state: BattleState, attackerFieldIndex: number, tar
       if (defMs2.damageReduction > 0) {
         dmg2 = Math.max(1, Math.round(dmg2 * (1 - defMs2.damageReduction)));
       }
+      const hpBefore2 = target.currentHp;
       target.currentHp = Math.max(0, target.currentHp - dmg2);
       totalDealt += dmg2;
+      overflowToHero += Math.max(0, dmg2 - hpBefore2);
       addLog(newState, `⚔️ ${attacker.card.name} strikes again for ${dmg2}!`, "attack");
+    }
+  }
+
+  // Spillover: if we overkill the unit, excess damage hits the defending hero HP (after shield).
+  if (overflowToHero > 0 && target.currentHp <= 0) {
+    let spill = overflowToHero;
+    if (otherSide.shield > 0) {
+      const absorbed = Math.min(otherSide.shield, spill);
+      otherSide.shield -= absorbed;
+      spill -= absorbed;
+    }
+    if (spill > 0) {
+      otherSide.hp = Math.max(0, otherSide.hp - spill);
+      addLog(newState, `💥 Overflow damage: ${spill} to hero HP!`, "direct");
+    } else {
+      addLog(newState, `🛡️ Overflow damage absorbed by shield!`, "direct");
     }
   }
 
