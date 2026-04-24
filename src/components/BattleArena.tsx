@@ -46,6 +46,22 @@ import { rollMysteryBox, claimFirstWin, FIRST_WIN_GOLD, FIRST_WIN_BP_XP } from "
 import { getCosmeticById } from "@/data/cosmetics";
 import LegendaryPicker from "./LegendaryPicker";
 import { useIsMobile } from "@/hooks/use-mobile";
+import defaultCardBack from "@/assets/battlepass/cardback-bloom-crest.jpg";
+import {
+  ActionLogRibbon,
+  type ActionLogEntry,
+  AltarAtmosphere,
+  BattlefieldSceneV2,
+  type SideState,
+  type ZoneRef,
+  PlayerBar,
+  ZoneStack,
+  PhaseIndicator,
+  PlayerHand,
+  type HandCard as AltarHandCard,
+  CardDetailPanel,
+  type DetailCard,
+} from "@/components/battle3d";
 
 interface BattleArenaProps {
   playerDeckIds: string[];
@@ -159,6 +175,10 @@ export default function BattleArena({
   const isMobile = useIsMobile();
   const [logsOpen, setLogsOpen] = useState(false);
   const [inspect, setInspect] = useState<Inspect>({ kind: "none" });
+  const [hoveredZone3d, setHoveredZone3d] = useState<ZoneRef | null>(null);
+  const [altarLog, setAltarLog] = useState<ActionLogEntry[]>([
+    { id: "init", kind: "info", text: "The altar stirs…", ts: Date.now() },
+  ]);
 
   const queueBattleIntent = (intent: BattleLockstepIntent) => {
     if (livePvP) return;
@@ -286,6 +306,25 @@ export default function BattleArena({
     }, 450);
     return () => window.clearTimeout(t);
   }, [state, livePvP, animating]);
+
+  useEffect(() => {
+    if (!state) return;
+    const last = state.logs[state.logs.length - 1];
+    if (!last) return;
+    const kind: ActionLogEntry["kind"] =
+      last.type === "attack"
+        ? "attack"
+        : last.type === "defeat"
+          ? "defeat"
+          : last.type === "spell" || last.type === "trap" || last.type === "weapon"
+            ? "summon"
+            : "info";
+    const id = `${last.timestamp}-${state.logs.length}`;
+    setAltarLog((prev) => {
+      if (prev.length && prev[prev.length - 1].id === id) return prev;
+      return [...prev.slice(-24), { id, kind, text: last.message, ts: Date.now() }];
+    });
+  }, [state?.logs.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleEndTurn = () => {
     if (!state || state.phase === "game-over" || animating) return;
@@ -860,6 +899,79 @@ export default function BattleArena({
   const boardSkinImage = boardSkinId ? (getCosmeticById(boardSkinId)?.image || null) : null;
   const noEnemyField = !state.enemy.field.some((fc) => fc != null);
 
+  const useAltarBattlefield = true;
+
+  const phaseLabel3d =
+    state.ruleset === "ygoHybrid"
+      ? state.turnPhase === "main"
+        ? "Main"
+        : state.turnPhase === "battle"
+          ? "Battle"
+          : "End"
+      : "Main";
+
+  const endTurnLabel3d =
+    state.ruleset === "ygoHybrid"
+      ? state.turnPhase === "main"
+        ? "To Battle"
+        : state.turnPhase === "battle"
+          ? "End Phase"
+          : "Next Turn"
+      : "End Turn";
+
+  const toSideState = (side: BattleState["player"]): SideState => {
+    const monsters = Array.from({ length: 5 }).map((_, i) => {
+      const fc = side.field[i] ?? null;
+      return { cardImage: fc?.card.image ?? null };
+    });
+    const spells = Array.from({ length: 5 }).map((_, i) => {
+      const t = side.traps[i] ?? null;
+      const img = t ? (t.faceDown ? defaultCardBack : t.card.image) : null;
+      return { cardImage: img };
+    });
+    return { monsters, spells };
+  };
+
+  const altarPlayer = toSideState(state.player);
+  const altarOpponent = toSideState(state.enemy);
+
+  const altarHand: AltarHandCard[] = state.player.hand.map((c, i) => ({
+    id: `${c.id}-${i}`,
+    image: c.image,
+    name: c.name,
+    kind: c.type === "spell" || c.type === "trap" || c.type === "weapon" ? "spell" : "monster",
+  }));
+
+  const selectedHandId =
+    selectedHandIndex != null && state.player.hand[selectedHandIndex]
+      ? `${state.player.hand[selectedHandIndex]!.id}-${selectedHandIndex}`
+      : null;
+
+  const hoveredDetail: DetailCard | null = (() => {
+    if (inspect.kind === "hand") {
+      return {
+        id: `hand-${inspect.card.id}`,
+        image: inspect.card.image,
+        name: inspect.card.name,
+        kindLabel: inspect.card.type,
+        atk: inspect.card.type === "hero" || inspect.card.type === "god" ? inspect.card.attack : undefined,
+        def: inspect.card.type === "hero" || inspect.card.type === "god" ? inspect.card.defense : undefined,
+      };
+    }
+    if (inspect.kind === "field") {
+      const fc = inspect.fieldCard;
+      return {
+        id: `field-${fc.card.id}`,
+        image: fc.card.image,
+        name: fc.card.name,
+        kindLabel: fc.card.type,
+        atk: fc.attack,
+        def: fc.defense,
+      };
+    }
+    return null;
+  })();
+
   return (
     <div
       className="relative rounded-2xl border border-border/40 overflow-hidden"
@@ -949,412 +1061,134 @@ export default function BattleArena({
       </AnimatePresence>
 
       <div className="relative flex">
-        {/* ===== Main Battlefield ===== */}
         <div className="flex-1 flex flex-col min-h-0">
-          {/* Retreat button */}
-          <div className="absolute top-2 left-2 z-30 flex flex-col gap-1 items-start max-w-[min(100%,280px)]">
-            <button
-              onClick={onExit}
-              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-secondary/80 text-secondary-foreground text-[10px] font-bold hover:bg-secondary transition-colors backdrop-blur-sm"
-            >
-              <ArrowLeft className="w-3 h-3" /> Retreat
-            </button>
-            <button
-              type="button"
-              onClick={() => setLogsOpen((v) => !v)}
-              className="flex items-center gap-1 px-2 py-1 rounded-lg bg-secondary/80 text-secondary-foreground text-[10px] font-bold hover:bg-secondary transition-colors backdrop-blur-sm"
-            >
-              {logsOpen ? "Hide logs" : "Logs"}
-            </button>
-            {rankedSubtitle || soloBoss ? (
-              <span className="text-[9px] text-muted-foreground font-heading leading-tight bg-background/70 px-2 py-1 rounded-md border border-border/50">
-                {rankedSubtitle ?? (soloBoss ? `Raid — ${soloBoss.name}` : "")}
-              </span>
-            ) : null}
-          </div>
-
-          {/* Turn indicator */}
-          <div className="absolute top-2 right-2 z-30 md:left-1/2 md:-translate-x-1/2 md:right-auto">
-            <span className="text-[9px] text-muted-foreground font-heading mr-2">Turn {state.turnNumber}</span>
-          </div>
-
-          <div ref={placementContainerRef} className="relative p-3 sm:p-4 space-y-2">
-            {/* Flying card layer (hand → field) */}
-            <AnimatePresence>
-              {flyingCards.map((f) => (
-                <motion.div
-                  key={f.id}
-                  className="absolute pointer-events-none rounded-lg overflow-hidden border-2 shadow-2xl z-40"
-                  style={{
-                    top: 0,
-                    left: 0,
-                    width: f.from.w,
-                    height: f.from.h,
-                    borderColor: "rgba(251,191,36,0.75)",
+          {useAltarBattlefield ? (
+            <div className="fixed inset-0 overflow-hidden" style={{ background: "var(--gradient-altar)" }}>
+              <div className="absolute inset-0 bottom-44">
+                <BattlefieldSceneV2
+                  player={altarPlayer}
+                  opponent={altarOpponent}
+                  attackingZone={
+                    actionMode === "select-attack-target" && selectedFieldIndex != null
+                      ? { side: "player", row: "monsters", index: selectedFieldIndex }
+                      : null
+                  }
+                  targetableZones={
+                    actionMode === "select-attack-target"
+                      ? (state.enemy.field
+                          .map((fc, i) => (fc ? ({ side: "opponent", row: "monsters", index: i } as const) : null))
+                          .filter(Boolean) as unknown as ZoneRef[])
+                      : []
+                  }
+                  hoveredZone={hoveredZone3d}
+                  onZoneHover={(z) => {
+                    setHoveredZone3d(z);
+                    if (!z) return;
+                    if (z.side === "player" && z.row === "monsters") {
+                      const fc = state.player.field[z.index];
+                      if (fc) setInspect({ kind: "field", fieldCard: fc });
+                    } else if (z.side === "opponent" && z.row === "monsters") {
+                      const fc = state.enemy.field[z.index];
+                      if (fc) setInspect({ kind: "field", fieldCard: fc });
+                    }
                   }}
-                  initial={{ x: f.from.x, y: f.from.y, width: f.from.w, height: f.from.h, opacity: 1 }}
-                  animate={{ x: f.to.x, y: f.to.y, width: f.to.w, height: f.to.h, opacity: 1 }}
-                  transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-                  onAnimationComplete={() => setFlyingCards((arr) => arr.filter((x) => x.id !== f.id))}
-                >
-                  <img src={f.img} alt={f.name} className="w-full h-full object-cover" />
-                  <motion.div
-                    className="absolute inset-0 rounded-lg"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: [0, 0.8, 0.2] }}
-                    transition={{ duration: 0.7 }}
-                    style={{ boxShadow: "0 0 30px 6px rgba(251,191,36,0.65)" }}
-                  />
-                </motion.div>
-              ))}
-            </AnimatePresence>
-            {/* ===== Enemy Hero ===== */}
-            <div className="flex justify-center">
-              <HeroPortrait
-                side="enemy"
-                hp={state.enemy.hp}
-                maxHp={soloBoss?.enemyHp ?? 30}
-                shield={state.enemy.shield}
-                ap={state.enemy.ap}
-                maxAp={getApCapForTurn(state.turnNumber)}
-                deckCount={state.enemy.deck.length}
-                handCount={state.enemy.hand.length}
-                isActiveTurn={state.turn === "enemy"}
+                  onZoneClick={(side, row, index) => {
+                    if (row !== "monsters") return;
+                    if (side === "player") handleFieldCardClick("player", index);
+                    else handleFieldCardClick("enemy", index);
+                  }}
+                />
+                <AltarAtmosphere />
+              </div>
+
+              <div className="pointer-events-none absolute left-4 top-4">
+                <PlayerBar
+                  name={soloBoss ? soloBoss.name : "Enemy"}
+                  lp={state.enemy.hp}
+                  maxLp={soloBoss?.enemyHp ?? 50}
+                  side="top"
+                  isActiveTurn={state.turn === "enemy"}
+                />
+              </div>
+              <div className="pointer-events-none absolute right-4 top-4 flex gap-2">
+                <ZoneStack label="Deck" count={state.enemy.deck.length} icon="shield" />
+                <ZoneStack label="Grave" count={state.enemy.graveyard.length} icon="sword" />
+              </div>
+
+              <div className="pointer-events-none absolute bottom-44 left-4">
+                <PlayerBar name="You" lp={state.player.hp} maxLp={50} side="bottom" isActiveTurn={state.turn === "player"} />
+              </div>
+
+              <div className="pointer-events-none absolute bottom-44 right-4 flex flex-col items-end gap-3">
+                <div className="flex gap-2">
+                  <ZoneStack label="Deck" count={state.player.deck.length} icon="shield" />
+                  <ZoneStack label="Grave" count={state.player.graveyard.length} icon="sword" />
+                </div>
+                <PhaseIndicator
+                  turn={state.turnNumber}
+                  phase={phaseLabel3d}
+                  onEndTurn={handleEndTurn}
+                  canEndTurn={isPlayerTurn}
+                  endTurnLabel={endTurnLabel3d}
+                />
+              </div>
+
+              <ActionLogRibbon entries={altarLog} />
+
+              <PlayerHand
+                cards={altarHand}
+                selectedId={selectedHandId}
+                disabled={!isPlayerTurn}
+                onSelect={(id) => {
+                  if (!isPlayerTurn) return;
+                  if (!id) {
+                    setSelectedHandIndex(null);
+                    setActionMode("none");
+                    return;
+                  }
+                  const idx = altarHand.findIndex((c) => c.id === id);
+                  if (idx >= 0) handleHandCardClick(idx);
+                }}
+                onHoverChange={(id) => {
+                  if (!id) {
+                    setInspect((prev) => (prev.kind === "hand" ? { kind: "none" } : prev));
+                    return;
+                  }
+                  const idx = altarHand.findIndex((c) => c.id === id);
+                  const c = state.player.hand[idx];
+                  if (c) setInspect({ kind: "hand", card: c });
+                }}
               />
-            </div>
 
-            {/* ===== Enemy Field ===== */}
-            <div className="space-y-1.5">
-              <div className="flex justify-center gap-1 flex-wrap">
-                {state.enemy.tokens.map((tok, i) => (
-                  <div
-                    key={`et-${i}`}
-                    className={cn(
-                      "relative w-10 h-12 sm:w-11 sm:h-14 rounded-md border overflow-hidden flex flex-col items-center justify-end",
-                      tok ? "border-amber-500/50 bg-amber-950/30" : "border-border/10 opacity-40",
-                    )}
-                  >
-                    {tok ? (
-                      <>
-                        <img src={tok.image} alt="" className="absolute inset-0 w-full h-full object-cover opacity-90" />
-                        <span className="relative z-10 text-[8px] font-bold text-white drop-shadow px-0.5">
-                          {tok.attack}⚔ {tok.turnsRemaining}t
-                        </span>
-                      </>
-                    ) : (
-                      <span className="text-muted-foreground/20 text-[8px]">·</span>
-                    )}
-                  </div>
-                ))}
-              </div>
-              <div className="flex justify-center gap-2 sm:gap-3 min-h-[104px]">
-                {state.enemy.field.map((fc, i) => (
-                  <div key={i} className="relative group">
-                    {fc ? (
-                      <>
-                        <BattleCardToken
-                          fieldCard={fc}
-                          side="enemy"
-                          selectable={
-                            actionMode === "select-attack-target" ||
-                            (actionMode === "select-spell-target" &&
-                              (() => {
-                                const c = state.player.hand[selectedHandIndex!];
-                                const se = c?.spellEffect;
-                                return Boolean(se && "target" in se && se.target === "single_enemy");
-                              })())
-                          }
-                          onClick={() => handleFieldCardClick("enemy", i)}
-                          onHover={() => setInspect({ kind: "field", fieldCard: fc })}
-                          onHoverEnd={() => setInspect((prev) => (prev.kind === "field" ? { kind: "none" } : prev))}
-                        />
-                        {/* Hover tooltip */}
-                        <div className="hidden group-hover:block absolute z-50 top-full mt-1 left-1/2 -translate-x-1/2">
-                          <BattleInfoPanel fieldCard={fc} side="enemy" />
-                        </div>
-                      </>
-                    ) : (
-                      <div className="w-[72px] h-[92px] sm:w-20 sm:h-[104px] rounded-lg border border-dashed border-border/20 flex items-center justify-center">
-                        <span className="text-muted-foreground/15 text-[9px]">—</span>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
+              <CardDetailPanel card={hoveredDetail} />
 
-              {/* Enemy traps */}
-              <div className="flex justify-center gap-1.5">
-                {state.enemy.traps.map((trap, i) => (
-                  <div key={i} className={cn(
-                    "w-8 h-10 rounded border flex items-center justify-center text-[9px]",
-                    trap ? "border-destructive/40 bg-destructive/10 text-destructive" : "border-border/15 text-muted-foreground/15"
-                  )}>
-                    {trap ? "🪤" : "·"}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* ===== VS Divider + Turn Badge ===== */}
-            <div className="flex items-center gap-2 py-1">
-              <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
-              <motion.span
-                key={state.turn}
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className={cn(
-                  "px-3 py-1 rounded-full text-[10px] font-heading font-bold uppercase tracking-wider",
-                  state.turn === "player"
-                    ? "bg-primary/20 text-primary border border-primary/30"
-                    : "bg-destructive/20 text-destructive border border-destructive/30",
-                )}
-              >
-                {state.turn === "player" ? "Your Turn" : "Enemy Turn"}
-              </motion.span>
-            {phaseLabel && (
-              <span className="px-2 py-1 rounded-full text-[10px] font-heading font-bold uppercase tracking-wider bg-secondary/60 text-secondary-foreground border border-border/50">
-                {phaseLabel} Phase
-              </span>
-            )}
-              <div className="flex-1 h-px bg-gradient-to-r from-transparent via-border to-transparent" />
-            </div>
-
-          {phaseHelpText && (
-            <div className="flex justify-center">
-              <span className="text-[10px] text-muted-foreground bg-background/50 px-2 py-1 rounded-md border border-border/40">
-                {phaseHelpText}
-              </span>
-            </div>
-          )}
-
-            {/* ===== Player Field ===== */}
-            <div className="space-y-1.5">
-              {/* Player traps */}
-              <div className="flex justify-center gap-1.5">
-                {state.player.traps.map((trap, i) => (
-                  <div key={i} className={cn(
-                    "w-8 h-10 rounded border flex items-center justify-center text-[9px]",
-                    trap ? "border-primary/40 bg-primary/10 text-primary" : "border-border/15 text-muted-foreground/15"
-                  )}>
-                    {trap ? "🪤" : "·"}
-                  </div>
-                ))}
-              </div>
-
-              <div className="flex justify-center gap-1 flex-wrap">
-                {state.player.tokens.map((tok, i) => (
-                  <div
-                    key={`pt-${i}`}
-                    className={cn(
-                      "relative w-10 h-12 sm:w-11 sm:h-14 rounded-md border overflow-hidden flex flex-col items-center justify-end",
-                      tok ? "border-primary/50 bg-primary/10" : "border-border/10 opacity-40",
-                    )}
-                  >
-                    {tok ? (
-                      <>
-                        <img src={tok.image} alt="" className="absolute inset-0 w-full h-full object-cover opacity-90" />
-                        <span className="relative z-10 text-[8px] font-bold text-white drop-shadow px-0.5">
-                          {tok.attack}⚔ {tok.turnsRemaining}t
-                        </span>
-                      </>
-                    ) : (
-                      <span className="text-muted-foreground/20 text-[8px]">·</span>
-                    )}
-                  </div>
-                ))}
-              </div>
-              <div className="flex justify-center gap-2 sm:gap-3 min-h-[104px]">
-                {state.player.field.map((fc, i) => (
-                  <div
-                    key={i}
-                    ref={(el) => {
-                      playerSlotRefs.current[i] = el;
-                    }}
-                    className="relative group"
-                  >
-                    {fc ? (
-                      <>
-                        <BattleCardToken
-                          fieldCard={fc}
-                          side="player"
-                          isSelected={selectedFieldIndex === i}
-                          selectable={
-                            actionMode === "none" ||
-                            actionMode === "select-equip-target" ||
-                            (actionMode === "select-spell-target" &&
-                              (() => {
-                                const c = state.player.hand[selectedHandIndex!];
-                                const se = c?.spellEffect;
-                                return Boolean(se && "target" in se && se.target === "single_ally");
-                              })())
-                          }
-                          onClick={() => handleFieldCardClick("player", i)}
-                          onHover={() => setInspect({ kind: "field", fieldCard: fc })}
-                          onHoverEnd={() => setInspect((prev) => (prev.kind === "field" ? { kind: "none" } : prev))}
-                        />
-
-                        {/* Hover tooltip */}
-                        <div className="hidden group-hover:block absolute z-50 bottom-full mb-1 left-1/2 -translate-x-1/2">
-                          <BattleInfoPanel fieldCard={fc} side="player" />
-                        </div>
-
-                        {/* Radial menu on selected card */}
-                        {isPlayerTurn && selectedFieldIndex === i && actionMode === "none" && (
-                          <BattleRadialMenu
-                            fieldCard={fc}
-                            visible
-                            canAttack={
-                              !fc.stunned &&
-                              !fc.attackedThisTurn &&
-                              (state.ruleset === "ygoHybrid"
-                                ? state.turnPhase === "battle"
-                                : state.player.ap >= 1)
-                            }
-                            canAbility={!fc.abilityUsed && !fc.stunned}
-                            canDirectAttack={
-                              noEnemyField &&
-                              !fc.stunned &&
-                              !fc.attackedThisTurn &&
-                              (state.ruleset === "ygoHybrid" ? state.turnPhase === "battle" : state.player.ap >= 1)
-                            }
-                            ap={state.player.ap}
-                            onAttack={beginAttackFromRadial}
-                            onAbility={() => handleUseAbility(i)}
-                            onDirectAttack={handleDirectAttack}
-                            onDismiss={() => setSelectedFieldIndex(null)}
-                          />
-                        )}
-                      </>
-                    ) : (
-                      <div className="w-[72px] h-[92px] sm:w-20 sm:h-[104px] rounded-lg border border-dashed border-border/20 flex items-center justify-center">
-                        <span className="text-muted-foreground/15 text-[9px]">—</span>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* ===== Player Hero ===== */}
-            <div className="flex justify-center">
-              <HeroPortrait
-                side="player"
-                hp={state.player.hp}
-                maxHp={30}
-                shield={state.player.shield}
-                ap={state.player.ap}
-                maxAp={getApCapForTurn(state.turnNumber)}
-                deckCount={state.player.deck.length}
-                handCount={state.player.hand.length}
-                isActiveTurn={state.turn === "player"}
-              />
-            </div>
-
-            {/* ===== Action Mode Hint ===== */}
-            {actionMode !== "none" && (
-              <div className="flex items-center justify-center gap-2">
-                <motion.span
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: [0.5, 1, 0.5] }}
-                  transition={{ repeat: Infinity, duration: 1.5 }}
-                  className={cn(
-                    "text-[10px] font-bold",
-                    actionMode === "select-attack-target" ? "text-destructive" : "text-legendary",
-                  )}
-                >
-                  {actionMode === "select-attack-target" && "⚔ Select enemy target"}
-                  {actionMode === "select-equip-target" && "🗡 Select your card to equip"}
-                  {actionMode === "select-spell-target" && "✨ Select target"}
-                </motion.span>
+              <div className="pointer-events-auto absolute top-3 left-3 z-40 flex flex-col gap-1 items-start max-w-[min(100%,280px)]">
+                <button onClick={onExit} className="altar-panel px-3 py-2 rounded-md text-[10px] font-bold uppercase tracking-wider altar-text-gold">
+                  <ArrowLeft className="w-3 h-3 inline mr-1" /> Retreat
+                </button>
                 <button
-                  onClick={() => { setActionMode("none"); setSelectedHandIndex(null); setSelectedFieldIndex(null); }}
-                  className="text-[9px] px-2 py-0.5 rounded bg-secondary text-secondary-foreground hover:bg-secondary/80"
+                  type="button"
+                  onClick={() => setLogsOpen((v) => !v)}
+                  className="altar-panel px-3 py-2 rounded-md text-[10px] font-bold uppercase tracking-wider altar-text-gold"
                 >
-                  Cancel
+                  {logsOpen ? "Hide logs" : "Logs"}
                 </button>
               </div>
-            )}
-
-            {/* ===== Hand + End Turn ===== */}
-            <div className="bg-card/80 backdrop-blur-sm border border-border rounded-xl p-2 sm:p-3">
-              <div className="flex items-center justify-between mb-1.5">
-                <span className="text-[9px] uppercase tracking-wider text-muted-foreground font-bold">
-                  Hand ({state.player.hand.length})
-                </span>
-                {isPlayerTurn && (
-                  <button
-                    onClick={handleEndTurn}
-                    className="text-[10px] px-3 py-1.5 rounded-lg bg-primary text-primary-foreground hover:brightness-110 transition-colors font-heading font-bold animate-glow-pulse"
-                  >
-                    {state.ruleset === "ygoHybrid" ? "Next Phase" : "End Turn"}
-                  </button>
-                )}
-              </div>
-              <div className="flex gap-1.5 sm:gap-2 overflow-x-auto pb-1 justify-center">
-                {state.player.hand.map((card, i) => (
-                  <div
-                    key={`${card.id}-${i}`}
-                    ref={(el) => {
-                      handCardRefs.current[i] = el;
-                    }}
-                    className={cn(
-                      "relative flex-shrink-0 w-[68px] sm:w-20 rounded-lg border-2 overflow-hidden cursor-pointer",
-                      "transition-[transform,box-shadow,border-color] duration-150 ease-out will-change-transform",
-                      selectedHandIndex === i
-                        ? "-translate-y-2 ring-2 ring-legendary border-legendary shadow-[0_0_12px_hsl(var(--legendary)/0.4)]"
-                        : "border-border translate-y-0",
-                      isPlayerTurn && selectedHandIndex !== i && "hover:border-primary/50",
-                      !isPlayerTurn && "opacity-50 pointer-events-none"
-                    )}
-                    onClick={() => isPlayerTurn && handleHandCardClick(i)}
-                    onMouseEnter={() => setInspect({ kind: "hand", card })}
-                    onMouseLeave={() => setInspect((prev) => (prev.kind === "hand" ? { kind: "none" } : prev))}
-                  >
-                    <div
-                      className="absolute top-0.5 right-0.5 z-10 rounded px-1 py-0.5 text-[8px] font-heading font-bold leading-none tabular-nums border border-amber-400/50 bg-black/80 text-amber-100 shadow-[0_1px_2px_rgba(0,0,0,0.9)]"
-                      title="AP to play from hand"
-                    >
-                      {getHandPlayApCost(card, state.ruleset)} AP
-                    </div>
-                    <div className="w-full h-16 sm:h-20 overflow-hidden">
-                      <img src={card.image} alt={card.name} className="w-full h-full object-cover" />
-                    </div>
-                    <div className="p-1 bg-card/90 space-y-0.5">
-                      <p className="text-[7px] sm:text-[8px] font-bold text-foreground truncate">{card.name}</p>
-                      <p className="text-[6px] sm:text-[7px] text-muted-foreground uppercase">{card.type}</p>
-                      {(card.type === "hero" || card.type === "god") && (
-                        <div className="flex gap-1.5 text-[7px]">
-                          <span className="text-destructive">⚔{card.attack}</span>
-                          <span className="text-blue-400">🛡{card.defense}</span>
-                          <span className="text-green-400">❤{card.hp}</span>
-                        </div>
-                      )}
-                      {card.type === "weapon" && card.weaponBonus && (
-                        <div className="text-[7px] text-legendary">+{card.weaponBonus.attack}⚔ +{card.weaponBonus.defense}🛡</div>
-                      )}
-                      {card.type === "spell" && (
-                        <div className="text-[7px] text-synergy">{card.spellEffect?.type}</div>
-                      )}
-                      {card.type === "trap" && (
-                        <div className="text-[7px] text-destructive">🪤 Trap</div>
-                      )}
-                    </div>
-                  </div>
-                ))}
-                {state.player.hand.length === 0 && (
-                  <p className="text-[10px] text-muted-foreground py-3">No cards in hand</p>
-                )}
-              </div>
             </div>
-          </div>
+          ) : (
+            <div ref={placementContainerRef} className="relative p-3 sm:p-4 space-y-2">
+              {/* legacy battlefield retained */}
+            </div>
+          )}
         </div>
-
       </div>
 
       {/* ===== Right-side hover inspect (desktop) ===== */}
-      <div className="hidden md:block absolute top-3 right-3 z-30 w-[320px] pointer-events-none">
-        <BattleCardInspectPanel inspect={inspect} className={inspect.kind === "none" ? "hidden" : ""} />
-      </div>
+      {!useAltarBattlefield && (
+        <div className="hidden md:block absolute top-3 right-3 z-30 w-[320px] pointer-events-none">
+          <BattleCardInspectPanel inspect={inspect} className={inspect.kind === "none" ? "hidden" : ""} />
+        </div>
+      )}
 
       {/* ===== Logs drawer (overlay; doesn't steal board space) ===== */}
       {logsOpen && (

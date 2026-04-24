@@ -61,6 +61,10 @@
     --sidebar-accent-foreground: 40 20% 85%;
     --sidebar-border: 230 15% 20%;
     --sidebar-ring: 40 80% 55%;
+
+    /* ===== Celestial Altar (battle3d) skin ===== */
+    --gradient-altar: radial-gradient(1200px 800px at 50% 15%, hsl(268 55% 16%) 0%, hsl(250 55% 8%) 40%, hsl(250 55% 4%) 85%);
+    --gradient-gold: linear-gradient(180deg, hsl(46 95% 78%) 0%, hsl(42 85% 58%) 55%, hsl(36 65% 38%) 100%);
   }
 }
 
@@ -85,6 +89,46 @@
   .font-body {
     font-family: 'Inter', sans-serif;
   }
+
+  /* ===== Celestial Altar utility classes (battle3d) ===== */
+  .altar-panel {
+    background: linear-gradient(
+      180deg,
+      hsl(250 35% 10% / 0.72),
+      hsl(250 45% 6% / 0.62)
+    );
+    box-shadow:
+      0 10px 30px hsl(250 60% 2% / 0.55),
+      inset 0 1px 0 hsl(46 100% 90% / 0.06),
+      inset 0 0 0 1px hsl(46 30% 40% / 0.22);
+    backdrop-filter: blur(10px);
+  }
+
+  .altar-text-gold {
+    color: hsl(46 95% 76% / 0.92);
+    text-shadow: 0 0 10px hsl(46 95% 72% / 0.25);
+  }
+
+  .altar-hairline {
+    background: linear-gradient(
+      90deg,
+      transparent,
+      hsl(46 70% 55% / 0.55),
+      transparent
+    );
+  }
+}
+
+/* ===== Celestial Altar animations (battle3d) ===== */
+@keyframes altar-godray {
+  0%, 100% { opacity: 0.45; transform: translateY(0) scaleX(1); }
+  50% { opacity: 0.75; transform: translateY(12px) scaleX(1.05); }
+}
+
+@keyframes altar-mote {
+  0% { transform: translate3d(0, 0, 0); opacity: 0; }
+  15% { opacity: 0.95; }
+  100% { transform: translate3d(var(--mote-x, 0px), -120vh, 0); opacity: 0; }
 }
 
 /* Card flip animation */
