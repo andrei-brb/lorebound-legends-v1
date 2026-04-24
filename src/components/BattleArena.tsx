@@ -1275,7 +1275,7 @@ export default function BattleArena({
       {/* ===== Game Over Overlay ===== */}
       <AnimatePresence>
         {state.phase === "game-over" && !showLevelUps && (
-          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="fixed inset-0 z-[120] flex items-center justify-center bg-background/80 backdrop-blur-sm">
             <motion.div initial={{ y: 30 }} animate={{ y: 0 }} className="bg-card border border-border rounded-2xl p-8 text-center max-w-md mx-auto">
               {state.winner === "player" ? (
                 <>
