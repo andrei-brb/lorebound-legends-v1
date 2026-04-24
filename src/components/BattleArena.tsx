@@ -926,6 +926,20 @@ export default function BattleArena({
           : "Next Turn"
       : "End Turn";
 
+  const selectedPlayerUnit = selectedFieldIndex != null ? state.player.field[selectedFieldIndex] : null;
+  const selectedPlayerAbility = selectedPlayerUnit?.card.specialAbility ?? null;
+  const selectedPlayerAbilityCost = Math.max(1, Math.min(selectedPlayerAbility?.cost ?? 1, 6));
+  const canShowAbilityButton = Boolean(selectedPlayerAbility && selectedFieldIndex != null);
+  const canUseSelectedAbility =
+    Boolean(
+      isPlayerTurn &&
+        selectedPlayerUnit &&
+        selectedPlayerAbility &&
+        !selectedPlayerUnit.stunned &&
+        !selectedPlayerUnit.abilityUsed &&
+        selectedPlayerUnit.abilityRechargeIn === undefined,
+    ) && (state.player.ap ?? 0) >= selectedPlayerAbilityCost;
+
   const toSideState = (side: BattleState["player"]): SideState => {
     const monsters = Array.from({ length: 5 }).map((_, i) => {
       const fc = side.field[i] ?? null;
@@ -1197,6 +1211,52 @@ export default function BattleArena({
                   >
                     Direct Attack
                   </button>
+                </div>
+              )}
+
+              {/* Unit action bubble (Activate Skill) */}
+              {canShowAbilityButton && (
+                <div className="pointer-events-auto absolute left-1/2 bottom-52 -translate-x-1/2 z-50">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (selectedFieldIndex == null) return;
+                        if (!canUseSelectedAbility) return;
+                        handleUseAbility(selectedFieldIndex);
+                      }}
+                      disabled={!canUseSelectedAbility}
+                      className={[
+                        "altar-panel rounded-full px-5 py-2 text-[10px] font-bold uppercase tracking-wider altar-text-gold",
+                        !canUseSelectedAbility ? "opacity-50 cursor-not-allowed" : "",
+                      ].join(" ")}
+                      title={
+                        !selectedPlayerUnit
+                          ? ""
+                          : selectedPlayerUnit.stunned
+                            ? "Stunned"
+                            : selectedPlayerUnit.abilityUsed
+                              ? "Already used"
+                              : selectedPlayerUnit.abilityRechargeIn !== undefined
+                                ? "Recharging"
+                                : (state.player.ap ?? 0) < selectedPlayerAbilityCost
+                                  ? `Need ${selectedPlayerAbilityCost} AP`
+                                  : ""
+                      }
+                    >
+                      Skill
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActionMode("none");
+                        setSelectedFieldIndex(null);
+                      }}
+                      className="altar-panel rounded-full px-4 py-2 text-[10px] font-bold uppercase tracking-wider altar-text-gold opacity-80 hover:opacity-100"
+                    >
+                      Cancel
+                    </button>
+                  </div>
                 </div>
               )}
 
