@@ -64,11 +64,16 @@ export function PlayerBar({ name, lp, maxLp, avatar, side, isActiveTurn }: Playe
           <span className="truncate font-heading text-[10px] font-semibold tracking-[0.1em] altar-text-gold">
             {name.toUpperCase()}
           </span>
-          <span
-            className="font-heading text-sm font-bold leading-none tabular-nums text-[hsl(46_95%_82%)]"
-            style={{ textShadow: "0 0 6px hsl(46 95% 72% / 0.55)" }}
-          >
-            {lp.toLocaleString()}
+          <span className="flex items-baseline gap-1">
+            <span className="font-heading text-[9px] font-bold uppercase tracking-[0.22em] text-[hsl(46_60%_70%/0.85)]">
+              HP
+            </span>
+            <span
+              className="font-heading text-sm font-bold leading-none tabular-nums text-[hsl(46_95%_82%)]"
+              style={{ textShadow: "0 0 6px hsl(46 95% 72% / 0.55)" }}
+            >
+              {lp.toLocaleString()}
+            </span>
           </span>
         </div>
 

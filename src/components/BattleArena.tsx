@@ -47,6 +47,7 @@ import { getCosmeticById } from "@/data/cosmetics";
 import LegendaryPicker from "./LegendaryPicker";
 import { useIsMobile } from "@/hooks/use-mobile";
 import defaultCardBack from "@/assets/battlepass/cardback-bloom-crest.jpg";
+import { getPassiveAbilities, getAbilityEvolutionName } from "@/lib/progressionEngine";
 import {
   ActionLogRibbon,
   type ActionLogEntry,
@@ -959,12 +960,22 @@ export default function BattleArena({
         kindLabel: c.type,
         atk: c.type === "hero" || c.type === "god" ? c.attack : undefined,
         def: c.type === "hero" || c.type === "god" ? c.defense : undefined,
+        hp: c.type === "hero" || c.type === "god" ? c.hp : undefined,
+        hpMax: c.type === "hero" || c.type === "god" ? c.hp : undefined,
+        abilityName: c.specialAbility?.name,
+        abilityDescription: c.specialAbility?.description,
+        passives:
+          state.playerCardProgress?.[c.id]
+            ? getPassiveAbilities(state.playerCardProgress[c.id]!).map((p) => ({ name: p.name, description: p.description }))
+            : [],
       };
     }
     if (hoveredZone3d && hoveredZone3d.row === "monsters") {
       const side = hoveredZone3d.side === "player" ? state.player : state.enemy;
       const fc = side.field[hoveredZone3d.index];
       if (!fc) return null;
+      const progress =
+        hoveredZone3d.side === "player" ? state.playerCardProgress?.[fc.card.id] ?? null : null;
       return {
         id: `field-${hoveredZone3d.side}-${fc.card.id}-${hoveredZone3d.index}`,
         image: fc.card.image,
@@ -972,6 +983,11 @@ export default function BattleArena({
         kindLabel: fc.card.type,
         atk: fc.attack,
         def: fc.defense,
+        hp: fc.currentHp,
+        hpMax: fc.maxHp,
+        abilityName: progress ? getAbilityEvolutionName(fc.card.specialAbility?.name ?? "Ability", progress.level) : fc.card.specialAbility?.name,
+        abilityDescription: fc.card.specialAbility?.description,
+        passives: progress ? getPassiveAbilities(progress).map((p) => ({ name: p.name, description: p.description })) : [],
       };
     }
     return null;
@@ -1121,6 +1137,11 @@ export default function BattleArena({
                       handleFieldCardClick("player", index);
                       return;
                     }
+                    // Direct attack: if the enemy has no units, allow clicking any enemy zone to attack directly.
+                    if (actionMode === "select-attack-target" && selectedFieldIndex != null && noEnemyField) {
+                      handleDirectAttack();
+                      return;
+                    }
                     handleFieldCardClick("enemy", index);
                   }}
                 />
@@ -1144,6 +1165,18 @@ export default function BattleArena({
               <div className="pointer-events-none absolute bottom-44 left-4">
                 <PlayerBar name="You" lp={state.player.hp} maxLp={50} side="bottom" isActiveTurn={state.turn === "player"} />
               </div>
+
+              {/* Direct attack helper button (only when allowed) */}
+              {actionMode === "select-attack-target" && selectedFieldIndex != null && noEnemyField && isPlayerTurn && (
+                <div className="pointer-events-auto absolute left-1/2 top-20 -translate-x-1/2 z-40">
+                  <button
+                    onClick={handleDirectAttack}
+                    className="altar-panel rounded-md px-4 py-2 text-[10px] font-bold uppercase tracking-wider altar-text-gold"
+                  >
+                    Direct Attack
+                  </button>
+                </div>
+              )}
 
               <div className="pointer-events-none absolute bottom-44 right-4 flex flex-col items-end gap-3">
                 <div className="flex gap-2">
