@@ -771,6 +771,14 @@ function openResponseWindow(
   responder: "player" | "enemy",
   payload?: Pick<ResponseWindow, "pendingAttack" | "pendingPlay" | "pendingSpellCast">,
 ): void {
+  // Only open a response window if the responder actually has an eligible response.
+  const responderSide = responder === "player" ? state.player : state.enemy;
+  const hasTrap = responderSide.traps.some((t) => t && t.faceDown && t.card.trapEffect?.trigger === cause);
+  const hasQuickSpell = responderSide.hand.some(
+    (c) => c.type === "spell" && c.spellSpeed === "quick" && Boolean(c.spellEffect),
+  );
+  if (!hasTrap && !hasQuickSpell) return;
+
   state.responseWindow = {
     id: (state.responseWindow?.id ?? 0) + 1,
     cause,
