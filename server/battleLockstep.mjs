@@ -9592,6 +9592,9 @@ function attackTarget(state, attackerFieldIndex, targetFieldIndex) {
     openResponseWindow(newState, "on_attacked", newState.turn === "player" ? "enemy" : "player", {
       pendingAttack: { attackerFieldIndex, targetFieldIndex }
     });
+    if (!newState.responseWindow) {
+      return attackTargetLegacyResolve(newState, attackerFieldIndex, targetFieldIndex);
+    }
     return newState;
   }
   if (attacker.blind && attacker.blind.turnsRemaining > 0) {

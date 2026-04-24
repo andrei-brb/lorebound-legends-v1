@@ -1363,6 +1363,10 @@ export function attackTarget(state: BattleState, attackerFieldIndex: number, tar
     openResponseWindow(newState, "on_attacked", newState.turn === "player" ? "enemy" : "player", {
       pendingAttack: { attackerFieldIndex, targetFieldIndex },
     });
+    // If no response is possible (no relevant traps/quick spells), resolve immediately.
+    if (!newState.responseWindow) {
+      return attackTargetLegacyResolve(newState, attackerFieldIndex, targetFieldIndex);
+    }
     return newState;
   }
 

@@ -927,7 +927,7 @@ export default function BattleArena({
       return {
         cardImage: fc?.card.image ?? null,
         hpLabel: fc ? `${fc.currentHp}` : null,
-        atkLabel: fc ? `ATK ${fc.attack}` : null,
+        atkLabel: fc ? `${fc.attack}` : null,
       };
     });
     const spells = Array.from({ length: 5 }).map((_, i) => {

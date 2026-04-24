@@ -169,45 +169,38 @@ export default function BattleZone({
       )}
 
       {cardImage && (hpLabel || atkLabel) && (
-        <group position={[0, 0.62 + (hovered ? 0.12 : 0), 0.12]}>
-          <Html center transform occlude={false} distanceFactor={8}>
-            <div style={{ display: "flex", gap: 6, alignItems: "center", pointerEvents: "none" }}>
-              {typeof atkLabel === "string" && atkLabel.length > 0 && (
-                <div
-                  style={{
-                    padding: "2px 6px",
-                    borderRadius: 999,
-                    fontSize: 10,
-                    fontWeight: 800,
-                    letterSpacing: "0.08em",
-                    color: "rgba(255, 247, 237, 0.95)",
-                    background: "rgba(69, 10, 10, 0.55)",
-                    border: "1px solid rgba(251, 146, 60, 0.45)",
-                    boxShadow: "0 0 16px rgba(251, 146, 60, 0.18)",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {atkLabel}
-                </div>
-              )}
-              {typeof hpLabel === "string" && hpLabel.length > 0 && (
-                <div
-                  style={{
-                    padding: "2px 6px",
-                    borderRadius: 999,
-                    fontSize: 10,
-                    fontWeight: 800,
-                    letterSpacing: "0.08em",
-                    color: "rgba(236, 253, 245, 0.95)",
-                    background: "rgba(5, 46, 22, 0.65)",
-                    border: "1px solid rgba(16, 185, 129, 0.45)",
-                    boxShadow: "0 0 16px rgba(16, 185, 129, 0.25)",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {hpLabel}
-                </div>
-              )}
+        <group
+          position={[
+            0,
+            0.045 + (hovered ? 0.25 : 0),
+            (side === "opponent" ? -1 : 1) * (CARD_H / 2 - 0.14),
+          ]}
+        >
+          <Html center occlude={false}>
+            <div
+              style={{
+                pointerEvents: "none",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 8,
+                minWidth: 110,
+                padding: "2px 8px",
+                borderRadius: 10,
+                fontSize: 12,
+                fontWeight: 900,
+                letterSpacing: "0.02em",
+                color: "rgba(255,255,255,0.95)",
+                background: "rgba(0,0,0,0.55)",
+                border: "1px solid rgba(255,255,255,0.18)",
+                boxShadow: "0 6px 18px rgba(0,0,0,0.35)",
+                backdropFilter: "blur(6px)",
+                WebkitBackdropFilter: "blur(6px)",
+              }}
+            >
+              <span style={{ textShadow: "0 1px 3px rgba(0,0,0,0.8)" }}>{atkLabel ?? ""}</span>
+              <span style={{ opacity: 0.6, fontWeight: 900 }}>/</span>
+              <span style={{ textShadow: "0 1px 3px rgba(0,0,0,0.8)" }}>{hpLabel ?? ""}</span>
             </div>
           </Html>
         </group>
