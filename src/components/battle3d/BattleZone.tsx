@@ -157,8 +157,6 @@ export default function BattleZone({
           rotation={[-Math.PI / 2, 0, cardRotZ]}
           position={[0, 0.04, 0]}
           onClick={onClick}
-          onPointerOver={onPointerOver}
-          onPointerOut={onPointerOut}
         >
           <planeGeometry args={[CARD_W, CARD_H]} />
           <meshStandardMaterial map={texture} roughness={0.5} transparent />

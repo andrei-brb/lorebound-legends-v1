@@ -176,6 +176,7 @@ export default function BattleArena({
   const [logsOpen, setLogsOpen] = useState(false);
   const [inspect, setInspect] = useState<Inspect>({ kind: "none" });
   const [hoveredZone3d, setHoveredZone3d] = useState<ZoneRef | null>(null);
+  const [hoveredHandIndex3d, setHoveredHandIndex3d] = useState<number | null>(null);
   const [altarLog, setAltarLog] = useState<ActionLogEntry[]>([
     { id: "init", kind: "info", text: "The altar stirs…", ts: Date.now() },
   ]);
@@ -948,20 +949,24 @@ export default function BattleArena({
       : null;
 
   const hoveredDetail: DetailCard | null = (() => {
-    if (inspect.kind === "hand") {
+    if (hoveredHandIndex3d != null) {
+      const c = state.player.hand[hoveredHandIndex3d];
+      if (!c) return null;
       return {
-        id: `hand-${inspect.card.id}`,
-        image: inspect.card.image,
-        name: inspect.card.name,
-        kindLabel: inspect.card.type,
-        atk: inspect.card.type === "hero" || inspect.card.type === "god" ? inspect.card.attack : undefined,
-        def: inspect.card.type === "hero" || inspect.card.type === "god" ? inspect.card.defense : undefined,
+        id: `hand-${c.id}-${hoveredHandIndex3d}`,
+        image: c.image,
+        name: c.name,
+        kindLabel: c.type,
+        atk: c.type === "hero" || c.type === "god" ? c.attack : undefined,
+        def: c.type === "hero" || c.type === "god" ? c.defense : undefined,
       };
     }
-    if (inspect.kind === "field") {
-      const fc = inspect.fieldCard;
+    if (hoveredZone3d && hoveredZone3d.row === "monsters") {
+      const side = hoveredZone3d.side === "player" ? state.player : state.enemy;
+      const fc = side.field[hoveredZone3d.index];
+      if (!fc) return null;
       return {
-        id: `field-${fc.card.id}`,
+        id: `field-${hoveredZone3d.side}-${fc.card.id}-${hoveredZone3d.index}`,
         image: fc.card.image,
         name: fc.card.name,
         kindLabel: fc.card.type,
@@ -1083,17 +1088,18 @@ export default function BattleArena({
                   hoveredZone={hoveredZone3d}
                   onZoneHover={(z) => {
                     setHoveredZone3d(z);
-                    if (!z) return;
-                    if (z.side === "player" && z.row === "monsters") {
-                      const fc = state.player.field[z.index];
-                      if (fc) setInspect({ kind: "field", fieldCard: fc });
-                    } else if (z.side === "opponent" && z.row === "monsters") {
-                      const fc = state.enemy.field[z.index];
-                      if (fc) setInspect({ kind: "field", fieldCard: fc });
+                    // Hover-only detail panel: clear on hover out.
+                    if (!z) {
+                      setInspect((prev) => (prev.kind === "field" ? { kind: "none" } : prev));
+                      return;
                     }
                   }}
                   onZoneClick={(side, row, index) => {
                     if (row !== "monsters") return;
+                    // Ensure detail box doesn't "stick" after clicks.
+                    setInspect({ kind: "none" });
+                    setHoveredZone3d(null);
+                    setHoveredHandIndex3d(null);
                     if (side === "player") {
                       // The altar UI doesn't have the old radial menu button to "begin attack".
                       // In Battle Phase, clicking your unit should enter target selection.
@@ -1161,6 +1167,7 @@ export default function BattleArena({
                 disabled={!isPlayerTurn}
                 onSelect={(id) => {
                   if (!isPlayerTurn) return;
+                  setHoveredHandIndex3d(null);
                   if (!id) {
                     setSelectedHandIndex(null);
                     setActionMode("none");
@@ -1171,12 +1178,11 @@ export default function BattleArena({
                 }}
                 onHoverChange={(id) => {
                   if (!id) {
-                    setInspect((prev) => (prev.kind === "hand" ? { kind: "none" } : prev));
+                    setHoveredHandIndex3d(null);
                     return;
                   }
                   const idx = altarHand.findIndex((c) => c.id === id);
-                  const c = state.player.hand[idx];
-                  if (c) setInspect({ kind: "hand", card: c });
+                  setHoveredHandIndex3d(idx >= 0 ? idx : null);
                 }}
               />
 
