@@ -514,7 +514,8 @@ export default function BattleArena({
         return;
       }
       if (card.type === "spell") {
-        if (card.spellEffect?.target === "all_enemies" || card.spellEffect?.target === "all_allies") {
+        const se = card.spellEffect;
+        if (se && "target" in se && (se.target === "all_enemies" || se.target === "all_allies")) {
           void livePvP.onIntent({ kind: "cast-spell", handIndex: index });
           setActionMode("none");
           return;
@@ -549,13 +550,7 @@ export default function BattleArena({
           const next = playCard(prev, index);
           if (next === prev && prev.ruleset === "ygoHybrid") {
             cardsPlayedRef.current = Math.max(0, cardsPlayedRef.current - 1);
-            if (prev.responseWindow?.responder === "enemy") {
-              toast({
-                title: "Opponent is responding",
-                description: "Wait for the response window to finish.",
-                variant: "destructive",
-              });
-            } else if (card.type === "hero" || card.type === "god") {
+            if (card.type === "hero" || card.type === "god") {
               if (prev.turnPhase !== "main") {
                 toast({
                   title: "Wrong phase",
@@ -581,7 +576,8 @@ export default function BattleArena({
       setActionMode("select-equip-target");
     } else if (card.type === "spell") {
       cardsPlayedRef.current += 1;
-      if (card.spellEffect?.target === "all_enemies" || card.spellEffect?.target === "all_allies") {
+      const se = card.spellEffect;
+      if (se && "target" in se && (se.target === "all_enemies" || se.target === "all_allies")) {
         queueBattleIntent({ kind: "cast-spell", handIndex: index });
         setAnimating(true);
         setTimeout(() => {
@@ -645,7 +641,10 @@ export default function BattleArena({
       if (actionMode === "select-spell-target") {
         if (selectedHandIndex === null) return;
         const spell = state.player.hand[selectedHandIndex];
-        const targetSide = spell?.spellEffect?.target === "single_ally" ? "player" : "enemy";
+        if (!spell || spell.type !== "spell") return;
+        const se = spell.spellEffect;
+        if (!se || !("target" in se)) return;
+        const targetSide = se.target === "single_ally" ? "player" : "enemy";
         if (side !== targetSide) return;
         void livePvP.onIntent({ kind: "cast-spell", handIndex: selectedHandIndex, targetFieldIndex: index });
         setActionMode("none");
@@ -679,7 +678,10 @@ export default function BattleArena({
     } else if (actionMode === "select-spell-target") {
       if (selectedHandIndex === null) return;
       const spell = state.player.hand[selectedHandIndex];
-      const targetSide = spell?.spellEffect?.target === "single_ally" ? "player" : "enemy";
+      if (!spell || spell.type !== "spell") return;
+      const se = spell.spellEffect;
+      if (!se || !("target" in se)) return;
+      const targetSide = se.target === "single_ally" ? "player" : "enemy";
       if (side !== targetSide) return;
       queueBattleIntent({ kind: "cast-spell", handIndex: selectedHandIndex, targetFieldIndex: index });
       setAnimating(true);
@@ -946,29 +948,6 @@ export default function BattleArena({
         )}
       </AnimatePresence>
 
-      {/* ygoHybrid: brief overlay while the AI resolves its response window */}
-      <AnimatePresence>
-        {state?.responseWindow &&
-          state.responseWindow.responder === "enemy" &&
-          state.ruleset === "ygoHybrid" &&
-          state.turn === "player" &&
-          state.phase !== "game-over" && (
-            <motion.div
-              key="enemy-response"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="absolute inset-0 z-[55] flex items-center justify-center bg-black/35 backdrop-blur-[2px] pointer-events-none"
-            >
-              <div className="rounded-xl border border-border bg-card/95 px-4 py-3 shadow-xl max-w-[min(92vw,320px)] text-center">
-                <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Response window</p>
-                <p className="font-heading text-sm font-bold text-foreground mt-1">Opponent is responding…</p>
-                <p className="text-[11px] text-muted-foreground mt-1 font-mono">{state.responseWindow.cause}</p>
-              </div>
-            </motion.div>
-          )}
-      </AnimatePresence>
-
       <div className="relative flex">
         {/* ===== Main Battlefield ===== */}
         <div className="flex-1 flex flex-col min-h-0">
@@ -1076,7 +1055,15 @@ export default function BattleArena({
                         <BattleCardToken
                           fieldCard={fc}
                           side="enemy"
-                          selectable={actionMode === "select-attack-target" || (actionMode === "select-spell-target" && state.player.hand[selectedHandIndex!]?.spellEffect?.target === "single_enemy")}
+                          selectable={
+                            actionMode === "select-attack-target" ||
+                            (actionMode === "select-spell-target" &&
+                              (() => {
+                                const c = state.player.hand[selectedHandIndex!];
+                                const se = c?.spellEffect;
+                                return Boolean(se && "target" in se && se.target === "single_enemy");
+                              })())
+                          }
                           onClick={() => handleFieldCardClick("enemy", i)}
                           onHover={() => setInspect({ kind: "field", fieldCard: fc })}
                           onHoverEnd={() => setInspect((prev) => (prev.kind === "field" ? { kind: "none" } : prev))}
@@ -1194,7 +1181,12 @@ export default function BattleArena({
                           selectable={
                             actionMode === "none" ||
                             actionMode === "select-equip-target" ||
-                            (actionMode === "select-spell-target" && state.player.hand[selectedHandIndex!]?.spellEffect?.target === "single_ally")
+                            (actionMode === "select-spell-target" &&
+                              (() => {
+                                const c = state.player.hand[selectedHandIndex!];
+                                const se = c?.spellEffect;
+                                return Boolean(se && "target" in se && se.target === "single_ally");
+                              })())
                           }
                           onClick={() => handleFieldCardClick("player", i)}
                           onHover={() => setInspect({ kind: "field", fieldCard: fc })}
