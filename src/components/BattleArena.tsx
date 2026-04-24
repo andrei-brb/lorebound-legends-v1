@@ -924,12 +924,15 @@ export default function BattleArena({
   const toSideState = (side: BattleState["player"]): SideState => {
     const monsters = Array.from({ length: 5 }).map((_, i) => {
       const fc = side.field[i] ?? null;
-      return { cardImage: fc?.card.image ?? null };
+      return {
+        cardImage: fc?.card.image ?? null,
+        hpLabel: fc ? `${fc.currentHp}` : null,
+      };
     });
     const spells = Array.from({ length: 5 }).map((_, i) => {
       const t = side.traps[i] ?? null;
       const img = t ? (t.faceDown ? defaultCardBack : t.card.image) : null;
-      return { cardImage: img };
+      return { cardImage: img, hpLabel: null };
     });
     return { monsters, spells };
   };
@@ -1117,6 +1120,19 @@ export default function BattleArena({
                     setHoveredZone3d(null);
                     setHoveredHandIndex3d(null);
                     if (side === "player") {
+                      // Allow switching attacker while already selecting targets.
+                      if (actionMode === "select-attack-target") {
+                        if (selectedFieldIndex === index) {
+                          setActionMode("none");
+                          setSelectedFieldIndex(null);
+                          return;
+                        }
+                        const fc = state.player.field[index];
+                        if (fc && !fc.stunned && !fc.attackedThisTurn) {
+                          setSelectedFieldIndex(index);
+                          return;
+                        }
+                      }
                       // The altar UI doesn't have the old radial menu button to "begin attack".
                       // In Battle Phase, clicking your unit should enter target selection.
                       if (

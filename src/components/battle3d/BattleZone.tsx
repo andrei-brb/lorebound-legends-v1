@@ -1,6 +1,7 @@
 import { useRef, useEffect, useMemo } from "react";
 import { useFrame, type ThreeEvent } from "@react-three/fiber";
 import { Mesh, MathUtils, TextureLoader, type Texture } from "three";
+import { Html } from "@react-three/drei";
 
 export type ZoneKind = "monster" | "spell";
 
@@ -10,6 +11,7 @@ interface BattleZoneProps {
   cardImage?: string | null;
   /** Owner side — flips card facing */
   side: "player" | "opponent";
+  hpLabel?: string | null;
   onClick?: (e: ThreeEvent<MouseEvent>) => void;
   onPointerOver?: (e: ThreeEvent<PointerEvent>) => void;
   onPointerOut?: (e: ThreeEvent<PointerEvent>) => void;
@@ -41,6 +43,7 @@ export default function BattleZone({
   kind,
   cardImage,
   side,
+  hpLabel = null,
   onClick,
   onPointerOver,
   onPointerOut,
@@ -161,6 +164,30 @@ export default function BattleZone({
           <planeGeometry args={[CARD_W, CARD_H]} />
           <meshStandardMaterial map={texture} roughness={0.5} transparent />
         </mesh>
+      )}
+
+      {cardImage && hpLabel && (
+        <group position={[0, 0.62 + (hovered ? 0.12 : 0), 0.12]}>
+          <Html center transform occlude={false} distanceFactor={8}>
+            <div
+              style={{
+                pointerEvents: "none",
+                padding: "2px 6px",
+                borderRadius: 999,
+                fontSize: 10,
+                fontWeight: 800,
+                letterSpacing: "0.08em",
+                color: "rgba(236, 253, 245, 0.95)",
+                background: "rgba(5, 46, 22, 0.65)",
+                border: "1px solid rgba(16, 185, 129, 0.45)",
+                boxShadow: "0 0 16px rgba(16, 185, 129, 0.25)",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {hpLabel}
+            </div>
+          </Html>
+        </group>
       )}
     </group>
   );
