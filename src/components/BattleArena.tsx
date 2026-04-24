@@ -426,7 +426,12 @@ export default function BattleArena({
               actionLog: pveActionLogRef.current,
             });
             if (result) {
-              setGoldEarned(result.goldReward);
+              const fallbackGold =
+                soloBoss != null
+                  ? getRaidGoldReward(won, turnNumber, soloBoss.goldRewardMultiplier)
+                  : getBattleGoldReward(won, turnNumber);
+              // Server should provide a goldReward; if it doesn't (or returns 0), show local estimate.
+              setGoldEarned(result.goldReward > 0 ? result.goldReward : fallbackGold);
               const mapped = result.levelUps.map((lu) => ({
                 ...lu,
                 milestone: null as string | null,
