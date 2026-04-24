@@ -1094,8 +1094,28 @@ export default function BattleArena({
                   }}
                   onZoneClick={(side, row, index) => {
                     if (row !== "monsters") return;
-                    if (side === "player") handleFieldCardClick("player", index);
-                    else handleFieldCardClick("enemy", index);
+                    if (side === "player") {
+                      // The altar UI doesn't have the old radial menu button to "begin attack".
+                      // In Battle Phase, clicking your unit should enter target selection.
+                      if (
+                        isPlayerTurn &&
+                        state.ruleset === "ygoHybrid" &&
+                        state.turnPhase === "battle" &&
+                        actionMode === "none"
+                      ) {
+                        const fc = state.player.field[index];
+                        if (!fc || fc.stunned || fc.attackedThisTurn) {
+                          handleFieldCardClick("player", index);
+                          return;
+                        }
+                        setSelectedFieldIndex(index);
+                        setActionMode("select-attack-target");
+                        return;
+                      }
+                      handleFieldCardClick("player", index);
+                      return;
+                    }
+                    handleFieldCardClick("enemy", index);
                   }}
                 />
                 <AltarAtmosphere />
