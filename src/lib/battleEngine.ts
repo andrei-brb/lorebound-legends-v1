@@ -2213,6 +2213,10 @@ export function performAITurn(state: BattleState): BattleState {
         s = resolveAiResponseWindow(s);
         continue;
       }
+      if (s.responseWindow && s.responseWindow.responder === "player") {
+        // Enemy action opened a response window; wait for player input.
+        return s;
+      }
 
       const before = JSON.stringify({
         turn: s.turn,
@@ -2221,6 +2225,9 @@ export function performAITurn(state: BattleState): BattleState {
         hand: s.enemy.hand.length,
         field: s.enemy.field.map((x) => (x ? x.card.id : null)),
         traps: s.enemy.traps.map((x) => (x ? x.card.id : null)),
+        responseWindow: s.responseWindow
+          ? { id: s.responseWindow.id, cause: s.responseWindow.cause, responder: s.responseWindow.responder }
+          : null,
       });
 
       // Reuse existing AI action selection, but only allow actions in Main/Battle for now.
@@ -2239,6 +2246,9 @@ export function performAITurn(state: BattleState): BattleState {
         hand: afterAction.enemy.hand.length,
         field: afterAction.enemy.field.map((x) => (x ? x.card.id : null)),
         traps: afterAction.enemy.traps.map((x) => (x ? x.card.id : null)),
+        responseWindow: afterAction.responseWindow
+          ? { id: afterAction.responseWindow.id, cause: afterAction.responseWindow.cause, responder: afterAction.responseWindow.responder }
+          : null,
       });
       if (after === before) {
         s = advancePhase(s);
