@@ -43,6 +43,7 @@ import { api } from "@/lib/apiClient";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { setSfxVolume } from "@/lib/sfx";
 import { GoldCurrencyIcon, StardustCurrencyIcon } from "@/components/CurrencyIcons";
+import { TopNavTabs } from "@/components/TopNavTabs";
 
 type Tab = "collection" | "catalog" | "cosmetics" | "deck" | "battle" | "pvp" | "summon" | "quests" | "workshop" | "achievements" | "leaderboard" | "trade" | "mail" | "events" | "tournament" | "boost" | "pass" | "profile" | "daily" | "friends" | "chat" | "guild" | "spectate" | "cards-hall" | "combat-hall" | "raid";
 type Category = "cards" | "summon-cat" | "battle" | "grow" | "social";
@@ -425,72 +426,48 @@ export default function Index() {
         )}
 
         {!hideAppChromeDuringBattle && (
-          <header className="border-b border-border bg-card/50 backdrop-blur-sm sticky z-50" style={{ top: 0 }}>
-            <div className="container flex items-center justify-between h-14 gap-2">
-              <div className="flex items-center gap-2 shrink-0">
-                <Swords className="w-6 h-6 text-primary" />
-                <h1 className="font-heading text-lg font-bold text-foreground tracking-wide hidden sm:block">Mythic Arcana</h1>
-              </div>
-              <div className="flex items-center gap-2 sm:gap-4">
-                <div className="flex items-center gap-1.5 bg-secondary/80 rounded-lg px-2.5 py-1.5">
-                  <GoldCurrencyIcon className="w-[18px] h-[18px]" />
-                  <span className="font-heading font-bold text-sm text-foreground">{Number(playerState.gold) || 0}</span>
-                </div>
-                <div className="flex items-center gap-1.5 bg-secondary/80 rounded-lg px-2.5 py-1.5">
-                  <StardustCurrencyIcon className="w-[18px] h-[18px]" />
-                  <span className="font-heading font-bold text-sm text-foreground">{Number(playerState.stardust) || 0}</span>
-                </div>
-                <SettingsPanel playerState={playerState} onStateChange={setPlayerState} />
-                <nav className="flex gap-0.5">
-                  {categories.map((cat) => (
-                    <Tooltip key={cat.id}>
-                      <TooltipTrigger asChild>
-                        <button
-                          onClick={() => handleCategoryClick(cat.id)}
-                          className={cn(
-                            "flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap",
-                            activeCategory === cat.id
-                              ? "bg-primary text-primary-foreground"
-                              : "text-muted-foreground hover:bg-secondary hover:text-secondary-foreground"
-                          )}
-                        >
-                          {cat.icon}
-                          <span className="hidden md:inline">{cat.label}</span>
-                        </button>
-                      </TooltipTrigger>
-                      <TooltipContent className="md:hidden"><p>{cat.label}</p></TooltipContent>
-                    </Tooltip>
-                  ))}
-                </nav>
-              </div>
-            </div>
-            {/* Sub-tabs row */}
-            <div className="container flex items-center gap-1 h-10 overflow-x-auto scrollbar-none">
-              {activeCat?.tabs.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => handleTabClick(tab.id)}
-                  className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors whitespace-nowrap relative",
-                    isSubTabSelected(tab.id)
-                      ? "bg-secondary text-foreground"
-                      : "text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  {tab.icon}
-                  <span className="relative">
-                    {tab.label}
-                    {tab.id === "mail" && unreadMail > 0 && (
-                      <span className="absolute -top-2 -right-3 text-[10px] font-bold bg-primary text-primary-foreground rounded-full px-1.5 py-0.5">
-                        {unreadMail > 99 ? "99+" : unreadMail}
+          <div>
+            <TopNavTabs
+              playerState={playerState}
+              unreadMail={unreadMail}
+              activeCategory={activeCategory}
+              onCategory={(cat) => handleCategoryClick(cat)}
+              onTab={(tab) => handleTabClick(tab)}
+              settingsNode={<SettingsPanel playerState={playerState} onStateChange={setPlayerState} />}
+            />
+
+            {/* Sub-tabs row (kept from main repo; will be redesigned next) */}
+            <div className="sticky top-[72px] z-40">
+              <div
+                className="px-5 md:px-10 py-2 backdrop-blur-md"
+                style={{
+                  background: "linear-gradient(180deg, rgba(10,6,3,0.82), rgba(10,6,3,0.45))",
+                  borderBottom: "1px solid rgba(212,175,55,0.18)",
+                }}
+              >
+                <div className="flex items-center gap-2 overflow-x-auto scrollbar-none">
+                  {activeCat?.tabs.map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => handleTabClick(tab.id)}
+                      className={cn("btn-ghost text-xs", isSubTabSelected(tab.id) ? "active" : "")}
+                      data-testid={`subtab-${tab.id}`}
+                    >
+                      {tab.icon}
+                      <span className="relative">
+                        {tab.label}
+                        {tab.id === "mail" && unreadMail > 0 && (
+                          <span className="absolute -top-2 -right-3 text-[10px] font-bold bg-[#f5c842] text-[#0A0A0A] rounded-full px-1.5 py-0.5">
+                            {unreadMail > 99 ? "99+" : unreadMail}
+                          </span>
+                        )}
                       </span>
-                    )}
-                  </span>
-                  {isSubTabSelected(tab.id) && <span className="absolute bottom-0 left-2 right-2 h-0.5 bg-primary rounded-full" />}
-                </button>
-              ))}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
-          </header>
+          </div>
         )}
 
         {/* Content */}
@@ -503,74 +480,200 @@ export default function Index() {
           <TutorialOverlay tabId={activeTab} playerState={playerState} onStateChange={setPlayerState} />
           <TabTransition tabKey={activeTab} reduceMotion={!!playerState.settings?.reduceMotion}>
             {activeTab === "collection" && (
-              <div>
-                <div className="mb-6">
-                  <h2 className="font-heading text-2xl font-bold text-foreground">Your Collection</h2>
-                  <p className="text-sm text-muted-foreground mt-1">Click any card to flip and reveal its lore & synergies</p>
+              <div
+                data-testid="cards-screen"
+                className="relative rounded-2xl p-5 md:p-8 overflow-hidden"
+                style={{
+                  background:
+                    "linear-gradient(180deg, rgba(7,5,10,0.78), rgba(7,5,10,0.92))",
+                  border: "1px solid rgba(212,175,55,0.18)",
+                  boxShadow: "0 18px 60px rgba(0,0,0,0.55)",
+                }}
+              >
+                <div className="corner-deco absolute inset-0" />
+                <div className="relative z-10">
+                  <div className="section-heading mb-2">Collection</div>
+                  <p className="text-center font-lore mb-6">
+                    Your owned cards — flip to reveal lore, synergies, and progression.
+                  </p>
+                  <CollectionView playerState={playerState} onStateChange={setPlayerState} />
                 </div>
-                <CollectionView playerState={playerState} onStateChange={setPlayerState} />
               </div>
             )}
             {activeTab === "cosmetics" && (
-              <div>
-                <div className="mb-6">
-                  <h2 className="font-heading text-2xl font-bold text-foreground">Cosmetics</h2>
-                  <p className="text-sm text-muted-foreground mt-1">Equip board skins, card frames, backs, borders, titles, and emotes you have unlocked</p>
+              <div
+                data-testid="cosmetics-screen"
+                className="relative rounded-2xl p-5 md:p-8 overflow-hidden"
+                style={{
+                  background:
+                    "linear-gradient(180deg, rgba(7,5,10,0.78), rgba(7,5,10,0.92))",
+                  border: "1px solid rgba(212,175,55,0.18)",
+                  boxShadow: "0 18px 60px rgba(0,0,0,0.55)",
+                }}
+              >
+                <div className="corner-deco absolute inset-0" />
+                <div className="relative z-10">
+                  <div className="section-heading mb-2">Cosmetics</div>
+                  <p className="text-center font-lore mb-6">
+                    Equip boards, card backs, frames, borders, titles, and emotes you’ve unlocked.
+                  </p>
+                  <CosmeticsView playerState={playerState} onStateChange={setPlayerState} />
                 </div>
-                <CosmeticsView playerState={playerState} onStateChange={setPlayerState} />
               </div>
             )}
             {activeTab === "catalog" && <CardCatalog playerState={playerState} />}
-            {activeTab === "summon" && <PackShop playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} pullCardsApi={pullCards} />}
-            {activeTab === "deck" && (
-              <DeckBuilder
-                onStartBattle={(deckIds) => {
-                  if (pendingCombat?.kind === "raid-solo") {
-                    setSoloRaidBossId(pendingCombat.bossId);
-                    setRaidHotseat(null);
-                    setRaidState(null);
-                    setBattleDeckIds(deckIds);
-                    setPendingCombat(null);
-                    setActiveCategory("battle");
-                    setActiveTab("battle");
-                    return;
-                  }
-                  if (pendingCombat?.kind === "raid-hotseat") {
-                    setRaidHotseat({ bossId: pendingCombat.bossId, deckIds });
-                    setSoloRaidBossId(null);
-                    setBattleDeckIds([]);
-                    setPendingCombat(null);
-                    setActiveCategory("battle");
-                    setActiveTab("battle");
-                    return;
-                  }
-                  startBattle(deckIds);
+            {activeTab === "summon" && (
+              <div
+                data-testid="summon-screen"
+                className="relative rounded-2xl p-5 md:p-8 overflow-hidden"
+                style={{
+                  background: "linear-gradient(180deg, rgba(7,5,10,0.78), rgba(7,5,10,0.92))",
+                  border: "1px solid rgba(212,175,55,0.18)",
+                  boxShadow: "0 18px 60px rgba(0,0,0,0.55)",
                 }}
-                pendingCombatHint={
-                  pendingCombat
-                    ? pendingCombat.kind === "raid-solo"
-                      ? `Raid (solo): you're preparing to face ${getRaidBoss(pendingCombat.bossId)?.name ?? "the boss"}. Build a 10-card deck, then Start Battle.`
-                      : `Raid (local co-op): the same deck is used for both allies on one device. Build your deck, then Start Battle.`
-                    : null
-                }
-                playerState={playerState}
-                onStateChange={setPlayerState}
-              />
+              >
+                <div className="corner-deco absolute inset-0" />
+                <div className="relative z-10">
+                  <div className="section-heading mb-2">Summon</div>
+                  <p className="text-center font-lore mb-6">
+                    Open packs, chase mythics, and grow your arsenal.
+                  </p>
+                  <PackShop playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} pullCardsApi={pullCards} />
+                </div>
+              </div>
             )}
-            {activeTab === "quests" && <QuestsHall playerState={playerState} onStateChange={setPlayerState} />}
+            {activeTab === "deck" && (
+              <div
+                data-testid="deck-screen"
+                className="relative rounded-2xl p-5 md:p-8 overflow-hidden"
+                style={{
+                  background: "linear-gradient(180deg, rgba(7,5,10,0.78), rgba(7,5,10,0.92))",
+                  border: "1px solid rgba(212,175,55,0.18)",
+                  boxShadow: "0 18px 60px rgba(0,0,0,0.55)",
+                }}
+              >
+                <div className="corner-deco absolute inset-0" />
+                <div className="relative z-10">
+                  <div className="section-heading mb-2">Deck</div>
+                  <p className="text-center font-lore mb-6">
+                    Assemble your deck and prepare for battle.
+                  </p>
+                  <DeckBuilder
+                    onStartBattle={(deckIds) => {
+                      if (pendingCombat?.kind === "raid-solo") {
+                        setSoloRaidBossId(pendingCombat.bossId);
+                        setRaidHotseat(null);
+                        setRaidState(null);
+                        setBattleDeckIds(deckIds);
+                        setPendingCombat(null);
+                        setActiveCategory("battle");
+                        setActiveTab("battle");
+                        return;
+                      }
+                      if (pendingCombat?.kind === "raid-hotseat") {
+                        setRaidHotseat({ bossId: pendingCombat.bossId, deckIds });
+                        setSoloRaidBossId(null);
+                        setBattleDeckIds([]);
+                        setPendingCombat(null);
+                        setActiveCategory("battle");
+                        setActiveTab("battle");
+                        return;
+                      }
+                      startBattle(deckIds);
+                    }}
+                    pendingCombatHint={
+                      pendingCombat
+                        ? pendingCombat.kind === "raid-solo"
+                          ? `Raid (solo): you're preparing to face ${getRaidBoss(pendingCombat.bossId)?.name ?? "the boss"}. Build a 10-card deck, then Start Battle.`
+                          : `Raid (local co-op): the same deck is used for both allies on one device. Build your deck, then Start Battle.`
+                        : null
+                    }
+                    playerState={playerState}
+                    onStateChange={setPlayerState}
+                  />
+                </div>
+              </div>
+            )}
+            {activeTab === "quests" && (
+              <div
+                data-testid="quests-screen"
+                className="relative rounded-2xl p-5 md:p-8 overflow-hidden"
+                style={{
+                  background: "linear-gradient(180deg, rgba(7,5,10,0.78), rgba(7,5,10,0.92))",
+                  border: "1px solid rgba(212,175,55,0.18)",
+                  boxShadow: "0 18px 60px rgba(0,0,0,0.55)",
+                }}
+              >
+                <div className="corner-deco absolute inset-0" />
+                <div className="relative z-10">
+                  <div className="section-heading mb-2">Quests</div>
+                  <p className="text-center font-lore mb-6">
+                    Complete objectives and earn rewards.
+                  </p>
+                  <QuestsHall playerState={playerState} onStateChange={setPlayerState} />
+                </div>
+              </div>
+            )}
             {activeTab === "workshop" && (
-              <WorkshopHall
-                playerState={playerState}
-                onStateChange={setPlayerState}
-                isOnline={isOnline}
-                craftFuse={craftFuse}
-                craftSacrifice={craftSacrifice}
-                applyDub={applyDub}
-              />
+              <div
+                data-testid="workshop-screen"
+                className="relative rounded-2xl p-5 md:p-8 overflow-hidden"
+                style={{
+                  background: "linear-gradient(180deg, rgba(7,5,10,0.78), rgba(7,5,10,0.92))",
+                  border: "1px solid rgba(212,175,55,0.18)",
+                  boxShadow: "0 18px 60px rgba(0,0,0,0.55)",
+                }}
+              >
+                <div className="corner-deco absolute inset-0" />
+                <div className="relative z-10">
+                  <div className="section-heading mb-2">Workshop</div>
+                  <p className="text-center font-lore mb-6">
+                    Fuse, sacrifice, and refine your collection.
+                  </p>
+                  <WorkshopHall
+                    playerState={playerState}
+                    onStateChange={setPlayerState}
+                    isOnline={isOnline}
+                    craftFuse={craftFuse}
+                    craftSacrifice={craftSacrifice}
+                    applyDub={applyDub}
+                  />
+                </div>
+              </div>
             )}
-            {activeTab === "achievements" && <BadgesHall playerState={playerState} />}
-            {activeTab === "leaderboard" && <RanksHall playerState={playerState} isOnline={isOnline} />}
-            {activeTab === "trade" && <TradeHall playerState={playerState} onStateChange={setPlayerState} />}
+            {activeTab === "achievements" && (
+              <div data-testid="achievements-screen" className="relative rounded-2xl p-5 md:p-8 overflow-hidden"
+                style={{ background: "linear-gradient(180deg, rgba(7,5,10,0.78), rgba(7,5,10,0.92))", border: "1px solid rgba(212,175,55,0.18)", boxShadow: "0 18px 60px rgba(0,0,0,0.55)" }}>
+                <div className="corner-deco absolute inset-0" />
+                <div className="relative z-10">
+                  <div className="section-heading mb-2">Achievements</div>
+                  <p className="text-center font-lore mb-6">Mark your milestones across the realms.</p>
+                  <BadgesHall playerState={playerState} />
+                </div>
+              </div>
+            )}
+            {activeTab === "leaderboard" && (
+              <div data-testid="leaderboard-screen" className="relative rounded-2xl p-5 md:p-8 overflow-hidden"
+                style={{ background: "linear-gradient(180deg, rgba(7,5,10,0.78), rgba(7,5,10,0.92))", border: "1px solid rgba(212,175,55,0.18)", boxShadow: "0 18px 60px rgba(0,0,0,0.55)" }}>
+                <div className="corner-deco absolute inset-0" />
+                <div className="relative z-10">
+                  <div className="section-heading mb-2">Leaderboard</div>
+                  <p className="text-center font-lore mb-6">Climb the ranks and claim your place.</p>
+                  <RanksHall playerState={playerState} isOnline={isOnline} />
+                </div>
+              </div>
+            )}
+            {activeTab === "trade" && (
+              <div data-testid="trade-screen" className="relative rounded-2xl p-5 md:p-8 overflow-hidden"
+                style={{ background: "linear-gradient(180deg, rgba(7,5,10,0.78), rgba(7,5,10,0.92))", border: "1px solid rgba(212,175,55,0.18)", boxShadow: "0 18px 60px rgba(0,0,0,0.55)" }}>
+                <div className="corner-deco absolute inset-0" />
+                <div className="relative z-10">
+                  <div className="section-heading mb-2">Trade</div>
+                  <p className="text-center font-lore mb-6">Negotiate and exchange across the covenant.</p>
+                  <TradeHall playerState={playerState} onStateChange={setPlayerState} />
+                </div>
+              </div>
+            )}
             {activeTab === "mail" && <MailHall onNavigate={(tab) => { setActiveCategory("social"); setActiveTab(tab as Tab); }} />}
             {activeTab === "pvp" && (
               <PvPPanel
@@ -608,23 +711,121 @@ export default function Index() {
                 }}
               />
             )}
-            {activeTab === "events" && <EventsHall playerState={playerState} onStateChange={setPlayerState} />}
-            {activeTab === "tournament" && <Tournament playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} syncEconomyApi={syncEconomy} />}
-            {activeTab === "boost" && <BoostHall playerState={playerState} />}
-            {activeTab === "pass" && <PassHall playerState={playerState} onStateChange={setPlayerState} />}
-            {activeTab === "profile" && <ProfileHall playerState={playerState} onStateChange={setPlayerState} />}
-            {activeTab === "daily" && (
-              <DailyHall
-                playerState={playerState}
-                onStateChange={setPlayerState}
-                isOnline={isOnline}
-                claimDailyLogin={claimDailyLogin}
-              />
+            {activeTab === "events" && (
+              <div data-testid="events-screen" className="relative rounded-2xl p-5 md:p-8 overflow-hidden"
+                style={{ background: "linear-gradient(180deg, rgba(7,5,10,0.78), rgba(7,5,10,0.92))", border: "1px solid rgba(212,175,55,0.18)", boxShadow: "0 18px 60px rgba(0,0,0,0.55)" }}>
+                <div className="corner-deco absolute inset-0" />
+                <div className="relative z-10">
+                  <div className="section-heading mb-2">Events</div>
+                  <p className="text-center font-lore mb-6">Seasonal stories, modifiers, and limited rewards.</p>
+                  <EventsHall playerState={playerState} onStateChange={setPlayerState} />
+                </div>
+              </div>
             )}
-            {activeTab === "friends" && <FriendsHall isOnline={isOnline} />}
-            {activeTab === "chat" && <ChatHall isOnline={isOnline} playerState={playerState} />}
-            {activeTab === "guild" && <GuildHall isOnline={isOnline} playerState={playerState} />}
-            {activeTab === "spectate" && <SpectateHall isOnline={isOnline} />}
+            {activeTab === "tournament" && (
+              <div data-testid="tournament-screen" className="relative rounded-2xl p-5 md:p-8 overflow-hidden"
+                style={{ background: "linear-gradient(180deg, rgba(7,5,10,0.78), rgba(7,5,10,0.92))", border: "1px solid rgba(212,175,55,0.18)", boxShadow: "0 18px 60px rgba(0,0,0,0.55)" }}>
+                <div className="corner-deco absolute inset-0" />
+                <div className="relative z-10">
+                  <div className="section-heading mb-2">Tournament</div>
+                  <p className="text-center font-lore mb-6">Enter brackets and fight for glory.</p>
+                  <Tournament playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} syncEconomyApi={syncEconomy} />
+                </div>
+              </div>
+            )}
+            {activeTab === "boost" && (
+              <div data-testid="boost-screen" className="relative rounded-2xl p-5 md:p-8 overflow-hidden"
+                style={{ background: "linear-gradient(180deg, rgba(7,5,10,0.78), rgba(7,5,10,0.92))", border: "1px solid rgba(212,175,55,0.18)", boxShadow: "0 18px 60px rgba(0,0,0,0.55)" }}>
+                <div className="corner-deco absolute inset-0" />
+                <div className="relative z-10">
+                  <div className="section-heading mb-2">Boost</div>
+                  <p className="text-center font-lore mb-6">Claim boosts and power-ups.</p>
+                  <BoostHall playerState={playerState} />
+                </div>
+              </div>
+            )}
+            {activeTab === "pass" && (
+              <div data-testid="pass-screen" className="relative rounded-2xl p-5 md:p-8 overflow-hidden"
+                style={{ background: "linear-gradient(180deg, rgba(7,5,10,0.78), rgba(7,5,10,0.92))", border: "1px solid rgba(212,175,55,0.18)", boxShadow: "0 18px 60px rgba(0,0,0,0.55)" }}>
+                <div className="corner-deco absolute inset-0" />
+                <div className="relative z-10">
+                  <div className="section-heading mb-2">Battle Pass</div>
+                  <p className="text-center font-lore mb-6">Progress through seasons and claim rewards.</p>
+                  <PassHall playerState={playerState} onStateChange={setPlayerState} />
+                </div>
+              </div>
+            )}
+            {activeTab === "profile" && (
+              <div data-testid="profile-screen" className="relative rounded-2xl p-5 md:p-8 overflow-hidden"
+                style={{ background: "linear-gradient(180deg, rgba(7,5,10,0.78), rgba(7,5,10,0.92))", border: "1px solid rgba(212,175,55,0.18)", boxShadow: "0 18px 60px rgba(0,0,0,0.55)" }}>
+                <div className="corner-deco absolute inset-0" />
+                <div className="relative z-10">
+                  <div className="section-heading mb-2">Profile</div>
+                  <p className="text-center font-lore mb-6">Customize your identity across the realms.</p>
+                  <ProfileHall playerState={playerState} onStateChange={setPlayerState} />
+                </div>
+              </div>
+            )}
+            {activeTab === "daily" && (
+              <div data-testid="daily-screen" className="relative rounded-2xl p-5 md:p-8 overflow-hidden"
+                style={{ background: "linear-gradient(180deg, rgba(7,5,10,0.78), rgba(7,5,10,0.92))", border: "1px solid rgba(212,175,55,0.18)", boxShadow: "0 18px 60px rgba(0,0,0,0.55)" }}>
+                <div className="corner-deco absolute inset-0" />
+                <div className="relative z-10">
+                  <div className="section-heading mb-2">Daily</div>
+                  <p className="text-center font-lore mb-6">Claim daily rewards and keep your streak alive.</p>
+                  <DailyHall
+                    playerState={playerState}
+                    onStateChange={setPlayerState}
+                    isOnline={isOnline}
+                    claimDailyLogin={claimDailyLogin}
+                  />
+                </div>
+              </div>
+            )}
+            {activeTab === "friends" && (
+              <div data-testid="friends-screen" className="relative rounded-2xl p-5 md:p-8 overflow-hidden"
+                style={{ background: "linear-gradient(180deg, rgba(7,5,10,0.78), rgba(7,5,10,0.92))", border: "1px solid rgba(212,175,55,0.18)", boxShadow: "0 18px 60px rgba(0,0,0,0.55)" }}>
+                <div className="corner-deco absolute inset-0" />
+                <div className="relative z-10">
+                  <div className="section-heading mb-2">Friends</div>
+                  <p className="text-center font-lore mb-6">Find allies and manage your list.</p>
+                  <FriendsHall isOnline={isOnline} />
+                </div>
+              </div>
+            )}
+            {activeTab === "chat" && (
+              <div data-testid="chat-screen" className="relative rounded-2xl p-5 md:p-8 overflow-hidden"
+                style={{ background: "linear-gradient(180deg, rgba(7,5,10,0.78), rgba(7,5,10,0.92))", border: "1px solid rgba(212,175,55,0.18)", boxShadow: "0 18px 60px rgba(0,0,0,0.55)" }}>
+                <div className="corner-deco absolute inset-0" />
+                <div className="relative z-10">
+                  <div className="section-heading mb-2">Chat</div>
+                  <p className="text-center font-lore mb-6">Speak with your covenant.</p>
+                  <ChatHall isOnline={isOnline} playerState={playerState} />
+                </div>
+              </div>
+            )}
+            {activeTab === "guild" && (
+              <div data-testid="guild-screen" className="relative rounded-2xl p-5 md:p-8 overflow-hidden"
+                style={{ background: "linear-gradient(180deg, rgba(7,5,10,0.78), rgba(7,5,10,0.92))", border: "1px solid rgba(212,175,55,0.18)", boxShadow: "0 18px 60px rgba(0,0,0,0.55)" }}>
+                <div className="corner-deco absolute inset-0" />
+                <div className="relative z-10">
+                  <div className="section-heading mb-2">Guild</div>
+                  <p className="text-center font-lore mb-6">Join, manage, and coordinate raids.</p>
+                  <GuildHall isOnline={isOnline} playerState={playerState} />
+                </div>
+              </div>
+            )}
+            {activeTab === "spectate" && (
+              <div data-testid="spectate-screen" className="relative rounded-2xl p-5 md:p-8 overflow-hidden"
+                style={{ background: "linear-gradient(180deg, rgba(7,5,10,0.78), rgba(7,5,10,0.92))", border: "1px solid rgba(212,175,55,0.18)", boxShadow: "0 18px 60px rgba(0,0,0,0.55)" }}>
+                <div className="corner-deco absolute inset-0" />
+                <div className="relative z-10">
+                  <div className="section-heading mb-2">Spectate</div>
+                  <p className="text-center font-lore mb-6">Watch live matches.</p>
+                  <SpectateHall isOnline={isOnline} />
+                </div>
+              </div>
+            )}
             {activeTab === "cards-hall" && <CardsHall playerState={playerState} />}
             {activeTab === "combat-hall" && (
               <CombatHall

@@ -89,6 +89,107 @@
   .font-body {
     font-family: 'Inter', sans-serif;
   }
+  .font-stat {
+    font-family: 'Inter', sans-serif;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+  }
+
+  /* ===== Gold/Obsidian UI kit (ported from redesign) ===== */
+  .gold-text {
+    color: #f5c842;
+    text-shadow: 0 0 18px rgba(245, 200, 66, 0.22);
+  }
+
+  .panel-gold {
+    position: relative;
+    border-radius: 0.75rem;
+    border: 1px solid rgba(212, 175, 55, 0.25);
+    background: linear-gradient(180deg, rgba(22, 15, 8, 0.75), rgba(10, 6, 3, 0.65));
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(245, 200, 66, 0.06);
+    backdrop-filter: blur(10px);
+  }
+
+  .corner-deco {
+    border-radius: inherit;
+    box-shadow:
+      inset 0 0 0 1px rgba(245, 200, 66, 0.08),
+      inset 0 0 0 2px rgba(212, 175, 55, 0.04);
+    background:
+      radial-gradient(400px 180px at 20% 0%, rgba(245, 200, 66, 0.10), transparent 60%),
+      radial-gradient(420px 200px at 80% 0%, rgba(186, 104, 200, 0.08), transparent 60%),
+      radial-gradient(520px 240px at 50% 120%, rgba(0, 0, 0, 0.55), transparent 60%);
+    pointer-events: none;
+  }
+
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.5rem 0.875rem;
+    border-radius: 9999px;
+    border: 1px solid rgba(212, 175, 55, 0.2);
+    background: rgba(10, 6, 3, 0.35);
+    color: rgba(201, 167, 74, 0.95);
+    transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease, transform 150ms ease;
+  }
+  .btn-ghost:hover {
+    background: rgba(245, 200, 66, 0.08);
+    border-color: rgba(245, 200, 66, 0.35);
+    color: rgba(245, 200, 66, 0.98);
+  }
+  .btn-ghost.active {
+    background: linear-gradient(180deg, rgba(245, 200, 66, 0.16), rgba(212, 175, 55, 0.06));
+    border-color: rgba(245, 200, 66, 0.55);
+    color: rgba(245, 200, 66, 1);
+    box-shadow: 0 0 18px rgba(245, 200, 66, 0.12);
+  }
+
+  .btn-gold {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    border-radius: 9999px;
+    border: 1px solid rgba(212, 175, 55, 0.55);
+    background: linear-gradient(180deg, rgba(42, 42, 45, 0.92), rgba(10, 10, 10, 0.92));
+    color: #f5c842;
+    box-shadow: inset 0 0 12px rgba(212, 175, 55, 0.18), 0 10px 26px rgba(0, 0, 0, 0.55);
+    transition: box-shadow 150ms ease, transform 150ms ease, border-color 150ms ease;
+  }
+  .btn-gold:hover {
+    border-color: rgba(245, 200, 66, 0.8);
+    box-shadow: inset 0 0 18px rgba(245, 200, 66, 0.28), 0 0 26px rgba(212, 175, 55, 0.22);
+    transform: translateY(-1px);
+  }
+
+  .font-lore {
+    font-family: 'Inter', sans-serif;
+    color: rgba(214, 194, 147, 0.95);
+  }
+
+  .section-heading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    font-family: 'Cinzel', serif;
+    font-weight: 800;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    color: rgba(245, 200, 66, 0.95);
+    text-shadow: 0 0 18px rgba(245, 200, 66, 0.18);
+  }
+  .section-heading::before,
+  .section-heading::after {
+    content: "";
+    height: 1px;
+    flex: 1;
+    background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.55), transparent);
+  }
 
   /* ===== Celestial Altar utility classes (battle3d) ===== */
   .altar-panel {
