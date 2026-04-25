@@ -2,6 +2,7 @@ import type React from "react";
 import { useEffect, useRef, useState } from "react";
 import {
   BookOpen,
+  BarChart3,
   Gift,
   Layers,
   Menu,
@@ -80,6 +81,7 @@ const moreTabs: { tab: Tab; label: string; icon: React.ElementType; tint: string
   { tab: "mail", label: "Mail", icon: Trophy, tint: "#ff9800" },
   { tab: "friends", label: "Friends", icon: Users, tint: "#4CAF50" },
   { tab: "trade", label: "Trade", icon: ArrowLeftRightIcon, tint: "#bcaaa4" },
+  { tab: "leaderboard", label: "Standings", icon: BarChart3, tint: "#ba68c8" },
   { tab: "spectate", label: "Spectate", icon: Users, tint: "#9c27b0" },
   { tab: "catalog", label: "Card Catalog", icon: BookOpen, tint: "#f5c842" },
 ];

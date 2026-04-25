@@ -599,7 +599,7 @@ export default function Index() {
                 </div>
               </div>
             )}
-            {activeTab === "mail" && <MailHall onNavigate={(tab) => { setActiveTab(tab as Tab); }} />}
+            {activeTab === "mail" && <MailHall onNavigate={(tab) => { setActiveTab(tab); }} />}
             {activeTab === "pvp" && (
               <PvPPanel
                 playerState={playerState}
