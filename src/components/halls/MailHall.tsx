@@ -120,11 +120,16 @@ export default function MailHall({ onNavigate }: Props) {
         <div className="space-y-2">
           {filtered.map((n) => {
             const hue = typeHue(n.type);
-            const target = n.type.startsWith("trade_") || n.type.startsWith("market_") ? "trade" : n.type.startsWith("pvp_") ? "pvp" : null;
+            const target: "trade" | "pvp" | null =
+              n.type.startsWith("trade_") || n.type.startsWith("market_")
+                ? "trade"
+                : n.type.startsWith("pvp_")
+                  ? "pvp"
+                  : null;
             return (
               <GlassPanel key={n.id} hue={hue} glow={n.readAt ? 0.2 : 0.45} padding="sm">
                 <button
-                  onClick={() => target && onNavigate?.(target as any)}
+                  onClick={() => target && onNavigate?.(target)}
                   className="w-full flex items-start gap-3 text-left"
                 >
                   <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: `hsl(${hue}/0.15)`, color: `hsl(${hue})` }}>

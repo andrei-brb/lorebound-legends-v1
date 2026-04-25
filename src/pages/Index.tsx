@@ -99,11 +99,6 @@ export default function Index() {
   }, [playerState.settings?.sfxVol]);
 
   useEffect(() => {
-    const v = playerState.settings?.sfxVol;
-    if (typeof v === "number") setSfxVolume(v);
-  }, [playerState.settings?.sfxVol]);
-
-  useEffect(() => {
     if (!playerState.hasCompletedOnboarding) return;
     const achieveState = loadAchievementState();
     const { achieveState: newState, newlyUnlocked } = checkNewAchievements(achieveState, playerState);
