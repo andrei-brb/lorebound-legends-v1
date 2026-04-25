@@ -11,6 +11,8 @@ describe("token summon (Phase B)", () => {
     s = playCard(s, handIdx);
     const fi = s.player.field.findIndex((f) => f !== null);
     expect(fi).toBeGreaterThanOrEqual(0);
+    // Ability costs AP; ensure enough for the test.
+    s.player.ap = 10;
     s = activateAbility(s, fi);
     expect(s.player.tokens.some((t) => t?.tokenId === "skeleton-warrior")).toBe(true);
   });
@@ -24,7 +26,11 @@ describe("token summon (Phase B)", () => {
     expect(healer).toBeDefined();
     s.player.graveyard.push(healer!);
     s.player.hand = s.player.hand.filter((c) => c.id !== "healer");
-    s = activateAbility(s, 0);
+    // Ability costs AP; ensure enough for the test.
+    s.player.ap = 10;
+    const fi = s.player.field.findIndex((f) => f?.card.id === "nekros");
+    expect(fi).toBeGreaterThanOrEqual(0);
+    s = activateAbility(s, fi);
     expect(s.logs.some((l) => l.message.includes("raises"))).toBe(true);
   });
 });
