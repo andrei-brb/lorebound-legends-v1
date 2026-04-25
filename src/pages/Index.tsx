@@ -3,7 +3,7 @@ import { BookOpen, Layers, Swords, Coins, Sparkles as SparklesIcon, Grid3X3, Loa
 import TabTransition from "@/components/TabTransition";
 import TutorialOverlay from "@/components/TutorialOverlay";
 import CollectionView from "@/components/CollectionView";
-import CosmeticsView from "@/components/CosmeticsView";
+import CosmeticsHall from "@/components/halls/CosmeticsHall";
 const BattleArena = lazy(() => import("@/components/BattleArena"));
 import PackShop from "@/components/PackShop";
 import CardCatalog from "@/components/CardCatalog";
@@ -462,7 +462,7 @@ export default function Index() {
                   <p className="text-center font-lore mb-6">
                     Equip boards, card backs, frames, borders, titles, and emotes you’ve unlocked.
                   </p>
-                  <CosmeticsView playerState={playerState} onStateChange={setPlayerState} />
+                  <CosmeticsHall playerState={playerState} onStateChange={setPlayerState} />
                 </div>
               </div>
             )}
