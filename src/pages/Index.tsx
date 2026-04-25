@@ -1,10 +1,10 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from "react";
+import { useState, useEffect, useMemo, useRef, useCallback, lazy, Suspense } from "react";
 import { BookOpen, Layers, Swords, Coins, Sparkles as SparklesIcon, Grid3X3, Loader2, ScrollText, Hammer, Trophy, ArrowLeftRight, BarChart3, Calendar, Zap, Crown, Shield, Mail, User, Gift, Users, MessageCircle, Eye, Flag, Flame } from "lucide-react";
 import TabTransition from "@/components/TabTransition";
 import TutorialOverlay from "@/components/TutorialOverlay";
 import CollectionView from "@/components/CollectionView";
 import CosmeticsView from "@/components/CosmeticsView";
-import BattleArena from "@/components/BattleArena";
+const BattleArena = lazy(() => import("@/components/BattleArena"));
 import PackShop from "@/components/PackShop";
 import CardCatalog from "@/components/CardCatalog";
 import Tournament from "@/components/Tournament";
@@ -30,9 +30,9 @@ import DailyHall from "@/components/halls/DailyHall";
 import GrowHub from "@/components/grow/GrowHub";
 import CardsHall from "@/components/halls/CardsHall";
 import CombatHall from "@/components/halls/CombatHall";
-import LivePvPBattleground from "@/components/LivePvPBattleground";
-import RaidCoopArena from "@/components/RaidCoopArena";
-import RaidLiveBattleground from "@/components/RaidLiveBattleground";
+const LivePvPBattleground = lazy(() => import("@/components/LivePvPBattleground"));
+const RaidCoopArena = lazy(() => import("@/components/RaidCoopArena"));
+const RaidLiveBattleground = lazy(() => import("@/components/RaidLiveBattleground"));
 import { initRaidCoopBattle, type RaidCoopState } from "@/lib/raid/raidCoopEngine";
 import { getRaidBoss } from "@/lib/raid/bosses";
 import { cn } from "@/lib/utils";
@@ -756,84 +756,98 @@ export default function Index() {
               />
             )}
             {activeTab === "battle" && battleDeckIds.length > 0 && !raidHotseat && (
-              <BattleArena
-                playerDeckIds={battleDeckIds}
-                opponentDeckIds={rankedBattle?.opponentDeckIds ?? null}
-                rankedSubtitle={
-                  rankedBattle ? `Ranked vs ${rankedBattle.opponentName} — AI plays their deck` : null
+              <Suspense
+                fallback={
+                  <div className="flex items-center justify-center py-20 text-muted-foreground">
+                    <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                    Loading battle…
+                  </div>
                 }
-                battleSeed={rankedBattle?.seed ?? null}
-                onRankedSubmit={
-                  rankedBattle
-                    ? async (data) => {
-                        await api.pvpAsyncSubmit(rankedBattle.matchId, data);
-                      }
-                    : undefined
-                }
-                soloRaidBossId={soloRaidBossId}
-                onExit={() => {
-                  setBattleDeckIds([]);
-                  setSoloRaidBossId(null);
-                  const wasRanked = rankedBattle != null;
-                  setRankedBattle(null);
-                  setActiveTab(wasRanked ? "pvp" : "combat-hall");
-                }}
-                playerState={playerState}
-                onStateChange={setPlayerState}
-                isOnline={isOnline}
-                submitBattleResultApi={submitBattleResult}
-                startPveBattleApi={startPveBattle}
-                syncEconomyApi={syncEconomy}
-              />
+              >
+                <BattleArena
+                  playerDeckIds={battleDeckIds}
+                  opponentDeckIds={rankedBattle?.opponentDeckIds ?? null}
+                  rankedSubtitle={
+                    rankedBattle ? `Ranked vs ${rankedBattle.opponentName} — AI plays their deck` : null
+                  }
+                  battleSeed={rankedBattle?.seed ?? null}
+                  onRankedSubmit={
+                    rankedBattle
+                      ? async (data) => {
+                          await api.pvpAsyncSubmit(rankedBattle.matchId, data);
+                        }
+                      : undefined
+                  }
+                  soloRaidBossId={soloRaidBossId}
+                  onExit={() => {
+                    setBattleDeckIds([]);
+                    setSoloRaidBossId(null);
+                    const wasRanked = rankedBattle != null;
+                    setRankedBattle(null);
+                    setActiveTab(wasRanked ? "pvp" : "combat-hall");
+                  }}
+                  playerState={playerState}
+                  onStateChange={setPlayerState}
+                  isOnline={isOnline}
+                  submitBattleResultApi={submitBattleResult}
+                  startPveBattleApi={startPveBattle}
+                  syncEconomyApi={syncEconomy}
+                />
+              </Suspense>
             )}
             {activeTab === "battle" && raidHotseat && raidState && (
-              <RaidCoopArena
-                raid={raidState}
-                onRaidPatch={patchRaid}
-                onExit={() => {
-                  setRaidHotseat(null);
-                  setRaidState(null);
-                  setActiveTab("combat-hall");
-                }}
-                playerDeckIds={raidHotseat.deckIds}
-                playerState={playerState}
-                onStateChange={setPlayerState}
-                isOnline={isOnline}
-                submitBattleResultApi={submitBattleResult}
-                startPveBattleApi={startPveBattle}
-                syncEconomyApi={syncEconomy}
-              />
+              <Suspense
+                fallback={
+                  <div className="flex items-center justify-center py-20 text-muted-foreground">
+                    <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                    Loading raid…
+                  </div>
+                }
+              >
+                <RaidCoopArena
+                  raid={raidState}
+                  onRaidPatch={patchRaid}
+                  onExit={() => {
+                    setRaidHotseat(null);
+                    setRaidState(null);
+                    setActiveTab("combat-hall");
+                  }}
+                  playerDeckIds={raidHotseat.deckIds}
+                  playerState={playerState}
+                  onStateChange={setPlayerState}
+                  isOnline={isOnline}
+                  submitBattleResultApi={submitBattleResult}
+                  startPveBattleApi={startPveBattle}
+                  syncEconomyApi={syncEconomy}
+                />
+              </Suspense>
             )}
             {activeTab === "battle" && battleDeckIds.length === 0 && hasLiveMatchFromInbox && (
-              <LivePvPBattleground
-                matchId={liveMatchIdFromInbox}
-                playerState={playerState}
-                onStateChange={setPlayerState}
-                syncEconomyApi={syncEconomy}
-                onExit={() => {
-                  sessionStorage.removeItem("pvp.live.matchId");
-                  setActiveTab("combat-hall");
-                }}
-              />
+              <Suspense
+                fallback={
+                  <div className="flex items-center justify-center py-20 text-muted-foreground">
+                    <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                    Loading live match…
+                  </div>
+                }
+              >
+                <LivePvPBattleground
+                  matchId={liveMatchIdFromInbox}
+                  playerState={playerState}
+                  onStateChange={setPlayerState}
+                  syncEconomyApi={syncEconomy}
+                  onExit={() => {
+                    sessionStorage.removeItem("pvp.live.matchId");
+                    setActiveTab("combat-hall");
+                  }}
+                />
+              </Suspense>
             )}
             {activeTab === "battle" &&
               battleDeckIds.length === 0 &&
               !hasLiveMatchFromInbox &&
               hasRaidLiveMatchFromInbox &&
-              !raidHotseat && (
-                <RaidLiveBattleground
-                  matchId={raidLiveMatchIdFromInbox}
-                  playerState={playerState}
-                  onStateChange={setPlayerState}
-                  submitBattleResult={submitBattleResult}
-                  startPveBattle={startPveBattle}
-                  syncEconomyApi={syncEconomy}
-                  onExit={() => {
-                    sessionStorage.removeItem("raid.live.matchId");
-                    setActiveTab("combat-hall");
-                  }}
-                />
-              )}
+              !raidHotseat && null}
             {activeTab === "battle" &&
               battleDeckIds.length === 0 &&
               !hasLiveMatchFromInbox &&
@@ -846,6 +860,33 @@ export default function Index() {
                 <button onClick={() => setActiveTab("deck")} className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-heading font-bold text-sm">Go to Deck Builder</button>
               </div>
             )}
+            {activeTab === "battle" &&
+              battleDeckIds.length === 0 &&
+              !hasLiveMatchFromInbox &&
+              hasRaidLiveMatchFromInbox &&
+              !raidHotseat && (
+                <Suspense
+                  fallback={
+                    <div className="flex items-center justify-center py-20 text-muted-foreground">
+                      <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                      Loading raid match…
+                    </div>
+                  }
+                >
+                  <RaidLiveBattleground
+                    matchId={raidLiveMatchIdFromInbox}
+                    playerState={playerState}
+                    onStateChange={setPlayerState}
+                    submitBattleResult={submitBattleResult}
+                    startPveBattle={startPveBattle}
+                    syncEconomyApi={syncEconomy}
+                    onExit={() => {
+                      sessionStorage.removeItem("raid.live.matchId");
+                      setActiveTab("combat-hall");
+                    }}
+                  />
+                </Suspense>
+              )}
           </TabTransition>
         </main>
       </div>
