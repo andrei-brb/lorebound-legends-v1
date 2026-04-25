@@ -116,8 +116,9 @@ export function TopNavTabs(props: {
   activeTab: Tab;
   onTab: (tab: Tab) => void;
   settingsNode: React.ReactNode;
+  tabDots?: Partial<Record<Tab, boolean>>;
 }) {
-  const { playerState, unreadMail, activeTab, onTab, settingsNode } = props;
+  const { playerState, unreadMail, activeTab, onTab, settingsNode, tabDots } = props;
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
 
@@ -191,21 +192,36 @@ export function TopNavTabs(props: {
               onTab(tab);
             }}
             data-testid={`nav-${label.toLowerCase()}`}
-            className={cn("btn-ghost flex items-center gap-2", getPrimaryLabel(activeTab) === label.toLowerCase() ? "active" : "")}
+            className={cn(
+              "btn-ghost flex items-center gap-2 relative",
+              getPrimaryLabel(activeTab) === label.toLowerCase() ? "active" : ""
+            )}
           >
             <Icon size={14} strokeWidth={2.2} />
             {label}
+            {!!tabDots?.[tab] && (
+              <span
+                className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500"
+                style={{ boxShadow: "0 0 10px rgba(239,68,68,0.6)" }}
+              />
+            )}
           </button>
         ))}
 
         <div className="relative" ref={ref}>
           <button
             type="button"
-            className={cn("btn-ghost flex items-center gap-2", open ? "active" : "")}
+            className={cn("btn-ghost flex items-center gap-2 relative", open ? "active" : "")}
             onClick={() => setOpen((o) => !o)}
             data-testid="nav-more"
           >
             <Menu size={14} /> More
+            {moreTabs.some((t) => !!tabDots?.[t.tab]) && (
+              <span
+                className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-red-500"
+                style={{ boxShadow: "0 0 10px rgba(239,68,68,0.6)" }}
+              />
+            )}
           </button>
           {open && (
             <div
@@ -245,6 +261,12 @@ export function TopNavTabs(props: {
                         </span>
                       )}
                     </span>
+                    {!!tabDots?.[tab] && (
+                      <span
+                        className="absolute top-2 right-2 w-2 h-2 rounded-full bg-red-500"
+                        style={{ boxShadow: "0 0 10px rgba(239,68,68,0.6)" }}
+                      />
+                    )}
                   </button>
                 ))}
               </div>

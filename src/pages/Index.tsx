@@ -38,6 +38,7 @@ import { getRaidBoss } from "@/lib/raid/bosses";
 import { cn } from "@/lib/utils";
 import { usePlayerApi } from "@/lib/usePlayerApi";
 import { loadAchievementState, checkNewAchievements, saveAchievementState } from "@/lib/achievementEngine";
+import { getBattlePassLevelFromXp, getBattlePassSeasonProgress } from "@/lib/battlePassEngine";
 import { toast } from "@/hooks/use-toast";
 import { api } from "@/lib/apiClient";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
@@ -80,6 +81,7 @@ export default function Index() {
     guildTag: string;
     fromUsername: string;
   } | null>(null);
+  const [tabDots, setTabDots] = useState<Partial<Record<Tab, boolean>>>({});
 
   // Cards/Collection UI filters (visual redesign only; CollectionView remains source of truth)
   const [collectionQuery, setCollectionQuery] = useState("");
@@ -121,6 +123,51 @@ export default function Index() {
         const prev = lastUnreadMailRef.current;
         lastUnreadMailRef.current = next;
         if (alive) setUnreadMail(next);
+
+        // Best-effort nav dots: mail, friends, trade, pvp, guild, pass, grow.
+        // Where we don't have backend support yet (e.g. unread chat), we keep dots off for now.
+        try {
+          const [friendsRes, guildInvRes, notifRes] = await Promise.all([
+            api.getFriends(),
+            api.getIncomingGuildInvites(10),
+            api.getNotifications(50),
+          ]);
+          const incomingFriends = (friendsRes.incoming || []).length;
+          const guildInvites = (guildInvRes.invites || []).length;
+          const notifs = notifRes.notifications || [];
+          const unreadNotifs = notifs.filter((n) => !n.readAt);
+          const hasTrade = unreadNotifs.some((n) => n.type.startsWith("trade_") || n.type.startsWith("market_"));
+          const hasPvp = unreadNotifs.some((n) => n.type.startsWith("pvp_") || n.type === "pvp_live_invite");
+          const hasGuild = guildInvites > 0 || unreadNotifs.some((n) => n.type.startsWith("guild_"));
+
+          const today = new Date().toISOString().slice(0, 10);
+          const claimedToday = playerState.dailyLogin?.lastClaimDate === today;
+
+          let hasUnclaimedPass = false;
+          if (playerState.battlePass?.activeSeasonId) {
+            const sid = playerState.battlePass.activeSeasonId;
+            const sp = getBattlePassSeasonProgress(playerState, sid);
+            const currentLevel = getBattlePassLevelFromXp(sp.xp);
+            for (let lvl = 1; lvl <= currentLevel; lvl++) {
+              const freeUnclaimed = !sp.claimedFreeLevels.includes(lvl);
+              const eliteUnclaimed = sp.hasElite && !sp.claimedEliteLevels.includes(lvl);
+              if (freeUnclaimed || eliteUnclaimed) { hasUnclaimedPass = true; break; }
+            }
+          }
+
+          if (alive) {
+            setTabDots({
+              mail: next > 0,
+              friends: incomingFriends > 0,
+              trade: hasTrade,
+              pvp: hasPvp,
+              guild: hasGuild,
+              pass: hasUnclaimedPass,
+              daily: !claimedToday,
+            });
+          }
+        } catch { /* ignore */ }
+
         if (next > 0 && (prev === null || next > prev)) {
           try {
             const latest = await api.getNotifications(5);
@@ -153,7 +200,7 @@ export default function Index() {
     tick();
     const id = window.setInterval(tick, 8000);
     return () => { alive = false; window.clearInterval(id); };
-  }, [isOnline]);
+  }, [isOnline, playerState]);
 
   // Presence heartbeat — keeps friends/guild members "online"
   useEffect(() => {
@@ -362,6 +409,7 @@ export default function Index() {
             <TopNavTabs
               playerState={playerState}
               unreadMail={unreadMail}
+              tabDots={tabDots}
               activeTab={activeTab}
               onTab={(tab) => handleTabClick(tab)}
               settingsNode={<SettingsPanel playerState={playerState} onStateChange={setPlayerState} />}
