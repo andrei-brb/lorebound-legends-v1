@@ -27,6 +27,7 @@ import GuildHall from "@/components/halls/GuildHall";
 import SpectateHall from "@/components/halls/SpectateHall";
 import ProfileHall from "@/components/halls/ProfileHall";
 import DailyHall from "@/components/halls/DailyHall";
+import GrowHub from "@/components/grow/GrowHub";
 import CardsHall from "@/components/halls/CardsHall";
 import CombatHall from "@/components/halls/CombatHall";
 import LivePvPBattleground from "@/components/LivePvPBattleground";
@@ -689,20 +690,13 @@ export default function Index() {
               </div>
             )}
             {activeTab === "daily" && (
-              <div data-testid="daily-screen" className="relative rounded-2xl p-5 md:p-8 overflow-hidden"
-                style={{ background: "linear-gradient(180deg, rgba(7,5,10,0.78), rgba(7,5,10,0.92))", border: "1px solid rgba(212,175,55,0.18)", boxShadow: "0 18px 60px rgba(0,0,0,0.55)" }}>
-                <div className="corner-deco absolute inset-0" />
-                <div className="relative z-10">
-                  <div className="section-heading mb-2">Daily</div>
-                  <p className="text-center font-lore mb-6">Claim daily rewards and keep your streak alive.</p>
-                  <DailyHall
-                    playerState={playerState}
-                    onStateChange={setPlayerState}
-                    isOnline={isOnline}
-                    claimDailyLogin={claimDailyLogin}
-                  />
-                </div>
-              </div>
+              <GrowHub
+                playerState={playerState}
+                onStateChange={setPlayerState}
+                isOnline={isOnline}
+                claimDailyLogin={claimDailyLogin}
+                onNavigate={(t) => setActiveTab(t as Tab)}
+              />
             )}
             {activeTab === "friends" && (
               <ChroniclersHall
