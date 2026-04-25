@@ -193,10 +193,26 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
    */
   const toggleCard = (cardId: string) => {
     setDeckIds((prev) => {
-      if (prev.includes(cardId)) {
-        return prev.filter((id) => id !== cardId);
+      const countInDeck = prev.reduce((n, id) => (id === cardId ? n + 1 : n), 0);
+      const owned = playerState.ownedCardIds.includes(cardId);
+      const dubs = Math.max(0, Math.floor(Number(playerState.cardDubs?.[cardId] || 0)));
+      const card = allGameCards.find((c) => c.id === cardId);
+      const maxCopies =
+        owned && card
+          ? (card.rarity === "mythic" ? 1 : Math.min(3, 1 + dubs))
+          : 0;
+
+      // If at cap, clicking cycles by removing a single copy (useful for managing duplicates quickly).
+      if (countInDeck >= maxCopies && countInDeck > 0) {
+        const idx = prev.lastIndexOf(cardId);
+        if (idx < 0) return prev;
+        const next = [...prev];
+        next.splice(idx, 1);
+        return next;
       }
-      if (!playerState.ownedCardIds.includes(cardId)) return prev;
+
+      // Add one copy (if owned, within deck size, and within copy cap).
+      if (!owned || maxCopies <= 0) return prev;
       if (prev.length >= MAX_DECK_SIZE) return prev;
       return [...prev, cardId];
     });
