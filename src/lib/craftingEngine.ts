@@ -78,10 +78,12 @@ export function performFusion(
       ? (Math.random() < 0.03 ? "mythic" : "legendary")
       : recipe.outputRarity;
 
-  // Pick random card of output rarity (offline crafting mirrors server pool: base set `allCards`).
-  const outputPool = allCards.filter(c => c.rarity === outputRarity);
-  if (outputPool.length === 0) return null;
-  const resultCard = outputPool[Math.floor(Math.random() * outputPool.length)];
+  // Match server behavior: prefer unowned outputs, fallback to any of the rarity.
+  const unownedPool = allCards.filter((c) => c.rarity === outputRarity && !playerState.ownedCardIds.includes(c.id));
+  const fallbackPool = allCards.filter((c) => c.rarity === outputRarity);
+  const finalPool = unownedPool.length > 0 ? unownedPool : fallbackPool;
+  if (finalPool.length === 0) return null;
+  const resultCard = finalPool[Math.floor(Math.random() * finalPool.length)];
 
   const newState: PlayerState = { ...playerState, cardProgress: { ...playerState.cardProgress }, cardDubs: { ...(playerState.cardDubs || {}) } };
   newState.gold -= recipe.goldCost;
