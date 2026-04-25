@@ -6,7 +6,7 @@ import { toast } from "@/hooks/use-toast";
 
 type Notif = { id: number; type: string; title: string; body?: string | null; data?: unknown; createdAt: number; readAt?: number | null };
 
-interface Props { onNavigate?: (tab: "trade" | "pvp") => void }
+interface Props { onNavigate?: (tab: "trade" | "pvp" | "battle") => void }
 
 function typeIcon(t: string) {
   if (t.startsWith("trade_") || t.startsWith("market_")) return <ArrowLeftRight className="w-4 h-4" />;
@@ -91,7 +91,8 @@ export default function MailHall({ onNavigate }: Props) {
       await api.markNotificationsRead([n.id]);
       setRows((prev) => prev.map((r) => (r.id === n.id ? { ...r, readAt: Date.now() } : r)));
       sessionStorage.setItem("pvp.live.matchId", String(matchId));
-      onNavigate?.("pvp");
+      // Index.tsx watches sessionStorage and will open the live match from the Battle screen.
+      onNavigate?.("battle");
       toast({ title: "Invite accepted", description: `Joining match #${matchId}` });
     } catch (e: unknown) {
       toast({ title: "Accept failed", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
