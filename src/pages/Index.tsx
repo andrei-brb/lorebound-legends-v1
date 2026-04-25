@@ -701,7 +701,6 @@ export default function Index() {
             {activeTab === "friends" && (
               <ChroniclersHall
                 isOnline={isOnline}
-                onDuel={() => setActiveTab("pvp")}
               />
             )}
             {activeTab === "chat" && (

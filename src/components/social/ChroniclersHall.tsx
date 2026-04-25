@@ -9,14 +9,14 @@ type LeaderRow = { rank: number; name: string; value: number; avatar?: string | 
 
 export default function ChroniclersHall(props: {
   isOnline: boolean;
-  onDuel?: (friendId: number) => void;
 }) {
-  const { isOnline, onDuel } = props;
+  const { isOnline } = props;
   const [friends, setFriends] = useState<Friend[]>([]);
   const [rows, setRows] = useState<LeaderRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
   const [addQuery, setAddQuery] = useState("");
+  const [duelPending, setDuelPending] = useState<Record<number, boolean>>({});
 
   const load = async () => {
     setLoading(true);
@@ -52,6 +52,31 @@ export default function ChroniclersHall(props: {
       load();
     } catch (e: unknown) {
       toast({ title: "Failed", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
+    }
+  };
+
+  const inviteToDuel = async (friend: Friend) => {
+    if (!isOnline) {
+      toast({ title: "Offline", description: "Connect online to send duel invitations.", variant: "destructive" });
+      return;
+    }
+    if (duelPending[friend.id]) return;
+    setDuelPending((m) => ({ ...m, [friend.id]: true }));
+    try {
+      const res = await api.pvpLiveCreate(friend.id);
+      toast({
+        title: "Duel invitation sent",
+        description: `Sent to ${friend.username}. They can accept from Mail.`,
+      });
+      return res;
+    } catch (e: unknown) {
+      toast({
+        title: "Could not send invitation",
+        description: e instanceof Error ? e.message : String(e),
+        variant: "destructive",
+      });
+    } finally {
+      setDuelPending((m) => ({ ...m, [friend.id]: false }));
     }
   };
 
@@ -129,10 +154,11 @@ export default function ChroniclersHall(props: {
                     <button
                       type="button"
                       className="btn-ghost flex items-center gap-1"
-                      onClick={() => onDuel?.(f.id)}
+                      onClick={() => inviteToDuel(f)}
                       data-testid={`duel-${f.id}`}
+                      disabled={!isOnline || !!duelPending[f.id]}
                     >
-                      <Swords size={12} /> Duel
+                      <Swords size={12} /> {duelPending[f.id] ? "Sending…" : "Duel"}
                     </button>
                   </div>
                 ))
