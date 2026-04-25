@@ -869,7 +869,29 @@ export default function BattleArena({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state]);
 
-  if (!state) return null;
+  if (!state) {
+    return (
+      <div className="relative rounded-2xl border border-border/40 overflow-hidden min-h-[480px]">
+        <div className="absolute inset-0 pointer-events-none rounded-2xl bg-background/70" />
+        <div className="relative p-6 flex flex-col items-center justify-center min-h-[480px] text-center gap-4">
+          <div className="font-heading text-xl text-foreground">Starting battle…</div>
+          <div className="text-sm text-muted-foreground max-w-md">
+            Preparing the arena. If this takes too long, retreat and try again.
+          </div>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={onExit}
+              className="btn-ghost"
+              data-testid="battle-exit-loading"
+            >
+              Retreat
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const isPlayerTurn =
     state.turn === "player" &&

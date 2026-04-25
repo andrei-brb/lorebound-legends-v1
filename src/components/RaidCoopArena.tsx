@@ -458,7 +458,29 @@ export default function RaidCoopArena({
     }, 150);
   };
 
-  if (!state) return null;
+  if (!state) {
+    return (
+      <div className="relative rounded-2xl border border-border/40 overflow-hidden min-h-[480px]">
+        <div className="absolute inset-0 pointer-events-none rounded-2xl bg-background/70" />
+        <div className="relative p-6 flex flex-col items-center justify-center min-h-[480px] text-center gap-4">
+          <div className="font-heading text-xl text-foreground">Starting raid…</div>
+          <div className="text-sm text-muted-foreground max-w-md">
+            Summoning the party. If this takes too long, retreat and try again.
+          </div>
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={onExit}
+              className="btn-ghost"
+              data-testid="raid-exit-loading"
+            >
+              Retreat
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const isPlayerTurn =
     state.turn === "player" && !animating && state.phase !== "game-over" && !intentSubmitting;
