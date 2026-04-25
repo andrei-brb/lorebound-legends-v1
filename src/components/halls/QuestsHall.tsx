@@ -5,6 +5,7 @@ import HallLayout, { HallSection, HallStat } from "@/components/scene/HallLayout
 import GlassPanel from "@/components/scene/GlassPanel";
 import { texCodex, texParchment, texVelvet } from "@/components/scene/panelTextures";
 import { cn } from "@/lib/utils";
+import { claimQuestReward, getQuestTimeUntilReset, loadDailyQuests, type DailyQuestState } from "@/lib/questEngine";
 
 interface Quest {
   id: string;
@@ -15,23 +16,53 @@ interface Quest {
   reward: { gold?: number; stardust?: number };
   category: "daily" | "weekly";
   done?: boolean;
+  claimed?: boolean;
 }
-
-// Visual shell with mock quests until wired to questEngine
-const MOCK_QUESTS: Quest[] = [
-  { id: "q1", title: "First Blood", description: "Win a battle today", progress: 1, goal: 1, reward: { gold: 50 }, category: "daily", done: true },
-  { id: "q2", title: "Card Hunter", description: "Open 3 packs", progress: 2, goal: 3, reward: { gold: 100, stardust: 5 }, category: "daily" },
-  { id: "q3", title: "Battle Hardened", description: "Win 5 battles", progress: 3, goal: 5, reward: { gold: 200 }, category: "daily" },
-  { id: "q4", title: "Master Strategist", description: "Win 20 battles this week", progress: 12, goal: 20, reward: { gold: 500, stardust: 25 }, category: "weekly" },
-  { id: "q5", title: "Collector's Pride", description: "Own 30 unique cards", progress: 18, goal: 30, reward: { stardust: 50 }, category: "weekly" },
-];
 
 interface Props { playerState: PlayerState; onStateChange: (s: PlayerState) => void }
 
-export default function QuestsHall({ playerState }: Props) {
+function fmtCountdown(ms: number) {
+  const s = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(s / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  return `${h}h ${m}m`;
+}
+
+export default function QuestsHall({ playerState, onStateChange }: Props) {
   const [filter, setFilter] = useState<"all" | "daily" | "weekly">("all");
-  const quests = useMemo(() => filter === "all" ? MOCK_QUESTS : MOCK_QUESTS.filter((q) => q.category === filter), [filter]);
-  const completed = MOCK_QUESTS.filter((q) => q.done).length;
+  const [questState, setQuestState] = useState<DailyQuestState>(() => loadDailyQuests());
+
+  const questsAll = useMemo((): Quest[] => {
+    const qs = loadDailyQuests();
+    // Keep UI in sync if day rolled over while the app stayed open.
+    if (qs.lastResetDate !== questState.lastResetDate) setQuestState(qs);
+
+    const byId = new Map(qs.quests.map((q) => [q.questId, q]));
+    return qs.questDefinitions
+      .map((d) => {
+        const p = byId.get(d.id);
+        if (!p) return null;
+        return {
+          id: d.id,
+          title: d.title,
+          description: d.description,
+          progress: p.current,
+          goal: d.target,
+          reward: { gold: d.goldReward, stardust: d.stardustReward },
+          category: "daily",
+          done: p.completed,
+          claimed: p.claimed,
+        } satisfies Quest;
+      })
+      .filter(Boolean) as Quest[];
+  }, [questState.lastResetDate]);
+
+  const quests = useMemo(() => {
+    if (filter === "all") return questsAll;
+    return questsAll.filter((q) => q.category === filter);
+  }, [filter, questsAll]);
+
+  const completed = questsAll.filter((q) => q.done).length;
 
   return (
     <HallLayout
@@ -42,8 +73,8 @@ export default function QuestsHall({ playerState }: Props) {
               <ScrollText className="w-4 h-4 text-primary" />
               <span className="text-xs text-foreground/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">Daily & weekly tasks</span>
             </div>
-            <HallStat label="Completed" value={`${completed}/${MOCK_QUESTS.length}`} />
-            <HallStat label="Resets in" value="6h 12m" hue="var(--rare))" />
+            <HallStat label="Completed" value={`${completed}/${questsAll.length}`} />
+            <HallStat label="Resets in" value={fmtCountdown(getQuestTimeUntilReset())} hue="var(--rare)" />
             <HallStat label="Gold today" value={`${playerState.gold.toLocaleString()}`} hue="var(--legendary)" />
           </HallSection>
 
@@ -82,22 +113,35 @@ export default function QuestsHall({ playerState }: Props) {
     >
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {quests.map((q) => (
-          <QuestCard key={q.id} quest={q} />
+          <QuestCard
+            key={q.id}
+            quest={q}
+            onClaim={() => {
+              const res = claimQuestReward(questState, q.id, playerState);
+              if (!res) return;
+              setQuestState(res.questState);
+              onStateChange(res.playerState);
+            }}
+          />
         ))}
       </div>
     </HallLayout>
   );
 }
 
-function QuestCard({ quest }: { quest: Quest }) {
+function QuestCard({ quest, onClaim }: { quest: Quest; onClaim: () => void }) {
   const pct = Math.min(100, (quest.progress / quest.goal) * 100);
-  const hue = quest.done ? "var(--legendary)" : quest.category === "weekly" ? "var(--rare)" : "var(--primary)";
+  const hue = quest.claimed ? "var(--legendary)" : quest.done ? "var(--legendary)" : quest.category === "weekly" ? "var(--rare)" : "var(--primary)";
   return (
     <GlassPanel hue={hue} glow={quest.done ? 0.6 : 0.35} padding="md">
       <div className="flex items-start justify-between gap-2 mb-2">
         <div className="min-w-0">
           <div className="flex items-center gap-2">
-            {quest.done ? <CheckCircle2 className="w-4 h-4 text-[hsl(var(--legendary))] shrink-0" /> : <Clock className="w-4 h-4 text-muted-foreground shrink-0" />}
+            {quest.done ? (
+              <CheckCircle2 className="w-4 h-4 text-[hsl(var(--legendary))] shrink-0" />
+            ) : (
+              <Clock className="w-4 h-4 text-muted-foreground shrink-0" />
+            )}
             <h3 className="font-heading text-sm text-foreground truncate">{quest.title}</h3>
           </div>
           <p className="text-xs text-muted-foreground mt-1">{quest.description}</p>
@@ -113,12 +157,27 @@ function QuestCard({ quest }: { quest: Quest }) {
           <div className="h-full transition-all" style={{ width: `${pct}%`, background: `linear-gradient(90deg, hsl(${hue}/0.6), hsl(${hue}))` }} />
         </div>
       </div>
-      <div className="flex items-center gap-3 mt-3 pt-3 border-t border-border/30">
+      <div className="flex items-center justify-between gap-3 mt-3 pt-3 border-t border-border/30">
+        <div className="flex items-center gap-3">
         {quest.reward.gold && (
           <span className="flex items-center gap-1 text-xs text-[hsl(var(--legendary))]"><Coins className="w-3 h-3" /> {quest.reward.gold}</span>
         )}
         {quest.reward.stardust && (
           <span className="flex items-center gap-1 text-xs text-[hsl(var(--rare))]"><Sparkles className="w-3 h-3" /> {quest.reward.stardust}</span>
+        )}
+        </div>
+        {quest.done && !quest.claimed && (
+          <button
+            type="button"
+            className="px-3 py-1.5 rounded-lg bg-primary/20 text-foreground ring-1 ring-primary/40 text-[11px] uppercase tracking-wider hover:bg-primary/25 transition-colors"
+            onClick={onClaim}
+            data-testid={`quest-claim-${quest.id}`}
+          >
+            Claim
+          </button>
+        )}
+        {quest.claimed && (
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Claimed</span>
         )}
       </div>
     </GlassPanel>
