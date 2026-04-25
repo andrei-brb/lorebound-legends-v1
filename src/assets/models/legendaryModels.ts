@@ -3,7 +3,7 @@
 
 function cdnBase(): string {
   // Vite will inline `import.meta.env.*` at build time.
-  const base = (import.meta as any).env?.VITE_MODEL_CDN_BASE_URL as string | undefined;
+  const base = import.meta.env?.VITE_MODEL_CDN_BASE_URL as string | undefined;
   return (base ?? "").replace(/\/+$/, "");
 }
 

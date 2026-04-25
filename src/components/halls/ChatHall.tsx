@@ -145,7 +145,8 @@ export default function ChatHall({ isOnline, playerState }: Props) {
             <p className="text-center text-sm text-[#c9a74a] py-12">no embers yet — be the first to speak</p>
           ) : (
             msgs.map((m) => {
-              const you = m.playerId === (playerState as any)?.playerId;
+              const pid = (playerState as unknown as { playerId?: number }).playerId;
+              const you = typeof pid === "number" && m.playerId === pid;
               return (
                 <div key={m.id} className={`flex items-start gap-2.5 ${you ? "opacity-95" : ""}`}>
                   <HexAvatar size={32} hue="var(--primary)">

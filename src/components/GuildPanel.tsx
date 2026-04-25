@@ -34,8 +34,8 @@ export default function GuildPanel({ isOnline }: GuildPanelProps) {
         const list = await api.listGuilds();
         setBrowseList(list.guilds);
       }
-    } catch (e: any) {
-      toast({ title: "Failed to load guilds", description: e?.message || "", variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Failed to load guilds", description: e instanceof Error ? e.message : "", variant: "destructive" });
     } finally { setLoading(false); }
   };
 
@@ -48,8 +48,8 @@ export default function GuildPanel({ isOnline }: GuildPanelProps) {
       toast({ title: "Guild founded! 🛡️" });
       setCreateOpen(false); setName(""); setTag(""); setDescription("");
       refresh();
-    } catch (e: any) {
-      toast({ title: "Could not create", description: e?.message || "", variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Could not create", description: e instanceof Error ? e.message : "", variant: "destructive" });
     } finally { setBusy(false); }
   };
 
@@ -59,8 +59,8 @@ export default function GuildPanel({ isOnline }: GuildPanelProps) {
       await api.joinGuild(id);
       toast({ title: "Joined guild" });
       refresh();
-    } catch (e: any) {
-      toast({ title: "Could not join", description: e?.message || "", variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Could not join", description: e instanceof Error ? e.message : "", variant: "destructive" });
     } finally { setBusy(false); }
   };
 
@@ -71,8 +71,8 @@ export default function GuildPanel({ isOnline }: GuildPanelProps) {
       const r = await api.leaveGuild();
       toast({ title: r.disbanded ? "Guild disbanded" : "Left the guild" });
       refresh();
-    } catch (e: any) {
-      toast({ title: "Failed", description: e?.message || "", variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Failed", description: e instanceof Error ? e.message : "", variant: "destructive" });
     } finally { setBusy(false); }
   };
 

@@ -3,7 +3,7 @@
 // Values are CDN paths (no bundling/importing of GLBs).
 
 function cdnBase(): string {
-  const base = (import.meta as any).env?.VITE_MODEL_CDN_BASE_URL as string | undefined;
+  const base = import.meta.env?.VITE_MODEL_CDN_BASE_URL as string | undefined;
   return (base ?? "").replace(/\/+$/, "");
 }
 

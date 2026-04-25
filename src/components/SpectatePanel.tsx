@@ -17,9 +17,9 @@ export default function SpectatePanel({ isOnline }: SpectatePanelProps) {
     if (!isOnline) { setLoading(false); return; }
     try {
       const r = await api.getSpectateActive();
-      setMatches(r.matches as Match[]);
-    } catch (e: any) {
-      if (loading) toast({ title: "Failed to load matches", description: e?.message || "", variant: "destructive" });
+      setMatches(((r as unknown as { matches?: Match[] }).matches || []) as Match[]);
+    } catch (e: unknown) {
+      if (loading) toast({ title: "Failed to load matches", description: e instanceof Error ? e.message : "", variant: "destructive" });
     } finally { setLoading(false); }
   };
 
@@ -34,8 +34,8 @@ export default function SpectatePanel({ isOnline }: SpectatePanelProps) {
       const m = await api.pvpLiveGet(matchId);
       console.info("Spectate match snapshot", m);
       toast({ title: "Spectate snapshot loaded", description: "Live spectate viewer coming soon — match state in console for now." });
-    } catch (e: any) {
-      toast({ title: "Failed", description: e?.message || "", variant: "destructive" });
+    } catch (e: unknown) {
+      toast({ title: "Failed", description: e instanceof Error ? e.message : "", variant: "destructive" });
     }
   };
 

@@ -2124,7 +2124,7 @@ export function endTurn(state: BattleState): BattleState {
 function performAITurnLegacyOneStep(state: BattleState): BattleState {
   // One action attempt using the legacy AI logic, without looping multiple actions.
   // This is used by ygoHybrid mode to take at most one action between phase advances.
-  let s = state;
+  const s = state;
   const difficulty = s.aiDifficulty ?? "normal";
   if (s.phase === "game-over") return s;
   if (s.turn !== "enemy") return s;
