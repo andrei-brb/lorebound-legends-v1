@@ -44,6 +44,7 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/comp
 import { setSfxVolume } from "@/lib/sfx";
 import { GoldCurrencyIcon, StardustCurrencyIcon } from "@/components/CurrencyIcons";
 import { TopNavTabs } from "@/components/TopNavTabs";
+import { allGameCards, type CardType, type Rarity } from "@/data/cardIndex";
 
 type Tab = "collection" | "catalog" | "cosmetics" | "deck" | "battle" | "pvp" | "summon" | "quests" | "workshop" | "achievements" | "leaderboard" | "trade" | "mail" | "events" | "tournament" | "boost" | "pass" | "profile" | "daily" | "friends" | "chat" | "guild" | "spectate" | "cards-hall" | "combat-hall" | "raid";
 type Category = "cards" | "summon-cat" | "battle" | "grow" | "social";
@@ -127,6 +128,11 @@ export default function Index() {
     guildTag: string;
     fromUsername: string;
   } | null>(null);
+
+  // Cards/Collection UI filters (visual redesign only; CollectionView remains source of truth)
+  const [collectionQuery, setCollectionQuery] = useState("");
+  const [collectionType, setCollectionType] = useState<"all" | CardType>("all");
+  const [collectionRarity, setCollectionRarity] = useState<"all" | Rarity>("all");
   const { playerState, setPlayerState, status, isOnline, pullCards, submitBattleResult, completeOnboarding, syncEconomy, craftFuse, craftSacrifice, applyDub, pullSeasonalPack, claimDailyLogin, startPveBattle } = usePlayerApi();
   const isDiscordActivityHost = typeof window !== "undefined" && window.location.hostname.endsWith("discordsays.com");
   const discordOverlayInset = "calc(64px + env(safe-area-inset-top))";
@@ -494,9 +500,55 @@ export default function Index() {
                 <div className="relative z-10">
                   <div className="section-heading mb-2">Collection</div>
                   <p className="text-center font-lore mb-6">
-                    Your owned cards — flip to reveal lore, synergies, and progression.
+                    {playerState.ownedCardIds.length} owned cards — {allGameCards.length} in the realm.
                   </p>
-                  <CollectionView playerState={playerState} onStateChange={setPlayerState} />
+
+                  <div className="flex justify-center mb-3">
+                    <input
+                      placeholder="Search by name…"
+                      value={collectionQuery}
+                      onChange={(e) => setCollectionQuery(e.target.value)}
+                      data-testid="card-search"
+                      className="px-4 py-2 rounded-full font-body text-sm text-[#f8e4a1] outline-none w-[340px] max-w-[90%]"
+                      style={{ background: "rgba(10,6,3,0.8)", border: "1px solid rgba(212,175,55,0.4)" }}
+                    />
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-center gap-2 mb-3">
+                    {(["all", "hero", "god", "weapon", "spell", "trap"] as const).map((t) => (
+                      <button
+                        key={t}
+                        onClick={() => setCollectionType(t)}
+                        className={`btn-ghost ${collectionType === t ? "active" : ""}`}
+                        data-testid={`filter-type-${t}`}
+                        type="button"
+                      >
+                        {t === "all" ? "All Types" : t.charAt(0).toUpperCase() + t.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="flex flex-wrap items-center justify-center gap-2 mb-8">
+                    {(["all", "common", "rare", "legendary", "mythic"] as const).map((r) => (
+                      <button
+                        key={r}
+                        onClick={() => setCollectionRarity(r)}
+                        className={`btn-ghost ${collectionRarity === r ? "active" : ""}`}
+                        data-testid={`filter-rarity-${r}`}
+                        type="button"
+                      >
+                        {r === "all" ? "All Rarities" : r.charAt(0).toUpperCase() + r.slice(1)}
+                      </button>
+                    ))}
+                  </div>
+
+                  <CollectionView
+                    playerState={playerState}
+                    onStateChange={setPlayerState}
+                    searchQuery={collectionQuery}
+                    typeFilter={collectionType}
+                    rarityFilter={collectionRarity}
+                  />
                 </div>
               </div>
             )}
