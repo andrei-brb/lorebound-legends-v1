@@ -768,6 +768,7 @@ export default function DeckBuilder({ onStartBattle, pendingCombatHint, playerSt
           elementFilter={elementFilter}
           sortBy={sortBy}
           highlightCardIds={Array.from(synergyPartners)}
+          maxCards={72}
           synergyPickOnly={synergyPickOnly}
           synergyPartnerIds={Array.from(synergyPartners)}
           showLoreArcFilters={false}

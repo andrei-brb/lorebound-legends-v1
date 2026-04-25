@@ -38,6 +38,11 @@ interface CollectionViewProps {
   inDeckOnly?: boolean;
   sortBy?: "rarity_desc" | "rarity_asc" | "name_asc" | "name_desc" | "attack_desc" | "defense_desc" | "hp_desc" | "level_desc";
   highlightCardIds?: string[];
+  /**
+   * Optional render cap for performance (e.g. in Discord Activity).
+   * When provided, the view switches to "Results" mode and shows up to this many cards.
+   */
+  maxCards?: number;
   /** When true, only show owned cards whose id completes a pair synergy with the current deck (see synergyPartnerIds). */
   synergyPickOnly?: boolean;
   /** Partner card ids that would activate at least one synergy with deckCardIds (typically not already in the deck). */
@@ -180,6 +185,7 @@ export default function CollectionView({
   inDeckOnly = false,
   sortBy = "rarity_desc",
   highlightCardIds = [],
+  maxCards,
   synergyPickOnly = false,
   synergyPartnerIds = [],
   showLoreArcFilters = true,
@@ -207,7 +213,9 @@ export default function CollectionView({
     arcFilter !== null ||
     synergyPickOnly;
 
-  const discoveredCards = discoveryActive
+  const effectiveDiscovery = discoveryActive || (typeof maxCards === "number" && maxCards > 0);
+
+  const discoveredCards = effectiveDiscovery
     ? applyDiscovery({
         cards: arcFilter ? allGameCards.filter((c) => c.loreArc === arcFilter) : allGameCards,
         ownedIds,
@@ -263,11 +271,13 @@ export default function CollectionView({
         </div>
       )}
 
-      {discoveryActive ? (
+      {effectiveDiscovery ? (
         <div className="animate-fade-in">
           <h2 className="font-heading text-xl font-bold mb-4 text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
             Results
-            <span className="ml-2 text-sm text-foreground/75 font-body drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">({discoveredCards.length})</span>
+            <span className="ml-2 text-sm text-foreground/75 font-body drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">
+              ({typeof maxCards === "number" && maxCards > 0 ? Math.min(discoveredCards.length, maxCards) : discoveredCards.length})
+            </span>
           </h2>
           {discoveredCards.length === 0 ? (
             <p className="text-sm text-muted-foreground">
@@ -277,7 +287,7 @@ export default function CollectionView({
             </p>
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-4 gap-4">
-              {discoveredCards.map((card) => (
+              {(typeof maxCards === "number" && maxCards > 0 ? discoveredCards.slice(0, maxCards) : discoveredCards).map((card) => (
                 <CardGridItem key={card.id} card={card} onAddToDeck={onAddToDeck} deckCardIds={deckCardIds} playerState={playerState} onStateChange={onStateChange} highlighted={highlightSet.has(card.id)} />
               ))}
             </div>
