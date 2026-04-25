@@ -121,6 +121,7 @@ function CardGridItem({ card, onAddToDeck, deckCardIds, playerState, onStateChan
   playerState?: PlayerState; onStateChange?: (state: PlayerState) => void; highlighted?: boolean;
 }) {
   const inDeck = deckCardIds.includes(card.id);
+  const countInDeck = onAddToDeck ? deckCardIds.reduce((n, id) => (id === card.id ? n + 1 : n), 0) : 0;
   const hasArcPartner = card.loreArc ? allGameCards.some((c) => c.id !== card.id && c.loreArc === card.loreArc) : false;
   const progress = playerState ? getCardProgress(playerState, card.id) : undefined;
   const canPres = progress ? canPrestige(progress) : false;
@@ -147,7 +148,21 @@ function CardGridItem({ card, onAddToDeck, deckCardIds, playerState, onStateChan
         equippedFrameImage={equippedFrameImage}
         equippedCardBackImage={equippedCardBackImage}
       />
-      {inDeck && (
+      {countInDeck > 0 && (
+        <div
+          className="absolute -top-2 -right-2 w-7 h-7 rounded-full flex items-center justify-center font-heading font-black text-xs"
+          style={{
+            background: "linear-gradient(135deg,#f5c842,#d4af37)",
+            color: "#0A0A0A",
+            border: "1.5px solid rgba(245,200,66,0.8)",
+            boxShadow: "0 0 10px rgba(245,200,66,0.6)",
+          }}
+          aria-label={`In deck: ${countInDeck}`}
+        >
+          {countInDeck}
+        </div>
+      )}
+      {inDeck && countInDeck === 0 && (
         <div className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">✓</div>
       )}
       {canPres && onStateChange && (

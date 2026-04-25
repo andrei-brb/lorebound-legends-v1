@@ -46,6 +46,7 @@ import { GoldCurrencyIcon, StardustCurrencyIcon } from "@/components/CurrencyIco
 import { TopNavTabs } from "@/components/TopNavTabs";
 import SummonAltar from "@/components/summon/SummonAltar";
 import ChroniclersHall from "@/components/social/ChroniclersHall";
+import DeckGrimoire from "@/components/deck/DeckGrimoire";
 import { allGameCards, type CardType, type Rarity } from "@/data/cardIndex";
 
 type Tab = "collection" | "catalog" | "cosmetics" | "deck" | "battle" | "pvp" | "summon" | "quests" | "workshop" | "achievements" | "leaderboard" | "trade" | "mail" | "events" | "tournament" | "boost" | "pass" | "profile" | "daily" | "friends" | "chat" | "guild" | "spectate" | "cards-hall" | "combat-hall" | "raid";
@@ -473,54 +474,30 @@ export default function Index() {
               />
             )}
             {activeTab === "deck" && (
-              <div
-                data-testid="deck-screen"
-                className="relative rounded-2xl p-5 md:p-8 overflow-hidden"
-                style={{
-                  background: "linear-gradient(180deg, rgba(7,5,10,0.78), rgba(7,5,10,0.92))",
-                  border: "1px solid rgba(212,175,55,0.18)",
-                  boxShadow: "0 18px 60px rgba(0,0,0,0.55)",
+              <DeckGrimoire
+                playerState={playerState}
+                onStateChange={setPlayerState}
+                onStartBattle={(deckIds) => {
+                  if (pendingCombat?.kind === "raid-solo") {
+                    setSoloRaidBossId(pendingCombat.bossId);
+                    setRaidHotseat(null);
+                    setRaidState(null);
+                    setBattleDeckIds(deckIds);
+                    setPendingCombat(null);
+                    setActiveTab("battle");
+                    return;
+                  }
+                  if (pendingCombat?.kind === "raid-hotseat") {
+                    setRaidHotseat({ bossId: pendingCombat.bossId, deckIds });
+                    setSoloRaidBossId(null);
+                    setBattleDeckIds([]);
+                    setPendingCombat(null);
+                    setActiveTab("battle");
+                    return;
+                  }
+                  startBattle(deckIds);
                 }}
-              >
-                <div className="corner-deco absolute inset-0" />
-                <div className="relative z-10">
-                  <div className="section-heading mb-2">Deck</div>
-                  <p className="text-center font-lore mb-6">
-                    Assemble your deck and prepare for battle.
-                  </p>
-                  <DeckBuilder
-                    onStartBattle={(deckIds) => {
-                      if (pendingCombat?.kind === "raid-solo") {
-                        setSoloRaidBossId(pendingCombat.bossId);
-                        setRaidHotseat(null);
-                        setRaidState(null);
-                        setBattleDeckIds(deckIds);
-                        setPendingCombat(null);
-                        setActiveTab("battle");
-                        return;
-                      }
-                      if (pendingCombat?.kind === "raid-hotseat") {
-                        setRaidHotseat({ bossId: pendingCombat.bossId, deckIds });
-                        setSoloRaidBossId(null);
-                        setBattleDeckIds([]);
-                        setPendingCombat(null);
-                        setActiveTab("battle");
-                        return;
-                      }
-                      startBattle(deckIds);
-                    }}
-                    pendingCombatHint={
-                      pendingCombat
-                        ? pendingCombat.kind === "raid-solo"
-                          ? `Raid (solo): you're preparing to face ${getRaidBoss(pendingCombat.bossId)?.name ?? "the boss"}. Build a 10-card deck, then Start Battle.`
-                          : `Raid (local co-op): the same deck is used for both allies on one device. Build your deck, then Start Battle.`
-                        : null
-                    }
-                    playerState={playerState}
-                    onStateChange={setPlayerState}
-                  />
-                </div>
-              </div>
+              />
             )}
             {activeTab === "quests" && (
               <div
