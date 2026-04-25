@@ -62,14 +62,18 @@ export default function RaidLiveBattleground({
   const [liveMatch, setLiveMatch] = useState<LiveRaidMatch | null>(null);
   const [intentSubmitting, setIntentSubmitting] = useState(false);
   const [liveWsConnected, setLiveWsConnected] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     try {
+      setLoadError(null);
       const [meRes, matchRes] = await Promise.all([api.getMe(), api.raidLiveGet(matchId)]);
       setMe({ id: meRes.me.id, username: meRes.me.username });
       setLiveMatch(matchRes.match as LiveRaidMatch);
     } catch (e) {
-      toast({ title: "Raid match load failed", description: e instanceof Error ? e.message : String(e) });
+      const msg = e instanceof Error ? e.message : String(e);
+      setLoadError(msg || "Could not load raid match.");
+      toast({ title: "Raid match load failed", description: msg });
     }
   }, [matchId]);
 
@@ -165,8 +169,34 @@ export default function RaidLiveBattleground({
 
   if (!liveMatch || !me) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 px-4 text-center">
         <Loader2 className="w-10 h-10 animate-spin text-muted-foreground" />
+        {loadError ? (
+          <>
+            <p className="text-sm text-muted-foreground max-w-md">{loadError}</p>
+            <div className="flex flex-wrap gap-2 justify-center">
+              <button type="button" className="btn-gold" onClick={() => refresh()} data-testid="liveraid-retry">
+                Retry
+              </button>
+              <button type="button" className="btn-ghost" onClick={onExit} data-testid="liveraid-back">
+                Back
+              </button>
+              <button
+                type="button"
+                className="btn-ghost"
+                onClick={() => {
+                  sessionStorage.removeItem("raid.live.matchId");
+                  onExit();
+                }}
+                data-testid="liveraid-clear"
+              >
+                Clear match
+              </button>
+            </div>
+          </>
+        ) : (
+          <p className="text-sm text-muted-foreground max-w-md">Loading raid match…</p>
+        )}
       </div>
     );
   }

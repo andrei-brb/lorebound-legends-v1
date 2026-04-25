@@ -33,17 +33,21 @@ export default function LivePvPBattleground({ matchId, onExit, playerState, onSt
     state?: unknown;
   } | null>(null);
   const [acting, setActing] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   /** Last intent applied locally before the server confirms; cleared after sync or on error (rollback). */
   const [pendingIntent, setPendingIntent] = useState<BattleLockstepIntent | null>(null);
   const [liveWsConnected, setLiveWsConnected] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
+      setLoadError(null);
       const [meRes, matchRes] = await Promise.all([api.getMe(), api.pvpLiveGet(matchId)]);
       setMe({ id: meRes.me.id, username: meRes.me.username });
       setLiveMatch(matchRes.match);
     } catch (e) {
-      toast({ title: "Match load failed", description: e instanceof Error ? e.message : String(e) });
+      const msg = e instanceof Error ? e.message : String(e);
+      setLoadError(msg || "Could not load match.");
+      toast({ title: "Match load failed", description: msg });
     }
   }, [matchId]);
 
@@ -129,10 +133,17 @@ export default function LivePvPBattleground({ matchId, onExit, playerState, onSt
     if (liveMatch.status !== "active") setPendingIntent(null);
   }, [liveMatch]);
 
-  const serverActionLog = useMemo(
-    () => (liveMatch?.actionLog as BattleLockstepIntent[]) || [],
-    [liveMatch?.actionLog]
-  );
+  const serverActionLog = useMemo(() => {
+    const anyMatch = liveMatch as unknown as Record<string, unknown> | null;
+    const fromServerActionLog = anyMatch?.serverActionLog;
+    const fromActionLog = anyMatch?.actionLog;
+    const raw = Array.isArray(fromServerActionLog)
+      ? fromServerActionLog
+      : Array.isArray(fromActionLog)
+        ? fromActionLog
+        : [];
+    return raw as BattleLockstepIntent[];
+  }, [liveMatch]);
   const optimisticActionLog = useMemo(() => {
     if (!pendingIntent) return serverActionLog;
     const last = serverActionLog[serverActionLog.length - 1];
@@ -142,8 +153,34 @@ export default function LivePvPBattleground({ matchId, onExit, playerState, onSt
 
   if (!liveMatch || !me) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 px-4 text-center">
         <Loader2 className="w-10 h-10 animate-spin text-muted-foreground" />
+        {loadError ? (
+          <>
+            <p className="text-sm text-muted-foreground max-w-md">{loadError}</p>
+            <div className="flex flex-wrap gap-2 justify-center">
+              <button type="button" className="btn-gold" onClick={() => refresh()} data-testid="livepvp-retry">
+                Retry
+              </button>
+              <button type="button" className="btn-ghost" onClick={onExit} data-testid="livepvp-back">
+                Back
+              </button>
+              <button
+                type="button"
+                className="btn-ghost"
+                onClick={() => {
+                  sessionStorage.removeItem("pvp.live.matchId");
+                  onExit();
+                }}
+                data-testid="livepvp-clear"
+              >
+                Clear match
+              </button>
+            </div>
+          </>
+        ) : (
+          <p className="text-sm text-muted-foreground max-w-md">Loading match…</p>
+        )}
       </div>
     );
   }
