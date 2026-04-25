@@ -2134,7 +2134,8 @@ function liveCardDamage(cardId) {
 
 function sanitizeDeckIds(deckCardIds) {
   if (!Array.isArray(deckCardIds)) return [];
-  return deckCardIds.map(String).slice(0, 10);
+  // Keep in sync with ranked deck limits; live matches should not silently truncate to 10 cards.
+  return deckCardIds.map(String).slice(0, MAX_RANKED_DECK_CARDS);
 }
 
 async function handleLiveBattleTx(tx, match, me, body) {
