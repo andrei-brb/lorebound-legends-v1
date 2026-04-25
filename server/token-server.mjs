@@ -3900,10 +3900,20 @@ async function handleCraftSacrifice(req, res) {
   }
 
   await prisma.$transaction(async (tx) => {
+    const dubs = (player.cardDubs && typeof player.cardDubs === "object") ? { ...player.cardDubs } : {};
+    for (const cardId of cardIds) {
+      if (cardId in dubs) delete dubs[cardId];
+    }
     for (const id of toDelete) {
       await tx.cardProgress.delete({ where: { id } });
     }
-    await tx.player.update({ where: { id: player.id }, data: { stardust: { increment: totalStardust } } });
+    await tx.player.update({
+      where: { id: player.id },
+      data: {
+        stardust: { increment: totalStardust },
+        cardDubs: dubs,
+      },
+    });
   });
 
   const updated = await prisma.player.findUnique({ where: { id: player.id }, include: { cards: true } });

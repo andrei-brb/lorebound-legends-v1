@@ -154,6 +154,7 @@ export function performSacrifice(
   let totalStardust = 0;
   const newState = { ...playerState };
   newState.cardProgress = { ...newState.cardProgress };
+  newState.cardDubs = { ...(newState.cardDubs || {}) };
   const idsToRemove = [...cardIds];
 
   for (const cardId of cardIds) {
@@ -175,6 +176,8 @@ export function performSacrifice(
   for (const id of cardIds) {
     if (!newState.ownedCardIds.includes(id)) {
       delete newState.cardProgress[id];
+      // Prevent dangling dup state for cards that no longer exist in the collection.
+      if (newState.cardDubs) delete newState.cardDubs[id];
     }
   }
 
