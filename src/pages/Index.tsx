@@ -44,6 +44,8 @@ import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/comp
 import { setSfxVolume } from "@/lib/sfx";
 import { GoldCurrencyIcon, StardustCurrencyIcon } from "@/components/CurrencyIcons";
 import { TopNavTabs } from "@/components/TopNavTabs";
+import SummonAltar from "@/components/summon/SummonAltar";
+import ChroniclersHall from "@/components/social/ChroniclersHall";
 import { allGameCards, type CardType, type Rarity } from "@/data/cardIndex";
 
 type Tab = "collection" | "catalog" | "cosmetics" | "deck" | "battle" | "pvp" | "summon" | "quests" | "workshop" | "achievements" | "leaderboard" | "trade" | "mail" | "events" | "tournament" | "boost" | "pass" | "profile" | "daily" | "friends" | "chat" | "guild" | "spectate" | "cards-hall" | "combat-hall" | "raid";
@@ -468,24 +470,12 @@ export default function Index() {
             )}
             {activeTab === "catalog" && <CardCatalog playerState={playerState} />}
             {activeTab === "summon" && (
-              <div
-                data-testid="summon-screen"
-                className="relative rounded-2xl p-5 md:p-8 overflow-hidden"
-                style={{
-                  background: "linear-gradient(180deg, rgba(7,5,10,0.78), rgba(7,5,10,0.92))",
-                  border: "1px solid rgba(212,175,55,0.18)",
-                  boxShadow: "0 18px 60px rgba(0,0,0,0.55)",
-                }}
-              >
-                <div className="corner-deco absolute inset-0" />
-                <div className="relative z-10">
-                  <div className="section-heading mb-2">Summon</div>
-                  <p className="text-center font-lore mb-6">
-                    Open packs, chase mythics, and grow your arsenal.
-                  </p>
-                  <PackShop playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} pullCardsApi={pullCards} />
-                </div>
-              </div>
+              <SummonAltar
+                playerState={playerState}
+                onStateChange={setPlayerState}
+                isOnline={isOnline}
+                pullCardsApi={pullCards}
+              />
             )}
             {activeTab === "deck" && (
               <div
@@ -724,15 +714,10 @@ export default function Index() {
               </div>
             )}
             {activeTab === "friends" && (
-              <div data-testid="friends-screen" className="relative rounded-2xl p-5 md:p-8 overflow-hidden"
-                style={{ background: "linear-gradient(180deg, rgba(7,5,10,0.78), rgba(7,5,10,0.92))", border: "1px solid rgba(212,175,55,0.18)", boxShadow: "0 18px 60px rgba(0,0,0,0.55)" }}>
-                <div className="corner-deco absolute inset-0" />
-                <div className="relative z-10">
-                  <div className="section-heading mb-2">Friends</div>
-                  <p className="text-center font-lore mb-6">Find allies and manage your list.</p>
-                  <FriendsHall isOnline={isOnline} />
-                </div>
-              </div>
+              <ChroniclersHall
+                isOnline={isOnline}
+                onDuel={() => setActiveTab("pvp")}
+              />
             )}
             {activeTab === "chat" && (
               <div data-testid="chat-screen" className="relative rounded-2xl p-5 md:p-8 overflow-hidden"

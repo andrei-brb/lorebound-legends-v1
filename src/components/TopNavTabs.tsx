@@ -60,13 +60,26 @@ const primaryTabs: { tab: Tab; label: string; icon: React.ElementType }[] = [
 ];
 
 const moreTabs: { tab: Tab; label: string; icon: React.ElementType; tint: string }[] = [
-  // NOTE: icons and exact mapping will be expanded as we port each hall UI.
-  { tab: "tournament", label: "Tournament", icon: Trophy, tint: "#ffb300" },
+  { tab: "pass", label: "Battle Pass", icon: Trophy, tint: "#f5c842" },
+  { tab: "events", label: "Events", icon: Trophy, tint: "#ba68c8" },
+  { tab: "summon", label: "Shop", icon: Gift, tint: "#ff9800" },
+  { tab: "workshop", label: "Crafting", icon: Trophy, tint: "#bcaaa4" },
+  { tab: "pvp", label: "Ranked", icon: Swords, tint: "#FFC107" },
   { tab: "pvp", label: "PvP", icon: Swords, tint: "#42a5f5" },
+  { tab: "raid", label: "Raid", icon: Swords, tint: "#ff5722" },
+  { tab: "profile", label: "Profile", icon: Trophy, tint: "#f5c842" },
+  { tab: "achievements", label: "Achievements", icon: Trophy, tint: "#FFC107" },
+  { tab: "guild", label: "Guild", icon: Users, tint: "#42a5f5" },
+  { tab: "tournament", label: "Tournament", icon: Trophy, tint: "#ffb300" },
+  { tab: "quests", label: "Quests", icon: Trophy, tint: "#f5c842" },
+  { tab: "cosmetics", label: "Cosmetics", icon: Trophy, tint: "#ba68c8" },
+  { tab: "boost", label: "Boosts", icon: Gift, tint: "#ba68c8" },
+  { tab: "chat", label: "Chat", icon: Users, tint: "#42a5f5" },
   { tab: "mail", label: "Mail", icon: Trophy, tint: "#ff9800" },
+  { tab: "friends", label: "Friends", icon: Users, tint: "#4CAF50" },
   { tab: "trade", label: "Trade", icon: ArrowLeftRightIcon, tint: "#bcaaa4" },
-  { tab: "leaderboard", label: "Leaderboard", icon: Trophy, tint: "#f5c842" },
-  { tab: "catalog", label: "Catalog", icon: BookOpen, tint: "#f5c842" },
+  { tab: "spectate", label: "Spectate", icon: Users, tint: "#9c27b0" },
+  { tab: "catalog", label: "Card Catalog", icon: BookOpen, tint: "#f5c842" },
 ];
 
 function getPrimaryLabel(activeTab: Tab): "cards" | "deck" | "summon" | "battle" | "grow" | "social" {

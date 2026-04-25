@@ -191,6 +191,11 @@
     background: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.55), transparent);
   }
 
+  @keyframes holographic-pass {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
   /* ===== Celestial Altar utility classes (battle3d) ===== */
   .altar-panel {
     background: linear-gradient(
