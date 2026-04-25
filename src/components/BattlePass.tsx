@@ -13,7 +13,7 @@ import {
   type RewardKind,
 } from "@/data/battlePassSeasons";
 import type { PlayerState, BattlePassSeasonId } from "@/lib/playerState";
-import { awardBattlePassXp, claimBattlePassLevelReward, getBattlePassLevelFromXp, getBattlePassSeasonProgress, getBattlePassXpToNextLevel, normalizeBattlePassDaily, setBattlePassActiveSeason, setCosmeticEquipped } from "@/lib/battlePassEngine";
+import { BP_XP_PER_LEVEL, awardBattlePassXp, claimBattlePassLevelReward, getBattlePassLevelFromXp, getBattlePassSeasonProgress, getBattlePassXpToNextLevel, normalizeBattlePassDaily, setBattlePassActiveSeason, setCosmeticEquipped } from "@/lib/battlePassEngine";
 import { toast } from "@/hooks/use-toast";
 import { getCosmeticById } from "@/data/cosmetics";
 import { getCardById } from "@/data/cardIndex";
@@ -59,7 +59,9 @@ export default function BattlePass({ playerState, onStateChange }: BattlePassPro
   const seasonProgress = getBattlePassSeasonProgress(normalizedState, seasonId);
   const currentLevel = getBattlePassLevelFromXp(seasonProgress.xp);
   const xpToNext = getBattlePassXpToNextLevel(seasonProgress.xp) || 0;
-  const currentXp = seasonProgress.xp - (currentLevel - 1) * 500;
+  const currentXp = seasonProgress.xp - (currentLevel - 1) * BP_XP_PER_LEVEL;
+  const levelSpan = Math.max(1, BP_XP_PER_LEVEL);
+  const clampedIntoLevel = Math.max(0, Math.min(levelSpan, currentXp));
   const hasElite = seasonProgress.hasElite;
   const claimedFree = new Set<number>(seasonProgress.claimedFreeLevels);
   const claimedElite = new Set<number>(seasonProgress.claimedEliteLevels);
@@ -131,9 +133,13 @@ export default function BattlePass({ playerState, onStateChange }: BattlePassPro
       <div className="bg-card border border-border rounded-xl p-4">
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm font-heading font-bold text-foreground">Level {currentLevel}</span>
-          <span className="text-xs text-muted-foreground">{currentXp} / {Math.max(1, xpToNext)} XP</span>
+          <span className="text-xs text-muted-foreground">{clampedIntoLevel} / {levelSpan} XP</span>
         </div>
-        <Progress value={(currentXp / Math.max(1, xpToNext)) * 100} className="h-3 bg-secondary" />
+        <Progress value={(clampedIntoLevel / levelSpan) * 100} className="h-3 bg-secondary" />
+        <div className="mt-2 text-[10px] text-muted-foreground flex justify-between">
+          <span>{xpToNext} XP to next level</span>
+          <span>Total XP: {seasonProgress.xp}</span>
+        </div>
       </div>
 
       {/* Track Legend */}
