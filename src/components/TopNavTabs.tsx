@@ -24,7 +24,9 @@ type Tab =
   | "battle"
   | "pvp"
   | "summon"
+  | "shop"
   | "quests"
+  | "crafting"
   | "workshop"
   | "achievements"
   | "leaderboard"
@@ -62,8 +64,8 @@ const primaryTabs: { tab: Tab; label: string; icon: React.ElementType }[] = [
 const moreTabs: { tab: Tab; label: string; icon: React.ElementType; tint: string }[] = [
   { tab: "pass", label: "Battle Pass", icon: Trophy, tint: "#f5c842" },
   { tab: "events", label: "Events", icon: Trophy, tint: "#ba68c8" },
-  { tab: "summon", label: "Shop", icon: Gift, tint: "#ff9800" },
-  { tab: "workshop", label: "Crafting", icon: Trophy, tint: "#bcaaa4" },
+  { tab: "shop", label: "Shop", icon: Gift, tint: "#ff9800" },
+  { tab: "crafting", label: "Crafting", icon: Trophy, tint: "#bcaaa4" },
   { tab: "pvp", label: "Ranked", icon: Swords, tint: "#FFC107" },
   { tab: "pvp", label: "PvP", icon: Swords, tint: "#42a5f5" },
   { tab: "raid", label: "Raid", icon: Swords, tint: "#ff5722" },

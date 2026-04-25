@@ -4,7 +4,6 @@ import TabTransition from "@/components/TabTransition";
 import TutorialOverlay from "@/components/TutorialOverlay";
 import CollectionView from "@/components/CollectionView";
 import CosmeticsView from "@/components/CosmeticsView";
-import DeckBuilder from "@/components/DeckBuilder";
 import BattleArena from "@/components/BattleArena";
 import PackShop from "@/components/PackShop";
 import CardCatalog from "@/components/CardCatalog";
@@ -47,9 +46,11 @@ import { TopNavTabs } from "@/components/TopNavTabs";
 import SummonAltar from "@/components/summon/SummonAltar";
 import ChroniclersHall from "@/components/social/ChroniclersHall";
 import DeckGrimoire from "@/components/deck/DeckGrimoire";
+import ShopScreen from "@/components/shop/ShopScreen";
+import CraftingScreen from "@/components/crafting/CraftingScreen";
 import { allGameCards, type CardType, type Rarity } from "@/data/cardIndex";
 
-type Tab = "collection" | "catalog" | "cosmetics" | "deck" | "battle" | "pvp" | "summon" | "quests" | "workshop" | "achievements" | "leaderboard" | "trade" | "mail" | "events" | "tournament" | "boost" | "pass" | "profile" | "daily" | "friends" | "chat" | "guild" | "spectate" | "cards-hall" | "combat-hall" | "raid";
+type Tab = "collection" | "catalog" | "cosmetics" | "deck" | "battle" | "pvp" | "summon" | "shop" | "quests" | "crafting" | "workshop" | "achievements" | "leaderboard" | "trade" | "mail" | "events" | "tournament" | "boost" | "pass" | "profile" | "daily" | "friends" | "chat" | "guild" | "spectate" | "cards-hall" | "combat-hall" | "raid";
 export default function Index() {
   const [activeTab, setActiveTab] = useState<Tab>("collection");
   const [battleDeckIds, setBattleDeckIds] = useState<string[]>([]);
@@ -473,6 +474,14 @@ export default function Index() {
                 pullCardsApi={pullCards}
               />
             )}
+            {activeTab === "shop" && (
+              <ShopScreen
+                playerState={playerState}
+                onStateChange={setPlayerState}
+                isOnline={isOnline}
+                pullCardsApi={pullCards}
+              />
+            )}
             {activeTab === "deck" && (
               <DeckGrimoire
                 playerState={playerState}
@@ -545,6 +554,16 @@ export default function Index() {
                   />
                 </div>
               </div>
+            )}
+            {activeTab === "crafting" && (
+              <CraftingScreen
+                playerState={playerState}
+                onStateChange={setPlayerState}
+                isOnline={isOnline}
+                craftFuse={craftFuse}
+                craftSacrifice={craftSacrifice}
+                applyDub={applyDub}
+              />
             )}
             {activeTab === "achievements" && (
               <div data-testid="achievements-screen" className="relative rounded-2xl p-5 md:p-8 overflow-hidden"
