@@ -2848,9 +2848,33 @@ async function handleDailyLoginClaim(req, res) {
         }
 
         const rawDl = p.dailyLogin && typeof p.dailyLogin === "object" ? p.dailyLogin : {};
-        const claimedDays = Array.isArray(rawDl.claimedDays)
+        let claimedDays = Array.isArray(rawDl.claimedDays)
           ? rawDl.claimedDays.map(Number).filter((n) => n >= 1 && n <= 7)
           : [];
+        let baseStreak = Number(rawDl.streak) || 0;
+
+        const lastClaimDate = typeof rawDl.lastClaimDate === "string" ? rawDl.lastClaimDate : null;
+        const dayDiff = (a, b) => {
+          // a,b are YYYY-MM-DD; returns whole days between (a - b).
+          const tA = Date.parse(`${a}T00:00:00Z`);
+          const tB = Date.parse(`${b}T00:00:00Z`);
+          if (!Number.isFinite(tA) || !Number.isFinite(tB)) return NaN;
+          return Math.floor((tA - tB) / 86_400_000);
+        };
+
+        // If the previous cycle was completed, start a new 7-day cycle.
+        if (claimedDays.length >= 7) {
+          claimedDays = [];
+          baseStreak = 0;
+        }
+        // If the player missed at least one day, streak resets and cycle restarts.
+        if (lastClaimDate && lastClaimDate !== today) {
+          const diff = dayDiff(today, lastClaimDate);
+          if (Number.isFinite(diff) && diff > 1) {
+            claimedDays = [];
+            baseStreak = 0;
+          }
+        }
 
         if (rawDl.lastClaimDate === today) {
           const err = new Error("Already claimed today");
@@ -2907,7 +2931,7 @@ async function handleDailyLoginClaim(req, res) {
           throw err;
         }
 
-        const newStreak = (Number(rawDl.streak) || 0) + 1;
+        const newStreak = baseStreak + 1;
         const newDailyLogin = {
           streak: newStreak,
           lastClaimDate: today,
