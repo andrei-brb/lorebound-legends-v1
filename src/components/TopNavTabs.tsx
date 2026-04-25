@@ -16,7 +16,6 @@ import { cn } from "@/lib/utils";
 import { GoldCurrencyIcon, StardustCurrencyIcon } from "@/components/CurrencyIcons";
 import { setSfxVolume } from "@/lib/sfx";
 
-type Category = "cards" | "summon-cat" | "battle" | "grow" | "social";
 type Tab =
   | "collection"
   | "catalog"
@@ -51,24 +50,33 @@ type PlayerLike = {
   settings?: { sfxVol?: number | undefined } | undefined;
 };
 
-const primaryTabs: { cat: Category; tab: Tab; label: string; icon: React.ElementType }[] = [
-  { cat: "cards", tab: "collection", label: "Cards", icon: BookOpen },
-  { cat: "summon-cat", tab: "deck", label: "Deck", icon: Layers },
-  { cat: "summon-cat", tab: "summon", label: "Summon", icon: Gift },
-  { cat: "battle", tab: "combat-hall", label: "Battle", icon: Swords },
-  { cat: "grow", tab: "daily", label: "Grow", icon: Trophy },
-  { cat: "social", tab: "friends", label: "Social", icon: Users },
+const primaryTabs: { tab: Tab; label: string; icon: React.ElementType }[] = [
+  { tab: "collection", label: "Cards", icon: BookOpen },
+  { tab: "deck", label: "Deck", icon: Layers },
+  { tab: "summon", label: "Summon", icon: Gift },
+  { tab: "combat-hall", label: "Battle", icon: Swords },
+  { tab: "daily", label: "Grow", icon: Trophy },
+  { tab: "friends", label: "Social", icon: Users },
 ];
 
-const moreTabs: { cat: Category; tab: Tab; label: string; icon: React.ElementType; tint: string }[] = [
+const moreTabs: { tab: Tab; label: string; icon: React.ElementType; tint: string }[] = [
   // NOTE: icons and exact mapping will be expanded as we port each hall UI.
-  { cat: "battle", tab: "tournament", label: "Tournament", icon: Trophy, tint: "#ffb300" },
-  { cat: "battle", tab: "pvp", label: "PvP", icon: Swords, tint: "#42a5f5" },
-  { cat: "social", tab: "mail", label: "Mail", icon: Trophy, tint: "#ff9800" },
-  { cat: "social", tab: "trade", label: "Trade", icon: ArrowLeftRightIcon, tint: "#bcaaa4" },
-  { cat: "social", tab: "leaderboard", label: "Leaderboard", icon: Trophy, tint: "#f5c842" },
-  { cat: "cards", tab: "catalog", label: "Catalog", icon: BookOpen, tint: "#f5c842" },
+  { tab: "tournament", label: "Tournament", icon: Trophy, tint: "#ffb300" },
+  { tab: "pvp", label: "PvP", icon: Swords, tint: "#42a5f5" },
+  { tab: "mail", label: "Mail", icon: Trophy, tint: "#ff9800" },
+  { tab: "trade", label: "Trade", icon: ArrowLeftRightIcon, tint: "#bcaaa4" },
+  { tab: "leaderboard", label: "Leaderboard", icon: Trophy, tint: "#f5c842" },
+  { tab: "catalog", label: "Catalog", icon: BookOpen, tint: "#f5c842" },
 ];
+
+function getPrimaryLabel(activeTab: Tab): "cards" | "deck" | "summon" | "battle" | "grow" | "social" {
+  if (activeTab === "deck") return "deck";
+  if (activeTab === "summon") return "summon";
+  if (["combat-hall", "battle", "pvp", "tournament", "raid"].includes(activeTab)) return "battle";
+  if (["daily", "pass", "quests", "workshop", "achievements", "boost", "profile", "events"].includes(activeTab)) return "grow";
+  if (["friends", "chat", "guild", "mail", "trade", "leaderboard", "spectate"].includes(activeTab)) return "social";
+  return "cards";
+}
 
 function ArrowLeftRightIcon(props: { size?: number; className?: string; style?: React.CSSProperties }) {
   // lucide ArrowLeftRight is used in Index.tsx imports; we avoid a heavy dependency here by rendering a simple glyph.
@@ -88,12 +96,11 @@ function ArrowLeftRightIcon(props: { size?: number; className?: string; style?: 
 export function TopNavTabs(props: {
   playerState: PlayerLike;
   unreadMail: number;
-  activeCategory: Category;
-  onCategory: (cat: Category) => void;
+  activeTab: Tab;
   onTab: (tab: Tab) => void;
   settingsNode: React.ReactNode;
 }) {
-  const { playerState, unreadMail, activeCategory, onCategory, onTab, settingsNode } = props;
+  const { playerState, unreadMail, activeTab, onTab, settingsNode } = props;
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
 
@@ -139,7 +146,6 @@ export function TopNavTabs(props: {
         className="flex items-center gap-3"
         data-testid="logo-link"
         onClick={() => {
-          onCategory("grow");
           onTab("daily");
         }}
       >
@@ -160,16 +166,15 @@ export function TopNavTabs(props: {
       </button>
 
       <nav className="hidden md:flex items-center gap-2">
-        {primaryTabs.map(({ cat, tab, label, icon: Icon }) => (
+        {primaryTabs.map(({ tab, label, icon: Icon }) => (
           <button
             key={label}
             type="button"
             onClick={() => {
-              onCategory(cat);
               onTab(tab);
             }}
             data-testid={`nav-${label.toLowerCase()}`}
-            className={cn("btn-ghost flex items-center gap-2", activeCategory === cat ? "active" : "")}
+            className={cn("btn-ghost flex items-center gap-2", getPrimaryLabel(activeTab) === label.toLowerCase() ? "active" : "")}
           >
             <Icon size={14} strokeWidth={2.2} />
             {label}
@@ -199,12 +204,11 @@ export function TopNavTabs(props: {
                 </button>
               </div>
               <div className="grid grid-cols-3 gap-2 relative z-10">
-                {moreTabs.map(({ cat, tab, label, icon: Icon, tint }) => (
+                {moreTabs.map(({ tab, label, icon: Icon, tint }) => (
                   <button
                     key={label}
                     type="button"
                     onClick={() => {
-                      onCategory(cat);
                       onTab(tab);
                       setOpen(false);
                     }}

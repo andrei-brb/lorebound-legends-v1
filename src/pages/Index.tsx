@@ -47,61 +47,8 @@ import { TopNavTabs } from "@/components/TopNavTabs";
 import { allGameCards, type CardType, type Rarity } from "@/data/cardIndex";
 
 type Tab = "collection" | "catalog" | "cosmetics" | "deck" | "battle" | "pvp" | "summon" | "quests" | "workshop" | "achievements" | "leaderboard" | "trade" | "mail" | "events" | "tournament" | "boost" | "pass" | "profile" | "daily" | "friends" | "chat" | "guild" | "spectate" | "cards-hall" | "combat-hall" | "raid";
-type Category = "cards" | "summon-cat" | "battle" | "grow" | "social";
-
-const categories: { id: Category; label: string; icon: React.ReactNode; tabs: { id: Tab; label: string; icon: React.ReactNode }[] }[] = [
-  {
-    id: "cards", label: "Cards", icon: <BookOpen className="w-4 h-4" />,
-    tabs: [
-      { id: "collection", label: "Collection", icon: <BookOpen className="w-4 h-4" /> },
-      { id: "catalog", label: "Catalog", icon: <Grid3X3 className="w-4 h-4" /> },
-      { id: "cosmetics", label: "Cosmetics", icon: <SparklesIcon className="w-4 h-4" /> },
-    ],
-  },
-  {
-    id: "summon-cat", label: "Summon", icon: <SparklesIcon className="w-4 h-4" />,
-    tabs: [
-      { id: "summon", label: "Pack Shop", icon: <Gift className="w-4 h-4" /> },
-      { id: "deck", label: "Deck Builder", icon: <Layers className="w-4 h-4" /> },
-    ],
-  },
-  {
-    id: "battle", label: "Battle", icon: <Swords className="w-4 h-4" />,
-    tabs: [
-      { id: "combat-hall", label: "Combat Hall", icon: <Flame className="w-4 h-4" /> },
-      { id: "pvp", label: "PvP", icon: <Crown className="w-4 h-4" /> },
-      { id: "tournament", label: "Tournament", icon: <Trophy className="w-4 h-4" /> },
-      { id: "raid", label: "Raid", icon: <Shield className="w-4 h-4" /> },
-    ],
-  },
-  {
-    id: "grow", label: "Grow", icon: <Trophy className="w-4 h-4" />,
-    tabs: [
-      { id: "daily", label: "Daily Quests", icon: <Calendar className="w-4 h-4" /> },
-      { id: "pass", label: "Battle Pass", icon: <Shield className="w-4 h-4" /> },
-      { id: "achievements", label: "Achievements", icon: <Trophy className="w-4 h-4" /> },
-      { id: "workshop", label: "Workshop", icon: <Hammer className="w-4 h-4" /> },
-    ],
-  },
-  {
-    id: "social", label: "Social", icon: <Users className="w-4 h-4" />,
-    tabs: [
-      { id: "friends", label: "Friends", icon: <Users className="w-4 h-4" /> },
-      { id: "guild", label: "Guild", icon: <Flag className="w-4 h-4" /> },
-      { id: "trade", label: "Trade", icon: <ArrowLeftRight className="w-4 h-4" /> },
-      { id: "events", label: "Events", icon: <Calendar className="w-4 h-4" /> },
-      { id: "mail", label: "Mail", icon: <Mail className="w-4 h-4" /> },
-      { id: "leaderboard", label: "Leaderboard", icon: <BarChart3 className="w-4 h-4" /> },
-    ],
-  },
-];
-
 export default function Index() {
-  const [activeCategory, setActiveCategory] = useState<Category>("cards");
   const [activeTab, setActiveTab] = useState<Tab>("collection");
-  const [lastTabPerCategory, setLastTabPerCategory] = useState<Record<Category, Tab>>({
-    cards: "collection", "summon-cat": "summon", battle: "combat-hall", grow: "daily", social: "friends",
-  });
   const [battleDeckIds, setBattleDeckIds] = useState<string[]>([]);
   const [soloRaidBossId, setSoloRaidBossId] = useState<string | null>(null);
   const [raidHotseat, setRaidHotseat] = useState<{ bossId: string; deckIds: string[] } | null>(null);
@@ -251,15 +198,7 @@ export default function Index() {
     return <Onboarding playerState={playerState} onComplete={(newState) => setPlayerState(newState)} isOnline={isOnline} completeOnboardingApi={completeOnboarding} />;
   }
 
-  const handleCategoryClick = (catId: Category) => {
-    setActiveCategory(catId);
-    setActiveTab(lastTabPerCategory[catId]);
-  };
-
-  const handleTabClick = (tabId: Tab) => {
-    setActiveTab(tabId);
-    setLastTabPerCategory((prev) => ({ ...prev, [activeCategory]: tabId }));
-  };
+  const handleTabClick = (tabId: Tab) => setActiveTab(tabId);
 
   const startBattle = (deckIds: string[]) => {
     setRankedBattle(null);
@@ -267,7 +206,6 @@ export default function Index() {
     setRaidHotseat(null);
     setRaidState(null);
     setBattleDeckIds(deckIds);
-    setActiveCategory("battle");
     setActiveTab("battle");
   };
 
@@ -281,7 +219,6 @@ export default function Index() {
       setPvpInvitePopup(null);
       setRankedBattle(null);
       setBattleDeckIds([]);
-      setActiveCategory("battle");
       setActiveTab("battle");
       toast({ title: "⚔ Match accepted!", description: `Joining match #${matchId}` });
     } catch (e: unknown) {
@@ -311,7 +248,6 @@ export default function Index() {
       await api.respondGuildInvite(inviteId, true);
       setGuildInvitePopup(null);
       toast({ title: "Joined guild", description: `Welcome to ${guildName} [${guildTag}] — invited by ${fromUsername}.` });
-      setActiveCategory("social");
       setActiveTab("guild");
     } catch (e: unknown) {
       const message = e instanceof Error ? e.message : "Could not accept invite";
@@ -330,16 +266,6 @@ export default function Index() {
       const message = e instanceof Error ? e.message : "Could not decline invite";
       toast({ title: "Decline failed", description: message, variant: "destructive" });
     }
-  };
-
-  const activeCat = categories.find((c) => c.id === activeCategory);
-
-  /** Arena is the only combat sub-tab, but PvP / Tourney / Battle still use internal tab ids — keep Arena highlighted. */
-  const isSubTabSelected = (tabId: Tab) => {
-    if (tabId === "combat-hall") {
-      return activeTab === "combat-hall" || activeTab === "pvp" || activeTab === "tournament" || activeTab === "battle";
-    }
-    return activeTab === tabId;
   };
 
   const liveMatchIdFromInbox = typeof window !== "undefined" ? Number(sessionStorage.getItem("pvp.live.matchId") || "") : NaN;
@@ -436,43 +362,10 @@ export default function Index() {
             <TopNavTabs
               playerState={playerState}
               unreadMail={unreadMail}
-              activeCategory={activeCategory}
-              onCategory={(cat) => handleCategoryClick(cat)}
+              activeTab={activeTab}
               onTab={(tab) => handleTabClick(tab)}
               settingsNode={<SettingsPanel playerState={playerState} onStateChange={setPlayerState} />}
             />
-
-            {/* Sub-tabs row (kept from main repo; will be redesigned next) */}
-            <div className="sticky top-[72px] z-40">
-              <div
-                className="px-5 md:px-10 py-2 backdrop-blur-md"
-                style={{
-                  background: "linear-gradient(180deg, rgba(10,6,3,0.82), rgba(10,6,3,0.45))",
-                  borderBottom: "1px solid rgba(212,175,55,0.18)",
-                }}
-              >
-                <div className="flex items-center gap-2 overflow-x-auto scrollbar-none">
-                  {activeCat?.tabs.map((tab) => (
-                    <button
-                      key={tab.id}
-                      onClick={() => handleTabClick(tab.id)}
-                      className={cn("btn-ghost text-xs", isSubTabSelected(tab.id) ? "active" : "")}
-                      data-testid={`subtab-${tab.id}`}
-                    >
-                      {tab.icon}
-                      <span className="relative">
-                        {tab.label}
-                        {tab.id === "mail" && unreadMail > 0 && (
-                          <span className="absolute -top-2 -right-3 text-[10px] font-bold bg-[#f5c842] text-[#0A0A0A] rounded-full px-1.5 py-0.5">
-                            {unreadMail > 99 ? "99+" : unreadMail}
-                          </span>
-                        )}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
           </div>
         )}
 
@@ -618,7 +511,6 @@ export default function Index() {
                         setRaidState(null);
                         setBattleDeckIds(deckIds);
                         setPendingCombat(null);
-                        setActiveCategory("battle");
                         setActiveTab("battle");
                         return;
                       }
@@ -627,7 +519,6 @@ export default function Index() {
                         setSoloRaidBossId(null);
                         setBattleDeckIds([]);
                         setPendingCombat(null);
-                        setActiveCategory("battle");
                         setActiveTab("battle");
                         return;
                       }
@@ -726,7 +617,7 @@ export default function Index() {
                 </div>
               </div>
             )}
-            {activeTab === "mail" && <MailHall onNavigate={(tab) => { setActiveCategory("social"); setActiveTab(tab as Tab); }} />}
+            {activeTab === "mail" && <MailHall onNavigate={(tab) => { setActiveTab(tab as Tab); }} />}
             {activeTab === "pvp" && (
               <PvPPanel
                 playerState={playerState}
@@ -738,7 +629,6 @@ export default function Index() {
                   setSoloRaidBossId(null);
                   setRaidHotseat(null);
                   setRaidState(null);
-                  setActiveCategory("battle");
                   setActiveTab("battle");
                 }}
                 onStartRankedBattle={async (matchId) => {
@@ -751,7 +641,6 @@ export default function Index() {
                       seed: data.seed ?? null,
                     });
                     setBattleDeckIds(data.myDeckCardIds);
-                    setActiveCategory("battle");
                     setActiveTab("battle");
                   } catch (e) {
                     toast({
@@ -917,7 +806,6 @@ export default function Index() {
                   setSoloRaidBossId(null);
                   const wasRanked = rankedBattle != null;
                   setRankedBattle(null);
-                  setActiveCategory("battle");
                   setActiveTab(wasRanked ? "pvp" : "combat-hall");
                 }}
                 playerState={playerState}
@@ -935,7 +823,6 @@ export default function Index() {
                 onExit={() => {
                   setRaidHotseat(null);
                   setRaidState(null);
-                  setActiveCategory("battle");
                   setActiveTab("combat-hall");
                 }}
                 playerDeckIds={raidHotseat.deckIds}
@@ -955,7 +842,6 @@ export default function Index() {
                 syncEconomyApi={syncEconomy}
                 onExit={() => {
                   sessionStorage.removeItem("pvp.live.matchId");
-                  setActiveCategory("battle");
                   setActiveTab("combat-hall");
                 }}
               />
@@ -974,7 +860,6 @@ export default function Index() {
                   syncEconomyApi={syncEconomy}
                   onExit={() => {
                     sessionStorage.removeItem("raid.live.matchId");
-                    setActiveCategory("battle");
                     setActiveTab("combat-hall");
                   }}
                 />
