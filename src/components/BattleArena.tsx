@@ -1389,7 +1389,7 @@ export default function BattleArena({
 
       {/* ===== Right-side hover inspect (desktop) ===== */}
       {!useAltarBattlefield && (
-        <div className="hidden md:block absolute top-3 right-3 z-30 w-[320px] pointer-events-none">
+        <div className="hidden md:block absolute top-1 right-3 z-30 w-[320px] pointer-events-none">
           <BattleCardInspectPanel inspect={inspect} className={inspect.kind === "none" ? "hidden" : ""} />
         </div>
       )}
