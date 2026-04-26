@@ -3,6 +3,7 @@ import type { GameCard } from "@/data/cards";
 import { cn } from "@/lib/utils";
 import { elementEmoji } from "@/lib/elementSystem";
 import { Sword, Shield, Heart, Zap, Swords as SwordsIcon } from "lucide-react";
+import { getOneEffectForCard } from "@/lib/cardOneEffect";
 
 type Inspect =
   | { kind: "none" }
@@ -41,6 +42,9 @@ export default function BattleCardInspectPanel({ inspect, className }: Props) {
   const hpMax = inspect.kind === "field" ? inspect.fieldCard.maxHp : (card.hp ?? 0);
   const weapon = inspect.kind === "field" ? inspect.fieldCard.equippedWeapon : null;
   const abilityUsed = inspect.kind === "field" ? inspect.fieldCard.abilityUsed : false;
+  const oneEff = card.type === "hero" || card.type === "god" ? getOneEffectForCard(card) : null;
+  const effName = oneEff?.name ?? card.specialAbility?.name ?? null;
+  const effDesc = oneEff?.description ?? card.specialAbility?.description ?? null;
 
   return (
     <div
@@ -119,15 +123,17 @@ export default function BattleCardInspectPanel({ inspect, className }: Props) {
           </div>
         </div>
 
-        {card.specialAbility ? (
+        {effName && effDesc ? (
           <div className="rounded-xl border border-border/40 bg-background/30 p-2.5">
             <div className="flex items-center gap-2">
               <Zap className={cn("w-4 h-4", abilityUsed ? "text-muted-foreground" : "text-legendary")} />
               <span className={cn("text-[12px] font-heading font-bold", abilityUsed ? "text-muted-foreground line-through" : "text-legendary")}>
-                {card.specialAbility.name}
+                {effName}
               </span>
             </div>
-            <p className="mt-1 text-[11px] text-foreground/85 leading-snug">{card.specialAbility.description}</p>
+            <p className="mt-1 text-[11px] text-foreground/85 leading-snug">
+              {effDesc}
+            </p>
           </div>
         ) : null}
 

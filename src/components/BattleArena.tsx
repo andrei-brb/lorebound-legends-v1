@@ -1085,6 +1085,7 @@ export default function BattleArena({
     if (hoveredHandIndex3d != null) {
       const c = state.player.hand[hoveredHandIndex3d];
       if (!c) return null;
+      const eff = c.type === "hero" || c.type === "god" ? getOneEffectForCard(c) : null;
       return {
         id: `hand-${c.id}-${hoveredHandIndex3d}`,
         image: c.image,
@@ -1094,8 +1095,8 @@ export default function BattleArena({
         def: c.type === "hero" || c.type === "god" ? c.defense : undefined,
         hp: c.type === "hero" || c.type === "god" ? c.hp : undefined,
         hpMax: c.type === "hero" || c.type === "god" ? c.hp : undefined,
-        abilityName: c.specialAbility?.name,
-        abilityDescription: c.specialAbility?.description,
+        abilityName: eff?.name ?? (c.type === "hero" || c.type === "god" ? undefined : c.specialAbility?.name),
+        abilityDescription: eff?.description ?? (c.type === "hero" || c.type === "god" ? undefined : c.specialAbility?.description),
         passives:
           state.playerCardProgress?.[c.id]
             ? getPassiveAbilities(state.playerCardProgress[c.id]!).map((p) => ({ name: p.name, description: p.description }))
@@ -1108,6 +1109,7 @@ export default function BattleArena({
       if (!fc) return null;
       const progress =
         hoveredZone3d.side === "player" ? state.playerCardProgress?.[fc.card.id] ?? null : null;
+      const eff = fc.card.type === "hero" || fc.card.type === "god" ? getOneEffectForCard(fc.card) : null;
       return {
         id: `field-${hoveredZone3d.side}-${fc.card.id}-${hoveredZone3d.index}`,
         image: fc.card.image,
@@ -1117,8 +1119,10 @@ export default function BattleArena({
         def: fc.defense,
         hp: fc.currentHp,
         hpMax: fc.maxHp,
-        abilityName: progress ? getAbilityEvolutionName(fc.card.specialAbility?.name ?? "Ability", progress.level) : fc.card.specialAbility?.name,
-        abilityDescription: fc.card.specialAbility?.description,
+        abilityName:
+          eff?.name ??
+          (progress ? getAbilityEvolutionName(fc.card.specialAbility?.name ?? "Ability", progress.level) : fc.card.specialAbility?.name),
+        abilityDescription: eff?.description ?? fc.card.specialAbility?.description,
         passives: progress ? getPassiveAbilities(progress).map((p) => ({ name: p.name, description: p.description })) : [],
       };
     }
