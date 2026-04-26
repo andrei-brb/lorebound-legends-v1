@@ -6,6 +6,7 @@ import GlassPanel from "@/components/scene/GlassPanel";
 import { texCodex, texParchment, texVelvet } from "@/components/scene/panelTextures";
 import { cn } from "@/lib/utils";
 import { claimQuestReward, getQuestTimeUntilReset, loadDailyQuests, type DailyQuestState } from "@/lib/questEngine";
+import RewardPopup, { type RewardItem } from "@/components/battle3d/RewardPopup";
 
 interface Quest {
   id: string;
@@ -31,6 +32,10 @@ function fmtCountdown(ms: number) {
 export default function QuestsHall({ playerState, onStateChange }: Props) {
   const [filter, setFilter] = useState<"all" | "daily" | "weekly">("all");
   const [questState, setQuestState] = useState<DailyQuestState>(() => loadDailyQuests());
+  const [rewardOpen, setRewardOpen] = useState(false);
+  const [rewardItems, setRewardItems] = useState<RewardItem[]>([]);
+  const [rewardTitle, setRewardTitle] = useState("Reward Bestowed");
+  const [rewardSubtitle, setRewardSubtitle] = useState("The altar grants its favor.");
 
   const questsAll = useMemo((): Quest[] => {
     const qs = loadDailyQuests();
@@ -111,6 +116,14 @@ export default function QuestsHall({ playerState, onStateChange }: Props) {
         </GlassPanel>
       }
     >
+      <RewardPopup
+        open={rewardOpen}
+        onClose={() => setRewardOpen(false)}
+        title={rewardTitle}
+        subtitle={rewardSubtitle}
+        rewards={rewardItems}
+        ctaLabel="Claim"
+      />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         {quests.map((q) => (
           <QuestCard
@@ -121,6 +134,15 @@ export default function QuestsHall({ playerState, onStateChange }: Props) {
               if (!res) return;
               setQuestState(res.questState);
               onStateChange(res.playerState);
+              const items: RewardItem[] = [];
+              if (q.reward.gold) items.push({ kind: "gold", amount: q.reward.gold, label: "Gold", rarity: "legendary" });
+              if (q.reward.stardust) items.push({ kind: "gem", amount: q.reward.stardust, label: "Stardust", rarity: "rare" });
+              if (items.length > 0) {
+                setRewardTitle("Quest Reward");
+                setRewardSubtitle("The altar recognizes your progress.");
+                setRewardItems(items);
+                setRewardOpen(true);
+              }
             }}
           />
         ))}

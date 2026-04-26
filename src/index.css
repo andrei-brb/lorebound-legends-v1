@@ -65,6 +65,12 @@
     /* ===== Celestial Altar (battle3d) skin ===== */
     --gradient-altar: radial-gradient(1200px 800px at 50% 15%, hsl(268 55% 16%) 0%, hsl(250 55% 8%) 40%, hsl(250 55% 4%) 85%);
     --gradient-gold: linear-gradient(180deg, hsl(46 95% 78%) 0%, hsl(42 85% 58%) 55%, hsl(36 65% 38%) 100%);
+    --altar-ink: 250 55% 6%;
+    --altar-glass: 250 35% 10%;
+    --altar-gold: 46 85% 55%;
+    --altar-gold-bright: 46 95% 78%;
+    --altar-violet: 285 70% 55%;
+    --shadow-gold-glow: 0 0 26px hsl(46 95% 70% / 0.28), 0 0 60px hsl(46 85% 55% / 0.18);
   }
 }
 

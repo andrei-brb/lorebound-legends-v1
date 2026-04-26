@@ -19,6 +19,7 @@ import { getCosmeticById } from "@/data/cosmetics";
 import { getCardById } from "@/data/cardIndex";
 import GameCard from "@/components/GameCard";
 import { GoldCurrencyIcon, StardustCurrencyIcon } from "@/components/CurrencyIcons";
+import RewardPopup, { type RewardItem } from "@/components/battle3d/RewardPopup";
 
 const MILESTONES = new Set([5, 10, 15, 20, 25, 30]);
 
@@ -67,6 +68,10 @@ export default function BattlePass({ playerState, onStateChange }: BattlePassPro
   const claimedElite = new Set<number>(seasonProgress.claimedEliteLevels);
 
   const [previewReward, setPreviewReward] = useState<{ reward: Reward; level: number; track: "free" | "elite" } | null>(null);
+  const [rewardOpen, setRewardOpen] = useState(false);
+  const [rewardItems, setRewardItems] = useState<RewardItem[]>([]);
+  const [rewardTitle, setRewardTitle] = useState("Reward Bestowed");
+  const [rewardSubtitle, setRewardSubtitle] = useState("The altar grants its favor.");
 
   const isMilestone = (lvl: number) => MILESTONES.has(lvl);
 
@@ -80,7 +85,21 @@ export default function BattlePass({ playerState, onStateChange }: BattlePassPro
     const res = claimBattlePassLevelReward(normalizedState, seasonId, level, track);
     if (!res.ok) { toast({ title: "Cannot claim", description: (res as { error: string }).error, variant: "destructive" }); return; }
     onStateChange(res.state);
-    toast({ title: "Claimed!", description: `Collected ${track.toUpperCase()} reward for level ${level}.` });
+    const row = passData.find((x) => x.level === level);
+    const reward = row ? (track === "free" ? row.free : row.elite) : null;
+    const items: RewardItem[] = [];
+    if (reward) {
+      if (reward.kind === "gold") items.push({ kind: "gold", amount: reward.amount ?? 0, label: reward.label, rarity: reward.rarity === "legendary" ? "legendary" : "rare" });
+      else if (reward.kind === "dust") items.push({ kind: "gem", amount: reward.amount ?? 0, label: reward.label, rarity: "rare" });
+      else if (reward.kind === "xp_boost") items.push({ kind: "xp", amount: reward.amount ?? 1, label: reward.label, rarity: "rare" });
+      else items.push({ kind: "relic", amount: reward.amount, label: reward.label, rarity: reward.rarity === "legendary" ? "legendary" : "rare" });
+    } else {
+      items.push({ kind: "relic", label: `Level ${level} reward`, rarity: "rare" });
+    }
+    setRewardTitle("Battle Pass Reward");
+    setRewardSubtitle(`${track.toUpperCase()} track · Level ${level}`);
+    setRewardItems(items.filter((x) => (typeof x.amount === "number" ? x.amount > 0 : true)));
+    setRewardOpen(true);
   };
 
   const handleEquip = (reward: Reward) => {
@@ -94,6 +113,14 @@ export default function BattlePass({ playerState, onStateChange }: BattlePassPro
 
   return (
     <div className="space-y-6">
+      <RewardPopup
+        open={rewardOpen}
+        onClose={() => setRewardOpen(false)}
+        title={rewardTitle}
+        subtitle={rewardSubtitle}
+        rewards={rewardItems}
+        ctaLabel="Claim"
+      />
       {/* Season switcher - Tabs */}
       <Tabs value={seasonId} onValueChange={(v) => setSeasonId(v as BattlePassSeasonId)}>
         <TabsList className="bg-secondary/50 h-auto p-1 flex-wrap">

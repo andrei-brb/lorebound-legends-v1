@@ -1,9 +1,12 @@
 import type React from "react";
+import { useState } from "react";
 import { Calendar, ChevronRight, Crown, Flame, Gift, Hammer, Package, Palette, Shield, Sparkles, Star, Swords, Trophy, Zap } from "lucide-react";
 import type { PlayerState } from "@/lib/playerState";
 import EmberLayer from "@/components/EmberLayer";
 import { loadDailyQuests } from "@/lib/questEngine";
 import { toast } from "@/hooks/use-toast";
+import RewardPopup, { type RewardItem } from "@/components/battle3d/RewardPopup";
+import { DAILY_LOGIN_REWARDS } from "@/lib/dailyEngine";
 
 type Tab =
   | "summon"
@@ -77,6 +80,10 @@ export default function GrowHub(props: {
   onNavigate: (tab: Tab) => void;
 }) {
   const { playerState, isOnline, claimDailyLogin, onNavigate } = props;
+  const [rewardOpen, setRewardOpen] = useState(false);
+  const [rewardItems, setRewardItems] = useState<RewardItem[]>([]);
+  const [rewardTitle, setRewardTitle] = useState("Daily Boon Claimed");
+  const [rewardSubtitle, setRewardSubtitle] = useState("The altar grants its favor.");
   const today = new Date().toISOString().slice(0, 10);
   const daily = playerState.dailyLogin ?? { streak: 0, lastClaimDate: null, claimedDays: [] };
   const claimedToday = daily.lastClaimDate === today;
@@ -115,6 +122,14 @@ export default function GrowHub(props: {
         backgroundAttachment: "fixed",
       }}
     >
+      <RewardPopup
+        open={rewardOpen}
+        onClose={() => setRewardOpen(false)}
+        title={rewardTitle}
+        subtitle={rewardSubtitle}
+        rewards={rewardItems}
+        ctaLabel="Claim"
+      />
       <EmberLayer count={18} />
 
       {/* Hero */}
@@ -270,6 +285,16 @@ export default function GrowHub(props: {
               if (claimedToday) return;
               try {
                 await claimDailyLogin();
+                const dayIdx = Math.min(7, Math.max(1, claimedThisCycle + 1));
+                const r = DAILY_LOGIN_REWARDS[dayIdx - 1];
+                const items: RewardItem[] = [];
+                if (r?.gold) items.push({ kind: "gold", amount: r.gold, label: "Gold", rarity: "legendary" });
+                if (r?.stardust) items.push({ kind: "gem", amount: r.stardust, label: "Stardust", rarity: "rare" });
+                if (items.length === 0) items.push({ kind: "relic", label: "Daily Boon", rarity: "rare" });
+                setRewardTitle("Daily Boon Claimed");
+                setRewardSubtitle(r?.label ?? "The altar grants its favor.");
+                setRewardItems(items);
+                setRewardOpen(true);
               } catch (e: unknown) {
                 toast({ title: "Could not claim", description: e instanceof Error ? e.message : "Please try again.", variant: "destructive" });
               }

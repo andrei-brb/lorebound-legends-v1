@@ -18,6 +18,7 @@ import { GoldCurrencyIcon, StardustCurrencyIcon } from "@/components/CurrencyIco
 import GameCard from "@/components/GameCard";
 import { PACK_DEFINITIONS, pullCards } from "@/lib/gachaEngine";
 import bronzePackImg from "@/assets/packs/bronze-pack.jpg";
+import RewardPopup, { type RewardItem } from "@/components/battle3d/RewardPopup";
 
 export type DailyClaimPreview = {
   kind: string;
@@ -79,6 +80,10 @@ function RewardTileArt({ r, cardInfo }: { r: DayRewardDef; cardInfo?: GameCard |
 export default function DailyHall({ playerState, onStateChange, isOnline, claimDailyLogin }: Props) {
   const [claiming, setClaiming] = useState(false);
   const [preview, setPreview] = useState<DailyClaimPreview | null>(null);
+  const [rewardOpen, setRewardOpen] = useState(false);
+  const [rewardItems, setRewardItems] = useState<RewardItem[]>([]);
+  const [rewardTitle, setRewardTitle] = useState("Daily Boon Claimed");
+  const [rewardSubtitle, setRewardSubtitle] = useState("The altar grants its favor.");
 
   const streak = playerState.dailyLogin?.streak ?? 0;
   const claimedDays = playerState.dailyLogin?.claimedDays ?? [];
@@ -179,14 +184,20 @@ export default function DailyHall({ playerState, onStateChange, isOnline, claimD
           return;
         }
         setPreview(res.preview);
-        toast({ title: "Daily reward", description: res.preview.label });
+        setRewardTitle("Daily Boon Claimed");
+        setRewardSubtitle(res.preview.label);
+        setRewardItems(mapDailyPreviewToRewards(res.preview));
+        setRewardOpen(true);
         return;
       }
 
       const { state, preview: p } = applyOfflineReward(playerState, reward);
       onStateChange(state);
       setPreview(p);
-      toast({ title: "Daily reward", description: reward.label });
+      setRewardTitle("Daily Boon Claimed");
+      setRewardSubtitle(reward.label);
+      setRewardItems(mapDailyPreviewToRewards(p));
+      setRewardOpen(true);
     } finally {
       setClaiming(false);
     }
@@ -236,6 +247,14 @@ export default function DailyHall({ playerState, onStateChange, isOnline, claimD
         </GlassPanel>
       }
     >
+      <RewardPopup
+        open={rewardOpen}
+        onClose={() => setRewardOpen(false)}
+        title={rewardTitle}
+        subtitle={rewardSubtitle}
+        rewards={rewardItems}
+        ctaLabel="Claim"
+      />
       <GlassPanel hue="var(--legendary)" glow={0.35} padding="md" bg={texGilded} bgTint={0.7}>
         <h3 className="font-heading text-xs uppercase tracking-wider text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] mb-4">Reward Path</h3>
         <div className="grid grid-cols-7 gap-2">
@@ -360,4 +379,20 @@ export default function DailyHall({ playerState, onStateChange, isOnline, claimD
       </Dialog>
     </HallLayout>
   );
+}
+
+function mapDailyPreviewToRewards(p: DailyClaimPreview): RewardItem[] {
+  if (p.kind === "gold") {
+    return [{ kind: "gold", amount: p.amount ?? 0, label: p.label, rarity: "legendary" }].filter((x) => (x.amount ?? 0) > 0);
+  }
+  if (p.kind === "stardust") {
+    return [{ kind: "gem", amount: p.amount ?? 0, label: p.label, rarity: "rare" }].filter((x) => (x.amount ?? 0) > 0);
+  }
+  if (p.kind === "card") {
+    return [{ kind: "card", label: p.label, rarity: "mythic" }];
+  }
+  if (p.kind === "pack") {
+    return [{ kind: "relic", label: p.label, rarity: "legendary" }];
+  }
+  return [{ kind: "relic", label: p.label, rarity: "rare" }];
 }

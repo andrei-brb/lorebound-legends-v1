@@ -33,6 +33,7 @@ import { awardBattlePassXp } from "@/lib/battlePassEngine";
 import { rollMysteryBox, claimFirstWin, FIRST_WIN_GOLD, FIRST_WIN_BP_XP } from "@/lib/dailyEngine";
 import { getCosmeticById } from "@/data/cosmetics";
 import { getRaidBoss } from "@/lib/raid/bosses";
+import RewardPopup, { type RewardItem } from "@/components/battle3d/RewardPopup";
 
 type ActionMode = "none" | "select-attack-target" | "select-equip-target" | "select-spell-target";
 
@@ -102,6 +103,11 @@ export default function RaidCoopArena({
   const [goldEarned, setGoldEarned] = useState(0);
   const [levelUps, setLevelUps] = useState<(LevelUpResult & { cardId: string })[]>([]);
   const [showLevelUps, setShowLevelUps] = useState(false);
+  const [rewardPopupOpen, setRewardPopupOpen] = useState(false);
+  const [rewardPopupClaimed, setRewardPopupClaimed] = useState(false);
+  const [rewardPopupItems, setRewardPopupItems] = useState<RewardItem[]>([]);
+  const [rewardPopupTitle, setRewardPopupTitle] = useState<string>("Raid Spoils");
+  const [rewardPopupSubtitle, setRewardPopupSubtitle] = useState<string>("The altar records your deed.");
   const [actionMode, setActionMode] = useState<ActionMode>("none");
   const [selectedHandIndex, setSelectedHandIndex] = useState<number | null>(null);
   const [selectedFieldIndex, setSelectedFieldIndex] = useState<number | null>(null);
@@ -209,6 +215,7 @@ export default function RaidCoopArena({
     const isDraw = raidIsDraw(raid);
     const turnNumber = state.turnNumber;
     setRewardsGiven(true);
+    const xpAmount = won ? 50 : isDraw ? 35 : 20;
 
     void (async () => {
       let usedOnline = false;
@@ -226,6 +233,19 @@ export default function RaidCoopArena({
             });
             if (result) {
               setGoldEarned(result.goldReward);
+              setRewardPopupTitle(won ? "Raid Spoils" : isDraw ? "Raid Tribute" : "Raid Tribute");
+              setRewardPopupSubtitle(
+                won ? "The altar acknowledges your triumph." : isDraw ? "Balance is maintained." : "The altar remembers your resolve.",
+              );
+              setRewardPopupItems(
+                [
+                  { kind: "gold", amount: result.goldReward, label: "Gold", rarity: won ? "legendary" : "rare" },
+                  { kind: "xp", amount: xpAmount, label: "Battle XP", rarity: "rare" },
+                  { kind: "rune", amount: won ? 1 : 0, label: "Astral Rune", rarity: won ? "mythic" : "common" },
+                ].filter((x) => (typeof x.amount === "number" ? x.amount > 0 : true)),
+              );
+              setRewardPopupClaimed(false);
+              setRewardPopupOpen(true);
               setLevelUps(result.levelUps.map((lu) => ({ ...lu, milestone: null as string | null })));
               if (result.levelUps.length > 0) setShowLevelUps(true);
             }
@@ -274,10 +294,22 @@ export default function RaidCoopArena({
       const mult = bossMeta?.goldRewardMultiplier ?? 1.25;
       const gold = getRaidGoldReward(won, turnNumber, mult);
       setGoldEarned(gold);
+      setRewardPopupTitle(won ? "Raid Spoils" : isDraw ? "Raid Tribute" : "Raid Tribute");
+      setRewardPopupSubtitle(
+        won ? "The altar acknowledges your triumph." : isDraw ? "Balance is maintained." : "The altar remembers your resolve.",
+      );
+      setRewardPopupItems(
+        [
+          { kind: "gold", amount: gold, label: "Gold", rarity: won ? "legendary" : "rare" },
+          { kind: "xp", amount: xpAmount, label: "Battle XP", rarity: "rare" },
+          { kind: "rune", amount: won ? 1 : 0, label: "Astral Rune", rarity: won ? "mythic" : "common" },
+        ].filter((x) => (typeof x.amount === "number" ? x.amount > 0 : true)),
+      );
+      setRewardPopupClaimed(false);
+      setRewardPopupOpen(true);
       onStateChange((prev) => {
         let newState = { ...prev, cardProgress: { ...prev.cardProgress }, gold: prev.gold + gold };
         const allLevelUps: (LevelUpResult & { cardId: string })[] = [];
-        const xpAmount = won ? 50 : isDraw ? 35 : 20;
         for (const id of playerDeckIds) {
           const progress = getCardProgress(newState, id);
           const result = awardXp(progress, xpAmount);
@@ -499,6 +531,17 @@ export default function RaidCoopArena({
         backgroundPosition: "center",
       }}
     >
+      <RewardPopup
+        open={rewardPopupOpen && state.phase === "game-over" && !showLevelUps && !rewardPopupClaimed}
+        onClose={() => {
+          setRewardPopupOpen(false);
+          setRewardPopupClaimed(true);
+        }}
+        title={rewardPopupTitle}
+        subtitle={rewardPopupSubtitle}
+        rewards={rewardPopupItems}
+        ctaLabel="Claim"
+      />
       <div className="absolute inset-0 pointer-events-none rounded-2xl bg-background/60" />
       {showLevelUps && <CardLevelUp levelUps={levelUps} onClose={() => setShowLevelUps(false)} />}
 
@@ -546,7 +589,7 @@ export default function RaidCoopArena({
           </div>
         </div>
 
-        {state.phase === "game-over" && (
+        {state.phase === "game-over" && rewardPopupClaimed && (
           <div className="rounded-xl border border-border/50 bg-card/90 p-4 text-center space-y-2">
             <h3 className="font-heading text-lg">
               {won ? "Raid cleared!" : lost ? "Defeat" : "Draw"}

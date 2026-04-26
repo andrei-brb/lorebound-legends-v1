@@ -10253,7 +10253,7 @@ function endTurn(state) {
   return startTurn(checkWinCondition(state));
 }
 function performAITurnLegacyOneStep(state) {
-  let s = state;
+  const s = state;
   const difficulty = s.aiDifficulty ?? "normal";
   if (s.phase === "game-over") return s;
   if (s.turn !== "enemy") return s;

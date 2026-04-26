@@ -44,6 +44,7 @@ import { toast } from "@/hooks/use-toast";
 import { awardBattlePassXp } from "@/lib/battlePassEngine";
 import { rollMysteryBox, claimFirstWin, FIRST_WIN_GOLD, FIRST_WIN_BP_XP } from "@/lib/dailyEngine";
 import { getCosmeticById } from "@/data/cosmetics";
+import RewardPopup, { type RewardItem } from "@/components/battle3d/RewardPopup";
 import LegendaryPicker from "./LegendaryPicker";
 import { useIsMobile } from "@/hooks/use-mobile";
 import defaultCardBack from "@/assets/battlepass/cardback-bloom-crest.jpg";
@@ -166,6 +167,12 @@ export default function BattleArena({
   const [levelUps, setLevelUps] = useState<(LevelUpResult & { cardId: string })[]>([]);
   const [showLevelUps, setShowLevelUps] = useState(false);
   const [showLegendaryPicker, setShowLegendaryPicker] = useState(false);
+  const [rewardPopupOpen, setRewardPopupOpen] = useState(false);
+  const [rewardPopupClaimed, setRewardPopupClaimed] = useState(false);
+  const [rewardPopupMode, setRewardPopupMode] = useState<"gameover" | "turn">("gameover");
+  const [rewardPopupItems, setRewardPopupItems] = useState<RewardItem[]>([]);
+  const [rewardPopupTitle, setRewardPopupTitle] = useState<string>("Victory Spoils");
+  const [rewardPopupSubtitle, setRewardPopupSubtitle] = useState<string>("The altar acknowledges your triumph.");
   const [actionMode, setActionMode] = useState<ActionMode>("none");
   const [selectedHandIndex, setSelectedHandIndex] = useState<number | null>(null);
   const [selectedFieldIndex, setSelectedFieldIndex] = useState<number | null>(null);
@@ -340,6 +347,13 @@ export default function BattleArena({
     }
     if (state.turn !== "player") return;
     queueBattleIntent({ kind: "end-turn" });
+
+    // Turn rollover tribute (End → next turn) — big mythic draw moment.
+    setRewardPopupMode("turn");
+    setRewardPopupTitle("Mythic Draw Tribute");
+    setRewardPopupSubtitle("The altar turns the page.");
+    setRewardPopupItems([{ kind: "card", label: "Mythic Draw", rarity: "mythic" }]);
+    setRewardPopupOpen(true);
     setSoloState((prev) => {
       if (!prev) return prev;
       let s = prev;
@@ -390,6 +404,7 @@ export default function BattleArena({
     const won = state.winner === "player";
     const isDraw = state.winner === "draw";
     const turnNumber = state.turnNumber;
+    const xpAmount = won ? 50 : isDraw ? 35 : 20;
 
     let questState = loadDailyQuests();
     if (won) questState = progressQuest(questState, "win_battles");
@@ -431,7 +446,24 @@ export default function BattleArena({
                   ? getRaidGoldReward(won, turnNumber, soloBoss.goldRewardMultiplier)
                   : getBattleGoldReward(won, turnNumber);
               // Server should provide a goldReward; if it doesn't (or returns 0), show local estimate.
-              setGoldEarned(result.goldReward > 0 ? result.goldReward : fallbackGold);
+              const goldReward = result.goldReward > 0 ? result.goldReward : fallbackGold;
+              setGoldEarned(goldReward);
+
+              setRewardPopupMode("gameover");
+              setRewardPopupTitle(won ? "Victory Spoils" : isDraw ? "Stalemate Tribute" : "Defeat Tribute");
+              setRewardPopupSubtitle(
+                won ? "The altar acknowledges your triumph." : isDraw ? "Balance is maintained." : "The altar remembers your resolve.",
+              );
+              setRewardPopupItems(
+                [
+                  { kind: "gold", amount: goldReward, label: "Gold", rarity: won ? "legendary" : "rare" },
+                  { kind: "xp", amount: xpAmount, label: "Battle XP", rarity: "rare" },
+                  { kind: "rune", amount: won ? 1 : 0, label: "Astral Rune", rarity: won ? "mythic" : "common" },
+                ].filter((x) => (typeof x.amount === "number" ? x.amount > 0 : true)),
+              );
+              setRewardPopupClaimed(false);
+              setRewardPopupOpen(true);
+
               const mapped = result.levelUps.map((lu) => ({
                 ...lu,
                 milestone: null as string | null,
@@ -488,9 +520,22 @@ export default function BattleArena({
             ? getRaidGoldReward(won, turnNumber, soloBoss.goldRewardMultiplier)
             : getBattleGoldReward(won, turnNumber);
         setGoldEarned(gold);
+        setRewardPopupMode("gameover");
+        setRewardPopupTitle(won ? "Victory Spoils" : isDraw ? "Stalemate Tribute" : "Defeat Tribute");
+        setRewardPopupSubtitle(
+          won ? "The altar acknowledges your triumph." : isDraw ? "Balance is maintained." : "The altar remembers your resolve.",
+        );
+        setRewardPopupItems(
+          [
+            { kind: "gold", amount: gold, label: "Gold", rarity: won ? "legendary" : "rare" },
+            { kind: "xp", amount: xpAmount, label: "Battle XP", rarity: "rare" },
+            { kind: "rune", amount: won ? 1 : 0, label: "Astral Rune", rarity: won ? "mythic" : "common" },
+          ].filter((x) => (typeof x.amount === "number" ? x.amount > 0 : true)),
+        );
+        setRewardPopupClaimed(false);
+        setRewardPopupOpen(true);
         let newState = { ...prev, cardProgress: { ...prev.cardProgress }, gold: prev.gold + gold };
         const allLevelUps: (LevelUpResult & { cardId: string })[] = [];
-        const xpAmount = won ? 50 : isDraw ? 35 : 20;
         for (const id of playerDeckIds) {
           const progress = getCardProgress(newState, id);
           const result = awardXp(progress, xpAmount);
@@ -1043,6 +1088,19 @@ export default function BattleArena({
       className="relative rounded-2xl border border-border/40 overflow-hidden"
       style={{ backgroundImage: `url(${boardSkinImage || battleBg})`, backgroundSize: "cover", backgroundPosition: "center" }}
     >
+      <RewardPopup
+        open={rewardPopupMode === "gameover"
+          ? rewardPopupOpen && state.phase === "game-over" && !showLevelUps && !rewardPopupClaimed
+          : rewardPopupOpen}
+        onClose={() => {
+          setRewardPopupOpen(false);
+          if (rewardPopupMode === "gameover") setRewardPopupClaimed(true);
+        }}
+        title={rewardPopupTitle}
+        subtitle={rewardPopupSubtitle}
+        rewards={rewardPopupItems}
+        ctaLabel="Claim"
+      />
       <div className="absolute inset-0 pointer-events-none rounded-2xl bg-background/60" />
       {showLevelUps && <CardLevelUp levelUps={levelUps} onClose={() => setShowLevelUps(false)} />}
 
@@ -1362,7 +1420,7 @@ export default function BattleArena({
 
       {/* ===== Game Over Overlay ===== */}
       <AnimatePresence>
-        {state.phase === "game-over" && !showLevelUps && (
+        {state.phase === "game-over" && !showLevelUps && rewardPopupClaimed && (
           <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="fixed inset-0 z-[120] flex items-center justify-center bg-background/80 backdrop-blur-sm">
             <motion.div initial={{ y: 30 }} animate={{ y: 0 }} className="bg-card border border-border rounded-2xl p-8 text-center max-w-md mx-auto">
               {state.winner === "player" ? (
