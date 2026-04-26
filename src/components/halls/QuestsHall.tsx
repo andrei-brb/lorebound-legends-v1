@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ScrollText, CheckCircle2, Clock, Coins, Sparkles } from "lucide-react";
 import type { PlayerState } from "@/lib/playerState";
 import HallLayout, { HallSection, HallStat } from "@/components/scene/HallLayout";
@@ -37,13 +37,15 @@ export default function QuestsHall({ playerState, onStateChange }: Props) {
   const [rewardTitle, setRewardTitle] = useState("Reward Bestowed");
   const [rewardSubtitle, setRewardSubtitle] = useState("The altar grants its favor.");
 
-  const questsAll = useMemo((): Quest[] => {
+  useEffect(() => {
     const qs = loadDailyQuests();
-    // Keep UI in sync if day rolled over while the app stayed open.
     if (qs.lastResetDate !== questState.lastResetDate) setQuestState(qs);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [questState.lastResetDate]);
 
-    const byId = new Map(qs.quests.map((q) => [q.questId, q]));
-    return qs.questDefinitions
+  const questsAll = useMemo((): Quest[] => {
+    const byId = new Map(questState.quests.map((q) => [q.questId, q]));
+    return questState.questDefinitions
       .map((d) => {
         const p = byId.get(d.id);
         if (!p) return null;
