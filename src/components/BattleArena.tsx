@@ -45,6 +45,7 @@ import { awardBattlePassXp } from "@/lib/battlePassEngine";
 import { rollMysteryBox, claimFirstWin, FIRST_WIN_GOLD, FIRST_WIN_BP_XP } from "@/lib/dailyEngine";
 import { getCosmeticById } from "@/data/cosmetics";
 import RewardPopup, { type RewardItem } from "@/components/battle3d/RewardPopup";
+import ResponseWindow from "@/components/battle/ResponseWindow";
 import LegendaryPicker from "./LegendaryPicker";
 import { useIsMobile } from "@/hooks/use-mobile";
 import defaultCardBack from "@/assets/battlepass/cardback-bloom-crest.jpg";
@@ -1104,85 +1105,16 @@ export default function BattleArena({
       <div className="absolute inset-0 pointer-events-none rounded-2xl bg-background/60" />
       {showLevelUps && <CardLevelUp levelUps={levelUps} onClose={() => setShowLevelUps(false)} />}
 
-      {/* ygoHybrid Response Window (player-side) */}
-      <AnimatePresence>
-        {state?.responseWindow && state.responseWindow.responder === "player" && state.phase !== "game-over" && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[80] flex items-center justify-center bg-black/50 backdrop-blur-sm"
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="w-[min(92vw,420px)] rounded-2xl border border-border bg-card p-4 shadow-2xl"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-bold">Response Window</p>
-                  <h3 className="font-heading text-base font-bold text-foreground mt-1">
-                    Opponent action — respond?
-                  </h3>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Trigger: <span className="font-mono">{state.responseWindow.cause}</span>
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-2 mt-4">
-                <button
-                  onClick={() => setSoloState((prev) => (prev ? passResponseWindow(prev) : prev))}
-                  className="flex-1 px-3 py-2 rounded-xl bg-secondary text-secondary-foreground font-heading font-bold text-sm hover:bg-secondary/80"
-                >
-                  No (Pass)
-                </button>
-                <div className="flex-1 space-y-2">
-                  <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Activate</div>
-                  <div className="space-y-1">
-                    {state.player.traps
-                      .map((t, idx) => ({ t, idx }))
-                      .filter(({ t }) => t && t.faceDown && t.card.trapEffect?.trigger === state.responseWindow?.cause)
-                      .map(({ t, idx }) => (
-                        <button
-                          key={`trap-${idx}`}
-                          onClick={() => setSoloState((prev) => (prev ? activateTrapFromResponseWindow(prev, idx) : prev))}
-                          className="w-full px-3 py-2 rounded-xl bg-primary text-primary-foreground font-heading font-bold text-xs hover:brightness-110 text-left"
-                        >
-                          🪤 {t!.card.name}
-                        </button>
-                      ))}
-
-                    {state.player.hand
-                      .map((c, idx) => ({ c, idx }))
-                      .filter(({ c }) => c.type === "spell" && c.spellSpeed === "quick")
-                      .map(({ c, idx }) => (
-                        <button
-                          key={`qs-${c.id}-${idx}`}
-                          onClick={() => setSoloState((prev) => (prev ? activateQuickSpellFromResponseWindow(prev, idx) : prev))}
-                          className="w-full px-3 py-2 rounded-xl bg-legendary/90 text-white font-heading font-bold text-xs hover:brightness-110 text-left"
-                        >
-                          ⚡ {c.name}
-                        </button>
-                      ))}
-
-                    {state.player.hand.every((c) => !(c.type === "spell" && c.spellSpeed === "quick")) &&
-                      state.player.traps.every((t) => !(t && t.faceDown && t.card.trapEffect?.trigger === state.responseWindow?.cause)) && (
-                        <div className="text-[11px] text-muted-foreground">
-                          No eligible traps or quick spells.
-                        </div>
-                      )}
-                  </div>
-                </div>
-              </div>
-              <p className="text-[10px] text-muted-foreground mt-3">
-                Pick 1 response. After activation, the window closes and play continues.
-              </p>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {state?.responseWindow && state.responseWindow.responder === "player" && state.phase !== "game-over" && (
+        <ResponseWindow
+          open
+          responseWindow={state.responseWindow}
+          responderSide={state.player}
+          onPass={() => setSoloState((prev) => (prev ? passResponseWindow(prev) : prev))}
+          onTrap={(slotIndex) => setSoloState((prev) => (prev ? activateTrapFromResponseWindow(prev, slotIndex) : prev))}
+          onQuickSpell={(handIndex) => setSoloState((prev) => (prev ? activateQuickSpellFromResponseWindow(prev, handIndex) : prev))}
+        />
+      )}
 
       <div className="relative flex">
         <div className="flex-1 flex flex-col min-h-0">
