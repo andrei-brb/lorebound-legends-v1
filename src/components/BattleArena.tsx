@@ -567,8 +567,10 @@ export default function BattleArena({
             });
           }
         }
-        const tutorialDone = newState.tutorialBattlesCompleted ?? 0;
-        if (won && tutorialDone < 5 && !livePvP && !onRankedSubmit) {
+        // Only show the new-player legendary picker if the field exists and indicates they're still in the tutorial track.
+        // If `tutorialBattlesCompleted` is missing (older accounts), treat it as "done" to avoid showing this popup.
+        const tutorialDone = newState.tutorialBattlesCompleted;
+        if (won && typeof tutorialDone === "number" && tutorialDone < 5 && !livePvP && !onRankedSubmit) {
           setShowLegendaryPicker(true);
         }
         return newState;
@@ -1413,6 +1415,7 @@ export default function BattleArena({
                 tutorialBattlesCompleted: (playerState.tutorialBattlesCompleted ?? 0) + 1,
               });
               setShowLegendaryPicker(false);
+              onExit();
             }}
           />
         );
