@@ -1,48 +1,44 @@
-import React from "react";
+import { Component, type ReactNode } from "react";
 
 type Props = {
-  children: React.ReactNode;
+  children: ReactNode;
 };
 
 type State = {
-  hasError: boolean;
-  message?: string;
-  stack?: string;
+  error: Error | null;
+  componentStack: string | null;
 };
 
-export default class ErrorBoundary extends React.Component<Props, State> {
-  state: State = { hasError: false };
+export default class ErrorBoundary extends Component<Props, State> {
+  state: State = { error: null, componentStack: null };
 
-  static getDerivedStateFromError(error: unknown): State {
-    const message = error instanceof Error ? error.message : String(error);
-    const stack = error instanceof Error ? error.stack : undefined;
-    return { hasError: true, message, stack };
+  static getDerivedStateFromError(error: Error): State {
+    return { error, componentStack: null };
   }
 
-  componentDidCatch(error: unknown) {
-    // Keep logging for environments where console is available.
-    console.error("[UI] Uncaught render error:", error);
+  componentDidCatch(error: Error, info: { componentStack: string }) {
+    // Keep the UI usable in production embeds (Discord) by surfacing the component stack.
+    // eslint-disable-next-line no-console
+    console.error("[ErrorBoundary]", error, info);
+    this.setState({ error, componentStack: info.componentStack });
   }
 
   render() {
-    if (!this.state.hasError) return this.props.children;
+    if (!this.state.error) return this.props.children;
+
     return (
-      <div className="min-h-screen bg-background text-foreground flex items-center justify-center p-6">
-        <div className="w-full max-w-3xl rounded-2xl border border-border bg-card p-6 space-y-4">
-          <h1 className="font-heading text-xl font-bold">Something crashed</h1>
-          <p className="text-sm text-muted-foreground">
-            Copy this error and send it to the developer so we can fix it.
-          </p>
-          <pre className="text-xs whitespace-pre-wrap break-words rounded-lg bg-secondary p-4 border border-border overflow-auto max-h-[50vh]">
-            {this.state.message}
-            {this.state.stack ? `\n\n${this.state.stack}` : ""}
+      <div className="min-h-screen bg-[#070505] text-[#f3e3b5] p-6">
+        <div className="panel-gold max-w-3xl mx-auto p-6">
+          <div className="font-heading text-xl gold-text">Something went wrong</div>
+          <div className="mt-2 text-sm text-[#d6c293]">
+            A runtime error occurred. If you see this in Discord, please send a screenshot of this panel.
+          </div>
+          <pre className="mt-4 whitespace-pre-wrap text-[12px] leading-relaxed text-[#e9d8aa]/90">
+            {String(this.state.error?.message || this.state.error)}
+            {"\n\n"}
+            {this.state.error?.stack ? this.state.error.stack : ""}
+            {this.state.componentStack ? `\n\nComponent stack:\n${this.state.componentStack}` : ""}
           </pre>
-          <a
-            className="inline-flex items-center justify-center h-10 px-4 rounded-md bg-primary text-primary-foreground font-heading font-bold text-sm"
-            href="/"
-          >
-            Reload
-          </a>
         </div>
       </div>
     );

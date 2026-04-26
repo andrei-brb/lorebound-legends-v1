@@ -2,6 +2,7 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 import { isDiscordEmbeddedConfigured, setupDiscordEmbedded } from "./lib/discordEmbedded";
+import ErrorBoundary from "./components/ErrorBoundary";
 
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   let t: ReturnType<typeof setTimeout> | null = null;
@@ -22,7 +23,11 @@ async function bootstrap() {
       console.warn("[Discord] Embedded setup failed; continuing without Discord auth.", e);
     }
   }
-  createRoot(document.getElementById("root")!).render(<App />);
+  createRoot(document.getElementById("root")!).render(
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>,
+  );
 }
 
 void bootstrap();
