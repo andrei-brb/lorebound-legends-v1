@@ -234,6 +234,22 @@ export default function Index() {
     setRaidState(initRaidCoopBattle(raidHotseat.deckIds, raidHotseat.deckIds, boss));
   }, [raidHotseat]);
 
+  const openDeckSelect = useCallback(
+    (opts: { title: string; subtitle: string; onPick: (deckIds: string[]) => void }) => {
+      const presets = Array.isArray(playerState.deckPresets) ? playerState.deckPresets : [];
+      if (presets.length === 0) {
+        // No saved decks yet → send them to the deck builder.
+        setActiveTab("deck");
+        return;
+      }
+      setDeckSelectTitle(opts.title);
+      setDeckSelectSubtitle(opts.subtitle);
+      deckSelectOnPickRef.current = opts.onPick;
+      setDeckSelectOpen(true);
+    },
+    [playerState.deckPresets],
+  );
+
   if (status === "loading") {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -250,22 +266,6 @@ export default function Index() {
   }
 
   const handleTabClick = (tabId: Tab) => setActiveTab(tabId);
-
-  const openDeckSelect = useCallback(
-    (opts: { title: string; subtitle: string; onPick: (deckIds: string[]) => void }) => {
-      const presets = Array.isArray(playerState.deckPresets) ? playerState.deckPresets : [];
-      if (presets.length === 0) {
-        // No saved decks yet → send them to the deck builder.
-        setActiveTab("deck");
-        return;
-      }
-      setDeckSelectTitle(opts.title);
-      setDeckSelectSubtitle(opts.subtitle);
-      deckSelectOnPickRef.current = opts.onPick;
-      setDeckSelectOpen(true);
-    },
-    [playerState.deckPresets],
-  );
 
   const startBattle = (deckIds: string[]) => {
     setRankedBattle(null);
