@@ -32,7 +32,7 @@ export default function CardDetailPanel({ card }: Props) {
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: 40 }}
           transition={{ type: "spring", stiffness: 280, damping: 26 }}
-          className="pointer-events-none absolute right-6 top-1/2 z-40 w-60 -translate-y-1/2"
+          className="pointer-events-none absolute right-6 top-44 z-40 w-60"
         >
           <div className="overflow-hidden rounded-xl border border-yellow-500/40 bg-gradient-to-b from-slate-900/95 via-slate-950/95 to-black/95 shadow-2xl backdrop-blur-md">
             <div className="flex items-center justify-between border-b border-yellow-500/40 bg-gradient-to-r from-yellow-700/40 via-yellow-600/30 to-yellow-700/40 px-3 py-2">
