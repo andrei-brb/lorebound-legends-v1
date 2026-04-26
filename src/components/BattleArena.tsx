@@ -278,6 +278,9 @@ export default function BattleArena({
       setRewardsGiven(false);
       setGoldEarned(0);
       setLevelUps([]);
+      setRewardPopupOpen(false);
+      setRewardPopupClaimed(false);
+      setRewardPopupMode("gameover");
       cardsPlayedRef.current = 0;
     })();
 
@@ -508,11 +511,7 @@ export default function BattleArena({
             });
           }
         } else {
-          toast({
-            title: "Online rewards unavailable",
-            description: "Could not start a server battle session. Rewards use local rules until you reconnect.",
-            variant: "destructive",
-          });
+          // If we couldn't start an online session, fall back to local rewards silently.
         }
       }
       if (usedOnlinePvE) return;
@@ -1400,68 +1399,6 @@ export default function BattleArena({
           <BattleLogPanel logs={state.logs} className="h-full" />
         </div>
       )}
-
-      {/* ===== Game Over Overlay ===== */}
-      <AnimatePresence>
-        {state.phase === "game-over" && !showLevelUps && rewardPopupClaimed && (
-          <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="fixed inset-0 z-[120] flex items-center justify-center bg-background/80 backdrop-blur-sm">
-            <motion.div initial={{ y: 30 }} animate={{ y: 0 }} className="bg-card border border-border rounded-2xl p-8 text-center max-w-md mx-auto">
-              {state.winner === "player" ? (
-                <>
-                  <Trophy className="w-16 h-16 text-legendary mx-auto mb-4" />
-                  <h3 className="font-heading text-2xl font-bold text-legendary mb-2">Victory!</h3>
-                  <p className="text-muted-foreground text-sm">Your strategy was flawless!</p>
-                </>
-              ) : state.winner === "draw" ? (
-                <>
-                  <Sparkles className="w-16 h-16 text-synergy mx-auto mb-4" />
-                  <h3 className="font-heading text-2xl font-bold text-synergy mb-2">Draw!</h3>
-                  <p className="text-muted-foreground text-sm">Both sides fell simultaneously.</p>
-                </>
-              ) : (
-                <>
-                  <Skull className="w-16 h-16 text-destructive mx-auto mb-4" />
-                  <h3 className="font-heading text-2xl font-bold text-destructive mb-2">Defeat</h3>
-                  <p className="text-muted-foreground text-sm">Rebuild and try again!</p>
-                </>
-              )}
-              {!livePvP && (
-                <div className="mt-4 p-3 rounded-xl bg-secondary space-y-2">
-                  <div className="flex items-center justify-center gap-2">
-                    <GoldCurrencyIcon className="w-4 h-4" />
-                    <span className="font-heading font-bold text-foreground">+{goldEarned} Gold</span>
-                  </div>
-                  <p className="text-[10px] text-muted-foreground">
-                    All deck cards earned {state.winner === "player" ? "50" : state.winner === "draw" ? "35" : "20"} XP
-                  </p>
-                </div>
-              )}
-              <div className="flex gap-3 mt-6 justify-center">
-                <button onClick={onExit} className="px-5 py-2.5 rounded-xl bg-secondary text-secondary-foreground font-heading font-bold text-sm hover:bg-secondary/80">
-                  {livePvP ? "Back to PvP" : "Back to Deck"}
-                </button>
-                {!livePvP && (
-                  <button
-                    onClick={() => {
-                      const enemyIds = generateEnemyDeck(playerDeckIds.length);
-                      setSoloState(initBattle(playerDeckIds, enemyIds, { ruleset: "ygoHybrid" }));
-                      setRewardsGiven(false);
-                      setGoldEarned(0);
-                      setLevelUps([]);
-                      setActionMode("none");
-                      setSelectedFieldIndex(null);
-                      setSelectedHandIndex(null);
-                    }}
-                    className="px-5 py-2.5 rounded-xl bg-primary text-primary-foreground font-heading font-bold text-sm hover:brightness-110"
-                  >
-                    Battle Again
-                  </button>
-                )}
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {showLegendaryPicker && (() => {
         const battleNum = Math.min(5, (playerState.tutorialBattlesCompleted ?? 0) + 1) as 1 | 2 | 3 | 4 | 5;
