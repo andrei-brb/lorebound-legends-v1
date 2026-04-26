@@ -1,5 +1,4 @@
 import type { GameCard } from "@/data/cards";
-import type { BattleState, FieldCard, PlayerSide } from "@/lib/battleEngine";
 
 export type OneEffectTiming = "on_summon" | "on_death" | "activate";
 
@@ -101,15 +100,5 @@ export function getOneEffectForCard(card: GameCard): OneEffectDef | null {
     value,
     requiresTarget: timing === "activate" ? requiresTarget : false,
   };
-}
-
-export function canActivateOneEffect(state: BattleState, side: PlayerSide, fc: FieldCard): { ok: boolean; reason?: string; hpCost?: number; def?: OneEffectDef } {
-  const def = getOneEffectForCard(fc.card);
-  if (!def || def.timing !== "activate") return { ok: false, reason: "No activate effect" };
-  const hpCost = def.hpCost ?? 6;
-  if (side.hp <= hpCost) return { ok: false, reason: `Need >${hpCost} HP`, hpCost, def };
-  if (fc.abilityUsed) return { ok: false, reason: "Already used", hpCost, def };
-  if (fc.stunned) return { ok: false, reason: "Stunned", hpCost, def };
-  return { ok: true, hpCost, def };
 }
 

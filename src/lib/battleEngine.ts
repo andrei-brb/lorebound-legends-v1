@@ -9,7 +9,7 @@ import type { CardProgress } from "./playerState";
 import { resolveAbilityEffect } from "./abilityInference";
 import type { AbilityEffect, AbilityTarget } from "./abilityEffectTypes";
 import { cardHasKeyword } from "./keywords";
-import { canActivateOneEffect, getOneEffectForCard, type OneEffectDef } from "./cardOneEffect";
+import { getOneEffectForCard, type OneEffectDef } from "./cardOneEffect";
 
 // =================== Types ===================
 
@@ -1951,15 +1951,17 @@ export function activateOneEffect(state: BattleState, sourceFieldIndex: number, 
   const src = side.field[sourceFieldIndex];
   if (!src) return state;
 
-  const gate = canActivateOneEffect(newState, side, src);
-  if (!gate.ok || !gate.def) return state;
-  const hpCost = gate.hpCost ?? gate.def.hpCost ?? 6;
+  const def = getOneEffectForCard(src.card);
+  if (!def || def.timing !== "activate") return state;
+  if (src.abilityUsed || src.stunned || src.abilityRechargeIn !== undefined) return state;
+  const hpCost = def.hpCost ?? 6;
+  if ((side.hp ?? 0) <= hpCost) return state;
 
   side.hp = Math.max(0, side.hp - hpCost);
   src.abilityUsed = true;
   addLog(newState, `🩸 You pay ${hpCost} HP to invoke ${src.card.name}'s effect.`, "ability");
 
-  applyOneEffect(newState, "player", sourceFieldIndex, gate.def, targetFieldIndex);
+  applyOneEffect(newState, "player", sourceFieldIndex, def, targetFieldIndex);
   return recalcFieldStats(checkWinCondition(newState));
 }
 
