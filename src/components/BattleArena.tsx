@@ -21,7 +21,6 @@ import {
   passResponseWindow,
   activateTrapFromResponseWindow,
   activateQuickSpellFromResponseWindow,
-  activateOneEffectFromResponseWindow,
   resolveAiResponseWindow,
 } from "@/lib/battleEngine";
 import { getOneEffectForCard } from "@/lib/cardOneEffect";
@@ -1155,7 +1154,6 @@ export default function BattleArena({
           onPass={() => setSoloState((prev) => (prev ? passResponseWindow(prev) : prev))}
           onTrap={(slotIndex) => setSoloState((prev) => (prev ? activateTrapFromResponseWindow(prev, slotIndex) : prev))}
           onQuickSpell={(handIndex) => setSoloState((prev) => (prev ? activateQuickSpellFromResponseWindow(prev, handIndex) : prev))}
-          onEffect={(fieldIndex) => setSoloState((prev) => (prev ? activateOneEffectFromResponseWindow(prev, fieldIndex) : prev))}
         />
       )}
 

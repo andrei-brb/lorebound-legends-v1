@@ -2,12 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { cn } from "@/lib/utils";
 import type { ResponseWindow as EngineResponseWindow, ResponseWindowCause, PlayerSide } from "@/lib/battleEngine";
-import { getOneEffectForCard } from "@/lib/cardOneEffect";
 
 type Option =
   | { id: string; type: "trap"; label: string; desc: string; slotIndex: number }
   | { id: string; type: "spell"; label: string; desc: string; handIndex: number }
-  | { id: string; type: "effect"; label: string; desc: string; fieldIndex: number }
   | { id: string; type: "pass"; label: string; desc: string };
 
 export default function ResponseWindow(props: {
@@ -18,9 +16,8 @@ export default function ResponseWindow(props: {
   onPass: () => void;
   onTrap: (slotIndex: number) => void;
   onQuickSpell: (handIndex: number) => void;
-  onEffect: (fieldIndex: number) => void;
 }) {
-  const { open, responseWindow, responderSide, onPass, onTrap, onQuickSpell, onEffect, autoPassMs = 10_000 } = props;
+  const { open, responseWindow, responderSide, onPass, onTrap, onQuickSpell, autoPassMs = 10_000 } = props;
 
   const cause = responseWindow.cause;
   const traps = useMemo(() => {
@@ -45,36 +42,13 @@ export default function ResponseWindow(props: {
       }));
   }, [responderSide.hand]);
 
-  const effects = useMemo(() => {
-    return responderSide.field
-      .map((fc, idx) => ({ fc, idx }))
-      .filter(({ fc }) => {
-        if (!fc) return false;
-        const eff = getOneEffectForCard(fc.card);
-        if (!eff || eff.timing !== "activate") return false;
-        if (fc.abilityUsed || fc.stunned || fc.abilityRechargeIn !== undefined) return false;
-        const hpCost = eff.hpCost ?? 6;
-        return (responderSide.hp ?? 0) > hpCost;
-      })
-      .map(({ fc, idx }) => {
-        const eff = getOneEffectForCard(fc!.card)!;
-        const hpCost = eff.hpCost ?? 6;
-        return {
-          fieldIndex: idx,
-          label: `Invoke ${fc!.card.name}`,
-          desc: `Effect • Cost ${hpCost} HP${eff.requiresTarget ? " • Targets" : ""}`,
-        };
-      });
-  }, [responderSide.field, responderSide.hp]);
-
   const options: Option[] = useMemo(() => {
     return [
       ...traps.map((t) => ({ id: `trap-${t.slotIndex}`, type: "trap" as const, label: t.label, desc: t.desc, slotIndex: t.slotIndex })),
       ...quicks.map((q) => ({ id: `quick-${q.handIndex}`, type: "spell" as const, label: q.label, desc: q.desc, handIndex: q.handIndex })),
-      ...effects.map((e) => ({ id: `eff-${e.fieldIndex}`, type: "effect" as const, label: e.label, desc: e.desc, fieldIndex: e.fieldIndex })),
       { id: "pass", type: "pass" as const, label: "Pass", desc: "Let the action resolve" },
     ];
-  }, [traps, quicks, effects]);
+  }, [traps, quicks]);
 
   const causeLabel = useMemo(() => causeToLabel(cause), [cause]);
   const triggerLine = useMemo(() => computeTriggerLine(responseWindow), [responseWindow]);
@@ -139,9 +113,9 @@ export default function ResponseWindow(props: {
                 <div className="mt-2 font-heading text-xl gold-text">Response Window</div>
                 <div className="mt-1 font-lore text-[#d6c293] text-sm">{triggerLine}</div>
                 <div className="mt-3 text-[11px] text-[#d6c293]/80">
-                  {traps.length === 0 && quicks.length === 0 && effects.length === 0
+                  {traps.length === 0 && quicks.length === 0
                     ? "No counters available — pass to continue."
-                    : `${traps.length} face-down trap${traps.length !== 1 ? "s" : ""} · ${quicks.length} quick spell${quicks.length !== 1 ? "s" : ""} · ${effects.length} invoke${effects.length !== 1 ? "s" : ""}`}
+                    : `${traps.length} face-down trap${traps.length !== 1 ? "s" : ""} · ${quicks.length} quick spell${quicks.length !== 1 ? "s" : ""}`}
                 </div>
               </div>
 
@@ -155,7 +129,6 @@ export default function ResponseWindow(props: {
                       if (o.type === "pass") onPass();
                       else if (o.type === "trap") onTrap(o.slotIndex);
                       else if (o.type === "spell") onQuickSpell(o.handIndex);
-                      else onEffect(o.fieldIndex);
                     }}
                     className={cn(
                       "w-full flex items-center gap-3 p-3 rounded-lg text-left transition",
@@ -171,7 +144,7 @@ export default function ResponseWindow(props: {
                       }}
                     >
                       <span className="text-lg">
-                        {o.type === "trap" ? "🪤" : o.type === "spell" ? "✦" : o.type === "effect" ? "✧" : "→"}
+                        {o.type === "trap" ? "🪤" : o.type === "spell" ? "✦" : "→"}
                       </span>
                     </div>
                     <div className="min-w-0">

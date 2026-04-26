@@ -1,6 +1,6 @@
 import type { GameCard } from "@/data/cards";
 
-export type OneEffectTiming = "on_summon" | "on_death" | "activate";
+export type OneEffectTiming = "on_summon" | "on_death" | "activate" | "react";
 
 export type OneEffectKind =
   | "damage_enemy"
@@ -18,6 +18,8 @@ export type OneEffectKind =
 export type OneEffectDef = {
   timing: OneEffectTiming;
   kind: OneEffectKind;
+  name: string;
+  description: string;
   /** For activate effects: HP cost. */
   hpCost?: number;
   /** For buffs/debuffs/dots: turns. */
@@ -29,12 +31,13 @@ export type OneEffectDef = {
 };
 
 function hashId(id: string): number {
+  // FNV-1a 32-bit
   let h = 2166136261;
   for (let i = 0; i < id.length; i++) {
     h ^= id.charCodeAt(i);
     h = Math.imul(h, 16777619);
   }
-  return Math.abs(h);
+  return h >>> 0;
 }
 
 function choose<T>(arr: T[], seed: number): T {
@@ -49,14 +52,22 @@ export function getOneEffectForCard(card: GameCard): OneEffectDef | null {
   if (card.type !== "hero" && card.type !== "god") return null;
 
   const seed = hashId(card.id);
-  const rarity = card.rarity;
-  const isLegend = rarity === "legendary";
-  const isRare = rarity === "rare";
 
-  const timing: OneEffectTiming = isLegend ? "activate" : isRare ? choose(["activate", "on_summon"], seed) : choose(["on_summon", "on_death"], seed);
+  // Some cards have no extra effect (keeps game harder; identity comes from stats + passives).
+  // Roughly: commons often none, rares sometimes none, legendaries usually have one.
+  const noneRoll = seed % 10;
+  if (card.rarity === "common" && noneRoll < 5) return null;
+  if (card.rarity === "rare" && noneRoll < 2) return null;
 
-  const base = isLegend ? 4 : isRare ? 3 : 2;
-  const dur = isLegend ? 2 : 1;
+  // Timing: react is rare and only for a small subset.
+  const timingPool: OneEffectTiming[] =
+    card.rarity === "legendary" || card.rarity === "mythic"
+      ? ["on_summon", "on_death", "activate", "react"]
+      : ["on_summon", "on_death", "activate"];
+  const timing = choose(timingPool, seed);
+
+  const base = card.rarity === "mythic" ? 5 : card.rarity === "legendary" ? 4 : card.rarity === "rare" ? 3 : 2;
+  const dur = card.rarity === "mythic" ? 3 : card.rarity === "legendary" ? 2 : 1;
 
   // Choose a single effect kind based on tags (YGO-ish identity).
   const pool: OneEffectKind[] = [];
@@ -69,9 +80,9 @@ export function getOneEffectForCard(card: GameCard): OneEffectDef | null {
   if (hasTag(card, "healer") || hasTag(card, "light") || hasTag(card, "lunar")) pool.push("heal_hero", "shield_hero", "buff_ally_defense");
   if (pool.length === 0) pool.push("damage_enemy");
 
-  const kind = choose(pool, seed);
+  const kind = choose(pool, seed >>> 3);
 
-  const hpCost = timing === "activate" ? Math.max(4, Math.min(10, 4 + (seed % 7))) : undefined;
+  const hpCost = timing === "activate" || timing === "react" ? Math.max(4, Math.min(12, 4 + (seed % 9))) : undefined;
   const requiresTarget =
     kind === "damage_enemy" ||
     kind === "stun_enemy" ||
@@ -92,13 +103,56 @@ export function getOneEffectForCard(card: GameCard): OneEffectDef | null {
     kind === "blind_enemy" ? 0 : // blind uses missChance via duration + fixed chance
     1;
 
+  const name =
+    kind === "damage_enemy" ? (hasTag(card, "fire") ? "Branding Strike" : "Judgment") :
+    kind === "stun_enemy" ? "Stasis Sigil" :
+    kind === "debuff_enemy_attack" ? "Withering Decree" :
+    kind === "debuff_enemy_defense" ? "Sunder Oath" :
+    kind === "heal_hero" ? "Sanctuary" :
+    kind === "shield_hero" ? "Aegis Rite" :
+    kind === "buff_ally_attack" ? "War Hymn" :
+    kind === "buff_ally_defense" ? "Ward Chorus" :
+    kind === "burn_enemy" ? "Cinder Mark" :
+    kind === "poison_enemy" ? "Venom Script" :
+    "Veil of Ash";
+
+  const timingLabel =
+    timing === "on_summon" ? "On Summon" :
+    timing === "on_death" ? "On Death" :
+    timing === "react" ? "Quick Response" :
+    "Activate";
+  const description =
+    kind === "damage_enemy"
+      ? `${timingLabel}: Deal ${value} + 30% ATK as damage to an enemy.`
+      : kind === "stun_enemy"
+        ? `${timingLabel}: Stun an enemy for ${dur} turn(s).`
+        : kind === "debuff_enemy_attack"
+          ? `${timingLabel}: -${value} ATK to an enemy for ${dur} turn(s).`
+          : kind === "debuff_enemy_defense"
+            ? `${timingLabel}: -${value} DEF to an enemy for ${dur} turn(s).`
+            : kind === "heal_hero"
+              ? `${timingLabel}: Heal your hero for ${value}.`
+              : kind === "shield_hero"
+                ? `${timingLabel}: Grant your hero ${value} shield.`
+                : kind === "buff_ally_attack"
+                  ? `${timingLabel}: +${value} ATK to an ally for ${dur} turn(s).`
+                  : kind === "buff_ally_defense"
+                    ? `${timingLabel}: +${value} DEF to an ally for ${dur} turn(s).`
+                    : kind === "burn_enemy"
+                      ? `${timingLabel}: Burn an enemy for ${value}/turn for ${dur} turn(s).`
+                      : kind === "poison_enemy"
+                        ? `${timingLabel}: Poison an enemy for ${value}/turn for ${dur} turn(s).`
+                        : `${timingLabel}: Blind an enemy for ${dur} turn(s).`;
+
   return {
     timing,
     kind,
+    name,
+    description,
     hpCost,
     duration: kind.includes("buff") || kind.includes("debuff") || kind.includes("burn") || kind.includes("poison") || kind.includes("blind") || kind.includes("stun") ? dur : undefined,
     value,
-    requiresTarget: timing === "activate" ? requiresTarget : false,
+    requiresTarget: timing === "activate" || timing === "react" ? requiresTarget : false,
   };
 }
 

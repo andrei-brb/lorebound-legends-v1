@@ -783,15 +783,15 @@ function openResponseWindow(
   const hasQuickSpell = responderSide.hand.some(
     (c) => c.type === "spell" && c.spellSpeed === "quick" && Boolean(c.spellEffect),
   );
-  const hasOneEffect = responderSide.field.some((fc) => {
+  const hasReact = responderSide.field.some((fc) => {
     if (!fc) return false;
     const eff = getOneEffectForCard(fc.card);
-    if (eff?.timing !== "activate") return false;
+    if (eff?.timing !== "react") return false;
     if (fc.abilityUsed || fc.stunned || fc.abilityRechargeIn !== undefined) return false;
     const hpCost = eff.hpCost ?? 6;
     return (responderSide.hp ?? 0) > hpCost;
   });
-  if (!hasTrap && !hasQuickSpell && !hasOneEffect) return;
+  if (!hasTrap && !hasQuickSpell && !hasReact) return;
 
   state.responseWindow = {
     id: (state.responseWindow?.id ?? 0) + 1,
@@ -842,12 +842,12 @@ export function resolveAiResponseWindow(state: BattleState): BattleState {
     }
   }
 
-  // Otherwise, try a hero/god one-effect activation.
+  // Otherwise, try a hero/god quick-response effect (rare).
   for (let i = 0; i < responderSide.field.length; i++) {
     const fc = responderSide.field[i];
     if (!fc) continue;
     const eff = getOneEffectForCard(fc.card);
-    if (eff?.timing !== "activate") continue;
+    if (eff?.timing !== "react") continue;
     if (fc.abilityUsed || fc.stunned || fc.abilityRechargeIn !== undefined) continue;
     const hpCost = eff.hpCost ?? 6;
     if ((responderSide.hp ?? 0) <= hpCost) continue;
@@ -869,7 +869,7 @@ export function activateOneEffectFromResponseWindow(state: BattleState, sourceFi
   if (!src) return state;
 
   const def = getOneEffectForCard(src.card);
-  if (!def || def.timing !== "activate") return state;
+  if (!def || def.timing !== "react") return state;
   if (src.abilityUsed || src.stunned || src.abilityRechargeIn !== undefined) return state;
   const hpCost = def.hpCost ?? 6;
   if ((responderSide.hp ?? 0) <= hpCost) return state;
