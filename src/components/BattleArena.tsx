@@ -12,6 +12,7 @@ import {
   castSpell,
   attackTarget,
   activateAbility,
+  activateOneEffect,
   performAITurn,
   generateEnemyDeck,
   endTurnAction,
@@ -22,6 +23,7 @@ import {
   activateQuickSpellFromResponseWindow,
   resolveAiResponseWindow,
 } from "@/lib/battleEngine";
+import { getOneEffectForCard } from "@/lib/cardOneEffect";
 import {
   replayBattleFromActions,
   toViewerBattleState,
@@ -117,7 +119,12 @@ interface BattleArenaProps {
   soloRaidBossId?: string | null;
 }
 
-type ActionMode = "none" | "select-attack-target" | "select-equip-target" | "select-spell-target";
+type ActionMode =
+  | "none"
+  | "select-attack-target"
+  | "select-equip-target"
+  | "select-spell-target"
+  | "select-effect-target";
 
 type Rect = { x: number; y: number; w: number; h: number };
 type FlyingCard = { id: number; img: string; name: string; from: Rect; to: Rect };
@@ -177,6 +184,7 @@ export default function BattleArena({
   const [actionMode, setActionMode] = useState<ActionMode>("none");
   const [selectedHandIndex, setSelectedHandIndex] = useState<number | null>(null);
   const [selectedFieldIndex, setSelectedFieldIndex] = useState<number | null>(null);
+  const [effectSourceFieldIndex, setEffectSourceFieldIndex] = useState<number | null>(null);
   const cardsPlayedRef = useRef(0);
   const rankedActionLogRef = useRef<BattleLockstepIntent[]>([]);
   const pveActionLogRef = useRef<BattleLockstepIntent[]>([]);
@@ -760,6 +768,16 @@ export default function BattleArena({
         setActionMode("none");
         setSelectedHandIndex(null);
       }, 150);
+    } else if (actionMode === "select-effect-target" && side === "enemy" && effectSourceFieldIndex !== null) {
+      queueBattleIntent({ kind: "ability", fieldIndex: effectSourceFieldIndex });
+      setAnimating(true);
+      setTimeout(() => {
+        setSoloState((prev) => (prev ? activateOneEffect(prev, effectSourceFieldIndex, index) : prev));
+        setAnimating(false);
+        setActionMode("none");
+        setEffectSourceFieldIndex(null);
+        setSelectedFieldIndex(null);
+      }, 150);
     } else if (actionMode === "select-spell-target") {
       if (selectedHandIndex === null) return;
       const spell = state.player.hand[selectedHandIndex];
@@ -859,6 +877,24 @@ export default function BattleArena({
   const handleUseAbility = (fieldIndex: number) => {
     if (!state || animating) return;
     if (livePvP?.isSubmitting) return;
+    const unit = state.player.field[fieldIndex] ?? null;
+    const oneEff = unit ? getOneEffectForCard(unit.card) : null;
+    if (!livePvP && oneEff?.timing === "activate") {
+      if (oneEff.requiresTarget) {
+        setEffectSourceFieldIndex(fieldIndex);
+        setActionMode("select-effect-target");
+        return;
+      }
+      queueBattleIntent({ kind: "ability", fieldIndex });
+      setAnimating(true);
+      setTimeout(() => {
+        setSoloState((prev) => (prev ? activateOneEffect(prev, fieldIndex) : prev));
+        setAnimating(false);
+        setActionMode("none");
+        setSelectedFieldIndex(null);
+      }, 150);
+      return;
+    }
     if (livePvP) {
       void livePvP.onIntent({ kind: "ability", fieldIndex });
       setActionMode("none");
@@ -989,21 +1025,28 @@ export default function BattleArena({
 
   const selectedPlayerUnit = selectedFieldIndex != null ? state.player.field[selectedFieldIndex] : null;
   const selectedPlayerAbility = selectedPlayerUnit?.card.specialAbility ?? null;
+  const selectedPlayerOneEffect = selectedPlayerUnit ? getOneEffectForCard(selectedPlayerUnit.card) : null;
   const selectedPlayerAbilityCost = Math.max(1, Math.min(selectedPlayerAbility?.cost ?? 1, 6));
-  const canShowAbilityButton = Boolean(selectedPlayerAbility && selectedFieldIndex != null);
+  const selectedPlayerOneEffectHpCost = selectedPlayerOneEffect?.timing === "activate" ? (selectedPlayerOneEffect.hpCost ?? 6) : null;
+  const canShowAbilityButton = Boolean(
+    selectedFieldIndex != null &&
+      (selectedPlayerAbility || (selectedPlayerOneEffect && selectedPlayerOneEffect.timing === "activate")),
+  );
   const selectedPlayerAbilityHpCost = Math.max(4, Math.min(10, Math.round((selectedPlayerAbility?.cost ?? 1) * 1.5)));
   const canUseSelectedAbility =
     Boolean(
       isPlayerTurn &&
         selectedPlayerUnit &&
-        selectedPlayerAbility &&
         !selectedPlayerUnit.stunned &&
         !selectedPlayerUnit.abilityUsed &&
         selectedPlayerUnit.abilityRechargeIn === undefined,
     ) &&
-    (selectedPlayerUnit?.card.type === "hero" || selectedPlayerUnit?.card.type === "god"
-      ? (state.player.hp ?? 0) > selectedPlayerAbilityHpCost
-      : (state.player.ap ?? 0) >= selectedPlayerAbilityCost);
+    (selectedPlayerOneEffect?.timing === "activate"
+      ? (state.player.hp ?? 0) > (selectedPlayerOneEffectHpCost ?? 6)
+      : Boolean(selectedPlayerAbility) &&
+        (selectedPlayerUnit?.card.type === "hero" || selectedPlayerUnit?.card.type === "god"
+          ? (state.player.hp ?? 0) > selectedPlayerAbilityHpCost
+          : (state.player.ap ?? 0) >= selectedPlayerAbilityCost));
 
   const toSideState = (side: BattleState["player"]): SideState => {
     const monsters = Array.from({ length: 5 }).map((_, i) => {
@@ -1248,10 +1291,14 @@ export default function BattleArena({
                               ? "Already used"
                               : selectedPlayerUnit.abilityRechargeIn !== undefined
                                 ? "Recharging"
-                                : (selectedPlayerUnit.card.type === "hero" || selectedPlayerUnit.card.type === "god")
-                                  ? (state.player.hp ?? 0) <= selectedPlayerAbilityHpCost
-                                    ? `Need >${selectedPlayerAbilityHpCost} HP`
-                                    : `Cost: ${selectedPlayerAbilityHpCost} HP`
+                                : selectedPlayerOneEffect?.timing === "activate"
+                                  ? (state.player.hp ?? 0) <= (selectedPlayerOneEffectHpCost ?? 6)
+                                    ? `Need >${selectedPlayerOneEffectHpCost ?? 6} HP`
+                                    : `Cost: ${selectedPlayerOneEffectHpCost ?? 6} HP`
+                                  : (selectedPlayerUnit.card.type === "hero" || selectedPlayerUnit.card.type === "god")
+                                    ? (state.player.hp ?? 0) <= selectedPlayerAbilityHpCost
+                                      ? `Need >${selectedPlayerAbilityHpCost} HP`
+                                      : `Cost: ${selectedPlayerAbilityHpCost} HP`
                                   : (state.player.ap ?? 0) < selectedPlayerAbilityCost
                                     ? `Need ${selectedPlayerAbilityCost} AP`
                                   : ""
@@ -1264,6 +1311,7 @@ export default function BattleArena({
                       onClick={() => {
                         setActionMode("none");
                         setSelectedFieldIndex(null);
+                        setEffectSourceFieldIndex(null);
                       }}
                       className="altar-panel rounded-full px-4 py-2 text-[10px] font-bold uppercase tracking-wider altar-text-gold opacity-80 hover:opacity-100"
                     >

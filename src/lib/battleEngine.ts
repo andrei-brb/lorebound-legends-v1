@@ -9,6 +9,7 @@ import type { CardProgress } from "./playerState";
 import { resolveAbilityEffect } from "./abilityInference";
 import type { AbilityEffect, AbilityTarget } from "./abilityEffectTypes";
 import { cardHasKeyword } from "./keywords";
+import { canActivateOneEffect, getOneEffectForCard, type OneEffectDef } from "./cardOneEffect";
 
 // =================== Types ===================
 
@@ -1071,6 +1072,12 @@ export function playCard(state: BattleState, handIndex: number): BattleState {
     const sideLabel = newState.turn === "player" ? "You" : "Enemy";
     addLog(newState, `🃏 ${sideLabel} played ${card.name} to the field!`, "info");
 
+    // One-effect system: on_summon triggers for heroes/gods.
+    const summonEff = getOneEffectForCard(card);
+    if (summonEff?.timing === "on_summon") {
+      applyOneEffect(newState, newState.turn, slotIndex, summonEff);
+    }
+
     if (newState.ruleset === "ygoHybrid") {
       openResponseWindow(newState, "on_enemy_play", newState.turn === "player" ? "enemy" : "player", {
         pendingPlay: { playedFieldIndex: slotIndex },
@@ -1715,6 +1722,13 @@ function destroyFieldCardIfDead(state: BattleState, side: PlayerSide, fieldIndex
   const fc = side.field[fieldIndex];
   if (!fc || fc.currentHp > 0) return;
   addLog(state, `💀 ${fc.card.name} was destroyed!`, "defeat");
+
+  // One-effect system: on_death triggers for heroes/gods.
+  const deathEff = getOneEffectForCard(fc.card);
+  if (deathEff?.timing === "on_death") {
+    applyOneEffect(state, side === state.player ? "player" : "enemy", fieldIndex, deathEff);
+  }
+
   side.graveyard.push(fc.card);
   if (fc.equippedWeapon) side.graveyard.push(fc.equippedWeapon);
   side.field[fieldIndex] = null;
@@ -1745,6 +1759,145 @@ function destroyFieldCardIfDead(state: BattleState, side: PlayerSide, fieldIndex
     side.graveyard.push(trap.card);
     break;
   }
+}
+
+function applyOneEffect(
+  state: BattleState,
+  sourceTurn: "player" | "enemy",
+  sourceFieldIndex: number,
+  eff: OneEffectDef,
+  targetFieldIndex?: number,
+) {
+  const sourceSide = sourceTurn === "player" ? state.player : state.enemy;
+  const otherSide = sourceTurn === "player" ? state.enemy : state.player;
+  const src = sourceSide.field[sourceFieldIndex];
+  if (!src) return;
+
+  const pickEnemy = () => {
+    if (typeof targetFieldIndex === "number") return targetFieldIndex;
+    return pickEnemyFieldIndex(otherSide.field, "lowest");
+  };
+  const pickAlly = () => pickAllyFieldIndex(sourceSide.field, "lowest", sourceFieldIndex);
+
+  const logPrefix = `✨ ${src.card.name}`;
+
+  switch (eff.kind) {
+    case "damage_enemy": {
+      const idx = pickEnemy();
+      if (idx < 0) return;
+      const t = otherSide.field[idx];
+      if (!t) return;
+      const raw = eff.value + Math.max(0, Math.round(src.attack * 0.3));
+      const dmg = dealAbilityDamageToField(state, src.card, t, raw);
+      t.currentHp = Math.max(0, t.currentHp - dmg);
+      addLog(state, `${logPrefix} rends the foe for ${dmg} damage!`, "ability");
+      destroyFieldCardIfDead(state, otherSide, idx);
+      return;
+    }
+    case "stun_enemy": {
+      const idx = pickEnemy();
+      if (idx < 0) return;
+      const t = otherSide.field[idx];
+      if (!t) return;
+      t.stunned = true;
+      t.stunTurnsRemaining = Math.max(1, eff.duration ?? 1);
+      addLog(state, `${logPrefix} seals ${t.card.name} in stasis.`, "ability");
+      return;
+    }
+    case "debuff_enemy_attack": {
+      const idx = pickEnemy();
+      if (idx < 0) return;
+      const t = otherSide.field[idx];
+      if (!t) return;
+      t.tempBuffs.push({ stat: "attack", value: -eff.value, turnsRemaining: Math.max(1, eff.duration ?? 1) });
+      addLog(state, `${logPrefix} weakens ${t.card.name}'s attack.`, "ability");
+      return;
+    }
+    case "debuff_enemy_defense": {
+      const idx = pickEnemy();
+      if (idx < 0) return;
+      const t = otherSide.field[idx];
+      if (!t) return;
+      t.tempBuffs.push({ stat: "defense", value: -eff.value, turnsRemaining: Math.max(1, eff.duration ?? 1) });
+      addLog(state, `${logPrefix} sunders ${t.card.name}'s defense.`, "ability");
+      return;
+    }
+    case "heal_hero": {
+      sourceSide.hp += eff.value;
+      addLog(state, `${logPrefix} restores ${eff.value} HP to its hero.`, "ability");
+      return;
+    }
+    case "shield_hero": {
+      sourceSide.shield += eff.value;
+      addLog(state, `${logPrefix} grants ${eff.value} shield to its hero.`, "ability");
+      return;
+    }
+    case "buff_ally_attack": {
+      const idx = pickAlly();
+      if (idx < 0) return;
+      const t = sourceSide.field[idx];
+      if (!t) return;
+      t.tempBuffs.push({ stat: "attack", value: eff.value, turnsRemaining: Math.max(1, eff.duration ?? 1) });
+      addLog(state, `${logPrefix} empowers ${t.card.name}'s attack.`, "ability");
+      return;
+    }
+    case "buff_ally_defense": {
+      const idx = pickAlly();
+      if (idx < 0) return;
+      const t = sourceSide.field[idx];
+      if (!t) return;
+      t.tempBuffs.push({ stat: "defense", value: eff.value, turnsRemaining: Math.max(1, eff.duration ?? 1) });
+      addLog(state, `${logPrefix} wards ${t.card.name}'s defense.`, "ability");
+      return;
+    }
+    case "burn_enemy": {
+      const idx = pickEnemy();
+      if (idx < 0) return;
+      const t = otherSide.field[idx];
+      if (!t) return;
+      t.burn = { damagePerTurn: Math.max(1, eff.value), turnsRemaining: Math.max(1, eff.duration ?? 1) };
+      addLog(state, `${logPrefix} brands ${t.card.name} with burn.`, "ability");
+      return;
+    }
+    case "poison_enemy": {
+      const idx = pickEnemy();
+      if (idx < 0) return;
+      const t = otherSide.field[idx];
+      if (!t) return;
+      t.poison = { damagePerTurn: Math.max(1, eff.value), turnsRemaining: Math.max(1, eff.duration ?? 1) };
+      addLog(state, `${logPrefix} curses ${t.card.name} with poison.`, "ability");
+      return;
+    }
+    case "blind_enemy": {
+      const idx = pickEnemy();
+      if (idx < 0) return;
+      const t = otherSide.field[idx];
+      if (!t) return;
+      t.blind = { missChance: 0.35, turnsRemaining: Math.max(1, eff.duration ?? 1) };
+      addLog(state, `${logPrefix} blinds ${t.card.name}.`, "ability");
+      return;
+    }
+  }
+}
+
+export function activateOneEffect(state: BattleState, sourceFieldIndex: number, targetFieldIndex?: number): BattleState {
+  const newState = deepCopy(state);
+  if (newState.ruleset === "ygoHybrid" && newState.responseWindow) return state;
+  if (newState.turn !== "player") return state;
+  const side = newState.player;
+  const src = side.field[sourceFieldIndex];
+  if (!src) return state;
+
+  const gate = canActivateOneEffect(newState, side, src);
+  if (!gate.ok || !gate.def) return state;
+  const hpCost = gate.hpCost ?? gate.def.hpCost ?? 6;
+
+  side.hp = Math.max(0, side.hp - hpCost);
+  src.abilityUsed = true;
+  addLog(newState, `🩸 You pay ${hpCost} HP to invoke ${src.card.name}'s effect.`, "ability");
+
+  applyOneEffect(newState, "player", sourceFieldIndex, gate.def, targetFieldIndex);
+  return recalcFieldStats(checkWinCondition(newState));
 }
 
 /**
