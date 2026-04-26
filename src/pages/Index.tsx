@@ -57,6 +57,10 @@ export default function Index() {
   const [activeTab, setActiveTab] = useState<Tab>("collection");
   const [battleDeckIds, setBattleDeckIds] = useState<string[]>([]);
   const [soloRaidBossId, setSoloRaidBossId] = useState<string | null>(null);
+  const [deckSelectOpen, setDeckSelectOpen] = useState(false);
+  const [deckSelectTitle, setDeckSelectTitle] = useState<string>("Select your deck");
+  const [deckSelectSubtitle, setDeckSelectSubtitle] = useState<string>("Choose a saved deck to enter the arena.");
+  const deckSelectOnPickRef = useRef<((deckIds: string[]) => void) | null>(null);
   const [raidHotseat, setRaidHotseat] = useState<{ bossId: string; deckIds: string[] } | null>(null);
   const [raidState, setRaidState] = useState<RaidCoopState | null>(null);
   const [pendingCombat, setPendingCombat] = useState<{
@@ -247,6 +251,22 @@ export default function Index() {
 
   const handleTabClick = (tabId: Tab) => setActiveTab(tabId);
 
+  const openDeckSelect = useCallback(
+    (opts: { title: string; subtitle: string; onPick: (deckIds: string[]) => void }) => {
+      const presets = Array.isArray(playerState.deckPresets) ? playerState.deckPresets : [];
+      if (presets.length === 0) {
+        // No saved decks yet → send them to the deck builder.
+        setActiveTab("deck");
+        return;
+      }
+      setDeckSelectTitle(opts.title);
+      setDeckSelectSubtitle(opts.subtitle);
+      deckSelectOnPickRef.current = opts.onPick;
+      setDeckSelectOpen(true);
+    },
+    [playerState.deckPresets],
+  );
+
   const startBattle = (deckIds: string[]) => {
     setRankedBattle(null);
     setSoloRaidBossId(null);
@@ -332,6 +352,116 @@ export default function Index() {
 
   return (
     <TooltipProvider>
+      {deckSelectOpen && (
+        <div className="fixed inset-0 z-[220] flex items-center justify-center bg-black/70 px-4 animate-fade-in">
+          <div
+            className="relative w-full max-w-2xl panel-gold p-5 md:p-6 overflow-hidden"
+            style={{ boxShadow: "0 30px 90px rgba(0,0,0,0.85), 0 0 40px rgba(245,200,66,0.18)" }}
+            data-testid="deck-select-modal"
+          >
+            <div className="corner-deco absolute inset-0" />
+            <div className="relative z-10">
+              <div className="flex items-start justify-between gap-4 mb-4">
+                <div>
+                  <div className="section-heading mb-1">{deckSelectTitle}</div>
+                  <div className="font-lore text-[#d6c293] text-sm">{deckSelectSubtitle}</div>
+                </div>
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  onClick={() => {
+                    setDeckSelectOpen(false);
+                    deckSelectOnPickRef.current = null;
+                  }}
+                  data-testid="deck-select-close"
+                >
+                  Close
+                </button>
+              </div>
+
+              <div
+                className="rounded-xl p-3 md:p-4"
+                style={{ background: "rgba(10,6,3,0.55)", border: "1px solid rgba(212,175,55,0.18)" }}
+              >
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {(Array.isArray(playerState.deckPresets) ? playerState.deckPresets : [])
+                    .slice()
+                    .sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0))
+                    .map((p) => {
+                      const underMin = (p.cardIds?.length ?? 0) < 4;
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          disabled={underMin}
+                          onClick={() => {
+                            if (underMin) return;
+                            const cb = deckSelectOnPickRef.current;
+                            setDeckSelectOpen(false);
+                            deckSelectOnPickRef.current = null;
+                            cb?.(p.cardIds || []);
+                          }}
+                          className={cn(
+                            "text-left rounded-xl p-4 transition relative overflow-hidden",
+                            underMin ? "opacity-50 cursor-not-allowed" : "hover:scale-[1.01]",
+                          )}
+                          style={{
+                            background:
+                              "linear-gradient(180deg, rgba(22,15,8,0.85), rgba(10,6,3,0.85))",
+                            border: "1px solid rgba(212,175,55,0.22)",
+                            boxShadow: "0 12px 30px rgba(0,0,0,0.35)",
+                          }}
+                          data-testid={`deck-preset-${p.id}`}
+                        >
+                          <div className="corner-deco absolute inset-0 pointer-events-none" />
+                          <div className="relative z-10">
+                            <div className="flex items-baseline justify-between gap-3">
+                              <div className="font-heading text-[#f8e4a1]">{p.name || "Untitled Deck"}</div>
+                              <div className="text-[10px] font-stat tracking-[0.2em] text-[#c9a74a]">
+                                {(p.cardIds?.length ?? 0)} CARDS
+                              </div>
+                            </div>
+                            <div className="mt-2 text-xs text-muted-foreground">
+                              Updated {new Date(p.updatedAt || Date.now()).toLocaleDateString()}
+                            </div>
+                            {underMin && (
+                              <div className="mt-3 text-[10px] font-stat tracking-[0.2em] text-red-400">
+                                NEED 4+ CARDS
+                              </div>
+                            )}
+                            {!underMin && (
+                              <div className="mt-4">
+                                <span className="btn-gold inline-flex">Use this deck</span>
+                              </div>
+                            )}
+                          </div>
+                        </button>
+                      );
+                    })}
+                </div>
+
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                  <button
+                    type="button"
+                    className="btn-ghost"
+                    onClick={() => {
+                      setDeckSelectOpen(false);
+                      deckSelectOnPickRef.current = null;
+                      setActiveTab("deck");
+                    }}
+                    data-testid="deck-select-manage"
+                  >
+                    Manage decks
+                  </button>
+                  <div className="text-[10px] font-stat tracking-[0.2em] text-[#7e6a2e]">
+                    TIP: Save decks in the Deck tab to quickly battle.
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       {guildInvitePopup && (
         <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/70 animate-fade-in">
           <div className="bg-card border border-border rounded-2xl p-6 mx-4 max-w-sm w-full shadow-2xl space-y-5 animate-slide-in-up">
@@ -791,7 +921,26 @@ export default function Index() {
                 onLaunchMode={(mode) => {
                   if (mode === "ranked") setActiveTab("pvp");
                   else if (mode === "tourney") setActiveTab("tournament");
-                  else setActiveTab("deck"); // skirmish/raid → pick a deck first
+                  else if (mode === "skirmish") {
+                    openDeckSelect({
+                      title: "Select your deck",
+                      subtitle: "Skirmish • Quick PvE battle vs the realm",
+                      onPick: (deckIds) => startBattle(deckIds),
+                    });
+                  } else {
+                    // Raid: start a solo raid against the default boss for now.
+                    openDeckSelect({
+                      title: "Select your deck",
+                      subtitle: "Raid • Co-op halls coming next, enter solo for now",
+                      onPick: (deckIds) => {
+                        setSoloRaidBossId("ember-tyrant");
+                        setRaidHotseat(null);
+                        setRaidState(null);
+                        setBattleDeckIds(deckIds);
+                        setActiveTab("battle");
+                      },
+                    });
+                  }
                 }}
               />
             )}
@@ -799,7 +948,19 @@ export default function Index() {
               <CombatHall
                 playerState={playerState}
                 defaultMode="raid"
-                onLaunchMode={() => setActiveTab("deck")}
+                onLaunchMode={() => {
+                  openDeckSelect({
+                    title: "Select your deck",
+                    subtitle: "Raid • Enter solo against the Ember Tyrant",
+                    onPick: (deckIds) => {
+                      setSoloRaidBossId("ember-tyrant");
+                      setRaidHotseat(null);
+                      setRaidState(null);
+                      setBattleDeckIds(deckIds);
+                      setActiveTab("battle");
+                    },
+                  });
+                }}
               />
             )}
             {activeTab === "battle" && battleDeckIds.length > 0 && !raidHotseat && (
