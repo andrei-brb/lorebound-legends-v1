@@ -348,13 +348,6 @@ export default function BattleArena({
     }
     if (state.turn !== "player") return;
     queueBattleIntent({ kind: "end-turn" });
-
-    // Turn rollover tribute (End → next turn) — big mythic draw moment.
-    setRewardPopupMode("turn");
-    setRewardPopupTitle("Mythic Draw Tribute");
-    setRewardPopupSubtitle("The altar turns the page.");
-    setRewardPopupItems([{ kind: "card", label: "Mythic Draw", rarity: "mythic" }]);
-    setRewardPopupOpen(true);
     setSoloState((prev) => {
       if (!prev) return prev;
       let s = prev;
