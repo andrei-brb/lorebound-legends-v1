@@ -513,6 +513,11 @@ export function startTurn(state: BattleState): BattleState {
   for (const fc of side.field) {
     if (!fc) continue;
     fc.attackedThisTurn = false;
+    // New: abilities are once-per-turn for heroes/gods (no late-game AP gating).
+    if (fc.card.type === "hero" || fc.card.type === "god") {
+      fc.abilityUsed = false;
+      delete fc.abilityRechargeIn;
+    }
     // Fix 5: tick down ability recharge counter
     if (fc.abilityRechargeIn !== undefined) {
       fc.abilityRechargeIn -= 1;
@@ -2048,19 +2053,31 @@ export function activateAbility(state: BattleState, fieldIndex: number): BattleS
   if (!fc || fc.abilityUsed || fc.stunned || fc.abilityRechargeIn !== undefined) return state;
 
   const listed = fc.card.specialAbility.cost ?? 1;
-  const apCost = Math.max(1, Math.min(listed, 6));
-  if (!canSpendAp(newState, apCost)) return state;
 
-  // Fix 5: 1-AP abilities recharge after 3 turns; 2+ AP abilities are one-shot
-  if (apCost === 1) {
-    fc.abilityRechargeIn = 3;
-  } else {
+  // New: heroes/gods abilities are strategic and usable early.
+  // Instead of AP gating, charge HP as a meaningful cost (4..10 based on listed cost),
+  // and allow once-per-turn usage.
+  const isUnit = fc.card.type === "hero" || fc.card.type === "god";
+  if (isUnit) {
+    const hpCost = Math.max(4, Math.min(10, Math.round(listed * 1.5)));
+    if (side.hp <= hpCost) return state;
+    side.hp = Math.max(1, side.hp - hpCost);
+    addLog(newState, `✦ ${fc.card.name} pays ${hpCost} HP to invoke ${fc.card.specialAbility.name}.`, "ability");
     fc.abilityUsed = true;
+  } else {
+    const apCost = Math.max(1, Math.min(listed, 6));
+    if (!canSpendAp(newState, apCost)) return state;
+    // Fix 5: 1-AP abilities recharge after 3 turns; 2+ AP abilities are one-shot
+    if (apCost === 1) {
+      fc.abilityRechargeIn = 3;
+    } else {
+      fc.abilityUsed = true;
+    }
+    spendAp(newState, apCost);
   }
+
   const resolved = resolveAbilityEffect(fc.card);
   applyResolvedAbility(newState, fc, fieldIndex, resolved);
-
-  spendAp(newState, apCost);
   return maybeAutoEndTurn(recalcFieldStats(checkWinCondition(newState)));
 }
 

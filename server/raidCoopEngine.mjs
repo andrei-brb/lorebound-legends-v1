@@ -8894,6 +8894,10 @@ function startTurn(state) {
   for (const fc of side.field) {
     if (!fc) continue;
     fc.attackedThisTurn = false;
+    if (fc.card.type === "hero" || fc.card.type === "god") {
+      fc.abilityUsed = false;
+      delete fc.abilityRechargeIn;
+    }
     if (fc.abilityRechargeIn !== void 0) {
       fc.abilityRechargeIn -= 1;
       if (fc.abilityRechargeIn <= 0) {
@@ -10198,16 +10202,25 @@ function activateAbility(state, fieldIndex) {
   const fc = side.field[fieldIndex];
   if (!fc || fc.abilityUsed || fc.stunned || fc.abilityRechargeIn !== void 0) return state;
   const listed = fc.card.specialAbility.cost ?? 1;
-  const apCost = Math.max(1, Math.min(listed, 6));
-  if (!canSpendAp(newState, apCost)) return state;
-  if (apCost === 1) {
-    fc.abilityRechargeIn = 3;
-  } else {
+  const isUnit = fc.card.type === "hero" || fc.card.type === "god";
+  if (isUnit) {
+    const hpCost = Math.max(4, Math.min(10, Math.round(listed * 1.5)));
+    if (side.hp <= hpCost) return state;
+    side.hp = Math.max(1, side.hp - hpCost);
+    addLog(newState, `\u2726 ${fc.card.name} pays ${hpCost} HP to invoke ${fc.card.specialAbility.name}.`, "ability");
     fc.abilityUsed = true;
+  } else {
+    const apCost = Math.max(1, Math.min(listed, 6));
+    if (!canSpendAp(newState, apCost)) return state;
+    if (apCost === 1) {
+      fc.abilityRechargeIn = 3;
+    } else {
+      fc.abilityUsed = true;
+    }
+    spendAp(newState, apCost);
   }
   const resolved = resolveAbilityEffect(fc.card);
   applyResolvedAbility(newState, fc, fieldIndex, resolved);
-  spendAp(newState, apCost);
   return maybeAutoEndTurn(recalcFieldStats(checkWinCondition(newState)));
 }
 function tickTokenDurations(side) {

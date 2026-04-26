@@ -991,6 +991,7 @@ export default function BattleArena({
   const selectedPlayerAbility = selectedPlayerUnit?.card.specialAbility ?? null;
   const selectedPlayerAbilityCost = Math.max(1, Math.min(selectedPlayerAbility?.cost ?? 1, 6));
   const canShowAbilityButton = Boolean(selectedPlayerAbility && selectedFieldIndex != null);
+  const selectedPlayerAbilityHpCost = Math.max(4, Math.min(10, Math.round((selectedPlayerAbility?.cost ?? 1) * 1.5)));
   const canUseSelectedAbility =
     Boolean(
       isPlayerTurn &&
@@ -999,7 +1000,10 @@ export default function BattleArena({
         !selectedPlayerUnit.stunned &&
         !selectedPlayerUnit.abilityUsed &&
         selectedPlayerUnit.abilityRechargeIn === undefined,
-    ) && (state.player.ap ?? 0) >= selectedPlayerAbilityCost;
+    ) &&
+    (selectedPlayerUnit?.card.type === "hero" || selectedPlayerUnit?.card.type === "god"
+      ? (state.player.hp ?? 0) > selectedPlayerAbilityHpCost
+      : (state.player.ap ?? 0) >= selectedPlayerAbilityCost);
 
   const toSideState = (side: BattleState["player"]): SideState => {
     const monsters = Array.from({ length: 5 }).map((_, i) => {
@@ -1244,12 +1248,16 @@ export default function BattleArena({
                               ? "Already used"
                               : selectedPlayerUnit.abilityRechargeIn !== undefined
                                 ? "Recharging"
-                                : (state.player.ap ?? 0) < selectedPlayerAbilityCost
-                                  ? `Need ${selectedPlayerAbilityCost} AP`
+                                : (selectedPlayerUnit.card.type === "hero" || selectedPlayerUnit.card.type === "god")
+                                  ? (state.player.hp ?? 0) <= selectedPlayerAbilityHpCost
+                                    ? `Need >${selectedPlayerAbilityHpCost} HP`
+                                    : `Cost: ${selectedPlayerAbilityHpCost} HP`
+                                  : (state.player.ap ?? 0) < selectedPlayerAbilityCost
+                                    ? `Need ${selectedPlayerAbilityCost} AP`
                                   : ""
                       }
                     >
-                      Skill
+                      Activate
                     </button>
                     <button
                       type="button"
