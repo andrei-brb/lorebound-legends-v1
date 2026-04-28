@@ -65,7 +65,8 @@ const typeAccentColors: Record<string, string> = {
 };
 
 const sizeClasses: Record<string, string> = {
-  xs: "w-28 h-40 sm:w-32 sm:h-44",
+  // xs is used in grids; make it responsive to avoid overlap on narrow columns.
+  xs: "w-full max-w-[140px] aspect-[3/4]",
   sm: "w-44 h-64",
   md: "w-56 h-80",
   lg: "w-72 h-[420px]",

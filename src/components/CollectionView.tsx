@@ -140,15 +140,14 @@ function CardGridItem({ card, onAddToDeck, deckCardIds, playerState, onStateChan
   };
 
   return (
-    <div className={cn("relative", highlighted && "ring-2 ring-synergy rounded-lg shadow-[0_0_12px_hsl(var(--synergy)/0.5)] animate-pulse")}>
+    <div className={cn("relative flex justify-center", highlighted && "ring-2 ring-synergy rounded-lg shadow-[0_0_12px_hsl(var(--synergy)/0.5)] animate-pulse")}>
       <GameCardComponent
         card={card}
         size="xs"
         onClick={(e) => {
-          const ev = e as unknown as React.MouseEvent<HTMLDivElement>;
-          // UX: click opens full-size inspect; use Shift/Ctrl/Cmd click to quick-add/remove in deck builder.
-          const wantsQuickToggle = !!onAddToDeck && (ev.shiftKey || ev.metaKey || ev.ctrlKey);
-          if (wantsQuickToggle) onAddToDeck!(card.id);
+          // Deck screens: click should add/remove immediately (no preview).
+          // Collection screen: click opens full-size inspect.
+          if (onAddToDeck) onAddToDeck(card.id);
           else onInspect?.(card);
         }}
         selected={inDeck}
@@ -277,15 +276,18 @@ export default function CollectionView({
 
   const body = (
     <div className="space-y-8">
-      <CardInspectDialog
-        open={inspectOpen}
-        onOpenChange={(o) => {
-          setInspectOpen(o);
-          if (!o) setInspectCard(null);
-        }}
-        card={inspectCard}
-        playerState={playerState}
-      />
+      {/* Only show inspect viewer on the standalone Collection screen (not in Deck Builder). */}
+      {!onAddToDeck && (
+        <CardInspectDialog
+          open={inspectOpen}
+          onOpenChange={(o) => {
+            setInspectOpen(o);
+            if (!o) setInspectCard(null);
+          }}
+          card={inspectCard}
+          playerState={playerState}
+        />
+      )}
       {showLoreArcFilters && (
         <div className="flex flex-wrap gap-2">
           {loreArcs.map((arc) => (
