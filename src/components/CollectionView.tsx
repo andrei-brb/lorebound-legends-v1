@@ -143,7 +143,7 @@ function CardGridItem({ card, onAddToDeck, deckCardIds, playerState, onStateChan
     <div className={cn("relative flex justify-center", highlighted && "ring-2 ring-synergy rounded-lg shadow-[0_0_12px_hsl(var(--synergy)/0.5)] animate-pulse")}>
       <GameCardComponent
         card={card}
-        size={onAddToDeck ? "grid" : "sm"}
+        size={onAddToDeck ? "deck" : "sm"}
         onClick={(e) => {
           // Deck screens: click should add/remove immediately (no preview).
           // Collection screen: click opens full-size inspect.
@@ -333,7 +333,7 @@ export default function CollectionView({
                 "grid gap-0.5",
                 // Deck screens should have bigger cards (fewer columns).
                 onAddToDeck
-                  ? "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-4"
+                  ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3"
                   : "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-4",
               )}
             >
@@ -368,7 +368,7 @@ export default function CollectionView({
                     className={cn(
                       "grid gap-0.5",
                       onAddToDeck
-                        ? "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-4 xl:grid-cols-4"
+                        ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3"
                         : "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-4",
                     )}
                   >
