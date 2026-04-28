@@ -11,10 +11,10 @@ import { elementEmoji, elementCssClass, elementBgClass } from "@/lib/elementSyst
 
 interface GameCardProps {
   card: GameCardType;
-  onClick?: () => void;
+  onClick?: ((e: React.MouseEvent<HTMLDivElement>) => void) | (() => void);
   selected?: boolean;
   showSynergy?: boolean;
-  size?: "sm" | "md" | "lg";
+  size?: "xs" | "sm" | "md" | "lg";
   cardProgress?: CardProgress;
   equippedFrameImage?: string | null;
   /** Shown on the flipped (lore) side when a card back cosmetic is equipped. */
@@ -65,6 +65,7 @@ const typeAccentColors: Record<string, string> = {
 };
 
 const sizeClasses: Record<string, string> = {
+  xs: "w-28 h-40 sm:w-32 sm:h-44",
   sm: "w-44 h-64",
   md: "w-56 h-80",
   lg: "w-72 h-[420px]",
@@ -184,9 +185,13 @@ export default function GameCard({ card, onClick, selected, showSynergy, size = 
     setIsHovered(false);
   }, []);
 
-  const handleClick = () => {
-    if (onClick) onClick();
-    else setFlipped(!flipped);
+  const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (onClick) {
+      // Back-compat: some callers pass () => void; others want the click event.
+      (onClick as any)(e);
+      return;
+    }
+    setFlipped(!flipped);
   };
 
   return (

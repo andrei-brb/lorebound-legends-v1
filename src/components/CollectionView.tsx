@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { allGameCards, loreArcs, type Rarity, type CardType, type GameCard as GameCardType } from "@/data/cardIndex";
 import GameCardComponent from "./GameCard";
 import { Star, SparklesIcon, BookOpen } from "lucide-react";
@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import GlassPanel from "@/components/scene/GlassPanel";
 import { texLibrary } from "@/components/scene/panelTextures";
+import CardInspectDialog from "@/components/CardInspectDialog";
 
 const rarityOrder: Rarity[] = ["mythic", "legendary", "rare", "common"];
 const rarityLabels: Record<Rarity, string> = {
@@ -116,9 +117,10 @@ function applyDiscovery({
   return out;
 }
 
-function CardGridItem({ card, onAddToDeck, deckCardIds, playerState, onStateChange, highlighted }: {
+function CardGridItem({ card, onAddToDeck, deckCardIds, playerState, onStateChange, highlighted, onInspect }: {
   card: GameCardType; onAddToDeck?: (id: string) => void; deckCardIds: string[];
   playerState?: PlayerState; onStateChange?: (state: PlayerState) => void; highlighted?: boolean;
+  onInspect?: (card: GameCardType) => void;
 }) {
   const inDeck = deckCardIds.includes(card.id);
   const countInDeck = onAddToDeck ? deckCardIds.reduce((n, id) => (id === card.id ? n + 1 : n), 0) : 0;
@@ -141,7 +143,14 @@ function CardGridItem({ card, onAddToDeck, deckCardIds, playerState, onStateChan
     <div className={cn("relative", highlighted && "ring-2 ring-synergy rounded-lg shadow-[0_0_12px_hsl(var(--synergy)/0.5)] animate-pulse")}>
       <GameCardComponent
         card={card}
-        onClick={onAddToDeck ? () => onAddToDeck(card.id) : undefined}
+        size="xs"
+        onClick={(e) => {
+          const ev = e as unknown as React.MouseEvent<HTMLDivElement>;
+          // UX: click opens full-size inspect; use Shift/Ctrl/Cmd click to quick-add/remove in deck builder.
+          const wantsQuickToggle = !!onAddToDeck && (ev.shiftKey || ev.metaKey || ev.ctrlKey);
+          if (wantsQuickToggle) onAddToDeck!(card.id);
+          else onInspect?.(card);
+        }}
         selected={inDeck}
         showSynergy={hasArcPartner}
         cardProgress={progress}
@@ -213,9 +222,16 @@ export default function CollectionView({
   const texturedShell = onAddToDeck === undefined;
   const ownedIds = playerState?.ownedCardIds || allGameCards.map(c => c.id);
   const [internalArc, setInternalArc] = useState<string | null>(null);
+  const [inspectCard, setInspectCard] = useState<GameCardType | null>(null);
+  const [inspectOpen, setInspectOpen] = useState(false);
   const arcControlled = onArcFilterChange !== undefined;
   const arcFilter = arcControlled ? (arcFilterProp ?? null) : internalArc;
   const setArcFilter = arcControlled ? onArcFilterChange! : setInternalArc;
+
+  const openInspect = useCallback((card: GameCardType) => {
+    setInspectCard(card);
+    setInspectOpen(true);
+  }, []);
 
   const q = (searchQuery || "").trim();
   const discoveryActive =
@@ -261,6 +277,15 @@ export default function CollectionView({
 
   const body = (
     <div className="space-y-8">
+      <CardInspectDialog
+        open={inspectOpen}
+        onOpenChange={(o) => {
+          setInspectOpen(o);
+          if (!o) setInspectCard(null);
+        }}
+        card={inspectCard}
+        playerState={playerState}
+      />
       {showLoreArcFilters && (
         <div className="flex flex-wrap gap-2">
           {loreArcs.map((arc) => (
@@ -303,7 +328,7 @@ export default function CollectionView({
           ) : (
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-4 gap-4">
               {(typeof maxCards === "number" && maxCards > 0 ? discoveredCards.slice(0, maxCards) : discoveredCards).map((card) => (
-                <CardGridItem key={card.id} card={card} onAddToDeck={onAddToDeck} deckCardIds={deckCardIds} playerState={playerState} onStateChange={onStateChange} highlighted={highlightSet.has(card.id)} />
+                <CardGridItem key={card.id} card={card} onAddToDeck={onAddToDeck} deckCardIds={deckCardIds} playerState={playerState} onStateChange={onStateChange} highlighted={highlightSet.has(card.id)} onInspect={openInspect} />
               ))}
             </div>
           )}
@@ -331,7 +356,7 @@ export default function CollectionView({
                 <CardContent>
                   <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-4 gap-4">
                     {cards.map((card) => (
-                      <CardGridItem key={card.id} card={card} onAddToDeck={onAddToDeck} deckCardIds={deckCardIds} playerState={playerState} onStateChange={onStateChange} highlighted={highlightSet.has(card.id)} />
+                      <CardGridItem key={card.id} card={card} onAddToDeck={onAddToDeck} deckCardIds={deckCardIds} playerState={playerState} onStateChange={onStateChange} highlighted={highlightSet.has(card.id)} onInspect={openInspect} />
                     ))}
                   </div>
                 </CardContent>
