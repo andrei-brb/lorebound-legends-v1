@@ -143,7 +143,7 @@ function CardGridItem({ card, onAddToDeck, deckCardIds, playerState, onStateChan
     <div className={cn("relative flex justify-center", highlighted && "ring-2 ring-synergy rounded-lg shadow-[0_0_12px_hsl(var(--synergy)/0.5)] animate-pulse")}>
       <GameCardComponent
         card={card}
-        size="xs"
+        size="sm"
         onClick={(e) => {
           // Deck screens: click should add/remove immediately (no preview).
           // Collection screen: click opens full-size inspect.
@@ -328,7 +328,7 @@ export default function CollectionView({
                 : "No cards match your filters."}
             </p>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-4 gap-0.5">
               {(typeof maxCards === "number" && maxCards > 0 ? discoveredCards.slice(0, maxCards) : discoveredCards).map((card) => (
                 <CardGridItem key={card.id} card={card} onAddToDeck={onAddToDeck} deckCardIds={deckCardIds} playerState={playerState} onStateChange={onStateChange} highlighted={highlightSet.has(card.id)} onInspect={openInspect} />
               ))}
@@ -356,7 +356,7 @@ export default function CollectionView({
                   </div>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-4 gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-4 gap-0.5">
                     {cards.map((card) => (
                       <CardGridItem key={card.id} card={card} onAddToDeck={onAddToDeck} deckCardIds={deckCardIds} playerState={playerState} onStateChange={onStateChange} highlighted={highlightSet.has(card.id)} onInspect={openInspect} />
                     ))}
