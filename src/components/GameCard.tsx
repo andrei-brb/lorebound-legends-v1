@@ -14,7 +14,7 @@ interface GameCardProps {
   onClick?: ((e: React.MouseEvent<HTMLDivElement>) => void) | (() => void);
   selected?: boolean;
   showSynergy?: boolean;
-  size?: "xs" | "sm" | "md" | "lg";
+  size?: "xs" | "sm" | "md" | "lg" | "grid";
   cardProgress?: CardProgress;
   equippedFrameImage?: string | null;
   /** Shown on the flipped (lore) side when a card back cosmetic is equipped. */
@@ -70,6 +70,8 @@ const sizeClasses: Record<string, string> = {
   sm: "w-44 h-64",
   md: "w-56 h-80",
   lg: "w-72 h-[420px]",
+  // grid is used in Deck grids: responsive, but closer to original card presence.
+  grid: "w-full max-w-[220px] aspect-[3/4]",
 };
 
 // Tilt intensity per rarity

@@ -143,7 +143,7 @@ function CardGridItem({ card, onAddToDeck, deckCardIds, playerState, onStateChan
     <div className={cn("relative flex justify-center", highlighted && "ring-2 ring-synergy rounded-lg shadow-[0_0_12px_hsl(var(--synergy)/0.5)] animate-pulse")}>
       <GameCardComponent
         card={card}
-        size="sm"
+        size={onAddToDeck ? "grid" : "sm"}
         onClick={(e) => {
           // Deck screens: click should add/remove immediately (no preview).
           // Collection screen: click opens full-size inspect.
