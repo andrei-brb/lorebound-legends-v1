@@ -73,7 +73,7 @@ const sizeClasses: Record<string, string> = {
   // grid is used in Deck grids: responsive, but closer to original card presence.
   grid: "w-full max-w-[220px] aspect-[3/4]",
   // deck is used in Deck selection: much larger responsive cards.
-  deck: "w-full max-w-[360px] aspect-[3/4]",
+  deck: "w-full max-w-[720px] aspect-[3/4]",
 };
 
 // Tilt intensity per rarity

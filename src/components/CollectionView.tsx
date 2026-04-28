@@ -330,7 +330,7 @@ export default function CollectionView({
           ) : (
             <div
               className={cn(
-                "grid gap-0.5",
+                onAddToDeck ? "grid gap-[0.5px]" : "grid gap-0.5",
                 // Deck screens should have bigger cards (fewer columns).
                 onAddToDeck
                   ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3"
@@ -366,7 +366,7 @@ export default function CollectionView({
                 <CardContent>
                   <div
                     className={cn(
-                      "grid gap-0.5",
+                      onAddToDeck ? "grid gap-[0.5px]" : "grid gap-0.5",
                       onAddToDeck
                         ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3"
                         : "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-4",
