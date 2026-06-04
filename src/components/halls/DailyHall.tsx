@@ -18,23 +18,9 @@ import { GoldCurrencyIcon, StardustCurrencyIcon } from "@/components/CurrencyIco
 import GameCard from "@/components/GameCard";
 import { PACK_DEFINITIONS, pullCards } from "@/lib/gachaEngine";
 import { openMysteryBox } from "@/lib/dailyEngine";
+import { mapDailyPreviewToRewards, type DailyClaimPreview } from "@/lib/dailyClaimPreview";
 import bronzePackImg from "@/assets/packs/bronze-pack.jpg";
 import RewardPopup, { type RewardItem } from "@/components/battle3d/RewardPopup";
-
-export type DailyClaimPreview = {
-  kind: string;
-  label: string;
-  amount?: number;
-  cardId?: string | null;
-  pullResults?: Array<{
-    cardId: string;
-    isDuplicate: boolean;
-    stardustEarned: number;
-    newGoldStar: boolean;
-    newRedStar: boolean;
-    rarity: string;
-  }>;
-};
 
 interface Props {
   playerState: PlayerState;
@@ -83,7 +69,7 @@ export default function DailyHall({ playerState, onStateChange, isOnline, claimD
   const [preview, setPreview] = useState<DailyClaimPreview | null>(null);
   const [rewardOpen, setRewardOpen] = useState(false);
   const [rewardItems, setRewardItems] = useState<RewardItem[]>([]);
-  const [rewardTitle, setRewardTitle] = useState("Daily Boon Claimed");
+  const [rewardTitle, setRewardTitle] = useState("Daily Bonus Claimed");
   const [rewardSubtitle, setRewardSubtitle] = useState("The altar grants its favor.");
 
   const streak = playerState.dailyLogin?.streak ?? 0;
@@ -185,7 +171,7 @@ export default function DailyHall({ playerState, onStateChange, isOnline, claimD
           return;
         }
         setPreview(res.preview);
-        setRewardTitle("Daily Boon Claimed");
+        setRewardTitle("Daily Bonus Claimed");
         setRewardSubtitle(res.preview.label);
         setRewardItems(mapDailyPreviewToRewards(res.preview));
         setRewardOpen(true);
@@ -211,7 +197,7 @@ export default function DailyHall({ playerState, onStateChange, isOnline, claimD
           <HallSection title="Daily Hub" hue="var(--legendary)" glow={0.55} bg={texTreasure}>
             <div className="flex items-center gap-2 mb-3">
               <Gift className="w-4 h-4 text-[hsl(var(--legendary))]" />
-              <span className="text-xs text-foreground/85 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">Login rewards & boons</span>
+              <span className="text-xs text-foreground/85 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">Login rewards & daily bonus</span>
             </div>
             <HallStat label="Current streak" value={`${streak}d`} hue="var(--legendary)" />
             <HallStat label="Claimed this cycle" value={`${claimedDays.length}/7`} />
@@ -387,20 +373,4 @@ export default function DailyHall({ playerState, onStateChange, isOnline, claimD
       </Dialog>
     </HallLayout>
   );
-}
-
-function mapDailyPreviewToRewards(p: DailyClaimPreview): RewardItem[] {
-  if (p.kind === "gold") {
-    return [{ kind: "gold", amount: p.amount ?? 0, label: p.label, rarity: "legendary" }].filter((x) => (x.amount ?? 0) > 0);
-  }
-  if (p.kind === "stardust") {
-    return [{ kind: "gem", amount: p.amount ?? 0, label: p.label, rarity: "rare" }].filter((x) => (x.amount ?? 0) > 0);
-  }
-  if (p.kind === "card") {
-    return [{ kind: "card", label: p.label, rarity: "mythic" }];
-  }
-  if (p.kind === "pack") {
-    return [{ kind: "relic", label: p.label, rarity: "legendary" }];
-  }
-  return [{ kind: "relic", label: p.label, rarity: "rare" }];
 }

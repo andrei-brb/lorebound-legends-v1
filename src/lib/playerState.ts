@@ -303,6 +303,12 @@ export const CLIENT_ONLY_PLAYER_KEYS: (keyof PlayerState)[] = [
 function mergeDailyLoginPreferProgress(server: PlayerState, local: PlayerState): DailyLoginState {
   const s = normalizeDailyLogin(server.dailyLogin);
   const l = normalizeDailyLogin(local.dailyLogin);
+  const today = new Date().toISOString().slice(0, 10);
+
+  // Never let stale local state erase a claim the server already recorded today.
+  if (s.lastClaimDate === today) return s;
+  if (l.lastClaimDate === today) return l;
+
   const sn = s.claimedDays.length;
   const ln = l.claimedDays.length;
   if (ln > sn) return l;

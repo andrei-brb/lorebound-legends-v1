@@ -1,12 +1,13 @@
 import type React from "react";
 import { useState } from "react";
 import { Award, ChevronRight, Crown, Flame, Gift, Layers, Package, ScrollText, Sparkles, Swords } from "lucide-react";
-import type { PlayerState } from "@/lib/playerState";
 import EmberLayer from "@/components/EmberLayer";
 import { loadDailyQuests } from "@/lib/questEngine";
 import { toast } from "@/hooks/use-toast";
 import RewardPopup, { type RewardItem } from "@/components/battle3d/RewardPopup";
-import { DAILY_LOGIN_REWARDS, openMysteryBox } from "@/lib/dailyEngine";
+import { claimDailyLogin as claimDailyLoginOffline, DAILY_LOGIN_REWARDS, openMysteryBox } from "@/lib/dailyEngine";
+import { mapDailyPreviewToRewards, type DailyClaimPreview } from "@/lib/dailyClaimPreview";
+import { savePlayerState, type PlayerState } from "@/lib/playerState";
 
 type Tab = "summon" | "deck" | "combat-hall" | "quests" | "pass";
 
@@ -62,14 +63,15 @@ export default function GrowHub(props: {
   playerState: PlayerState;
   onStateChange: (s: PlayerState) => void;
   isOnline: boolean;
-  claimDailyLogin: () => Promise<void>;
+  claimDailyLogin: () => Promise<{ preview: DailyClaimPreview; state: PlayerState } | null>;
   onNavigate: (tab: Tab) => void;
 }) {
   const { playerState, onStateChange, isOnline, claimDailyLogin, onNavigate } = props;
   const [rewardOpen, setRewardOpen] = useState(false);
   const [rewardItems, setRewardItems] = useState<RewardItem[]>([]);
-  const [rewardTitle, setRewardTitle] = useState("Daily Boon Claimed");
+  const [rewardTitle, setRewardTitle] = useState("Daily Bonus Claimed");
   const [rewardSubtitle, setRewardSubtitle] = useState("The altar grants its favor.");
+  const [claiming, setClaiming] = useState(false);
   const today = new Date().toISOString().slice(0, 10);
   const daily = playerState.dailyLogin ?? { streak: 0, lastClaimDate: null, claimedDays: [] };
   const claimedToday = daily.lastClaimDate === today;
@@ -95,6 +97,61 @@ export default function GrowHub(props: {
   ];
 
   const pathLabel = playerState.selectedPath ? playerState.selectedPath[0].toUpperCase() + playerState.selectedPath.slice(1) : "Fire";
+
+  const handleDailyClaim = async () => {
+    if (claimedToday || claiming) return;
+    setClaiming(true);
+    try {
+      if (isOnline) {
+        const res = await claimDailyLogin();
+        if (!res) {
+          toast({
+            title: "Claim failed",
+            description: "Could not claim your daily bonus. Try again when signed in online.",
+            variant: "destructive",
+          });
+          return;
+        }
+        onStateChange(res.state);
+        setRewardTitle("Daily Bonus Claimed");
+        setRewardSubtitle(res.preview.label);
+        setRewardItems(mapDailyPreviewToRewards(res.preview));
+        setRewardOpen(true);
+        return;
+      }
+
+      const result = claimDailyLoginOffline(playerState);
+      if (!result) {
+        toast({
+          title: "Already claimed",
+          description: "Your daily bonus is ready again tomorrow.",
+        });
+        return;
+      }
+      onStateChange(result.state);
+      savePlayerState(result.state);
+      const reward = DAILY_LOGIN_REWARDS[result.day - 1];
+      setRewardTitle("Daily Bonus Claimed");
+      setRewardSubtitle(reward?.label ?? "The altar grants its favor.");
+      const previewKind = (reward?.gold ?? 0) > 0 ? "gold" : "stardust";
+      setRewardItems(
+        mapDailyPreviewToRewards({
+          kind: previewKind,
+          label: reward?.label ?? "Daily Bonus",
+          amount: previewKind === "gold" ? reward?.gold : result.stardust,
+        }),
+      );
+      setRewardOpen(true);
+    } catch (e: unknown) {
+      toast({
+        title: "Could not claim",
+        description: e instanceof Error ? e.message : "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setClaiming(false);
+    }
+  };
 
   return (
     <div
@@ -300,7 +357,7 @@ export default function GrowHub(props: {
           <div className="corner-deco absolute inset-0" />
           <div className="flex items-center gap-2 mb-4">
             <Gift size={16} className="text-[#f5c842]" />
-            <div className="font-heading text-[#f5c842] tracking-[0.2em]">DAILY BOONS</div>
+            <div className="font-heading text-[#f5c842] tracking-[0.2em]">DAILY BONUS</div>
           </div>
           <StatRow label="Current Streak" value={`${daily.streak} days`} />
           <StatRow label="Claimed this Cycle" value={`${claimedThisCycle} / 7`} />
@@ -310,27 +367,10 @@ export default function GrowHub(props: {
             className="btn-gold w-full mt-4 disabled:opacity-60"
             data-testid="claim-daily-btn"
             type="button"
-            disabled={claimedToday}
-            onClick={async () => {
-              if (claimedToday) return;
-              try {
-                await claimDailyLogin();
-                const dayIdx = Math.min(7, Math.max(1, claimedThisCycle + 1));
-                const r = DAILY_LOGIN_REWARDS[dayIdx - 1];
-                const items: RewardItem[] = [];
-                if (r?.gold) items.push({ kind: "gold", amount: r.gold, label: "Gold", rarity: "legendary" });
-                if (r?.stardust) items.push({ kind: "gem", amount: r.stardust, label: "Stardust", rarity: "rare" });
-                if (items.length === 0) items.push({ kind: "relic", label: "Daily Boon", rarity: "rare" });
-                setRewardTitle("Daily Boon Claimed");
-                setRewardSubtitle(r?.label ?? "The altar grants its favor.");
-                setRewardItems(items);
-                setRewardOpen(true);
-              } catch (e: unknown) {
-                toast({ title: "Could not claim", description: e instanceof Error ? e.message : "Please try again.", variant: "destructive" });
-              }
-            }}
+            disabled={claimedToday || claiming}
+            onClick={() => void handleDailyClaim()}
           >
-            {claimedToday ? "Already Claimed" : "Claim"}
+            {claiming ? "Claiming…" : claimedToday ? "Already Claimed" : "Claim Daily Bonus"}
           </button>
         </div>
 

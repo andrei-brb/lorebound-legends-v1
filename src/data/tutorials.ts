@@ -41,7 +41,7 @@ export const TUTORIALS: Record<string, TutorialStep[]> = {
   daily: [
     { icon: "🏠", title: "Welcome Home", body: "This is your daily hub: login rewards, quest progress, and mystery boxes live here." },
     { icon: "✨", title: "Quick start", body: "Follow the three steps — Summon, Deck Builder, Battle Arena — then explore the sidebar (Cards, Play, Progress, Social)." },
-    { icon: "🔥", title: "Build your streak", body: "Claim your daily boon every day. Bigger streaks unlock better rewards in the weekly cycle below." },
+    { icon: "🔥", title: "Build your streak", body: "Claim your daily bonus once per day. Bigger streaks unlock better rewards in the weekly cycle below." },
   ],
   profile: [
     { icon: "🧙", title: "Your Profile", body: "Pick an avatar and title, then watch your stats grow as you play." },
