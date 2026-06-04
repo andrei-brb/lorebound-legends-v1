@@ -76,8 +76,8 @@ const sizeClasses: Record<string, string> = {
   grid: "w-full max-w-[220px] aspect-[3/4]",
   // deck is used in Deck selection: much larger responsive cards.
   deck: "w-full max-w-[720px] aspect-[3/4]",
-  // picker: deck builder card list — art-forward, larger thumb
-  picker: "w-full max-w-[110px] aspect-[3/4]",
+  // picker: deck builder card list — fills 1/4 of the grid column
+  picker: "relative w-full min-w-0 aspect-[3/4]",
 };
 
 // Tilt intensity per rarity

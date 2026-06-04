@@ -120,6 +120,10 @@ function applyDiscovery({
   return out;
 }
 
+/** Deck builder card list: always 4 equal columns inside the right panel. */
+const DECK_PICKER_GRID =
+  "grid grid-cols-4 gap-1.5 [grid-template-columns:repeat(4,minmax(0,1fr))]";
+
 function CardGridItem({ card, onAddToDeck, onSelectCard, selectedCardId, deckCardIds, playerState, onStateChange, highlighted, onInspect }: {
   card: GameCardType; onAddToDeck?: (id: string) => void; onSelectCard?: (id: string) => void;
   selectedCardId?: string | null; deckCardIds: string[];
@@ -148,7 +152,8 @@ function CardGridItem({ card, onAddToDeck, onSelectCard, selectedCardId, deckCar
   return (
     <div
       className={cn(
-        "relative flex justify-center rounded-lg",
+        "relative rounded-lg",
+        onSelectCard ? "w-full min-w-0" : "flex justify-center",
         highlighted && "ring-2 ring-synergy shadow-[0_0_12px_hsl(var(--synergy)/0.5)] animate-pulse",
         isSelected && "ring-2 ring-[#f5c842] shadow-[0_0_14px_rgba(245,200,66,0.45)]",
       )}
@@ -351,13 +356,17 @@ export default function CollectionView({
           ) : (
             <div
               className={cn(
-                deckPickerMode ? "grid gap-1.5" : "grid gap-0.5",
-                deckPickerMode
-                  ? onSelectCard
-                    ? "grid-cols-4"
-                    : "grid-cols-2 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3"
-                  : "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-4",
+                onSelectCard
+                  ? DECK_PICKER_GRID
+                  : cn(
+                      "grid",
+                      deckPickerMode ? "gap-1.5" : "gap-0.5",
+                      deckPickerMode
+                        ? "grid-cols-2 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3"
+                        : "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-4",
+                    ),
               )}
+              data-testid={onSelectCard ? "deck-card-list-grid" : undefined}
             >
               {(typeof maxCards === "number" && maxCards > 0 ? discoveredCards.slice(0, maxCards) : discoveredCards).map((card) => (
                 <CardGridItem
@@ -399,12 +408,15 @@ export default function CollectionView({
                 <CardContent>
                   <div
                     className={cn(
-                      deckPickerMode ? "grid gap-1.5" : "grid gap-0.5",
-                      deckPickerMode
-                        ? onSelectCard
-                          ? "grid-cols-4"
-                          : "grid-cols-2 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3"
-                        : "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-4",
+                      onSelectCard
+                        ? DECK_PICKER_GRID
+                        : cn(
+                            "grid",
+                            deckPickerMode ? "gap-1.5" : "gap-0.5",
+                            deckPickerMode
+                              ? "grid-cols-2 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3"
+                              : "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-4",
+                          ),
                     )}
                   >
                     {cards.map((card) => (

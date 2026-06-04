@@ -293,7 +293,7 @@ export default function DeckGrimoire(props: {
         </section>
 
         {/* Right: card list */}
-        <aside className="w-full lg:w-[min(440px,42vw)] shrink-0 flex flex-col min-h-[360px] lg:min-h-0 border-l" style={panelBg}>
+        <aside className="w-full lg:w-[min(440px,42vw)] shrink-0 min-w-0 flex flex-col min-h-[360px] lg:min-h-0 border-l" style={panelBg}>
           <div
             className="shrink-0 px-3 py-2 flex items-center gap-2 border-b border-[rgba(212,175,55,0.15)]"
             style={{ background: "rgba(76,175,80,0.12)" }}
@@ -341,7 +341,7 @@ export default function DeckGrimoire(props: {
             </div>
           </div>
 
-          <div className="flex-1 min-h-0 overflow-y-auto p-2">
+          <div className="@container flex-1 min-h-0 min-w-0 overflow-y-auto p-2">
             <CollectionView
               onSelectCard={(id) => setSelectedCardId(id)}
               selectedCardId={selectedCardId}
