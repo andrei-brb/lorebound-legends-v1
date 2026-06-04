@@ -14,7 +14,9 @@ interface GameCardProps {
   onClick?: ((e: React.MouseEvent<HTMLDivElement>) => void) | (() => void);
   selected?: boolean;
   showSynergy?: boolean;
-  size?: "xs" | "sm" | "md" | "lg" | "grid" | "deck";
+  size?: "xs" | "sm" | "md" | "lg" | "grid" | "deck" | "picker";
+  /** Art-only thumbnail (no name/stats footer). Used in deck builder card list. */
+  compact?: boolean;
   cardProgress?: CardProgress;
   equippedFrameImage?: string | null;
   /** Shown on the flipped (lore) side when a card back cosmetic is equipped. */
@@ -74,6 +76,8 @@ const sizeClasses: Record<string, string> = {
   grid: "w-full max-w-[220px] aspect-[3/4]",
   // deck is used in Deck selection: much larger responsive cards.
   deck: "w-full max-w-[720px] aspect-[3/4]",
+  // picker: deck builder card list — art-forward, larger thumb
+  picker: "w-full max-w-[220px] aspect-[3/4]",
 };
 
 // Tilt intensity per rarity
@@ -107,7 +111,7 @@ const visualTierClasses: Record<string, string> = {
   awakened: "card-awakened",
 };
 
-export default function GameCard({ card, onClick, selected, showSynergy, size = "md", cardProgress, equippedFrameImage, equippedCardBackImage }: GameCardProps) {
+export default function GameCard({ card, onClick, selected, showSynergy, size = "md", compact = false, cardProgress, equippedFrameImage, equippedCardBackImage }: GameCardProps) {
   const [flipped, setFlipped] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
@@ -319,14 +323,17 @@ export default function GameCard({ card, onClick, selected, showSynergy, size = 
                 }}
               />
 
-              {/* Rarity badge — hidden when flipped */}
-              <div className="absolute top-2 left-2 z-20 transition-opacity duration-300" style={{ opacity: flipped ? 0 : 1 }}>
-                <span className={cn("text-[10px] font-bold uppercase px-2 py-0.5 rounded-full shadow-sm", rarityBadge[card.rarity])}>
-                  {rarityBadgeLabel[card.rarity]}
-                </span>
-              </div>
+              {/* Rarity badge — hidden when flipped or compact */}
+              {!compact && (
+                <div className="absolute top-2 left-2 z-20 transition-opacity duration-300" style={{ opacity: flipped ? 0 : 1 }}>
+                  <span className={cn("text-[10px] font-bold uppercase px-2 py-0.5 rounded-full shadow-sm", rarityBadge[card.rarity])}>
+                    {rarityBadgeLabel[card.rarity]}
+                  </span>
+                </div>
+              )}
 
-              {/* Type + Element badge — hidden when flipped */}
+              {/* Type + Element badge — hidden when flipped or compact */}
+              {!compact && (
               <div className="absolute top-2 right-2 z-20 flex items-center gap-1 transition-opacity duration-300" style={{ opacity: flipped ? 0 : 1 }}>
                 {card.element && card.element !== "neutral" && (
                   <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded-full border", elementBgClass[card.element], elementCssClass[card.element])}>
@@ -337,8 +344,10 @@ export default function GameCard({ card, onClick, selected, showSynergy, size = 
                   {card.type}
                 </span>
               </div>
+              )}
 
               {/* Level + Stars */}
+              {!compact && (
               <div className="absolute bottom-2 left-2 flex items-center gap-1 z-20 transition-opacity duration-300" style={{ opacity: flipped ? 0 : 1 }}>
                 <div className="bg-primary text-primary-foreground text-[10px] font-bold px-1.5 py-0.5 rounded flex items-center gap-0.5">
                   <ArrowUp className="w-2.5 h-2.5" />
@@ -363,9 +372,10 @@ export default function GameCard({ card, onClick, selected, showSynergy, size = 
                   </div>
                 )}
               </div>
+              )}
 
               {/* XP bar */}
-              {progress.level < 20 && (
+              {!compact && progress.level < 20 && (
                 <div className="absolute bottom-0 left-0 right-0 h-1 bg-secondary/50 z-20" style={{ opacity: flipped ? 0 : 1 }}>
                   <div
                     className="h-full bg-primary transition-all"
@@ -375,7 +385,7 @@ export default function GameCard({ card, onClick, selected, showSynergy, size = 
               )}
 
               {/* Dupe progress bar */}
-              {progress.starProgress.dupeCount > 0 && (() => {
+              {!compact && progress.starProgress.dupeCount > 0 && (() => {
                 const next = getDupesForNextStar(progress.starProgress.dupeCount, card.rarity);
                 if (next.starType === "max") return null;
                 return (
@@ -389,7 +399,8 @@ export default function GameCard({ card, onClick, selected, showSynergy, size = 
               })()}
             </div>
 
-            {/* Stat area — collapses when flipped */}
+            {/* Stat area — collapses when flipped; hidden in compact picker mode */}
+            {!compact && (
             <div
               className="bg-card/95 backdrop-blur-sm border-t-2 border-primary/30 relative z-20 transition-all duration-300 ease-out overflow-hidden"
               style={{
@@ -455,6 +466,7 @@ export default function GameCard({ card, onClick, selected, showSynergy, size = 
                 </div>
               </div>
             </div>
+            )}
 
             {/* Rarity glow */}
             <div className={cn("absolute inset-0 rounded-xl pointer-events-none", rarityGlowClass[card.rarity])} />

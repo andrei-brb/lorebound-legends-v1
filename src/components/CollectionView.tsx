@@ -155,7 +155,8 @@ function CardGridItem({ card, onAddToDeck, onSelectCard, selectedCardId, deckCar
     >
       <GameCardComponent
         card={card}
-        size={onAddToDeck || onSelectCard ? "deck" : "sm"}
+        size={onSelectCard ? "picker" : onAddToDeck ? "deck" : "sm"}
+        compact={Boolean(onSelectCard)}
         onClick={(e) => {
           if (onSelectCard) {
             onSelectCard(card.id);
@@ -187,7 +188,7 @@ function CardGridItem({ card, onAddToDeck, onSelectCard, selectedCardId, deckCar
       {inDeck && countInDeck === 0 && (
         <div className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center">✓</div>
       )}
-      {canPres && onStateChange && (
+      {!onSelectCard && canPres && onStateChange && (
         <button
           onClick={(e) => { e.stopPropagation(); handlePrestige(); }}
           className="absolute -bottom-2 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1 px-2 py-1 rounded-full bg-legendary text-primary-foreground text-[9px] font-bold hover:scale-110 transition-transform"
@@ -195,7 +196,7 @@ function CardGridItem({ card, onAddToDeck, onSelectCard, selectedCardId, deckCar
           <Star className="w-3 h-3 fill-current" /> Prestige
         </button>
       )}
-      {progress && progress.level < 20 && (
+      {!onSelectCard && progress && progress.level < 20 && (
         <div className="mt-1 px-2">
           <div className="h-1 bg-secondary rounded-full overflow-hidden">
             <div className="h-full bg-primary rounded-full transition-all" style={{ width: `${(progress.xp / xpForLevel(progress.level)) * 100}%` }} />
@@ -203,7 +204,7 @@ function CardGridItem({ card, onAddToDeck, onSelectCard, selectedCardId, deckCar
           <p className="text-[9px] text-muted-foreground text-center mt-0.5">{progress.xp}/{xpForLevel(progress.level)} XP</p>
         </div>
       )}
-      {progress && progress.level >= 20 && (
+      {!onSelectCard && progress && progress.level >= 20 && (
         <p className="text-[9px] text-[hsl(var(--legendary))] text-center mt-1 font-bold">MAX LEVEL</p>
       )}
     </div>
@@ -347,9 +348,11 @@ export default function CollectionView({
           ) : (
             <div
               className={cn(
-                deckPickerMode ? "grid gap-1" : "grid gap-0.5",
+                deckPickerMode ? "grid gap-2" : "grid gap-0.5",
                 deckPickerMode
-                  ? "grid-cols-2 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3"
+                  ? onSelectCard
+                    ? "grid-cols-2"
+                    : "grid-cols-2 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3"
                   : "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-4",
               )}
             >
