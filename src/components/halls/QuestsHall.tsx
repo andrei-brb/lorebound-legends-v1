@@ -5,7 +5,13 @@ import HallLayout, { HallSection, HallStat } from "@/components/scene/HallLayout
 import GlassPanel from "@/components/scene/GlassPanel";
 import { texCodex, texParchment, texVelvet } from "@/components/scene/panelTextures";
 import { cn } from "@/lib/utils";
-import { claimQuestReward, getQuestTimeUntilReset, loadDailyQuests, type DailyQuestState } from "@/lib/questEngine";
+import {
+  claimQuestReward,
+  getQuestTimeUntilReset,
+  getWeeklyQuestTimeUntilReset,
+  loadDailyQuests,
+  type DailyQuestState,
+} from "@/lib/questEngine";
 import RewardPopup, { type RewardItem } from "@/components/battle3d/RewardPopup";
 
 interface Quest {
@@ -44,25 +50,35 @@ export default function QuestsHall({ playerState, onStateChange }: Props) {
   }, [questState.lastResetDate]);
 
   const questsAll = useMemo((): Quest[] => {
-    const byId = new Map(questState.quests.map((q) => [q.questId, q]));
-    return questState.questDefinitions
-      .map((d) => {
-        const p = byId.get(d.id);
-        if (!p) return null;
-        return {
-          id: d.id,
-          title: d.title,
-          description: d.description,
-          progress: p.current,
-          goal: d.target,
-          reward: { gold: d.goldReward, stardust: d.stardustReward },
-          category: "daily",
-          done: p.completed,
-          claimed: p.claimed,
-        } satisfies Quest;
-      })
-      .filter(Boolean) as Quest[];
-  }, [questState.lastResetDate]);
+    const mapBucket = (
+      definitions: DailyQuestState["questDefinitions"],
+      progress: DailyQuestState["quests"],
+      category: "daily" | "weekly",
+    ): Quest[] => {
+      const byId = new Map(progress.map((q) => [q.questId, q]));
+      return definitions
+        .map((d) => {
+          const p = byId.get(d.id);
+          if (!p) return null;
+          return {
+            id: d.id,
+            title: d.title,
+            description: d.description,
+            progress: p.current,
+            goal: d.target,
+            reward: { gold: d.goldReward, stardust: d.stardustReward },
+            category,
+            done: p.completed,
+            claimed: p.claimed,
+          } satisfies Quest;
+        })
+        .filter(Boolean) as Quest[];
+    };
+    return [
+      ...mapBucket(questState.questDefinitions, questState.quests, "daily"),
+      ...mapBucket(questState.weeklyQuestDefinitions, questState.weeklyQuests, "weekly"),
+    ];
+  }, [questState.lastResetDate, questState.lastWeeklyResetDate]);
 
   const quests = useMemo(() => {
     if (filter === "all") return questsAll;
@@ -81,7 +97,8 @@ export default function QuestsHall({ playerState, onStateChange }: Props) {
               <span className="text-xs text-foreground/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">Daily & weekly tasks</span>
             </div>
             <HallStat label="Completed" value={`${completed}/${questsAll.length}`} />
-            <HallStat label="Resets in" value={fmtCountdown(getQuestTimeUntilReset())} hue="var(--rare)" />
+            <HallStat label="Daily reset" value={fmtCountdown(getQuestTimeUntilReset())} hue="var(--rare)" />
+            <HallStat label="Weekly reset" value={fmtCountdown(getWeeklyQuestTimeUntilReset())} hue="var(--primary)" />
             <HallStat label="Gold today" value={`${playerState.gold.toLocaleString()}`} hue="var(--legendary)" />
           </HallSection>
 

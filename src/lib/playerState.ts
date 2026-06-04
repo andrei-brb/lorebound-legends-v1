@@ -62,6 +62,8 @@ export interface PlayerState {
   lastChestClaimAt?: number | null;
   firstWinDate?: string | null; // YYYY-MM-DD of last claimed first-win bonus
   mysteryBoxesPending?: number;
+  /** Server-synced PvE/PvP battle record (online players). */
+  battleStats?: { wins: number; losses: number; draws: number };
   // QoL
   settings?: AppSettings;
   tutorialsCompleted?: string[];

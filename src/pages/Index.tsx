@@ -33,6 +33,7 @@ import CombatHall from "@/components/halls/CombatHall";
 const LivePvPBattleground = lazy(() => import("@/components/LivePvPBattleground"));
 const RaidCoopArena = lazy(() => import("@/components/RaidCoopArena"));
 const RaidLiveBattleground = lazy(() => import("@/components/RaidLiveBattleground"));
+const SpectateBattleground = lazy(() => import("@/components/SpectateBattleground"));
 import { initRaidCoopBattle, type RaidCoopState } from "@/lib/raid/raidCoopEngine";
 import { getRaidBoss } from "@/lib/raid/bosses";
 import { cn } from "@/lib/utils";
@@ -343,12 +344,17 @@ export default function Index() {
     typeof window !== "undefined" ? Number(sessionStorage.getItem("raid.live.matchId") || "") : NaN;
   const hasRaidLiveMatchFromInbox = Number.isFinite(raidLiveMatchIdFromInbox) && raidLiveMatchIdFromInbox > 0;
 
+  const spectateMatchIdFromStorage =
+    typeof window !== "undefined" ? Number(sessionStorage.getItem("spectate.matchId") || "") : NaN;
+  const hasSpectateMatch = Number.isFinite(spectateMatchIdFromStorage) && spectateMatchIdFromStorage > 0;
+
   /** Hide top nav (logo, currency, category + sub-tabs) while an active battle UI is shown */
   const hideAppChromeDuringBattle =
     activeTab === "battle" &&
     (battleDeckIds.length > 0 ||
       hasLiveMatchFromInbox ||
       hasRaidLiveMatchFromInbox ||
+      hasSpectateMatch ||
       (raidHotseat != null && raidState != null));
 
   return (
@@ -777,7 +783,7 @@ export default function Index() {
                 <div className="relative z-10">
                   <div className="section-heading mb-2">Trade</div>
                   <p className="text-center font-lore mb-6">Negotiate and exchange across the covenant.</p>
-                  <TradeHall playerState={playerState} onStateChange={setPlayerState} />
+                  <TradeHall playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} />
                 </div>
               </div>
             )}
@@ -823,7 +829,12 @@ export default function Index() {
                 <div className="relative z-10">
                   <div className="section-heading mb-2">Events</div>
                   <p className="text-center font-lore mb-6">Seasonal stories, modifiers, and limited rewards.</p>
-                  <EventsHall playerState={playerState} onStateChange={setPlayerState} />
+                  <EventsHall
+                    playerState={playerState}
+                    onStateChange={setPlayerState}
+                    isOnline={isOnline}
+                    pullSeasonalPack={pullSeasonalPack}
+                  />
                 </div>
               </div>
             )}
@@ -914,7 +925,15 @@ export default function Index() {
                 <div className="relative z-10">
                   <div className="section-heading mb-2">Spectate</div>
                   <p className="text-center font-lore mb-6">Watch live matches.</p>
-                  <SpectateHall isOnline={isOnline} />
+                  <SpectateHall
+                    isOnline={isOnline}
+                    onWatch={(matchId) => {
+                      sessionStorage.setItem("spectate.matchId", String(matchId));
+                      setBattleDeckIds([]);
+                      setRankedBattle(null);
+                      setActiveTab("battle");
+                    }}
+                  />
                 </div>
               </div>
             )}
@@ -922,6 +941,7 @@ export default function Index() {
             {activeTab === "combat-hall" && (
               <CombatHall
                 playerState={playerState}
+                isOnline={isOnline}
                 onLaunchMode={(mode) => {
                   if (mode === "ranked") setActiveTab("pvp");
                   else if (mode === "tourney") setActiveTab("tournament");
@@ -951,6 +971,7 @@ export default function Index() {
             {activeTab === "raid" && (
               <CombatHall
                 playerState={playerState}
+                isOnline={isOnline}
                 defaultMode="raid"
                 onLaunchMode={() => {
                   openDeckSelect({
@@ -1034,7 +1055,26 @@ export default function Index() {
                 />
               </Suspense>
             )}
-            {activeTab === "battle" && battleDeckIds.length === 0 && hasLiveMatchFromInbox && (
+            {activeTab === "battle" && battleDeckIds.length === 0 && hasSpectateMatch && (
+              <Suspense
+                fallback={
+                  <div className="flex items-center justify-center py-20 text-muted-foreground">
+                    <Loader2 className="w-5 h-5 animate-spin mr-2" />
+                    Loading spectate…
+                  </div>
+                }
+              >
+                <SpectateBattleground
+                  matchId={spectateMatchIdFromStorage}
+                  playerState={playerState}
+                  onExit={() => {
+                    sessionStorage.removeItem("spectate.matchId");
+                    setActiveTab("spectate");
+                  }}
+                />
+              </Suspense>
+            )}
+            {activeTab === "battle" && battleDeckIds.length === 0 && hasLiveMatchFromInbox && !hasSpectateMatch && (
               <Suspense
                 fallback={
                   <div className="flex items-center justify-center py-20 text-muted-foreground">
@@ -1058,11 +1098,13 @@ export default function Index() {
             {activeTab === "battle" &&
               battleDeckIds.length === 0 &&
               !hasLiveMatchFromInbox &&
+              !hasSpectateMatch &&
               hasRaidLiveMatchFromInbox &&
               !raidHotseat && null}
             {activeTab === "battle" &&
               battleDeckIds.length === 0 &&
               !hasLiveMatchFromInbox &&
+              !hasSpectateMatch &&
               !hasRaidLiveMatchFromInbox &&
               !(raidHotseat && raidState) && (
               <div className="text-center py-20">

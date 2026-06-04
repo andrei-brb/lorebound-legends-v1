@@ -695,6 +695,7 @@ function playerToClientState(player, cards) {
     battlePassXpBoostExpiresAt: player.battlePassXpBoostExpiresAt ? player.battlePassXpBoostExpiresAt.getTime() : null,
     deckPresets: player.deckPresets ?? undefined,
     dailyLogin: normalizeDailyLoginForClient(player.dailyLogin),
+    battleStats: battleStatsForClient(player),
   };
 }
 
@@ -800,6 +801,12 @@ async function handleGetPlayer(req, res) {
   sendJson(res, 200, state);
 }
 
+function battleStatsForClient(player) {
+  const s = player.battleStats;
+  if (!s) return { wins: 0, losses: 0, draws: 0 };
+  return { wins: s.wins ?? 0, losses: s.losses ?? 0, draws: s.draws ?? 0 };
+}
+
 async function handleGetMe(req, res) {
   const user = await requireAuth(req, res);
   if (!user) return;
@@ -863,7 +870,7 @@ async function handlePatchPlayer(req, res) {
   const player = await prisma.player.update({
     where: { discordId: user.id },
     data,
-    include: { cards: true },
+    include: { cards: true, battleStats: true },
   });
   sendJson(res, 200, playerToClientState(player, player.cards));
 }

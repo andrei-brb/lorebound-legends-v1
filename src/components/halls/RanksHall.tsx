@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
-import { BarChart3, Crown, Trophy, Loader2 } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { BarChart3, Crown, Trophy, Loader2, RefreshCw } from "lucide-react";
 import { api } from "@/lib/apiClient";
 import type { PlayerState } from "@/lib/playerState";
 import HallLayout, { HallSection, HallStat } from "@/components/scene/HallLayout";
@@ -12,31 +12,35 @@ type Row = { rank: number; username: string; score: number; discordId?: string; 
 
 interface Props { playerState: PlayerState; isOnline: boolean }
 
-const MOCK: Row[] = [
-  { rank: 1, username: "Pyrothos", score: 28450 },
-  { rank: 2, username: "MoonGoddess", score: 26120 },
-  { rank: 3, username: "ShadowKing", score: 24890 },
-  { rank: 4, username: "Sylvana", score: 22310 },
-  { rank: 5, username: "Tempestia", score: 20450 },
-  { rank: 6, username: "Verdantia", score: 18200 },
-  { rank: 7, username: "Fenris", score: 17980 },
-  { rank: 8, username: "Corvus", score: 16400 },
-];
-
 export default function RanksHall({ playerState, isOnline }: Props) {
   const [board, setBoard] = useState<"wins" | "collection" | "rarest">("wins");
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = useCallback(async () => {
+    if (!isOnline) {
+      setLoading(false);
+      setRows([]);
+      setError(null);
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const r = await api.getLeaderboard(board) as { entries?: Row[] };
+      setRows(r?.entries ?? []);
+    } catch (e) {
+      setRows([]);
+      setError(e instanceof Error ? e.message : "Could not load leaderboard");
+    } finally {
+      setLoading(false);
+    }
+  }, [board, isOnline]);
 
   useEffect(() => {
-    let alive = true;
-    setLoading(true);
-    api.getLeaderboard(board)
-      .then((r: any) => { if (alive) setRows(r?.entries || r || MOCK); })
-      .catch(() => { if (alive) setRows(MOCK); })
-      .finally(() => { if (alive) setLoading(false); });
-    return () => { alive = false; };
-  }, [board]);
+    void refresh();
+  }, [refresh]);
 
   const top3 = rows.slice(0, 3);
   const rest = rows.slice(3, 30);
@@ -59,10 +63,11 @@ export default function RanksHall({ playerState, isOnline }: Props) {
               {(["wins", "collection", "rarest"] as const).map((b) => (
                 <button
                   key={b}
+                  type="button"
                   onClick={() => setBoard(b)}
                   className={cn(
                     "w-full text-left px-2.5 py-1.5 rounded-lg text-xs capitalize transition-colors",
-                    board === b ? "bg-[hsl(var(--legendary)/0.25)] text-foreground ring-1 ring-[hsl(var(--legendary)/0.5)]" : "text-foreground/85 hover:bg-foreground/10 bg-background/30"
+                    board === b ? "bg-[hsl(var(--legendary)/0.25)] text-foreground ring-1 ring-[hsl(var(--legendary)/0.5)]" : "text-foreground/85 hover:bg-foreground/10 bg-background/30",
                   )}
                 >
                   {b}
@@ -73,11 +78,29 @@ export default function RanksHall({ playerState, isOnline }: Props) {
         </>
       }
     >
-      {loading ? (
+      {!isOnline ? (
+        <GlassPanel hue="var(--legendary)" glow={0.2} padding="lg">
+          <p className="text-sm text-muted-foreground text-center py-6">
+            Sign in via Discord Activity to view the live leaderboard.
+          </p>
+        </GlassPanel>
+      ) : loading ? (
         <div className="flex justify-center py-12"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
+      ) : error ? (
+        <GlassPanel hue="var(--destructive)" glow={0.2} padding="lg">
+          <div className="flex flex-col items-center gap-3 py-6 text-center">
+            <p className="text-sm text-muted-foreground">{error}</p>
+            <button type="button" onClick={() => void refresh()} className="px-4 py-2 rounded-lg bg-primary/20 text-primary text-xs uppercase tracking-wider flex items-center gap-1">
+              <RefreshCw className="w-3 h-3" /> Retry
+            </button>
+          </div>
+        </GlassPanel>
+      ) : rows.length === 0 ? (
+        <GlassPanel hue="var(--legendary)" glow={0.2} padding="lg">
+          <p className="text-sm text-muted-foreground text-center py-6">No rankings on this board yet.</p>
+        </GlassPanel>
       ) : (
         <>
-          {/* Podium */}
           {top3.length === 3 && (
             <GlassPanel hue="var(--legendary)" glow={0.5} padding="lg" bg={texThrone} bgTint={0.6}>
               <div className="grid grid-cols-3 gap-3 items-end">
@@ -88,15 +111,17 @@ export default function RanksHall({ playerState, isOnline }: Props) {
             </GlassPanel>
           )}
 
-          {/* Rest of leaderboard */}
           <GlassPanel hue="var(--primary)" glow={0.3} padding="md" bg={texVelvet}>
             <h3 className="font-heading text-xs uppercase tracking-wider text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] mb-3">Top Contenders</h3>
             <ul className="space-y-1">
               {rest.map((r) => (
-                <li key={r.rank} className={cn(
-                  "flex items-center gap-3 px-2 py-2 rounded-lg",
-                  r.isMe ? "bg-primary/10 ring-1 ring-primary/30" : "hover:bg-foreground/5"
-                )}>
+                <li
+                  key={r.rank}
+                  className={cn(
+                    "flex items-center gap-3 px-2 py-2 rounded-lg",
+                    r.isMe ? "bg-primary/10 ring-1 ring-primary/30" : "hover:bg-foreground/5",
+                  )}
+                >
                   <span className="font-heading text-sm text-muted-foreground w-6 text-center">{r.rank}</span>
                   <HexAvatar
                     size={32}

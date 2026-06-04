@@ -6,7 +6,7 @@ import EmberLayer from "@/components/EmberLayer";
 import { loadDailyQuests } from "@/lib/questEngine";
 import { toast } from "@/hooks/use-toast";
 import RewardPopup, { type RewardItem } from "@/components/battle3d/RewardPopup";
-import { DAILY_LOGIN_REWARDS } from "@/lib/dailyEngine";
+import { DAILY_LOGIN_REWARDS, openMysteryBox } from "@/lib/dailyEngine";
 
 type Tab =
   | "summon"
@@ -79,7 +79,7 @@ export default function GrowHub(props: {
   claimDailyLogin: () => Promise<void>;
   onNavigate: (tab: Tab) => void;
 }) {
-  const { playerState, isOnline, claimDailyLogin, onNavigate } = props;
+  const { playerState, onStateChange, isOnline, claimDailyLogin, onNavigate } = props;
   const [rewardOpen, setRewardOpen] = useState(false);
   const [rewardItems, setRewardItems] = useState<RewardItem[]>([]);
   const [rewardTitle, setRewardTitle] = useState("Daily Boon Claimed");
@@ -366,7 +366,15 @@ export default function GrowHub(props: {
             className="btn-gold w-full flex items-center justify-center gap-2"
             data-testid="open-mystery-btn"
             type="button"
-            onClick={() => toast({ title: "Coming soon", description: "Mystery Boxes will be added next." })}
+            onClick={() => {
+              const result = openMysteryBox(playerState);
+              if (!result) {
+                toast({ title: "No boxes", description: "Win battles to earn mystery boxes.", variant: "destructive" });
+                return;
+              }
+              onStateChange(result.state);
+              toast({ title: "Mystery box opened", description: `+${result.gold} gold${result.stardust > 0 ? `, +${result.stardust} stardust` : ""}` });
+            }}
           >
             Open <ChevronRight size={14} />
           </button>

@@ -131,4 +131,6 @@ export type LivePvPBattleConfig = {
   actionLog: BattleLockstepIntent[];
   onIntent: (intent: BattleLockstepIntent) => Promise<void>;
   isSubmitting: boolean;
+  /** Read-only: show match without sending intents */
+  spectator?: boolean;
 };

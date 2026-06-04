@@ -1,14 +1,18 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Swords, Crown, Shield, Trophy, Flame, Zap } from "lucide-react";
 import type { PlayerState } from "@/lib/playerState";
+import { loadAchievementState } from "@/lib/achievementEngine";
 import HallLayout, { HallSection, HallStat } from "@/components/scene/HallLayout";
 import GlassPanel from "@/components/scene/GlassPanel";
 import HexAvatar from "@/components/scene/HexAvatar";
 import { texArena, texThrone, texLeather, texVelvet, texGilded, texForge } from "@/components/scene/panelTextures";
 import { cn } from "@/lib/utils";
 
+const MAX_DECK_SIZE = 10;
+
 interface Props {
   playerState: PlayerState;
+  isOnline?: boolean;
   onLaunchMode?: (mode: "skirmish" | "ranked" | "tourney" | "raid") => void;
   defaultMode?: "skirmish" | "ranked" | "tourney" | "raid";
 }
@@ -18,13 +22,31 @@ const MODES = [
   { id: "ranked", label: "Ranked PvP", desc: "Climb the leaderboard ladder", icon: <Crown className="w-4 h-4" />, hue: "var(--legendary)" },
   { id: "tourney", label: "Tournament", desc: "Bracketed bouts for great rewards", icon: <Trophy className="w-4 h-4" />, hue: "var(--rare)" },
   { id: "raid", label: "Raid", desc: "Co-op vs an elite boss", icon: <Flame className="w-4 h-4" />, hue: "var(--destructive)" },
-];
+] as const;
 
-export default function CombatHall({ playerState, onLaunchMode, defaultMode = "skirmish" }: Props) {
+export default function CombatHall({ playerState, isOnline, onLaunchMode, defaultMode = "skirmish" }: Props) {
   const [selected, setSelected] = useState<"skirmish" | "ranked" | "tourney" | "raid">(defaultMode);
-  const wins = 0;
-  const losses = 0;
-  const winrate = 0;
+
+  const { wins, losses, winrate } = useMemo(() => {
+    const bs = playerState.battleStats;
+    if (bs && (bs.wins + bs.losses + bs.draws > 0 || isOnline)) {
+      const total = bs.wins + bs.losses + bs.draws;
+      const wr = total > 0 ? Math.round((bs.wins / total) * 100) : 0;
+      return { wins: bs.wins, losses: bs.losses, winrate: wr };
+    }
+    const stats = loadAchievementState().stats;
+    const w = stats.totalWins;
+    const l = Math.max(0, stats.totalBattles - stats.totalWins);
+    const total = w + l;
+    return { wins: w, losses: l, winrate: total > 0 ? Math.round((w / total) * 100) : 0 };
+  }, [playerState.battleStats, isOnline]);
+
+  const activeDeck = playerState.deckPresets?.[0];
+  const deckCount = activeDeck?.cardIds?.length ?? 0;
+  const deckLabel = activeDeck
+    ? `${deckCount} / ${MAX_DECK_SIZE} cards · ${activeDeck.name}`
+    : "No deck saved";
+
   const pathHue = playerState.selectedPath === "fire" ? "var(--destructive)" : playerState.selectedPath === "nature" ? "var(--synergy)" : playerState.selectedPath === "shadow" ? "var(--secondary)" : "var(--primary)";
 
   return (
@@ -45,20 +67,25 @@ export default function CombatHall({ playerState, onLaunchMode, defaultMode = "s
             <HallStat label="Wins" value={wins} hue="var(--legendary)" />
             <HallStat label="Losses" value={losses} />
             <HallStat label="Winrate" value={`${winrate}%`} hue="var(--rare)" />
-            <HallStat label="Streak" value={`${playerState.dailyLogin?.streak ?? 0}d`} />
+            <HallStat label="Login streak" value={`${playerState.dailyLogin?.streak ?? 0}d`} />
           </HallSection>
 
           <HallSection title="Loadout" hue="var(--primary)" glow={0.3} bg={texLeather}>
             <div className="flex items-center gap-2 text-xs text-foreground/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)] mb-2">
-              <Shield className="w-3.5 h-3.5" /> 8 / 8 cards equipped
+              <Shield className="w-3.5 h-3.5 shrink-0" />
+              <span className="truncate">{deckLabel}</span>
             </div>
-            <div className="grid grid-cols-4 gap-1.5">
-              {Array.from({ length: 8 }).map((_, i) => (
-                <div key={i} className="aspect-[3/4] rounded-md border border-border/40 bg-background/50 flex items-center justify-center">
-                  <span className="text-xs text-foreground/70">{i + 1}</span>
-                </div>
-              ))}
-            </div>
+            {activeDeck?.cardIds?.length ? (
+              <div className="grid grid-cols-4 gap-1.5">
+                {activeDeck.cardIds.slice(0, MAX_DECK_SIZE).map((_, i) => (
+                  <div key={i} className="aspect-[3/4] rounded-md border border-border/40 bg-background/50 flex items-center justify-center">
+                    <span className="text-xs text-foreground/70">{i + 1}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-[10px] text-muted-foreground">Save a deck in Deck Builder first.</p>
+            )}
           </HallSection>
         </>
       }
@@ -83,7 +110,8 @@ export default function CombatHall({ playerState, onLaunchMode, defaultMode = "s
           return (
             <button
               key={m.id}
-              onClick={() => setSelected(m.id as "skirmish" | "ranked" | "tourney" | "raid")}
+              type="button"
+              onClick={() => setSelected(m.id)}
               className="text-left"
             >
               <GlassPanel hue={m.hue} glow={active ? 0.7 : 0.35} padding="md" className={cn("transition-transform", active && "scale-[1.01]")}>
@@ -114,6 +142,7 @@ export default function CombatHall({ playerState, onLaunchMode, defaultMode = "s
             <p className="text-xs text-foreground/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">Selected mode: <span className="text-foreground capitalize">{selected}</span></p>
           </div>
           <button
+            type="button"
             onClick={() => onLaunchMode?.(selected)}
             className="px-5 py-2.5 rounded-xl font-heading text-sm text-primary-foreground transition-transform hover:scale-[1.02]"
             style={{ background: `linear-gradient(135deg, hsl(var(--destructive)), hsl(var(--primary)))`, boxShadow: `0 0 20px hsl(var(--destructive)/0.4)` }}
@@ -122,21 +151,6 @@ export default function CombatHall({ playerState, onLaunchMode, defaultMode = "s
           </button>
         </div>
       </GlassPanel>
-
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <GlassPanel hue="var(--legendary)" glow={0.3} padding="md" bg={texThrone} bgTint={0.7}>
-          <div className="flex items-center gap-2 mb-1"><Crown className="w-4 h-4 text-[hsl(var(--legendary))]" /><h3 className="font-heading text-xs uppercase tracking-wider text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Top Rank</h3></div>
-          <p className="text-xs text-foreground/85 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">Diamond III · 1,240 MMR</p>
-        </GlassPanel>
-        <GlassPanel hue="var(--rare)" glow={0.3} padding="md" bg={texGilded} bgTint={0.7}>
-          <div className="flex items-center gap-2 mb-1"><Trophy className="w-4 h-4 text-[hsl(var(--rare))]" /><h3 className="font-heading text-xs uppercase tracking-wider text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Last Trophy</h3></div>
-          <p className="text-xs text-foreground/85 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">Winter Tournament — 3rd place</p>
-        </GlassPanel>
-        <GlassPanel hue="var(--destructive)" glow={0.3} padding="md" bg={texForge} bgTint={0.7}>
-          <div className="flex items-center gap-2 mb-1"><Flame className="w-4 h-4 text-[hsl(var(--destructive))]" /><h3 className="font-heading text-xs uppercase tracking-wider text-foreground drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">Active Boost</h3></div>
-          <p className="text-xs text-foreground/85 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">+25% gold for next 3 wins</p>
-        </GlassPanel>
-      </div>
     </HallLayout>
   );
 }

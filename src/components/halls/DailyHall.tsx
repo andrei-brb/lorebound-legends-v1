@@ -17,6 +17,7 @@ import { toast } from "@/hooks/use-toast";
 import { GoldCurrencyIcon, StardustCurrencyIcon } from "@/components/CurrencyIcons";
 import GameCard from "@/components/GameCard";
 import { PACK_DEFINITIONS, pullCards } from "@/lib/gachaEngine";
+import { openMysteryBox } from "@/lib/dailyEngine";
 import bronzePackImg from "@/assets/packs/bronze-pack.jpg";
 import RewardPopup, { type RewardItem } from "@/components/battle3d/RewardPopup";
 
@@ -306,7 +307,14 @@ export default function DailyHall({ playerState, onStateChange, isOnline, claimD
         <div className="flex items-center justify-between">
           <p className="text-sm text-foreground/85 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">{playerState.mysteryBoxesPending ?? 0} pending</p>
           <button
+            type="button"
             disabled={(playerState.mysteryBoxesPending ?? 0) === 0}
+            onClick={() => {
+              const result = openMysteryBox(playerState);
+              if (!result) return;
+              onStateChange(result.state);
+              toast({ title: "Mystery box opened", description: `+${result.gold} gold${result.stardust > 0 ? `, +${result.stardust} stardust` : ""}` });
+            }}
             className="px-3 py-1.5 rounded-lg bg-primary/15 hover:bg-primary/25 text-primary text-xs uppercase tracking-wider disabled:opacity-30"
           >
             Open

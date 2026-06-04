@@ -13,7 +13,7 @@ import {
   type RewardKind,
 } from "@/data/battlePassSeasons";
 import type { PlayerState, BattlePassSeasonId } from "@/lib/playerState";
-import { BP_XP_PER_LEVEL, awardBattlePassXp, claimBattlePassLevelReward, getBattlePassLevelFromXp, getBattlePassSeasonProgress, getBattlePassXpToNextLevel, normalizeBattlePassDaily, setBattlePassActiveSeason, setCosmeticEquipped } from "@/lib/battlePassEngine";
+import { BP_XP_PER_LEVEL, ELITE_PASS_STARDUST_COST, awardBattlePassXp, claimBattlePassLevelReward, getBattlePassLevelFromXp, getBattlePassSeasonProgress, getBattlePassXpToNextLevel, normalizeBattlePassDaily, purchaseElitePass, setBattlePassActiveSeason, setCosmeticEquipped } from "@/lib/battlePassEngine";
 import { toast } from "@/hooks/use-toast";
 import { getCosmeticById } from "@/data/cosmetics";
 import { getCardById } from "@/data/cardIndex";
@@ -79,6 +79,17 @@ export default function BattlePass({ playerState, onStateChange }: BattlePassPro
     setSeasonIdLocal(id);
     const next = setBattlePassActiveSeason(normalizedState, id);
     onStateChange(next);
+  };
+
+  const handlePurchaseElite = () => {
+    if (!window.confirm(`Unlock Elite Pass for ${ELITE_PASS_STARDUST_COST} stardust?`)) return;
+    const res = purchaseElitePass(normalizedState, seasonId);
+    if (!res.ok) {
+      toast({ title: "Cannot unlock Elite", description: res.error, variant: "destructive" });
+      return;
+    }
+    onStateChange(res.state);
+    toast({ title: "Elite Pass unlocked", description: "Claim premium rewards on every level you reach." });
   };
 
   const handleClaim = (level: number, track: "free" | "elite") => {
@@ -150,8 +161,12 @@ export default function BattlePass({ playerState, onStateChange }: BattlePassPro
           <p className="text-sm text-muted-foreground mt-1">{season.subtitle}</p>
         </div>
         {!hasElite && (
-          <button className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[hsl(var(--legendary))] to-[hsl(280,60%,55%)] text-background font-heading font-bold text-sm hover:brightness-110 transition-all shadow-lg shadow-[hsl(var(--legendary))]/20">
-            ✦ Upgrade to Elite Pass
+          <button
+            type="button"
+            onClick={handlePurchaseElite}
+            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[hsl(var(--legendary))] to-[hsl(280,60%,55%)] text-background font-heading font-bold text-sm hover:brightness-110 transition-all shadow-lg shadow-[hsl(var(--legendary))]/20"
+          >
+            ✦ Elite Pass · {ELITE_PASS_STARDUST_COST} stardust
           </button>
         )}
       </div>

@@ -8,6 +8,7 @@ import HexAvatar from "@/components/scene/HexAvatar";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { toast } from "@/hooks/use-toast";
 import bgGuild from "@/assets/bg-guild-hall.jpg";
 import boxParchment from "@/assets/box-tex-parchment.jpg";
 import boxStone from "@/assets/box-tex-stone.jpg";
@@ -19,18 +20,9 @@ interface GuildMsg { id: number; userId: number; username: string; avatar?: stri
 
 interface Props { isOnline: boolean; playerState: PlayerState }
 
-const MOCK_GUILD: Guild = { id: 1, name: "The Lorebound", tag: "LORE", level: 7, xp: 4200, xpNext: 6000, memberCount: 12, description: "Gathered beneath the moon to seek lost legends." };
-const MOCK_MEMBERS: Member[] = [
-  { id: 1, username: "Pyrothos", role: "leader", online: true },
-  { id: 2, username: "MoonGoddess", role: "officer", online: true },
-  { id: 3, username: "Sylvana", role: "member", online: false },
-  { id: 4, username: "Tempestia", role: "member", online: true },
-  { id: 5, username: "Verdantia", role: "member", online: false },
-];
-
 export default function GuildHall({ isOnline }: Props) {
-  const [guild, setGuild] = useState<Guild>(MOCK_GUILD);
-  const [members, setMembers] = useState<Member[]>(MOCK_MEMBERS);
+  const [guild, setGuild] = useState<Guild | null>(null);
+  const [members, setMembers] = useState<Member[]>([]);
   const [msgs, setMsgs] = useState<GuildMsg[]>([]);
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState("");
@@ -50,7 +42,7 @@ export default function GuildHall({ isOnline }: Props) {
             level: g.guild.level ?? 1,
             xp: g.guild.xp ?? 0,
             xpNext: g.guild.xpNext ?? 1000,
-            memberCount: g.guild.memberCount ?? MOCK_GUILD.memberCount,
+            memberCount: g.guild.memberCount ?? 0,
             description: g.guild.description ?? undefined,
           });
           if (g.members) setMembers(g.members);
@@ -58,6 +50,9 @@ export default function GuildHall({ isOnline }: Props) {
             const m: any = await api.getChat(`guild:${g.guild.id}` as any).catch(() => null);
             if (alive && m?.messages) setMsgs(m.messages.map((x: any) => ({ id: x.id, userId: x.playerId, username: x.username, content: x.body, createdAt: x.createdAt })));
           }
+        } else if (alive) {
+          setGuild(null);
+          setMembers([]);
         }
       } catch {}
       finally { if (alive) setLoading(false); }
@@ -66,19 +61,48 @@ export default function GuildHall({ isOnline }: Props) {
   }, []);
 
   const send = async () => {
-    if (!text.trim() || sending) return;
+    if (!guild?.id || !text.trim() || sending) return;
     setSending(true);
     try {
       await api.postChat(`guild:${guild.id}`, text.trim());
       const m: any = await api.getChat(`guild:${guild.id}` as any);
       setMsgs((m?.messages || []).map((x: any) => ({ id: x.id, userId: x.playerId, username: x.username, content: x.body, createdAt: x.createdAt })));
       setText("");
-    } catch {}
-    finally { setSending(false); }
+    } catch (e) {
+      toast({
+        title: "Message failed",
+        description: e instanceof Error ? e.message : "Could not send guild message",
+        variant: "destructive",
+      });
+    } finally { setSending(false); }
   };
 
-  const xpPct = guild.xpNext ? (guild.xp / guild.xpNext) * 100 : 0;
+  const xpPct = guild && guild.xpNext ? (guild.xp / guild.xpNext) * 100 : 0;
   const online = members.filter((m) => m.online).length;
+
+  if (!loading && !guild) {
+    return (
+      <GlassPanel hue="var(--legendary)" glow={0.3} padding="lg">
+        <div className="text-center py-10 space-y-3">
+          <Flag className="w-10 h-10 mx-auto text-[hsl(var(--legendary))]/50" />
+          <h3 className="font-heading text-lg text-foreground">No guild yet</h3>
+          <p className="text-sm text-muted-foreground max-w-md mx-auto">
+            {isOnline
+              ? "Join or create a guild from the Guild panel to unlock banner chat and roster perks."
+              : "Sign in via Discord Activity to join a guild."}
+          </p>
+        </div>
+      </GlassPanel>
+    );
+  }
+
+  if (!guild) {
+    return (
+      <div className="flex justify-center py-12">
+        <Loader2 className="w-5 h-5 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="relative -mt-8 -mx-4 sm:-mx-6">

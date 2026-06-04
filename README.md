@@ -1,6 +1,32 @@
 # Lorebound Legends / Mythic Arcana
 
-Vite + React + TypeScript card game: collection, gacha packs, deck building, and turn-based battles. Progress is stored in `localStorage` via `src/lib/playerState.ts`. Core rules live under `src/lib/` (`battleEngine.ts`, `gachaEngine.ts`, `synergyEngine.ts`, etc.).
+Vite + React + TypeScript card game: collection, gacha packs, deck building, and turn-based battles. Core rules live under `src/lib/` (`battleEngine.ts`, `gachaEngine.ts`, `synergyEngine.ts`, etc.).
+
+## Player progress (offline + online)
+
+- **Offline / browser:** progress is saved in `localStorage` via `src/lib/playerState.ts` (gold, collection, battle pass, quests, achievements, deck presets, etc.).
+- **Discord Activity:** when authenticated, `src/lib/usePlayerApi.ts` syncs the same `PlayerState` to the token server (`PATCH /api/player`) after local changes (debounced). Sign in through the Embedded App SDK flow in `src/lib/discordEmbedded.ts`.
+- Halls and panels read local state first; online-only features (marketplace, guild API, live PvP, seasonal pack pulls) require `isOnline` from the player API hook.
+
+### Environment variables
+
+| Variable | Purpose |
+|----------|---------|
+| `VITE_DISCORD_CLIENT_ID` | Discord Application (client) ID for the Embedded App |
+| `DISCORD_CLIENT_SECRET` | OAuth token exchange on the token server (never commit) |
+| `DATABASE_URL` | Prisma / Postgres when running `server/token-server.mjs` with persistence |
+| `VITE_API_BASE` | Optional API origin override for non-proxied builds |
+
+See `.env.example` if present, or the Discord section below for the minimum local Activity setup.
+
+### Server battle bundles
+
+`npm run build` runs `build:server-battle` and `build:server-raid`, which bundle `src/lib/battleLockstep.ts` and `src/lib/raid/raidCoopEngine.ts` into `server/battleLockstep.mjs` and `server/raidCoopEngine.mjs` for the token server. After changing lockstep or raid engine logic, rebuild and commit those generated files if your deploy workflow expects them:
+
+```bash
+npm run build:server-battle
+npm run build:server-raid
+```
 
 ## Local development
 

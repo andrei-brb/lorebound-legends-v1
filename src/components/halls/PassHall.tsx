@@ -11,7 +11,10 @@ import {
   getBattlePassXpToNextLevel,
   BP_MAX_LEVEL,
   BP_XP_PER_LEVEL,
+  ELITE_PASS_STARDUST_COST,
+  purchaseElitePass,
 } from "@/lib/battlePassEngine";
+import { toast } from "@/hooks/use-toast";
 
 interface Props {
   playerState: PlayerState;
@@ -25,6 +28,17 @@ export default function PassHall({ playerState, onStateChange }: Props) {
   const xpToNext = getBattlePassXpToNextLevel(sp.xp) || 0;
   const currentXp = sp.xp - (currentLevel - 1) * BP_XP_PER_LEVEL;
   const hasElite = sp.hasElite;
+
+  const handleGoElite = () => {
+    if (!window.confirm(`Unlock Elite Pass for ${ELITE_PASS_STARDUST_COST} stardust?`)) return;
+    const res = purchaseElitePass(playerState, seasonId);
+    if (!res.ok) {
+      toast({ title: "Cannot unlock Elite", description: res.error, variant: "destructive" });
+      return;
+    }
+    onStateChange(res.state);
+    toast({ title: "Elite Pass unlocked", description: "Premium track rewards are now available." });
+  };
 
   return (
     <HallLayout
@@ -46,10 +60,11 @@ export default function PassHall({ playerState, onStateChange }: Props) {
               <p className="text-xs text-muted-foreground mb-3">Unlock Elite to claim premium rewards on every level.</p>
               <button
                 type="button"
+                onClick={handleGoElite}
                 className="w-full py-2 rounded-lg bg-gradient-to-r from-[hsl(var(--legendary))] to-[hsl(var(--rare))] text-background font-heading text-xs uppercase tracking-wider"
               >
                 <Crown className="w-3.5 h-3.5 inline mr-1.5" />
-                Go Elite
+                Go Elite · {ELITE_PASS_STARDUST_COST} ✦
               </button>
             </HallSection>
           )}

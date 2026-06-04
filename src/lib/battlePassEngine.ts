@@ -9,6 +9,8 @@ import { getCosmeticById } from "@/data/cosmetics";
 export const BP_MAX_LEVEL = 30;
 export const BP_XP_PER_LEVEL = 500;
 export const BP_DAILY_XP_CAP = 1000;
+/** Stardust cost to unlock Elite track for the active season. */
+export const ELITE_PASS_STARDUST_COST = 500;
 
 function todayString(): string {
   return new Date().toISOString().slice(0, 10);
@@ -163,8 +165,7 @@ function applyReward(state: PlayerState, reward: Reward): PlayerState {
       if (reward.cosmeticId) s = grantCosmetic(s, reward.cosmeticId);
       break;
     case "crafting_mats":
-      // not implemented yet; treat as dust small bonus to keep it functional
-      s = { ...s, stardust: (s.stardust || 0) + 50 };
+      s = { ...s, stardust: (s.stardust || 0) + 150 };
       break;
   }
   return s;
@@ -216,6 +217,31 @@ export function claimBattlePassLevelReward(
   };
 
   return { state: s, ok: true };
+}
+
+export function purchaseElitePass(
+  state: PlayerState,
+  seasonId: BattlePassSeasonId,
+): { state: PlayerState; ok: true } | { state: PlayerState; ok: false; error: string } {
+  if (!state.battlePass) return { state, ok: false, error: "Battle pass not initialized" };
+  const sp = getBattlePassSeasonProgress(state, seasonId);
+  if (sp.hasElite) return { state, ok: false, error: "Elite pass already owned" };
+  const cost = ELITE_PASS_STARDUST_COST;
+  if ((state.stardust || 0) < cost) {
+    return { state, ok: false, error: `Need ${cost} stardust (you have ${state.stardust || 0})` };
+  }
+  const nextSp: BattlePassSeasonProgress = { ...sp, hasElite: true };
+  return {
+    state: {
+      ...state,
+      stardust: (state.stardust || 0) - cost,
+      battlePass: {
+        ...state.battlePass,
+        seasons: { ...(state.battlePass.seasons || {}), [seasonId]: nextSp },
+      },
+    },
+    ok: true,
+  };
 }
 
 export function setBattlePassActiveSeason(state: PlayerState, seasonId: BattlePassSeasonId): PlayerState {

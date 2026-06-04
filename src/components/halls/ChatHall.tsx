@@ -19,15 +19,13 @@ export default function ChatHall({ isOnline, playerState }: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const channel: "global" | `guild:${number}` = active === "global" ? "global" : (guildChannel ?? "global");
 
-  const channels = useMemo(() => {
-    // Match the design layout (some channels may be placeholders).
-    return [
-      { id: "global" as const, name: "Global", unread: 0, online: 0, enabled: true },
-      { id: "guild" as const, name: "Guild", unread: 0, online: 0, enabled: true },
-      { id: "trade" as const, name: "Trade Hall", unread: 0, online: 0, enabled: false },
-      { id: "ranked" as const, name: "Ranked Lounge", unread: 0, online: 0, enabled: false },
-    ];
-  }, []);
+  const channels = useMemo(
+    () => [
+      { id: "global" as const, name: "Global", unread: 0, online: 0 },
+      { id: "guild" as const, name: "Guild", unread: 0, online: 0 },
+    ],
+    [],
+  );
 
   useEffect(() => {
     let alive = true;
@@ -70,22 +68,15 @@ export default function ChatHall({ isOnline, playerState }: Props) {
           <div className="space-y-1">
             {channels.map((c) => {
               const isActive = (c.id === "global" && active === "global") || (c.id === "guild" && active === "guild");
-              const disabled = !c.enabled;
               return (
                 <button
                   key={c.id}
                   type="button"
-                  disabled={disabled}
                   onClick={async () => {
-                    if (c.id === "trade" || c.id === "ranked") {
-                      toast({ title: "Coming soon", description: "More channels will be added next." });
-                      return;
-                    }
                     if (c.id === "global") {
                       setActive("global");
                       return;
                     }
-                    // guild
                     try {
                       const r = await api.getMyGuild();
                       const gid = r.guild?.id;
@@ -104,7 +95,7 @@ export default function ChatHall({ isOnline, playerState }: Props) {
                   data-testid={`channel-${c.id}`}
                   className={`w-full text-left px-3 py-2 rounded transition flex items-center justify-between ${
                     isActive ? "bg-[rgba(245,200,66,0.15)] ring-1 ring-[rgba(245,200,66,0.35)]" : "hover:bg-[rgba(245,200,66,0.05)]"
-                  } ${disabled ? "opacity-40 cursor-not-allowed" : ""}`}
+                  }`}
                 >
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="font-stat text-[11px] tracking-[0.2em] text-[#c9a74a] truncate">{c.name}</span>

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Loader2, X, Search, ArrowLeftRight, Sparkles } from "lucide-react";
+import { Loader2, X, Search, ArrowLeftRight, Sparkles, Store, ArrowRight } from "lucide-react";
 import { api } from "@/lib/apiClient";
 import { allCards } from "@/data/cards";
 import type { PlayerState } from "@/lib/playerState";
@@ -39,9 +39,12 @@ function PanelHeading({ title, hint }: { title: string; hint?: string }) {
   );
 }
 
+type TradeMode = "direct" | "market";
+
 interface TradeHallProps {
   playerState: PlayerState;
   onStateChange: (state: PlayerState) => void;
+  isOnline?: boolean;
 }
 
 interface Friend {
@@ -55,8 +58,11 @@ interface Friend {
  * Trade Hall — glass + hex language with sticky sidebar.
  * Floating selected cards are the one motion accent.
  */
-export default function TradeHall({ playerState, onStateChange }: TradeHallProps) {
+export default function TradeHall({ playerState, onStateChange, isOnline = false }: TradeHallProps) {
   const reduceMotion = !!playerState.settings?.reduceMotion;
+  const [mode, setMode] = useState<TradeMode>("direct");
+  const [listings, setListings] = useState<Awaited<ReturnType<typeof api.getMarket>>["listings"]>([]);
+  const [marketLoading, setMarketLoading] = useState(false);
   const [partner, setPartner] = useState<Friend | null>(null);
   const [friends, setFriends] = useState<Friend[]>([]);
   const [searchingUsers, setSearchingUsers] = useState(false);
@@ -69,14 +75,39 @@ export default function TradeHall({ playerState, onStateChange }: TradeHallProps
   const [pickerQuery, setPickerQuery] = useState("");
   const [friendQuery, setFriendQuery] = useState("");
 
+  const refreshMarket = async () => {
+    if (!isOnline) {
+      setListings([]);
+      return;
+    }
+    setMarketLoading(true);
+    try {
+      const m = await api.getMarket("open");
+      setListings(m.listings);
+    } catch {
+      setListings([]);
+    } finally {
+      setMarketLoading(false);
+    }
+  };
+
   useEffect(() => {
     let alive = true;
+    if (!isOnline) {
+      setLoading(false);
+      setFriends([]);
+      return;
+    }
     api.getFriends()
-      .then((r) => { if (alive) setFriends((r.accepted || []).map((f: any) => f.friend)); })
+      .then((r) => { if (alive) setFriends((r.accepted || []).map((f) => f.friend)); })
       .catch(() => {})
       .finally(() => { if (alive) setLoading(false); });
     return () => { alive = false; };
-  }, []);
+  }, [isOnline]);
+
+  useEffect(() => {
+    if (mode === "market") void refreshMarket();
+  }, [mode, isOnline]);
 
   // Live player search (not limited to friends).
   useEffect(() => {
@@ -136,7 +167,34 @@ export default function TradeHall({ playerState, onStateChange }: TradeHallProps
 
   const ready = offered.length > 0 && requested.length > 0 && !!partner;
 
+  const postListing = async () => {
+    if (!isOnline) {
+      toast({ title: "Offline", description: "Sign in via Discord Activity to use the marketplace.", variant: "destructive" });
+      return;
+    }
+    if (offered.length === 0 || requested.length === 0) {
+      toast({ title: "Incomplete listing", description: "Add cards to both offer and ask sides.", variant: "destructive" });
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await api.createListing({ offeredCardIds: offered, requestedCardIds: requested });
+      toast({ title: "Listing posted", description: "Your trade is live on the marketplace." });
+      setOffered([]);
+      setRequested([]);
+      await refreshMarket();
+    } catch (e: unknown) {
+      toast({ title: "Listing failed", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const propose = async () => {
+    if (!isOnline) {
+      toast({ title: "Offline", description: "Sign in via Discord Activity to trade with friends.", variant: "destructive" });
+      return;
+    }
     if (!partner) return;
     setSubmitting(true);
     try {
@@ -148,8 +206,9 @@ export default function TradeHall({ playerState, onStateChange }: TradeHallProps
       toast({ title: "Offer sent", description: `Pact sealed with ${partner.username}.` });
       setOffered([]);
       setRequested([]);
-    } catch (e: any) {
-      toast({ title: "Trade refused", description: e?.message || "", variant: "destructive" });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "";
+      toast({ title: "Trade refused", description: msg, variant: "destructive" });
     } finally { setSubmitting(false); }
   };
 
@@ -157,6 +216,28 @@ export default function TradeHall({ playerState, onStateChange }: TradeHallProps
 
   return (
     <div className="px-4 sm:px-6 py-6 max-w-7xl mx-auto">
+      {!isOnline && (
+        <GlassPanel hue="var(--primary)" glow={0.25} padding="md" className="mb-4">
+          <p className="text-sm text-muted-foreground text-center">
+            Sign in via Discord Activity to trade with friends and use the marketplace.
+          </p>
+        </GlassPanel>
+      )}
+      <div className="flex gap-2 mb-4">
+        {(["direct", "market"] as const).map((m) => (
+          <button
+            key={m}
+            type="button"
+            onClick={() => setMode(m)}
+            className={cn(
+              "px-4 py-2 rounded-lg text-xs font-heading uppercase tracking-wider transition-colors",
+              mode === m ? "bg-primary/25 ring-1 ring-primary/50 text-foreground" : "bg-background/40 text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {m === "direct" ? "Direct trade" : "Marketplace"}
+          </button>
+        ))}
+      </div>
       <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr] gap-5">
         {/* ---------- Sticky sidebar ---------- */}
         <aside className="lg:sticky lg:top-24 lg:self-start space-y-4">
@@ -256,64 +337,151 @@ export default function TradeHall({ playerState, onStateChange }: TradeHallProps
 
         {/* ---------- Main panel ---------- */}
         <main className="space-y-4">
-          {/* Header */}
-          <GlassPanel hue="var(--primary)" glow={0.4} padding="md" className="relative overflow-hidden">
-            <PanelBg src={boxVelvet} />
-            <div className="relative flex items-center justify-between gap-3">
-              <div className="min-w-0">
-                <p className="text-[10px] uppercase tracking-widest text-foreground/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">Trading with</p>
-                <h1 className="font-heading text-lg text-foreground truncate drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
-                  {partner ? partner.username : "— select a partner —"}
-                </h1>
+          {mode === "direct" ? (
+            <>
+              <GlassPanel hue="var(--primary)" glow={0.4} padding="md" className="relative overflow-hidden">
+                <PanelBg src={boxVelvet} />
+                <div className="relative flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[10px] uppercase tracking-widest text-foreground/80 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">Trading with</p>
+                    <h1 className="font-heading text-lg text-foreground truncate drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+                      {partner ? partner.username : "— select a partner —"}
+                    </h1>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="ghost" onClick={reset} disabled={!offered.length && !requested.length} className="text-xs">
+                      <X className="w-3.5 h-3.5 mr-1" /> Clear
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={propose}
+                      disabled={!ready || submitting || !isOnline}
+                      className={cn("text-xs", ready && "bg-gradient-to-r from-primary to-[hsl(var(--legendary))] hover:opacity-90")}
+                    >
+                      {submitting ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 mr-1" />}
+                      Seal Pact
+                    </Button>
+                  </div>
+                </div>
+              </GlassPanel>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Tray
+                  label="Your Offer"
+                  hue="var(--primary)"
+                  banner={boxVelvet}
+                  cards={offered.map((id) => allCards.find((c) => c.id === id)!).filter(Boolean)}
+                  onAdd={() => setPicker("yours")}
+                  onRemove={(id) => setOffered((o) => o.filter((x) => x !== id))}
+                  reduceMotion={reduceMotion}
+                />
+                <Tray
+                  label={partner ? `${partner.username}'s Offer` : "Their Offer"}
+                  hue="var(--legendary)"
+                  banner={boxStone}
+                  cards={requested.map((id) => allCards.find((c) => c.id === id)!).filter(Boolean)}
+                  onAdd={() => (partner ? setPicker("theirs") : toast({ title: "Choose a partner first" }))}
+                  onRemove={(id) => setRequested((o) => o.filter((x) => x !== id))}
+                  disabled={!partner}
+                  reduceMotion={reduceMotion}
+                />
               </div>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={reset}
-                  disabled={!offered.length && !requested.length}
-                  className="text-xs"
-                >
-                  <X className="w-3.5 h-3.5 mr-1" /> Clear
-                </Button>
-                <Button
-                  size="sm"
-                  onClick={propose}
-                  disabled={!ready || submitting}
-                  className={cn(
-                    "text-xs",
-                    ready && "bg-gradient-to-r from-primary to-[hsl(var(--legendary))] hover:opacity-90"
-                  )}
-                >
-                  {submitting ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 mr-1" />}
-                  Seal Pact
-                </Button>
+            </>
+          ) : (
+            <>
+              <GlassPanel hue="var(--rare)" glow={0.4} padding="md" className="relative overflow-hidden">
+                <PanelBg src={boxBazaar} />
+                <div className="relative flex items-center justify-between gap-3 flex-wrap">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-widest text-foreground/80">Public bazaar</p>
+                    <h1 className="font-heading text-lg text-foreground flex items-center gap-2"><Store className="w-4 h-4" /> Marketplace</h1>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="ghost" onClick={reset} disabled={!offered.length && !requested.length} className="text-xs">
+                      <X className="w-3.5 h-3.5 mr-1" /> Clear
+                    </Button>
+                    <Button size="sm" onClick={postListing} disabled={!offered.length || !requested.length || submitting || !isOnline} className="text-xs">
+                      {submitting ? <Loader2 className="w-3.5 h-3.5 mr-1 animate-spin" /> : null}
+                      Post listing
+                    </Button>
+                  </div>
+                </div>
+              </GlassPanel>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Tray
+                  label="You offer"
+                  hue="var(--primary)"
+                  banner={boxVelvet}
+                  cards={offered.map((id) => allCards.find((c) => c.id === id)!).filter(Boolean)}
+                  onAdd={() => setPicker("yours")}
+                  onRemove={(id) => setOffered((o) => o.filter((x) => x !== id))}
+                  reduceMotion={reduceMotion}
+                />
+                <Tray
+                  label="You want"
+                  hue="var(--legendary)"
+                  banner={boxStone}
+                  cards={requested.map((id) => allCards.find((c) => c.id === id)!).filter(Boolean)}
+                  onAdd={() => setPicker("theirs")}
+                  onRemove={(id) => setRequested((o) => o.filter((x) => x !== id))}
+                  reduceMotion={reduceMotion}
+                />
               </div>
-            </div>
-          </GlassPanel>
-
-          {/* Two trays */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Tray
-              label="Your Offer"
-              hue="var(--primary)"
-              banner={boxVelvet}
-              cards={offered.map((id) => allCards.find((c) => c.id === id)!).filter(Boolean)}
-              onAdd={() => setPicker("yours")}
-              onRemove={(id) => setOffered((o) => o.filter((x) => x !== id))}
-              reduceMotion={reduceMotion}
-            />
-            <Tray
-              label={partner ? `${partner.username}'s Offer` : "Their Offer"}
-              hue="var(--legendary)"
-              banner={boxStone}
-              cards={requested.map((id) => allCards.find((c) => c.id === id)!).filter(Boolean)}
-              onAdd={() => partner ? setPicker("theirs") : toast({ title: "Choose a partner first" })}
-              onRemove={(id) => setRequested((o) => o.filter((x) => x !== id))}
-              disabled={!partner}
-              reduceMotion={reduceMotion}
-            />
-          </div>
+              {marketLoading ? (
+                <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-primary" /></div>
+              ) : listings.length === 0 ? (
+                <GlassPanel hue="var(--rare)" glow={0.2} padding="lg">
+                  <p className="text-sm text-muted-foreground text-center py-4">No open listings. Post one above.</p>
+                </GlassPanel>
+              ) : (
+                <div className="space-y-3">
+                  {listings.map((l) => (
+                    <GlassPanel key={l.id} hue="var(--primary)" glow={0.3} padding="md">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-heading text-sm text-foreground">{l.seller.username}</span>
+                        <span className="text-[10px] text-muted-foreground">{new Date(l.createdAt).toLocaleString()}</span>
+                      </div>
+                      <div className="grid grid-cols-[1fr_auto_1fr] gap-2 items-center">
+                        <div className="flex gap-1 flex-wrap">
+                          {l.offered.map(({ cardId }) => {
+                            const card = allCards.find((c) => c.id === cardId);
+                            return card ? <div key={cardId} className="w-24"><GameCard card={card} size="xs" /></div> : null;
+                          })}
+                        </div>
+                        <ArrowRight className="w-4 h-4 text-primary shrink-0" />
+                        <div className="flex gap-1 flex-wrap">
+                          {l.requested.map(({ cardId }) => {
+                            const card = allCards.find((c) => c.id === cardId);
+                            return card ? <div key={cardId} className="w-24"><GameCard card={card} size="xs" /></div> : null;
+                          })}
+                        </div>
+                      </div>
+                      <div className="flex justify-end mt-3">
+                        <Button
+                          size="sm"
+                          disabled={!isOnline || submitting}
+                          onClick={async () => {
+                            setSubmitting(true);
+                            try {
+                              const res = await api.buyListing(l.id);
+                              onStateChange(res.state);
+                              toast({ title: "Trade complete" });
+                              await refreshMarket();
+                            } catch (e: unknown) {
+                              toast({ title: "Buy failed", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
+                            } finally {
+                              setSubmitting(false);
+                            }
+                          }}
+                        >
+                          Buy listing
+                        </Button>
+                      </div>
+                    </GlassPanel>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
         </main>
       </div>
 

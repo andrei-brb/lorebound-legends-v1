@@ -162,13 +162,17 @@ export default function SummonAltar(props: {
               </div>
 
               <div className="font-heading text-[#f5c842] tracking-[0.2em] text-sm">{t.label}</div>
-              <div className="font-stat text-[#c9a74a] text-sm mt-1 flex items-center justify-center gap-2">
-                {t.currency === "gold" ? <GoldCurrencyIcon className="w-4 h-4" /> : <StardustCurrencyIcon className="w-4 h-4" />}
-                <span>{t.cost}</span>
-              </div>
+              {t.disabled ? (
+                <p className="font-stat text-[#c9a74a]/80 text-xs mt-1 uppercase tracking-wider">Coming soon</p>
+              ) : (
+                <div className="font-stat text-[#c9a74a] text-sm mt-1 flex items-center justify-center gap-2">
+                  {t.currency === "gold" ? <GoldCurrencyIcon className="w-4 h-4" /> : <StardustCurrencyIcon className="w-4 h-4" />}
+                  <span>{t.cost}</span>
+                </div>
+              )}
 
               <div className="btn-gold mt-3 w-full" style={{ padding: "10px 18px" }}>
-                <Sparkles size={14} /> Summon
+                <Sparkles size={14} /> {t.disabled ? "Soon" : "Summon"}
               </div>
             </button>
           );

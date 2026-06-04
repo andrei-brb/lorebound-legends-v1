@@ -350,7 +350,7 @@ export default function BattleArena({
   const handleEndTurn = () => {
     if (!state || state.phase === "game-over" || animating) return;
     if (livePvP) {
-      if (state.turn !== "player" || livePvP.isSubmitting) return;
+      if (state.turn !== "player" || livePvP.isSubmitting || livePvP.spectator) return;
       void livePvP.onIntent({ kind: "end-turn" });
       setActionMode("none");
       setSelectedFieldIndex(null);
@@ -592,7 +592,7 @@ export default function BattleArena({
 
   const handleHandCardClick = (index: number) => {
     if (!state || state.turn !== "player" || animating || state.phase === "game-over") return;
-    if (livePvP?.isSubmitting) return;
+    if (livePvP?.isSubmitting || livePvP?.spectator) return;
     const card = state.player.hand[index];
     if (!card) return;
 
@@ -723,7 +723,7 @@ export default function BattleArena({
 
   const handleFieldCardClick = (side: "player" | "enemy", index: number) => {
     if (!state || state.turn !== "player" || animating || state.phase === "game-over") return;
-    if (livePvP?.isSubmitting) return;
+    if (livePvP?.isSubmitting || livePvP?.spectator) return;
 
     if (livePvP) {
       if (actionMode === "select-equip-target" && side === "player" && selectedHandIndex !== null) {
@@ -819,7 +819,7 @@ export default function BattleArena({
 
   const beginAttackFromRadial = () => {
     if (!state || !isPlayerTurn || animating || selectedFieldIndex === null) return;
-    if (livePvP?.isSubmitting) return;
+    if (livePvP?.isSubmitting || livePvP?.spectator) return;
     const fc = state.player.field[selectedFieldIndex];
     if (!fc || fc.stunned || fc.attackedThisTurn) {
       if (fc?.stunned) {
@@ -846,7 +846,7 @@ export default function BattleArena({
 
   const handleDirectAttack = () => {
     if (!state || selectedFieldIndex === null || animating) return;
-    if (livePvP?.isSubmitting) return;
+    if (livePvP?.isSubmitting || livePvP?.spectator) return;
     if (!livePvP && state.ruleset === "ygoHybrid" && state.turnPhase !== "battle") {
       toast({
         title: "Wrong phase",
@@ -877,7 +877,7 @@ export default function BattleArena({
 
   const handleUseAbility = (fieldIndex: number) => {
     if (!state || animating) return;
-    if (livePvP?.isSubmitting) return;
+    if (livePvP?.isSubmitting || livePvP?.spectator) return;
     const unit = state.player.field[fieldIndex] ?? null;
     const oneEff = unit ? getOneEffectForCard(unit.card) : null;
     if (!livePvP && oneEff?.timing === "activate") {
@@ -973,7 +973,8 @@ export default function BattleArena({
     state.turn === "player" &&
     !animating &&
     state.phase !== "game-over" &&
-    !livePvP?.isSubmitting;
+    !livePvP?.isSubmitting &&
+    !livePvP?.spectator;
 
   const phaseLabel =
     state.ruleset === "ygoHybrid"
