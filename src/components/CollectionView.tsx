@@ -29,6 +29,9 @@ const rarityColors: Record<Rarity, string> = {
 
 interface CollectionViewProps {
   onAddToDeck?: (cardId: string) => void;
+  /** Deck builder: click selects card for inspector instead of adding. */
+  onSelectCard?: (cardId: string) => void;
+  selectedCardId?: string | null;
   deckCardIds?: string[];
   playerState?: PlayerState;
   onStateChange?: (state: PlayerState) => void;
@@ -117,8 +120,9 @@ function applyDiscovery({
   return out;
 }
 
-function CardGridItem({ card, onAddToDeck, deckCardIds, playerState, onStateChange, highlighted, onInspect }: {
-  card: GameCardType; onAddToDeck?: (id: string) => void; deckCardIds: string[];
+function CardGridItem({ card, onAddToDeck, onSelectCard, selectedCardId, deckCardIds, playerState, onStateChange, highlighted, onInspect }: {
+  card: GameCardType; onAddToDeck?: (id: string) => void; onSelectCard?: (id: string) => void;
+  selectedCardId?: string | null; deckCardIds: string[];
   playerState?: PlayerState; onStateChange?: (state: PlayerState) => void; highlighted?: boolean;
   onInspect?: (card: GameCardType) => void;
 }) {
@@ -139,18 +143,28 @@ function CardGridItem({ card, onAddToDeck, deckCardIds, playerState, onStateChan
     onStateChange({ ...playerState, cardProgress: { ...playerState.cardProgress, [card.id]: newProgress } });
   };
 
+  const isSelected = selectedCardId === card.id;
+
   return (
-    <div className={cn("relative flex justify-center", highlighted && "ring-2 ring-synergy rounded-lg shadow-[0_0_12px_hsl(var(--synergy)/0.5)] animate-pulse")}>
+    <div
+      className={cn(
+        "relative flex justify-center rounded-lg",
+        highlighted && "ring-2 ring-synergy shadow-[0_0_12px_hsl(var(--synergy)/0.5)] animate-pulse",
+        isSelected && "ring-2 ring-[#f5c842] shadow-[0_0_14px_rgba(245,200,66,0.45)]",
+      )}
+    >
       <GameCardComponent
         card={card}
-        size={onAddToDeck ? "deck" : "sm"}
+        size={onAddToDeck || onSelectCard ? "deck" : "sm"}
         onClick={(e) => {
-          // Deck screens: click should add/remove immediately (no preview).
-          // Collection screen: click opens full-size inspect.
+          if (onSelectCard) {
+            onSelectCard(card.id);
+            return;
+          }
           if (onAddToDeck) onAddToDeck(card.id);
           else onInspect?.(card);
         }}
-        selected={inDeck}
+        selected={inDeck || isSelected}
         showSynergy={hasArcPartner}
         cardProgress={progress}
         equippedFrameImage={equippedFrameImage}
@@ -198,6 +212,8 @@ function CardGridItem({ card, onAddToDeck, deckCardIds, playerState, onStateChan
 
 export default function CollectionView({
   onAddToDeck,
+  onSelectCard,
+  selectedCardId = null,
   deckCardIds = [],
   playerState,
   onStateChange,
@@ -218,7 +234,8 @@ export default function CollectionView({
   const highlightSet = useMemo(() => new Set(highlightCardIds), [highlightCardIds]);
   const synergyPartnerIdSet = useMemo(() => new Set(synergyPartnerIds), [synergyPartnerIds]);
   /** Standalone Collection tab gets a textured shell; Deck Builder embeds this without a second panel. */
-  const texturedShell = onAddToDeck === undefined;
+  const deckPickerMode = onAddToDeck !== undefined || onSelectCard !== undefined;
+  const texturedShell = !deckPickerMode;
   const ownedIds = playerState?.ownedCardIds || allGameCards.map(c => c.id);
   const [internalArc, setInternalArc] = useState<string | null>(null);
   const [inspectCard, setInspectCard] = useState<GameCardType | null>(null);
@@ -277,7 +294,7 @@ export default function CollectionView({
   const body = (
     <div className="space-y-8">
       {/* Only show inspect viewer on the standalone Collection screen (not in Deck Builder). */}
-      {!onAddToDeck && (
+      {!deckPickerMode && (
         <CardInspectDialog
           open={inspectOpen}
           onOpenChange={(o) => {
@@ -330,15 +347,25 @@ export default function CollectionView({
           ) : (
             <div
               className={cn(
-                onAddToDeck ? "grid gap-[0.5px]" : "grid gap-0.5",
-                // Deck screens should have bigger cards (fewer columns).
-                onAddToDeck
-                  ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3"
+                deckPickerMode ? "grid gap-1" : "grid gap-0.5",
+                deckPickerMode
+                  ? "grid-cols-2 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3"
                   : "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-4",
               )}
             >
               {(typeof maxCards === "number" && maxCards > 0 ? discoveredCards.slice(0, maxCards) : discoveredCards).map((card) => (
-                <CardGridItem key={card.id} card={card} onAddToDeck={onAddToDeck} deckCardIds={deckCardIds} playerState={playerState} onStateChange={onStateChange} highlighted={highlightSet.has(card.id)} onInspect={openInspect} />
+                <CardGridItem
+                  key={card.id}
+                  card={card}
+                  onAddToDeck={onAddToDeck}
+                  onSelectCard={onSelectCard}
+                  selectedCardId={selectedCardId}
+                  deckCardIds={deckCardIds}
+                  playerState={playerState}
+                  onStateChange={onStateChange}
+                  highlighted={highlightSet.has(card.id)}
+                  onInspect={openInspect}
+                />
               ))}
             </div>
           )}
@@ -366,14 +393,25 @@ export default function CollectionView({
                 <CardContent>
                   <div
                     className={cn(
-                      onAddToDeck ? "grid gap-[0.5px]" : "grid gap-0.5",
-                      onAddToDeck
-                        ? "grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3"
+                      deckPickerMode ? "grid gap-1" : "grid gap-0.5",
+                      deckPickerMode
+                        ? "grid-cols-2 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3"
                         : "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-4",
                     )}
                   >
                     {cards.map((card) => (
-                      <CardGridItem key={card.id} card={card} onAddToDeck={onAddToDeck} deckCardIds={deckCardIds} playerState={playerState} onStateChange={onStateChange} highlighted={highlightSet.has(card.id)} onInspect={openInspect} />
+                      <CardGridItem
+                        key={card.id}
+                        card={card}
+                        onAddToDeck={onAddToDeck}
+                        onSelectCard={onSelectCard}
+                        selectedCardId={selectedCardId}
+                        deckCardIds={deckCardIds}
+                        playerState={playerState}
+                        onStateChange={onStateChange}
+                        highlighted={highlightSet.has(card.id)}
+                        onInspect={openInspect}
+                      />
                     ))}
                   </div>
                 </CardContent>

@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
-import { AlertTriangle, Minus, Plus, RotateCcw, Save } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { AlertTriangle, RotateCcw, Save, SlidersHorizontal } from "lucide-react";
 import type { DeckPreset, PlayerState } from "@/lib/playerState";
-import { getCardProgress } from "@/lib/playerState";
-import { allGameCards, type CardType } from "@/data/cardIndex";
+import { allGameCards, type CardType, type GameCard } from "@/data/cardIndex";
 import { cn } from "@/lib/utils";
 import CollectionView from "@/components/CollectionView";
+import DeckCardInspector from "@/components/deck/DeckCardInspector";
+import DeckCenterGrid from "@/components/deck/DeckCenterGrid";
 import { toast } from "@/hooks/use-toast";
 import {
   Dialog,
@@ -29,10 +30,33 @@ const TYPE_FILTERS: Array<{ id: "all" | CardType; label: string }> = [
   { id: "trap", label: "Trap" },
 ];
 
+const SORT_OPTIONS = [
+  { id: "rarity_desc" as const, label: "Rarity (high → low)" },
+  { id: "name_asc" as const, label: "Name (A → Z)" },
+  { id: "attack_desc" as const, label: "Attack (high → low)" },
+  { id: "level_desc" as const, label: "Level (high → low)" },
+];
+
+const RARITY_BAR = [
+  { key: "common" as const, label: "C", color: "bg-zinc-500" },
+  { key: "rare" as const, label: "R", color: "bg-blue-600" },
+  { key: "legendary" as const, label: "L", color: "bg-amber-500 text-[#0A0A0A]" },
+  { key: "mythic" as const, label: "M", color: "bg-fuchsia-600" },
+];
+
 function countById(ids: string[]): Record<string, number> {
   const m: Record<string, number> = {};
   for (const id of ids) m[id] = (m[id] || 0) + 1;
   return m;
+}
+
+function getMaxCopies(cardId: string, playerState: PlayerState): number {
+  const owned = playerState.ownedCardIds.includes(cardId);
+  if (!owned) return 0;
+  const card = allGameCards.find((c) => c.id === cardId);
+  if (!card) return 0;
+  const dubs = Math.max(0, Math.floor(Number(playerState.cardDubs?.[cardId] || 0)));
+  return card.rarity === "mythic" ? 1 : Math.min(3, 1 + dubs);
 }
 
 export default function DeckGrimoire(props: {
@@ -48,27 +72,45 @@ export default function DeckGrimoire(props: {
     const p = presets[0];
     return p?.cardIds ? [...p.cardIds] : [];
   });
-  const [deckName, setDeckName] = useState<string>(() => presets[0]?.name ?? "");
+  const [deckName, setDeckName] = useState<string>(() => presets[0]?.name ?? "New Deck");
+  const [selectedCardId, setSelectedCardId] = useState<string | null>(null);
 
   const [typeFilter, setTypeFilter] = useState<"all" | CardType>("all");
   const [search, setSearch] = useState("");
+  const [sortBy, setSortBy] = useState<(typeof SORT_OPTIONS)[number]["id"]>("rarity_desc");
   const [showSaveDialog, setShowSaveDialog] = useState(false);
 
   const counts = useMemo(() => countById(deckIds), [deckIds]);
-  const deckCards = useMemo(
-    () => deckIds.map((id) => allGameCards.find((c) => c.id === id)).filter(Boolean),
-    [deckIds],
-  );
 
-  const breakdown = useMemo(() => {
-    const types: Partial<Record<CardType, number>> = {};
-    for (const c of deckCards) types[c.type] = (types[c.type] || 0) + 1;
-    return types;
-  }, [deckCards]);
+  const deckSlots = useMemo(() => {
+    return deckIds.map((id, index) => {
+      const card = allGameCards.find((c) => c.id === id);
+      if (!card) return null;
+      return { card, slotKey: `${id}-${index}` };
+    }).filter(Boolean) as Array<{ card: GameCard; slotKey: string }>;
+  }, [deckIds]);
+
+  const rarityInDeck = useMemo(() => {
+    const r = { common: 0, rare: 0, legendary: 0, mythic: 0 };
+    for (const id of deckIds) {
+      const c = allGameCards.find((x) => x.id === id);
+      if (c && c.rarity in r) r[c.rarity as keyof typeof r] += 1;
+    }
+    return r;
+  }, [deckIds]);
 
   const underMinToBattle = deckIds.length < 4;
 
-  /** Remove a single copy from the deck. */
+  const selectedCard = selectedCardId ? allGameCards.find((c) => c.id === selectedCardId) ?? null : null;
+  const selectedCount = selectedCardId ? counts[selectedCardId] || 0 : 0;
+  const selectedMax = selectedCardId ? getMaxCopies(selectedCardId, playerState) : 0;
+
+  useEffect(() => {
+    if (selectedCardId && allGameCards.some((c) => c.id === selectedCardId)) return;
+    const fallback = deckIds[0] ?? playerState.ownedCardIds[0] ?? null;
+    setSelectedCardId(fallback);
+  }, [selectedCardId, deckIds, playerState.ownedCardIds]);
+
   const removeOne = (cardId: string) => {
     setDeckIds((prev) => {
       const idx = prev.lastIndexOf(cardId);
@@ -79,19 +121,11 @@ export default function DeckGrimoire(props: {
     });
   };
 
-  /**
-   * Add one copy respecting owned + dubs cap.
-   * (Mythic: 1 copy. Others: up to 3, limited by dubs.)
-   */
   const addOne = (cardId: string) => {
     setDeckIds((prev) => {
       const countInDeck = prev.reduce((n, id) => (id === cardId ? n + 1 : n), 0);
-      const owned = playerState.ownedCardIds.includes(cardId);
-      const dubs = Math.max(0, Math.floor(Number(playerState.cardDubs?.[cardId] || 0)));
-      const card = allGameCards.find((c) => c.id === cardId);
-      const maxCopies =
-        owned && card ? (card.rarity === "mythic" ? 1 : Math.min(3, 1 + dubs)) : 0;
-      if (!owned || maxCopies <= 0) return prev;
+      const maxCopies = getMaxCopies(cardId, playerState);
+      if (maxCopies <= 0) return prev;
       if (prev.length >= MAX_DECK_SIZE) return prev;
       if (countInDeck >= maxCopies) return prev;
       return [...prev, cardId];
@@ -100,7 +134,7 @@ export default function DeckGrimoire(props: {
 
   const reset = () => {
     setEditingPresetId(null);
-    setDeckName("");
+    setDeckName("New Deck");
     setDeckIds([]);
     toast({ title: "Deck reset" });
   };
@@ -129,8 +163,9 @@ export default function DeckGrimoire(props: {
         toast({ title: "Max 5 decks", description: "Delete one first.", variant: "destructive" });
         return;
       }
-      existing.push({ id: `preset_${Date.now()}`, name, cardIds: [...deckIds], updatedAt: Date.now() });
-      setEditingPresetId(existing[existing.length - 1].id);
+      const id = `preset_${Date.now()}`;
+      existing.push({ id, name, cardIds: [...deckIds], updatedAt: Date.now() });
+      setEditingPresetId(id);
     }
 
     onStateChange({ ...playerState, deckPresets: existing });
@@ -142,205 +177,197 @@ export default function DeckGrimoire(props: {
     setEditingPresetId(preset.id);
     setDeckName(preset.name);
     setDeckIds([...preset.cardIds]);
+    if (preset.cardIds[0]) setSelectedCardId(preset.cardIds[0]);
   };
 
-  const sortedDeckRows = useMemo(() => {
-    const rows = Object.entries(counts)
-      .map(([id, count]) => ({ id, count, card: allGameCards.find((c) => c.id === id) || null }))
-      .filter((r) => r.card);
-    rows.sort((a, b) => (a.card!.type.localeCompare(b.card!.type) || a.card!.name.localeCompare(b.card!.name)));
-    return rows as Array<{ id: string; count: number; card: (typeof allGameCards)[number] }>;
-  }, [counts]);
+  const panelBg = {
+    background: "linear-gradient(180deg, rgba(14,10,6,0.98), rgba(8,5,3,0.99))",
+    borderColor: "rgba(212,175,55,0.18)",
+  };
 
   return (
-    <div className="relative min-h-[calc(100vh-72px)] px-5 md:px-10 py-8" data-testid="deck-screen">
-      <div className="section-heading mb-2">The Grimoire</div>
-      <p className="text-center font-lore text-[#d6c293] mb-6">
-        Forge your deck. Tap a card to enlist it into your summoner&apos;s arsenal.
-      </p>
-
-      {/* Presets */}
-      <div className="max-w-6xl mx-auto panel-gold p-4 mb-4 relative">
-        <div className="corner-deco absolute inset-0" />
-        <div className="relative z-10 flex flex-wrap items-center gap-3">
-          <div className="font-heading text-[#f5c842] tracking-[0.25em] text-xs">MY DECKS</div>
-          <div className="font-stat text-[10px] text-[#c9a74a]">{presets.length}/{MAX_PRESETS} slots used</div>
-          <div className="ml-auto flex flex-wrap items-center gap-2">
-            <select
-              value={editingPresetId ?? ""}
-              onChange={(e) => {
-                const id = e.target.value || null;
-                const p = presets.find((x) => x.id === id);
-                if (p) loadPreset(p);
-                else {
-                  setEditingPresetId(null);
-                  setDeckName("");
-                  setDeckIds([]);
-                }
-              }}
-              className="px-3 py-2 rounded-full text-xs font-body text-[#f8e4a1] outline-none"
-              style={{ background: "rgba(10,6,3,0.8)", border: "1px solid rgba(212,175,55,0.4)" }}
+    <div
+      className="flex flex-col -mx-4 sm:-mx-6 md:-mx-8 -mt-8 min-h-[calc(100svh-5rem)]"
+      data-testid="deck-screen"
+    >
+      {/* Top bar */}
+      <div
+        className="shrink-0 flex flex-wrap items-center gap-3 px-4 py-3 border-b z-20"
+        style={{
+          ...panelBg,
+          borderBottom: "1px solid rgba(212,175,55,0.22)",
+        }}
+      >
+        <div className="flex items-center gap-2">
+          {RARITY_BAR.map(({ key, label, color }) => (
+            <div
+              key={key}
+              className="flex items-center gap-1.5 px-2 py-1 rounded-md border border-[rgba(255,255,255,0.08)]"
+              style={{ background: "rgba(0,0,0,0.35)" }}
             >
-              <option value="">New Deck</option>
-              {presets.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-            <button type="button" className="btn-ghost" onClick={() => setShowSaveDialog(true)}>
-              <Save size={12} /> Save Deck
-            </button>
-          </div>
+              <span className={cn("text-[9px] font-bold w-4 h-4 rounded flex items-center justify-center", color)}>
+                {label}
+              </span>
+              <span className="font-stat text-xs text-[#f8e4a1] tabular-nums">{rarityInDeck[key]}</span>
+            </div>
+          ))}
         </div>
-      </div>
 
-      {/* Deck stats */}
-      <div className="max-w-6xl mx-auto panel-gold p-4 mb-6 flex flex-wrap items-center gap-6 relative">
-        <div className="corner-deco absolute inset-0" />
-        <Stat label="Deck Size" value={`${deckIds.length} / ${MAX_DECK_SIZE}`} danger={underMinToBattle} />
-        <Stat label="Heroes" value={breakdown.hero || 0} />
-        <Stat label="Gods" value={breakdown.god || 0} />
-        <Stat label="Weapons" value={breakdown.weapon || 0} />
-        <Stat label="Spells" value={breakdown.spell || 0} />
-        <Stat label="Traps" value={breakdown.trap || 0} />
-        <div className="ml-auto flex gap-2">
-          <button className="btn-ghost flex items-center gap-2" onClick={reset} data-testid="reset-deck-btn" type="button">
+        <div className="flex items-center gap-2 ml-auto flex-wrap">
+          <select
+            value={editingPresetId ?? ""}
+            onChange={(e) => {
+              const id = e.target.value || null;
+              const p = presets.find((x) => x.id === id);
+              if (p) loadPreset(p);
+              else {
+                setEditingPresetId(null);
+                setDeckName("New Deck");
+                setDeckIds([]);
+              }
+            }}
+            className="px-3 py-1.5 rounded-md text-xs font-body text-[#f8e4a1] outline-none"
+            style={{ background: "rgba(10,6,3,0.8)", border: "1px solid rgba(212,175,55,0.4)" }}
+          >
+            <option value="">New Deck</option>
+            {presets.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+          <span className="font-stat text-[10px] text-[#9a7b3c]">{presets.length}/{MAX_PRESETS}</span>
+          <button type="button" className="btn-ghost text-xs" onClick={reset} data-testid="reset-deck-btn">
             <RotateCcw size={12} /> Reset
           </button>
-          <button className="btn-gold flex items-center gap-2" onClick={() => setShowSaveDialog(true)} data-testid="save-deck-btn" type="button">
-            <Save size={14} /> Save Deck
+          <button type="button" className="btn-gold text-xs" onClick={() => setShowSaveDialog(true)} data-testid="save-deck-btn">
+            <Save size={12} /> Save
           </button>
+          {onStartBattle && (
+            <Button
+              onClick={() => !underMinToBattle && onStartBattle(deckIds)}
+              disabled={underMinToBattle}
+              className="btn-gold text-xs h-8"
+              type="button"
+            >
+              Battle
+            </Button>
+          )}
         </div>
-        {underMinToBattle && (
-          <div className="w-full flex items-center gap-2 text-[#ff9966] font-stat text-xs tracking-widest mt-1">
-            <AlertTriangle size={14} /> Deck must contain at least 4 cards to battle.
-          </div>
-        )}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl mx-auto">
-        {/* Collection */}
-        <div>
-          <div className="font-heading text-[#f5c842] tracking-[0.25em] mb-3">
-            COLLECTION ({playerState.ownedCardIds.length})
-          </div>
-          <div className="flex flex-wrap gap-1 mb-3">
-            {TYPE_FILTERS.map((t) => (
-              <button
-                key={t.id}
-                onClick={() => setTypeFilter(t.id)}
-                className={cn("btn-ghost", typeFilter === t.id ? "active" : "")}
-                style={{ padding: "5px 10px", fontSize: 10 }}
-                type="button"
-              >
-                {t.label}
-              </button>
-            ))}
-          </div>
-          <input
-            placeholder="Search…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            data-testid="deck-search"
-            className="w-full px-3 py-1.5 mb-4 rounded-full font-body text-xs text-[#f8e4a1] outline-none"
-            style={{ background: "rgba(10,6,3,0.8)", border: "1px solid rgba(212,175,55,0.4)" }}
-          />
-
-          <div className="panel-gold p-3 relative">
-            <div className="corner-deco absolute inset-0" />
-            <div className="relative z-10">
-              <CollectionView
-                onAddToDeck={(id) => addOne(id)}
-                deckCardIds={deckIds}
-                playerState={playerState}
-                searchQuery={search}
-                typeFilter={typeFilter}
-                rarityFilter="all"
-                elementFilter="all"
-                sortBy="rarity_desc"
-                maxCards={36}
-                showLoreArcFilters={false}
-              />
-            </div>
-          </div>
+      {underMinToBattle && (
+        <div className="shrink-0 px-4 py-1.5 flex items-center gap-2 text-[#ff9966] font-stat text-xs bg-[rgba(255,100,50,0.08)] border-b border-[rgba(255,100,50,0.2)]">
+          <AlertTriangle size={14} /> At least 4 cards required to battle.
         </div>
+      )}
 
-        {/* Current deck list */}
-        <div>
-          <div className="font-heading text-[#f5c842] tracking-[0.25em] mb-4">YOUR DECK</div>
-          <div className="panel-gold p-3 relative max-h-[700px] overflow-y-auto">
-            <div className="corner-deco absolute inset-0" />
-            <div className="relative z-10">
-              {sortedDeckRows.length === 0 ? (
-                <div className="font-lore text-[#c9a74a] text-center py-12">Your grimoire lies empty…</div>
-              ) : (
-                sortedDeckRows.map(({ id, count, card }) => {
-                  const prog = getCardProgress(playerState, card.id);
-                  const owned = playerState.ownedCardIds.includes(card.id);
-                  const dubs = Math.max(0, Math.floor(Number(playerState.cardDubs?.[card.id] || 0)));
-                  const maxCopies = card.rarity === "mythic" ? 1 : Math.min(3, 1 + dubs);
-                  const canAdd = owned && deckIds.length < MAX_DECK_SIZE && count < maxCopies;
-                  return (
-                    <div
-                      key={id}
-                      data-testid={`deck-row-${id}`}
-                      className="flex items-center gap-3 p-2 rounded mb-2"
-                      style={{
-                        background: "linear-gradient(90deg, rgba(22,15,8,0.9), rgba(10,6,3,0.6))",
-                        border: "1px solid rgba(212,175,55,0.25)",
-                      }}
-                    >
-                      <div
-                        className="w-10 h-14 rounded bg-cover bg-center shrink-0"
-                        style={{
-                          backgroundImage: `url(${card.image})`,
-                          border: "1px solid rgba(212,175,55,0.5)",
-                        }}
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="font-heading text-[#f8e4a1] text-sm truncate">{card.name}</div>
-                        <div className="font-stat text-[10px] tracking-[0.15em] text-[#c9a74a] uppercase">
-                          {card.type} · {card.rarity} · Lv.{prog.level}
-                        </div>
-                      </div>
-                      <div className="font-heading text-[#f5c842] text-sm w-8 text-center">×{count}</div>
-                      <button
-                        className="btn-ghost px-2"
-                        onClick={() => removeOne(id)}
-                        data-testid={`remove-${id}`}
-                        type="button"
-                        title="Remove one copy"
-                      >
-                        <Minus size={12} />
-                      </button>
-                      <button
-                        className={cn("btn-ghost px-2", !canAdd && "opacity-50 cursor-not-allowed")}
-                        onClick={() => canAdd && addOne(id)}
-                        type="button"
-                        title={canAdd ? "Add one copy" : "At copy cap or deck full"}
-                      >
-                        <Plus size={12} />
-                      </button>
-                    </div>
-                  );
-                })
-              )}
+      {/* 3-column body */}
+      <div className="flex flex-1 min-h-0 flex-col lg:flex-row">
+        {/* Left: inspector */}
+        <aside
+          className="hidden lg:flex w-[260px] shrink-0 flex-col border-r min-h-0"
+          style={panelBg}
+        >
+          <DeckCardInspector
+            card={selectedCard}
+            playerState={playerState}
+            countInDeck={selectedCount}
+            maxCopies={selectedMax}
+            deckFull={deckIds.length >= MAX_DECK_SIZE}
+            onAdd={() => selectedCardId && addOne(selectedCardId)}
+            onRemove={() => selectedCardId && removeOne(selectedCardId)}
+          />
+        </aside>
 
-              {onStartBattle && (
-                <div className="pt-3 mt-3 border-t border-[rgba(212,175,55,0.18)] flex justify-end">
-                  <Button
-                    onClick={() => !underMinToBattle && onStartBattle(deckIds)}
-                    disabled={underMinToBattle}
-                    className="btn-gold"
-                    type="button"
-                  >
-                    Begin Battle
-                  </Button>
-                </div>
-              )}
+        {/* Center: deck grid */}
+        <section className="flex-1 min-w-0 min-h-[280px] lg:min-h-0 border-b lg:border-b-0 lg:border-r" style={panelBg}>
+          <DeckCenterGrid
+            deckName={deckName}
+            onDeckNameChange={setDeckName}
+            deckSlots={deckSlots}
+            maxSize={MAX_DECK_SIZE}
+            selectedCardId={selectedCardId}
+            onSelectCard={setSelectedCardId}
+          />
+        </section>
+
+        {/* Right: card list */}
+        <aside className="w-full lg:w-[min(400px,38vw)] shrink-0 flex flex-col min-h-[360px] lg:min-h-0 border-l" style={panelBg}>
+          <div
+            className="shrink-0 px-3 py-2 flex items-center gap-2 border-b border-[rgba(212,175,55,0.15)]"
+            style={{ background: "rgba(76,175,80,0.12)" }}
+          >
+            <span className="font-heading text-xs tracking-widest text-[#a5d6a7] uppercase">Card List</span>
+            <span className="ml-auto font-stat text-[10px] text-[#9a7b3c]">{playerState.ownedCardIds.length} owned</span>
+          </div>
+
+          <div className="shrink-0 p-3 space-y-2 border-b border-[rgba(212,175,55,0.12)]">
+            <input
+              placeholder="Search by card name…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              data-testid="deck-search"
+              className="w-full px-3 py-2 rounded-md font-body text-xs text-[#f8e4a1] outline-none"
+              style={{ background: "rgba(10,6,3,0.85)", border: "1px solid rgba(212,175,55,0.35)" }}
+            />
+            <div className="flex flex-wrap gap-1">
+              {TYPE_FILTERS.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => setTypeFilter(t.id)}
+                  className={cn("btn-ghost px-2 py-1", typeFilter === t.id ? "active" : "")}
+                  style={{ fontSize: 9 }}
+                  type="button"
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <SlidersHorizontal size={12} className="text-[#9a7b3c] shrink-0" />
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as (typeof SORT_OPTIONS)[number]["id"])}
+                className="flex-1 px-2 py-1.5 rounded-md text-[10px] font-body text-[#f8e4a1] outline-none"
+                style={{ background: "rgba(10,6,3,0.8)", border: "1px solid rgba(212,175,55,0.3)" }}
+              >
+                {SORT_OPTIONS.map((o) => (
+                  <option key={o.id} value={o.id}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
+
+          <div className="flex-1 min-h-0 overflow-y-auto p-2">
+            <CollectionView
+              onSelectCard={(id) => setSelectedCardId(id)}
+              selectedCardId={selectedCardId}
+              deckCardIds={deckIds}
+              playerState={playerState}
+              searchQuery={search}
+              typeFilter={typeFilter}
+              rarityFilter="all"
+              sortBy={sortBy}
+              maxCards={48}
+              showLoreArcFilters={false}
+            />
+          </div>
+        </aside>
+
+        {/* Mobile inspector strip */}
+        <div className="lg:hidden border-t shrink-0 max-h-[220px] overflow-hidden" style={panelBg}>
+          <DeckCardInspector
+            card={selectedCard}
+            playerState={playerState}
+            countInDeck={selectedCount}
+            maxCopies={selectedMax}
+            deckFull={deckIds.length >= MAX_DECK_SIZE}
+            onAdd={() => selectedCardId && addOne(selectedCardId)}
+            onRemove={() => selectedCardId && removeOne(selectedCardId)}
+          />
         </div>
       </div>
 
@@ -369,15 +396,3 @@ export default function DeckGrimoire(props: {
     </div>
   );
 }
-
-function Stat({ label, value, danger }: { label: string; value: string | number; danger?: boolean }) {
-  return (
-    <div className="flex flex-col">
-      <div className="font-stat text-[10px] tracking-[0.2em] uppercase text-[#c9a74a]">{label}</div>
-      <div className={cn("font-heading text-lg", danger ? "text-[#ff7043]" : "text-[#f8e4a1]")}>
-        {value}
-      </div>
-    </div>
-  );
-}
-
