@@ -64,7 +64,7 @@ export default function PackShop({ playerState, onStateChange, isOnline, pullCar
   };
 
   const buyPack = async (pack: PackDefinition) => {
-    if (!canAffordPack(playerState.gold, pack)) return;
+    if (!canAffordPack(playerState, pack)) return;
     if (isOnline && pullCardsApi) {
       try {
         const result = await pullCardsApi(pack.id);
@@ -252,7 +252,7 @@ export default function PackShop({ playerState, onStateChange, isOnline, pullCar
         <GlassPanel hue="var(--primary)" glow={0.38} padding="lg" bg={texVelvet} bgTint={0.52}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {PACK_DEFINITIONS.map((pack, i) => {
-            const affordable = canAffordPack(playerState.gold, pack);
+            const affordable = canAffordPack(playerState, pack);
             const isGold = pack.id === "gold";
             return (
               <motion.div

@@ -3,10 +3,14 @@ import { ArrowLeftRight, Bell, Check, ChevronRight, Loader2, Mail, MailOpen, Ref
 import { api } from "@/lib/apiClient";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+import OfflineBanner from "@/components/halls/OfflineBanner";
 
 type Notif = { id: number; type: string; title: string; body?: string | null; data?: unknown; createdAt: number; readAt?: number | null };
 
-interface Props { onNavigate?: (tab: "trade" | "pvp" | "battle") => void }
+interface Props {
+  isOnline?: boolean;
+  onNavigate?: (tab: "trade" | "pvp" | "battle") => void;
+}
 
 function typeIcon(t: string) {
   if (t.startsWith("trade_") || t.startsWith("market_")) return <ArrowLeftRight className="w-4 h-4" />;
@@ -39,7 +43,7 @@ function timeAgo(ts: number) {
   return `${d}d ago`;
 }
 
-export default function MailHall({ onNavigate }: Props) {
+export default function MailHall({ isOnline = false, onNavigate }: Props) {
   const [rows, setRows] = useState<Notif[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -117,7 +121,9 @@ export default function MailHall({ onNavigate }: Props) {
   };
 
   return (
-    <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-6">
+    <div className="max-w-6xl mx-auto space-y-4">
+      {!isOnline && <OfflineBanner feature="sync mail and accept live invites" />}
+    <div className="grid grid-cols-1 lg:grid-cols-[360px_1fr] gap-6">
       <aside className="panel-gold p-5 relative">
         <div className="corner-deco absolute inset-0" />
         <div className="relative z-10">
@@ -238,6 +244,7 @@ export default function MailHall({ onNavigate }: Props) {
           )}
         </div>
       </section>
+    </div>
     </div>
   );
 }

@@ -79,7 +79,7 @@ export default function SceneBackdrop({ mood, reduceMotion, children }: SceneBac
                 boxShadow: `0 0 ${p.size * 4}px ${L.particleHue}`,
                 animationDelay: `${p.delay}s`,
                 animationDuration: `${p.duration}s`,
-                ["--drift" as any]: `${p.drift}px`,
+                ["--drift"]: `${p.drift}px`,
               }}
             />
           ))}

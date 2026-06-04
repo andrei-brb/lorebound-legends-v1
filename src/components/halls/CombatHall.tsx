@@ -21,7 +21,7 @@ const MODES = [
   { id: "skirmish", label: "Skirmish", desc: "Quick PvE battle vs the realm", icon: <Swords className="w-4 h-4" />, hue: "var(--primary)" },
   { id: "ranked", label: "Ranked PvP", desc: "Climb the leaderboard ladder", icon: <Crown className="w-4 h-4" />, hue: "var(--legendary)" },
   { id: "tourney", label: "Tournament", desc: "Bracketed bouts for great rewards", icon: <Trophy className="w-4 h-4" />, hue: "var(--rare)" },
-  { id: "raid", label: "Raid", desc: "Co-op vs an elite boss", icon: <Flame className="w-4 h-4" />, hue: "var(--destructive)" },
+  { id: "raid", label: "Raid", desc: "Solo boss now; live co-op invites arrive in Mail when online", icon: <Flame className="w-4 h-4" />, hue: "var(--destructive)" },
 ] as const;
 
 export default function CombatHall({ playerState, isOnline, onLaunchMode, defaultMode = "skirmish" }: Props) {

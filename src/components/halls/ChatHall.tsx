@@ -4,6 +4,7 @@ import { api } from "@/lib/apiClient";
 import type { PlayerState } from "@/lib/playerState";
 import HexAvatar from "@/components/scene/HexAvatar";
 import { toast } from "@/hooks/use-toast";
+import OfflineBanner, { OFFLINE_FEATURE_MESSAGE } from "@/components/halls/OfflineBanner";
 
 type Msg = { id: number; channel: string; playerId: number; username: string; avatar: string | null; body: string; createdAt: number };
 
@@ -44,7 +45,7 @@ export default function ChatHall({ isOnline, playerState }: Props) {
   const send = async () => {
     if (!text.trim() || sending) return;
     if (!isOnline) {
-      toast({ title: "Offline", description: "Connect online to chat.", variant: "destructive" });
+      toast({ title: "Offline", description: OFFLINE_FEATURE_MESSAGE, variant: "destructive" });
       return;
     }
     setSending(true);
@@ -115,6 +116,11 @@ export default function ChatHall({ isOnline, playerState }: Props) {
 
       <section className="panel-gold p-5 relative overflow-hidden flex flex-col min-h-[60vh]">
         <div className="corner-deco absolute inset-0" />
+        {!isOnline && (
+          <div className="relative z-10 mb-4">
+            <OfflineBanner feature="chat with the realm" className="!p-3" />
+          </div>
+        )}
         <div className="relative z-10 flex items-center justify-between gap-3 mb-4">
           <div>
             <div className="font-heading text-[#f5c842] tracking-[0.2em]"># {active === "global" ? "Global" : "Guild"}</div>

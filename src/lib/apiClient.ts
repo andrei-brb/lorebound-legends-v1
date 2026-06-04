@@ -287,6 +287,11 @@ export const api = {
     return handleResponse<{ entries: Array<{ rank: number; name: string; avatar?: string | null; playerId: number; value: number }> }>(res);
   },
 
+  async getBoostStatus() {
+    const res = await fetch(`${getApiBase()}/api/boost-status`, { headers: getHeaders() });
+    return handleResponse<{ isBoosting: boolean; source?: string }>(res);
+  },
+
   async getFriends() {
     const res = await fetch(`${getApiBase()}/api/friends`, { headers: getHeaders() });
     return handleResponse<{

@@ -15,7 +15,7 @@ interface Props {
   ttlMs?: number;
 }
 
-const ICONS: Record<ActionLogEntry["kind"], React.ComponentType<any>> = {
+const ICONS: Record<ActionLogEntry["kind"], React.ComponentType<{ className?: string }>> = {
   summon: Sparkles,
   attack: Sword,
   defeat: Skull,

@@ -831,6 +831,35 @@ async function handleGetMe(req, res) {
   return sendJson(res, 200, { me: { ...toPublicPlayer(player), pvp } });
 }
 
+async function resolveDiscordServerBoost(discordUserId) {
+  const devIds = String(process.env.DEV_SERVER_BOOST_DISCORD_IDS || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (devIds.includes(discordUserId)) {
+    return { isBoosting: true, source: "dev_allowlist" };
+  }
+
+  const guildId = process.env.DISCORD_GUILD_ID;
+  if (!guildId || !process.env.DISCORD_BOT_TOKEN) {
+    return { isBoosting: false, source: "unconfigured" };
+  }
+
+  try {
+    const member = await discordBotFetch(`/guilds/${guildId}/members/${discordUserId}`);
+    return { isBoosting: Boolean(member?.premium_since), source: "discord_guild_member" };
+  } catch {
+    return { isBoosting: false, source: "discord_error" };
+  }
+}
+
+async function handleBoostStatus(req, res) {
+  const user = await requireAuth(req, res);
+  if (!user) return;
+  const status = await resolveDiscordServerBoost(user.id);
+  return sendJson(res, 200, status);
+}
+
 async function handlePatchPlayer(req, res) {
   const user = await requireAuth(req, res);
   if (!user) return;
@@ -3103,6 +3132,12 @@ async function handleCardPull(req, res) {
             err.statusCode = 400;
             throw err;
           }
+        } else if (pack.currency === "stardust") {
+          if (p.stardust < pack.cost) {
+            const err = new Error("Not enough stardust");
+            err.statusCode = 400;
+            throw err;
+          }
         } else if (p.gold < pack.cost) {
           const err = new Error("Not enough gold");
           err.statusCode = 400;
@@ -3218,6 +3253,20 @@ async function handleCardPull(req, res) {
               lastFreePackTime: new Date(),
             },
           });
+        } else if (pack.currency === "stardust") {
+          const paid = await tx.player.updateMany({
+            where: { id: p.id, stardust: { gte: pack.cost } },
+            data: {
+              stardust: p.stardust - pack.cost + totalStardustEarned,
+              pityCounter: newPityCounter,
+              totalPulls: { increment: pack.cardCount },
+            },
+          });
+          if (paid.count !== 1) {
+            const err = new Error("Not enough stardust");
+            err.statusCode = 400;
+            throw err;
+          }
         } else {
           const paid = await tx.player.updateMany({
             where: { id: p.id, gold: { gte: pack.cost } },
@@ -4266,6 +4315,7 @@ const server = http.createServer(async (req, res) => {
     // Game API routes
     if (method === "GET" && path === "/api/player") return await handleGetPlayer(req, res);
     if (method === "GET" && path === "/api/me") return await handleGetMe(req, res);
+    if (method === "GET" && path === "/api/boost-status") return await handleBoostStatus(req, res);
     if (method === "PATCH" && path === "/api/player") return await handlePatchPlayer(req, res);
     if (method === "GET" && path === "/api/notifications") return await handleGetNotifications(req, res);
     if (method === "GET" && path === "/api/notifications/unread-count") return await handleGetUnreadCount(req, res);

@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+import OfflineBanner from "@/components/halls/OfflineBanner";
 import bgGuild from "@/assets/bg-guild-hall.jpg";
 import boxParchment from "@/assets/box-tex-parchment.jpg";
 import boxStone from "@/assets/box-tex-stone.jpg";
@@ -33,7 +34,7 @@ export default function GuildHall({ isOnline }: Props) {
     setLoading(true);
     (async () => {
       try {
-        const g: any = await api.getMyGuild().catch(() => null);
+        const g = await api.getMyGuild().catch(() => null);
         if (g?.guild) {
           setGuild({
             id: g.guild.id,
@@ -47,14 +48,28 @@ export default function GuildHall({ isOnline }: Props) {
           });
           if (g.members) setMembers(g.members);
           if (g.guild.id) {
-            const m: any = await api.getChat(`guild:${g.guild.id}` as any).catch(() => null);
-            if (alive && m?.messages) setMsgs(m.messages.map((x: any) => ({ id: x.id, userId: x.playerId, username: x.username, content: x.body, createdAt: x.createdAt })));
+            const channel = `guild:${g.guild.id}` as const;
+            const m = await api.getChat(channel).catch(() => null);
+            if (alive && m?.messages) {
+              setMsgs(m.messages.map((x) => ({
+                id: x.id,
+                userId: x.playerId,
+                username: x.username,
+                content: x.body,
+                createdAt: x.createdAt,
+              })));
+            }
           }
         } else if (alive) {
           setGuild(null);
           setMembers([]);
         }
-      } catch {}
+      } catch {
+        if (alive) {
+          setGuild(null);
+          setMembers([]);
+        }
+      }
       finally { if (alive) setLoading(false); }
     })();
     return () => { alive = false; };
@@ -64,9 +79,16 @@ export default function GuildHall({ isOnline }: Props) {
     if (!guild?.id || !text.trim() || sending) return;
     setSending(true);
     try {
-      await api.postChat(`guild:${guild.id}`, text.trim());
-      const m: any = await api.getChat(`guild:${guild.id}` as any);
-      setMsgs((m?.messages || []).map((x: any) => ({ id: x.id, userId: x.playerId, username: x.username, content: x.body, createdAt: x.createdAt })));
+      const channel = `guild:${guild.id}` as const;
+      await api.postChat(channel, text.trim());
+      const m = await api.getChat(channel);
+      setMsgs((m?.messages || []).map((x) => ({
+        id: x.id,
+        userId: x.playerId,
+        username: x.username,
+        content: x.body,
+        createdAt: x.createdAt,
+      })));
       setText("");
     } catch (e) {
       toast({
@@ -82,6 +104,8 @@ export default function GuildHall({ isOnline }: Props) {
 
   if (!loading && !guild) {
     return (
+      <div className="space-y-4">
+        {!isOnline && <OfflineBanner feature="join or create a guild" />}
       <GlassPanel hue="var(--legendary)" glow={0.3} padding="lg">
         <div className="text-center py-10 space-y-3">
           <Flag className="w-10 h-10 mx-auto text-[hsl(var(--legendary))]/50" />
@@ -93,6 +117,7 @@ export default function GuildHall({ isOnline }: Props) {
           </p>
         </div>
       </GlassPanel>
+      </div>
     );
   }
 

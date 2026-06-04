@@ -61,7 +61,7 @@ export default function BattlefieldSceneV2({
   const isTargetable = (side: ZoneRef["side"], row: ZoneRef["row"], i: number) =>
     targetableZones.some((h) => h.side === side && h.row === row && h.index === i);
 
-  const handleOver = (z: ZoneRef) => (e: any) => {
+  const handleOver = (z: ZoneRef) => (e: { stopPropagation: () => void }) => {
     e.stopPropagation();
     onZoneHover?.(z);
   };

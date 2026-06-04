@@ -5,6 +5,8 @@ export interface PackDefinition {
   id: string;
   name: string;
   cost: number;
+  /** Defaults to gold when omitted. */
+  currency?: "gold" | "stardust";
   cardCount: number;
   rates: Record<Rarity, number>; // percentages
   description: string;
@@ -40,6 +42,16 @@ export const PACK_DEFINITIONS: PackDefinition[] = [
     rates: { common: 20, rare: 40, legendary: 39.0, mythic: 1.0 },
     description: "The best odds for legendary cards!",
     color: "from-yellow-400 to-amber-600",
+  },
+  {
+    id: "arcane",
+    name: "Arcane Pack",
+    cost: 250,
+    currency: "stardust",
+    cardCount: 5,
+    rates: { common: 15, rare: 35, legendary: 45, mythic: 5 },
+    description: "Stardust-forged tomes with elevated mythic odds.",
+    color: "from-purple-600 to-violet-900",
   },
 ];
 
@@ -80,8 +92,12 @@ export function pullCards(pack: PackDefinition, playerState: PlayerState): { car
   return { cardIds, newPityCounter: pity };
 }
 
-export function canAffordPack(gold: number, pack: PackDefinition): boolean {
-  return gold >= pack.cost;
+export function canAffordPack(
+  wallet: { gold: number; stardust?: number },
+  pack: PackDefinition,
+): boolean {
+  if (pack.currency === "stardust") return (wallet.stardust ?? 0) >= pack.cost;
+  return wallet.gold >= pack.cost;
 }
 
 export function getBattleGoldReward(won: boolean, turnCount: number): number {

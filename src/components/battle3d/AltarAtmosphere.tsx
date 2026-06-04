@@ -69,7 +69,7 @@ export default function AltarAtmosphere() {
                 : "0 0 6px hsl(46 95% 72% / 0.7)",
               animation: `altar-mote ${m.dur}s linear infinite`,
               animationDelay: `${m.delay}s`,
-              ["--mote-x" as any]: `${m.driftX}px`,
+              ["--mote-x"]: `${m.driftX}px`,
             }}
           />
         ))}

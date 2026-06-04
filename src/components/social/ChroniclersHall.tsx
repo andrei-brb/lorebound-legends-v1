@@ -3,6 +3,7 @@ import { Crown, Swords, UserPlus } from "lucide-react";
 import { api } from "@/lib/apiClient";
 import { cn } from "@/lib/utils";
 import { toast } from "@/hooks/use-toast";
+import OfflineBanner, { OFFLINE_FEATURE_MESSAGE } from "@/components/halls/OfflineBanner";
 
 type Friend = { id: number; discordId: string; username: string; avatar?: string | null };
 type LeaderRow = { rank: number; name: string; value: number; avatar?: string | null; playerId: number };
@@ -57,7 +58,7 @@ export default function ChroniclersHall(props: {
 
   const inviteToDuel = async (friend: Friend) => {
     if (!isOnline) {
-      toast({ title: "Offline", description: "Connect online to send duel invitations.", variant: "destructive" });
+      toast({ title: "Offline", description: OFFLINE_FEATURE_MESSAGE, variant: "destructive" });
       return;
     }
     if (duelPending[friend.id]) return;
@@ -83,6 +84,12 @@ export default function ChroniclersHall(props: {
   return (
     <div className="relative min-h-[calc(100vh-72px)] px-5 md:px-10 py-8" data-testid="social-screen">
       <div className="section-heading mb-10">The Chronicler&apos;s Hall</div>
+
+      {!isOnline && (
+        <div className="max-w-6xl mx-auto mb-4">
+          <OfflineBanner feature="add friends, duel, and sync the leaderboard" />
+        </div>
+      )}
 
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Allied Duelists */}

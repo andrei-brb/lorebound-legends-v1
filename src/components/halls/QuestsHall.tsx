@@ -46,7 +46,6 @@ export default function QuestsHall({ playerState, onStateChange }: Props) {
   useEffect(() => {
     const qs = loadDailyQuests();
     if (qs.lastResetDate !== questState.lastResetDate) setQuestState(qs);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [questState.lastResetDate]);
 
   const questsAll = useMemo((): Quest[] => {
@@ -78,7 +77,12 @@ export default function QuestsHall({ playerState, onStateChange }: Props) {
       ...mapBucket(questState.questDefinitions, questState.quests, "daily"),
       ...mapBucket(questState.weeklyQuestDefinitions, questState.weeklyQuests, "weekly"),
     ];
-  }, [questState.lastResetDate, questState.lastWeeklyResetDate]);
+  }, [
+    questState.questDefinitions,
+    questState.quests,
+    questState.weeklyQuestDefinitions,
+    questState.weeklyQuests,
+  ]);
 
   const quests = useMemo(() => {
     if (filter === "all") return questsAll;

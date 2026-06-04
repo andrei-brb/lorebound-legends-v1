@@ -26,7 +26,7 @@ type PackTile = {
   cost: number;
   currency: "gold" | "stardust";
   tint: string;
-  implPackId: "bronze" | "silver" | "gold";
+  implPackId: "bronze" | "silver" | "gold" | "arcane";
   disabled?: boolean;
 };
 
@@ -47,14 +47,14 @@ export default function SummonAltar(props: {
     const bronze = byId.get("bronze")!;
     const silver = byId.get("silver")!;
     const gold = byId.get("gold")!;
+    const arcane = byId.get("arcane")!;
     const tiles: PackTile[] = [
       { id: "bronze", label: "Bronze Tome", cost: bronze.cost, currency: "gold", tint: "#8D6E63", implPackId: "bronze" },
       { id: "silver", label: "Silver Tome", cost: silver.cost, currency: "gold", tint: "#BDBDBD", implPackId: "silver" },
       { id: "gold", label: "Gold Tome", cost: gold.cost, currency: "gold", tint: "#f5c842", implPackId: "gold" },
-      // We don't have an Arcane pack type in the current economy yet; keep the slot for exact layout parity.
-      { id: "arcane", label: "Arcane Tome", cost: 250, currency: "stardust", tint: "#9c27b0", implPackId: "gold", disabled: true },
+      { id: "arcane", label: "Arcane Tome", cost: arcane.cost, currency: "stardust", tint: "#9c27b0", implPackId: "arcane" },
     ];
-    return { tiles, bronze, silver, gold };
+    return { tiles, bronze, silver, gold, arcane };
   }, []);
 
   const openPack = async (tile: PackTile) => {
@@ -73,11 +73,13 @@ export default function SummonAltar(props: {
       return;
     }
 
-    if (!canAffordPack(playerState.gold, pack)) return;
+    if (!canAffordPack(playerState, pack)) return;
     const { cardIds, newPityCounter } = pullCards(pack, playerState);
+    const paysStardust = pack.currency === "stardust";
     const newState: PlayerState = {
       ...playerState,
-      gold: playerState.gold - pack.cost,
+      gold: paysStardust ? playerState.gold : playerState.gold - pack.cost,
+      stardust: paysStardust ? (playerState.stardust || 0) - pack.cost : playerState.stardust,
       pityCounter: newPityCounter,
       totalPulls: playerState.totalPulls + pack.cardCount,
     };

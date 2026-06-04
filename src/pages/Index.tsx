@@ -21,7 +21,6 @@ import BoostHall from "@/components/halls/BoostHall";
 import EventsHall from "@/components/halls/EventsHall";
 import MailHall from "@/components/halls/MailHall";
 import RanksHall from "@/components/halls/RanksHall";
-import FriendsHall from "@/components/halls/FriendsHall";
 import ChatHall from "@/components/halls/ChatHall";
 import GuildHall from "@/components/halls/GuildHall";
 import SpectateHall from "@/components/halls/SpectateHall";
@@ -787,7 +786,9 @@ export default function Index() {
                 </div>
               </div>
             )}
-            {activeTab === "mail" && <MailHall onNavigate={(tab) => { setActiveTab(tab); }} />}
+            {activeTab === "mail" && (
+              <MailHall isOnline={isOnline} onNavigate={(tab) => { setActiveTab(tab); }} />
+            )}
             {activeTab === "pvp" && (
               <PvPPanel
                 playerState={playerState}
@@ -856,7 +857,7 @@ export default function Index() {
                 <div className="relative z-10">
                   <div className="section-heading mb-2">Boost</div>
                   <p className="text-center font-lore mb-6">Claim boosts and power-ups.</p>
-                  <BoostHall playerState={playerState} />
+                  <BoostHall playerState={playerState} isOnline={isOnline} />
                 </div>
               </div>
             )}

@@ -11,7 +11,7 @@ import { elementEmoji, elementCssClass, elementBgClass } from "@/lib/elementSyst
 
 interface GameCardProps {
   card: GameCardType;
-  onClick?: ((e: React.MouseEvent<HTMLDivElement>) => void) | (() => void);
+  onClick?: (e: React.MouseEvent<HTMLDivElement>) => void;
   selected?: boolean;
   showSynergy?: boolean;
   size?: "xs" | "sm" | "md" | "lg" | "grid" | "deck" | "picker";
@@ -189,8 +189,7 @@ export default function GameCard({ card, onClick, selected, showSynergy, size = 
 
   const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
     if (onClick) {
-      // Back-compat: some callers pass () => void; others want the click event.
-      (onClick as any)(e);
+      onClick(e);
       return;
     }
     setFlipped(!flipped);

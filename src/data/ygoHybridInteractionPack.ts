@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- maps interaction-pack source rows onto GameCard */
 import type { GameCard } from "./cards";
 
 const img = (id: string) => `/cards/interaction-pack/${id}.png`;

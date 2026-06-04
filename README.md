@@ -28,6 +28,20 @@ npm run build:server-battle
 npm run build:server-raid
 ```
 
+### Server boost rewards
+
+When `DISCORD_GUILD_ID` and `DISCORD_BOT_TOKEN` are set, `GET /api/boost-status` checks whether the signed-in user is boosting that guild (`premium_since`). For local UI testing without boosting, set `VITE_DEV_SERVER_BOOST=true` or add your Discord user id to `DEV_SERVER_BOOST_DISCORD_IDS` on the token server.
+
+### Arcane Tome pack
+
+The summon altar’s **Arcane Tome** uses the `arcane` pack id (250 stardust, elevated mythic rates). Online pulls deduct stardust via `POST /api/cards/pull` with `packId: "arcane"`.
+
+### Not implemented (external dependencies)
+
+- **Stripe / real-money Elite** — Elite pass is stardust-only in-game.
+- **Dynamic live events DB** — seasonal content remains client-driven (`eventEngine.ts`).
+- **Full synchronous 2-player co-op raid** — solo raid + live PvP/raid inbox invites; co-op expansion needs dedicated matchmaking.
+
 ## Local development
 
 ```bash

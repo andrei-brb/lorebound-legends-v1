@@ -1,6 +1,6 @@
 import { useRef, useEffect, useMemo } from "react";
 import { useFrame, type ThreeEvent } from "@react-three/fiber";
-import { Mesh, MathUtils, TextureLoader, type Texture } from "three";
+import { Mesh, MathUtils, TextureLoader, MeshBasicMaterial, type Texture } from "three";
 import { Html } from "@react-three/drei";
 
 export type ZoneKind = "monster" | "spell";
@@ -87,7 +87,7 @@ export default function BattleZone({
     const eased = 1 - Math.pow(1 - p, 3);
 
     if (slotRef.current) {
-      const m = slotRef.current.material as any;
+      const m = slotRef.current.material as MeshBasicMaterial;
       const pulse = attacking || targetable ? Math.sin(t * 6) * 0.25 + 0.4 : 0;
       m.opacity = 0.18 + Math.sin(t * 2 + position[0]) * 0.05 + (highlight ? 0.4 : 0) + pulse;
       m.color.set(ringColor);
@@ -100,7 +100,7 @@ export default function BattleZone({
       cardRef.current.position.y = MathUtils.lerp(startY, endY, eased) + hoverLift;
       const s = MathUtils.lerp(0.6, 1, eased) * (hovered ? 1.05 : 1);
       cardRef.current.scale.setScalar(s);
-      const m = cardRef.current.material as any;
+      const m = cardRef.current.material as MeshBasicMaterial;
       m.opacity = Math.min(1, p * 1.5);
       m.transparent = true;
     }
@@ -108,7 +108,7 @@ export default function BattleZone({
     if (shockRef.current) {
       shock.current += delta;
       const sp = Math.min(1, shock.current / 0.6);
-      const m = shockRef.current.material as any;
+      const m = shockRef.current.material as MeshBasicMaterial;
       if (sp < 1) {
         const sc = 0.2 + sp * 2.0;
         shockRef.current.scale.set(sc, sc, sc);
@@ -121,7 +121,7 @@ export default function BattleZone({
     }
 
     if (targetRingRef.current) {
-      const m = targetRingRef.current.material as any;
+      const m = targetRingRef.current.material as MeshBasicMaterial;
       const visible = attacking || targetable;
       m.opacity = visible ? 0.6 + Math.sin(t * 8) * 0.3 : 0;
       m.color.set(attacking ? "#fbbf24" : "#ef4444");
