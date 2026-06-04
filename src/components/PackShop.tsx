@@ -48,6 +48,7 @@ export default function PackShop({ playerState, onStateChange, isOnline, pullCar
   const [confirmPack, setConfirmPack] = useState<PackDefinition | null>(null);
   const playerStateRef = useRef(playerState);
   playerStateRef.current = playerState;
+  const pullInFlightRef = useRef(false);
 
   useEffect(() => {
     const tick = () => setFreeTimer(freePackTimeRemaining(playerStateRef.current));
@@ -64,7 +65,10 @@ export default function PackShop({ playerState, onStateChange, isOnline, pullCar
   };
 
   const buyPack = async (pack: PackDefinition) => {
-    if (!canAffordPack(playerState, pack)) return;
+    if (pullInFlightRef.current || openingPack) return;
+    const ps = playerStateRef.current;
+    if (!canAffordPack(ps, pack)) return;
+    pullInFlightRef.current = true;
     if (isOnline && pullCardsApi) {
       try {
         const result = await pullCardsApi(pack.id);
@@ -82,14 +86,25 @@ export default function PackShop({ playerState, onStateChange, isOnline, pullCar
           description: e instanceof Error ? e.message : String(e),
           variant: "destructive",
         });
+      } finally {
+        pullInFlightRef.current = false;
       }
       return;
     }
-    const { cardIds, newPityCounter } = pullCards(pack, playerState);
-    const newState = { ...playerState, gold: playerState.gold - pack.cost, pityCounter: newPityCounter, totalPulls: playerState.totalPulls + pack.cardCount };
-    onStateChange(newState);
-    setOpeningPack({ cardIds });
-    trackPackQuests(false);
+    try {
+      const { cardIds, newPityCounter } = pullCards(pack, ps);
+      const newState = {
+        ...ps,
+        gold: ps.gold - pack.cost,
+        pityCounter: newPityCounter,
+        totalPulls: ps.totalPulls + pack.cardCount,
+      };
+      onStateChange(newState);
+      setOpeningPack({ cardIds });
+      trackPackQuests(false);
+    } finally {
+      pullInFlightRef.current = false;
+    }
   };
 
   const handleBuyClick = (pack: PackDefinition) => {
@@ -97,7 +112,10 @@ export default function PackShop({ playerState, onStateChange, isOnline, pullCar
   };
 
   const claimFreePack = async () => {
-    if (!canClaimFreePack(playerState)) return;
+    if (pullInFlightRef.current || openingPack) return;
+    const ps = playerStateRef.current;
+    if (!canClaimFreePack(ps)) return;
+    pullInFlightRef.current = true;
     if (isOnline && pullCardsApi) {
       try {
         const result = await pullCardsApi("free");
@@ -115,15 +133,26 @@ export default function PackShop({ playerState, onStateChange, isOnline, pullCar
           description: e instanceof Error ? e.message : String(e),
           variant: "destructive",
         });
+      } finally {
+        pullInFlightRef.current = false;
       }
       return;
     }
-    const freePack: PackDefinition = { ...PACK_DEFINITIONS[0], cardCount: FREE_PACK_CARD_COUNT };
-    const { cardIds, newPityCounter } = pullCards(freePack, playerState);
-    const newState = { ...playerState, lastFreePackTime: Date.now(), pityCounter: newPityCounter, totalPulls: playerState.totalPulls + FREE_PACK_CARD_COUNT };
-    onStateChange(newState);
-    setOpeningPack({ cardIds });
-    trackPackQuests(true);
+    try {
+      const freePack: PackDefinition = { ...PACK_DEFINITIONS[0], cardCount: FREE_PACK_CARD_COUNT };
+      const { cardIds, newPityCounter } = pullCards(freePack, ps);
+      const newState = {
+        ...ps,
+        lastFreePackTime: Date.now(),
+        pityCounter: newPityCounter,
+        totalPulls: ps.totalPulls + FREE_PACK_CARD_COUNT,
+      };
+      onStateChange(newState);
+      setOpeningPack({ cardIds });
+      trackPackQuests(true);
+    } finally {
+      pullInFlightRef.current = false;
+    }
   };
 
   const handlePackOpeningComplete = (cardIds: string[]) => {

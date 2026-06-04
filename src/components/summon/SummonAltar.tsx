@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Sparkles } from "lucide-react";
 import PackOpening from "@/components/PackOpening";
 import { GoldCurrencyIcon, StardustCurrencyIcon } from "@/components/CurrencyIcons";
@@ -41,6 +41,9 @@ export default function SummonAltar(props: {
 }) {
   const { playerState, onStateChange, isOnline, pullCardsApi } = props;
   const [openingPack, setOpeningPack] = useState<{ cardIds: string[]; cardIsNew?: boolean[] } | null>(null);
+  const pullInFlightRef = useRef(false);
+  const playerStateRef = useRef(playerState);
+  playerStateRef.current = playerState;
 
   const defs = useMemo(() => {
     const byId = new Map(PACK_DEFINITIONS.map((p) => [p.id, p]));
@@ -58,33 +61,39 @@ export default function SummonAltar(props: {
   }, []);
 
   const openPack = async (tile: PackTile) => {
-    if (tile.disabled) return;
+    if (tile.disabled || pullInFlightRef.current || openingPack) return;
     const pack = PACK_DEFINITIONS.find((p) => p.id === tile.implPackId) as PackDefinition | undefined;
     if (!pack) return;
+    const ps = playerStateRef.current;
+    pullInFlightRef.current = true;
 
-    if (isOnline && pullCardsApi) {
-      const result = await pullCardsApi(pack.id);
-      if (!result) return;
-      onStateChange(result.state);
-      setOpeningPack({
-        cardIds: result.pullResults.map((r) => r.cardId),
-        cardIsNew: result.pullResults.map((r) => !r.isDuplicate),
-      });
-      return;
+    try {
+      if (isOnline && pullCardsApi) {
+        const result = await pullCardsApi(pack.id);
+        if (!result) return;
+        onStateChange(result.state);
+        setOpeningPack({
+          cardIds: result.pullResults.map((r) => r.cardId),
+          cardIsNew: result.pullResults.map((r) => !r.isDuplicate),
+        });
+        return;
+      }
+
+      if (!canAffordPack(ps, pack)) return;
+      const { cardIds, newPityCounter } = pullCards(pack, ps);
+      const paysStardust = pack.currency === "stardust";
+      const newState: PlayerState = {
+        ...ps,
+        gold: paysStardust ? ps.gold : ps.gold - pack.cost,
+        stardust: paysStardust ? (ps.stardust || 0) - pack.cost : ps.stardust,
+        pityCounter: newPityCounter,
+        totalPulls: ps.totalPulls + pack.cardCount,
+      };
+      onStateChange(newState);
+      setOpeningPack({ cardIds });
+    } finally {
+      pullInFlightRef.current = false;
     }
-
-    if (!canAffordPack(playerState, pack)) return;
-    const { cardIds, newPityCounter } = pullCards(pack, playerState);
-    const paysStardust = pack.currency === "stardust";
-    const newState: PlayerState = {
-      ...playerState,
-      gold: paysStardust ? playerState.gold : playerState.gold - pack.cost,
-      stardust: paysStardust ? (playerState.stardust || 0) - pack.cost : playerState.stardust,
-      pityCounter: newPityCounter,
-      totalPulls: playerState.totalPulls + pack.cardCount,
-    };
-    onStateChange(newState);
-    setOpeningPack({ cardIds });
   };
 
   const handlePackOpeningComplete = (cardIds: string[]) => {

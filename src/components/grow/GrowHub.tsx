@@ -72,6 +72,7 @@ export default function GrowHub(props: {
   const [rewardTitle, setRewardTitle] = useState("Daily Bonus Claimed");
   const [rewardSubtitle, setRewardSubtitle] = useState("The altar grants its favor.");
   const [claiming, setClaiming] = useState(false);
+  const [openingBox, setOpeningBox] = useState(false);
   const today = new Date().toISOString().slice(0, 10);
   const daily = playerState.dailyLogin ?? { streak: 0, lastClaimDate: null, claimedDays: [] };
   const claimedToday = daily.lastClaimDate === today;
@@ -436,14 +437,21 @@ export default function GrowHub(props: {
             className="btn-gold w-full flex items-center justify-center gap-2"
             data-testid="open-mystery-btn"
             type="button"
+            disabled={(playerState.mysteryBoxesPending ?? 0) === 0 || openingBox}
             onClick={() => {
-              const result = openMysteryBox(playerState);
-              if (!result) {
-                toast({ title: "No boxes", description: "Win battles to earn mystery boxes.", variant: "destructive" });
-                return;
+              if (openingBox || (playerState.mysteryBoxesPending ?? 0) <= 0) return;
+              setOpeningBox(true);
+              try {
+                const result = openMysteryBox(playerState);
+                if (!result) {
+                  toast({ title: "No boxes", description: "Win battles to earn mystery boxes.", variant: "destructive" });
+                  return;
+                }
+                onStateChange(result.state);
+                toast({ title: "Mystery box opened", description: `+${result.gold} gold${result.stardust > 0 ? `, +${result.stardust} stardust` : ""}` });
+              } finally {
+                setOpeningBox(false);
               }
-              onStateChange(result.state);
-              toast({ title: "Mystery box opened", description: `+${result.gold} gold${result.stardust > 0 ? `, +${result.stardust} stardust` : ""}` });
             }}
           >
             Open <ChevronRight size={14} />

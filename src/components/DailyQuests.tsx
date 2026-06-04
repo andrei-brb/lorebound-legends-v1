@@ -24,6 +24,7 @@ interface DailyQuestsProps {
 export default function DailyQuests({ playerState, onStateChange, isOnline, syncEconomyApi }: DailyQuestsProps) {
   const [questState, setQuestState] = useState<DailyQuestState>(loadDailyQuests);
   const [timeLeft, setTimeLeft] = useState(getQuestTimeUntilReset());
+  const [claimingId, setClaimingId] = useState<string | null>(null);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -44,21 +45,24 @@ export default function DailyQuests({ playerState, onStateChange, isOnline, sync
   };
 
   const handleClaim = (questId: string) => {
-    const result = claimQuestReward(questState, questId, playerState);
-    if (result) {
+    if (claimingId) return;
+    setClaimingId(questId);
+    try {
+      const result = claimQuestReward(questState, questId, playerState);
+      if (!result) return;
       setQuestState(result.questState);
-      // Also award Battle Pass XP on quest claim (daily-capped in engine).
       const bp = awardBattlePassXp(result.playerState, 250);
       onStateChange(bp.state);
-      const def = result.questState.questDefinitions.find(d => d.id === questId);
+      const def = result.questState.questDefinitions.find((d) => d.id === questId);
       toast({
         title: "🎉 Quest Complete!",
         description: `Earned ${def?.goldReward} gold and ${def?.stardustReward} stardust! +${bp.awarded} Pass XP`,
       });
-      // Sync gold/stardust to server so rewards persist across sessions
       if (isOnline && syncEconomyApi) {
         syncEconomyApi(bp.state.gold, bp.state.stardust ?? 0).catch(() => {});
       }
+    } finally {
+      setClaimingId(null);
     }
   };
 
@@ -129,8 +133,13 @@ export default function DailyQuests({ playerState, onStateChange, isOnline, sync
                     {quest.claimed ? (
                       <span className="text-xs text-muted-foreground font-medium px-3 py-1.5 rounded-lg bg-secondary">Claimed</span>
                     ) : quest.completed ? (
-                      <Button size="sm" onClick={() => handleClaim(quest.questId)} className="font-heading">
-                        Claim
+                      <Button
+                        size="sm"
+                        disabled={claimingId === quest.questId}
+                        onClick={() => handleClaim(quest.questId)}
+                        className="font-heading"
+                      >
+                        {claimingId === quest.questId ? "Claiming…" : "Claim"}
                       </Button>
                     ) : null}
                   </div>

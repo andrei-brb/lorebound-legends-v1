@@ -42,6 +42,7 @@ export default function QuestsHall({ playerState, onStateChange }: Props) {
   const [rewardItems, setRewardItems] = useState<RewardItem[]>([]);
   const [rewardTitle, setRewardTitle] = useState("Reward Bestowed");
   const [rewardSubtitle, setRewardSubtitle] = useState("The altar grants its favor.");
+  const [claimingId, setClaimingId] = useState<string | null>(null);
 
   useEffect(() => {
     const qs = loadDailyQuests();
@@ -153,20 +154,27 @@ export default function QuestsHall({ playerState, onStateChange }: Props) {
             key={q.id}
             quest={q}
             onClaim={() => {
-              const res = claimQuestReward(questState, q.id, playerState);
-              if (!res) return;
-              setQuestState(res.questState);
-              onStateChange(res.playerState);
-              const items: RewardItem[] = [];
-              if (q.reward.gold) items.push({ kind: "gold", amount: q.reward.gold, label: "Gold", rarity: "legendary" });
-              if (q.reward.stardust) items.push({ kind: "gem", amount: q.reward.stardust, label: "Stardust", rarity: "rare" });
-              if (items.length > 0) {
-                setRewardTitle("Quest Reward");
-                setRewardSubtitle("The altar recognizes your progress.");
-                setRewardItems(items);
-                setRewardOpen(true);
+              if (claimingId) return;
+              setClaimingId(q.id);
+              try {
+                const res = claimQuestReward(questState, q.id, playerState);
+                if (!res) return;
+                setQuestState(res.questState);
+                onStateChange(res.playerState);
+                const items: RewardItem[] = [];
+                if (q.reward.gold) items.push({ kind: "gold", amount: q.reward.gold, label: "Gold", rarity: "legendary" });
+                if (q.reward.stardust) items.push({ kind: "gem", amount: q.reward.stardust, label: "Stardust", rarity: "rare" });
+                if (items.length > 0) {
+                  setRewardTitle("Quest Reward");
+                  setRewardSubtitle("The altar recognizes your progress.");
+                  setRewardItems(items);
+                  setRewardOpen(true);
+                }
+              } finally {
+                setClaimingId(null);
               }
             }}
+            claiming={claimingId === q.id}
           />
         ))}
       </div>
@@ -174,7 +182,7 @@ export default function QuestsHall({ playerState, onStateChange }: Props) {
   );
 }
 
-function QuestCard({ quest, onClaim }: { quest: Quest; onClaim: () => void }) {
+function QuestCard({ quest, onClaim, claiming }: { quest: Quest; onClaim: () => void; claiming?: boolean }) {
   const pct = Math.min(100, (quest.progress / quest.goal) * 100);
   const hue = quest.claimed ? "var(--legendary)" : quest.done ? "var(--legendary)" : quest.category === "weekly" ? "var(--rare)" : "var(--primary)";
   return (
@@ -214,11 +222,12 @@ function QuestCard({ quest, onClaim }: { quest: Quest; onClaim: () => void }) {
         {quest.done && !quest.claimed && (
           <button
             type="button"
-            className="px-3 py-1.5 rounded-lg bg-primary/20 text-foreground ring-1 ring-primary/40 text-[11px] uppercase tracking-wider hover:bg-primary/25 transition-colors"
+            disabled={claiming}
+            className="px-3 py-1.5 rounded-lg bg-primary/20 text-foreground ring-1 ring-primary/40 text-[11px] uppercase tracking-wider hover:bg-primary/25 transition-colors disabled:opacity-50"
             onClick={onClaim}
             data-testid={`quest-claim-${quest.id}`}
           >
-            Claim
+            {claiming ? "Claiming…" : "Claim"}
           </button>
         )}
         {quest.claimed && (

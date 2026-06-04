@@ -71,6 +71,7 @@ export default function DailyHall({ playerState, onStateChange, isOnline, claimD
   const [rewardItems, setRewardItems] = useState<RewardItem[]>([]);
   const [rewardTitle, setRewardTitle] = useState("Daily Bonus Claimed");
   const [rewardSubtitle, setRewardSubtitle] = useState("The altar grants its favor.");
+  const [openingBox, setOpeningBox] = useState(false);
 
   const streak = playerState.dailyLogin?.streak ?? 0;
   const claimedDays = playerState.dailyLogin?.claimedDays ?? [];
@@ -170,6 +171,7 @@ export default function DailyHall({ playerState, onStateChange, isOnline, claimD
           toast({ title: "Claim failed", description: "Could not reach the server. Try again.", variant: "destructive" });
           return;
         }
+        onStateChange(res.state);
         setPreview(res.preview);
         setRewardTitle("Daily Bonus Claimed");
         setRewardSubtitle(res.preview.label);
@@ -181,7 +183,7 @@ export default function DailyHall({ playerState, onStateChange, isOnline, claimD
       const { state, preview: p } = applyOfflineReward(playerState, reward);
       onStateChange(state);
       setPreview(p);
-      setRewardTitle("Daily Boon Claimed");
+      setRewardTitle("Daily Bonus Claimed");
       setRewardSubtitle(reward.label);
       setRewardItems(mapDailyPreviewToRewards(p));
       setRewardOpen(true);
@@ -294,12 +296,18 @@ export default function DailyHall({ playerState, onStateChange, isOnline, claimD
           <p className="text-sm text-foreground/85 drop-shadow-[0_1px_2px_rgba(0,0,0,0.8)]">{playerState.mysteryBoxesPending ?? 0} pending</p>
           <button
             type="button"
-            disabled={(playerState.mysteryBoxesPending ?? 0) === 0}
+            disabled={(playerState.mysteryBoxesPending ?? 0) === 0 || openingBox}
             onClick={() => {
-              const result = openMysteryBox(playerState);
-              if (!result) return;
-              onStateChange(result.state);
-              toast({ title: "Mystery box opened", description: `+${result.gold} gold${result.stardust > 0 ? `, +${result.stardust} stardust` : ""}` });
+              if (openingBox || (playerState.mysteryBoxesPending ?? 0) <= 0) return;
+              setOpeningBox(true);
+              try {
+                const result = openMysteryBox(playerState);
+                if (!result) return;
+                onStateChange(result.state);
+                toast({ title: "Mystery box opened", description: `+${result.gold} gold${result.stardust > 0 ? `, +${result.stardust} stardust` : ""}` });
+              } finally {
+                setOpeningBox(false);
+              }
             }}
             className="px-3 py-1.5 rounded-lg bg-primary/15 hover:bg-primary/25 text-primary text-xs uppercase tracking-wider disabled:opacity-30"
           >
