@@ -450,24 +450,24 @@
 /* ===== Card Rarity Frames ===== */
 
 .card-frame-mythic {
-  border: 3px solid hsl(var(--mythic));
+  border: 1px solid hsl(var(--mythic));
   border-radius: inherit;
   box-shadow:
     inset 0 0 22px hsl(var(--mythic) / 0.18),
     0 0 28px hsl(var(--mythic-glow) / 0.25);
 }
 .card-frame-legendary {
-  border: 3px solid hsl(40 90% 55%);
+  border: 1px solid hsl(40 90% 55%);
   border-radius: inherit;
   box-shadow: inset 0 0 20px hsl(40 90% 55% / 0.15);
 }
 .card-frame-rare {
-  border: 3px solid hsl(220 80% 60%);
+  border: 1px solid hsl(220 80% 60%);
   border-radius: inherit;
   box-shadow: inset 0 0 15px hsl(220 80% 60% / 0.1);
 }
 .card-frame-common {
-  border: 3px solid hsl(230 10% 35%);
+  border: 1px solid hsl(230 10% 35%);
   border-radius: inherit;
   box-shadow: inset 0 0 10px hsl(230 10% 50% / 0.05);
 }
