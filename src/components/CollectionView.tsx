@@ -173,7 +173,10 @@ function CardGridItem({ card, onAddToDeck, onSelectCard, selectedCardId, deckCar
       />
       {countInDeck > 0 && (
         <div
-          className="absolute -top-2 -right-2 w-7 h-7 rounded-full flex items-center justify-center font-heading font-black text-xs"
+          className={cn(
+            "absolute -top-1 -right-1 rounded-full flex items-center justify-center font-heading font-black",
+            onSelectCard ? "w-5 h-5 text-[9px]" : "w-7 h-7 text-xs",
+          )}
           style={{
             background: "linear-gradient(135deg,#f5c842,#d4af37)",
             color: "#0A0A0A",
@@ -348,10 +351,10 @@ export default function CollectionView({
           ) : (
             <div
               className={cn(
-                deckPickerMode ? "grid gap-2" : "grid gap-0.5",
+                deckPickerMode ? "grid gap-1.5" : "grid gap-0.5",
                 deckPickerMode
                   ? onSelectCard
-                    ? "grid-cols-2"
+                    ? "grid-cols-4"
                     : "grid-cols-2 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3"
                   : "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-4",
               )}
@@ -396,9 +399,11 @@ export default function CollectionView({
                 <CardContent>
                   <div
                     className={cn(
-                      deckPickerMode ? "grid gap-1" : "grid gap-0.5",
+                      deckPickerMode ? "grid gap-1.5" : "grid gap-0.5",
                       deckPickerMode
-                        ? "grid-cols-2 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3"
+                        ? onSelectCard
+                          ? "grid-cols-4"
+                          : "grid-cols-2 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3"
                         : "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-4",
                     )}
                   >
