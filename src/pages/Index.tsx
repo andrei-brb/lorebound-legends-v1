@@ -44,7 +44,7 @@ import { api } from "@/lib/apiClient";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { setSfxVolume } from "@/lib/sfx";
 import { GoldCurrencyIcon, StardustCurrencyIcon } from "@/components/CurrencyIcons";
-import { TopNavTabs } from "@/components/TopNavTabs";
+import { AppSidebar, AppMobileNavBar } from "@/components/AppSidebar";
 import SummonAltar from "@/components/summon/SummonAltar";
 import ChroniclersHall from "@/components/social/ChroniclersHall";
 import DeckGrimoire from "@/components/deck/DeckGrimoire";
@@ -86,6 +86,7 @@ export default function Index() {
     fromUsername: string;
   } | null>(null);
   const [tabDots, setTabDots] = useState<Partial<Record<Tab, boolean>>>({});
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   // Cards/Collection UI filters (visual redesign only; CollectionView remains source of truth)
   const [collectionQuery, setCollectionQuery] = useState("");
@@ -535,25 +536,28 @@ export default function Index() {
         )}
 
         {!hideAppChromeDuringBattle && (
-          <div>
-            <TopNavTabs
-              playerState={playerState}
-              unreadMail={unreadMail}
-              tabDots={tabDots}
-              activeTab={activeTab}
-              onTab={(tab) => handleTabClick(tab)}
-              settingsNode={<SettingsPanel playerState={playerState} onStateChange={setPlayerState} />}
-            />
-          </div>
+          <AppSidebar
+            playerState={playerState}
+            unreadMail={unreadMail}
+            tabDots={tabDots}
+            activeTab={activeTab}
+            onTab={(tab) => handleTabClick(tab)}
+            settingsNode={<SettingsPanel playerState={playerState} onStateChange={setPlayerState} />}
+            mobileOpen={sidebarOpen}
+            onMobileOpenChange={setSidebarOpen}
+          />
         )}
 
-        {/* Content */}
-        <main
-          className={cn(
-            "relative z-10",
-            hideAppChromeDuringBattle ? "w-full max-w-none px-0 py-0" : "container py-8 max-w-7xl"
-          )}
-        >
+        <div className={cn(!hideAppChromeDuringBattle && "md:ml-[248px] min-w-0")}>
+          {!hideAppChromeDuringBattle && <AppMobileNavBar onOpenMenu={() => setSidebarOpen(true)} />}
+
+          {/* Content */}
+          <main
+            className={cn(
+              "relative z-10",
+              hideAppChromeDuringBattle ? "w-full max-w-none px-0 py-0" : "container py-8 max-w-7xl"
+            )}
+          >
           <TutorialOverlay tabId={activeTab} playerState={playerState} onStateChange={setPlayerState} />
           <TabTransition tabKey={activeTab} reduceMotion={!!playerState.settings?.reduceMotion}>
             {activeTab === "collection" && (
@@ -1096,7 +1100,8 @@ export default function Index() {
                 </Suspense>
               )}
           </TabTransition>
-        </main>
+          </main>
+        </div>
       </div>
     </TooltipProvider>
   );
