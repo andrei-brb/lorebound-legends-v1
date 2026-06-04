@@ -51,13 +51,6 @@ const rarityGlowClass: Record<string, string> = {
   common: "card-glow-common",
 };
 
-const rarityCornerClass: Record<string, string> = {
-  mythic: "card-corners-mythic",
-  legendary: "card-corners-legendary",
-  rare: "card-corners-rare",
-  common: "card-corners-common",
-};
-
 const typeAccentColors: Record<string, string> = {
   god: "from-amber-500/20 via-transparent to-purple-500/10",
   hero: "from-red-500/15 via-transparent to-orange-500/10",
@@ -263,14 +256,6 @@ export default function GameCard({ card, onClick, selected, showSynergy, size = 
             )}
             {/* Rarity frame */}
             <div className={cn("absolute inset-0 z-30 pointer-events-none rounded-xl", rarityFrameClass[card.rarity])} />
-
-            {/* Corner flourishes */}
-            <div className={cn("absolute inset-0 z-30 pointer-events-none", rarityCornerClass[card.rarity])}>
-              <div className="absolute top-2 left-2 w-5 h-5 card-corner-tl" />
-              <div className="absolute top-2 right-2 w-5 h-5 card-corner-tr" />
-              <div className="absolute bottom-2 left-2 w-5 h-5 card-corner-bl" />
-              <div className="absolute bottom-2 right-2 w-5 h-5 card-corner-br" />
-            </div>
 
             {/* Awakened overlay */}
             {visualTier === "awakened" && (
