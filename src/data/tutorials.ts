@@ -39,8 +39,9 @@ export const TUTORIALS: Record<string, TutorialStep[]> = {
   ],
   workshop_legacy: [],
   daily: [
-    { icon: "🎁", title: "Daily Hub", body: "Login bonuses, hourly chests, first-win rewards, and mystery boxes — all here." },
-    { icon: "🔥", title: "Build your streak", body: "Log in every day to keep your streak alive — bigger streaks unlock bigger payouts later." },
+    { icon: "🏠", title: "Welcome Home", body: "This is your daily hub: login rewards, quest progress, and mystery boxes live here." },
+    { icon: "✨", title: "Quick start", body: "Follow the three steps — Summon, Deck Builder, Battle Arena — then explore the sidebar (Cards, Play, Progress, Social)." },
+    { icon: "🔥", title: "Build your streak", body: "Claim your daily boon every day. Bigger streaks unlock better rewards in the weekly cycle below." },
   ],
   profile: [
     { icon: "🧙", title: "Your Profile", body: "Pick an avatar and title, then watch your stats grow as you play." },

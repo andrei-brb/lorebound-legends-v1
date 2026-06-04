@@ -1,5 +1,5 @@
 import type React from "react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Award,
   BarChart3,
@@ -83,39 +83,118 @@ type NavItem = {
   testId: string;
 };
 
-const primaryNav: NavItem[] = [
-  { tab: "daily", label: "Home", icon: Home, match: ["daily"], testId: "nav-home" },
-  { tab: "collection", label: "Collection", icon: BookOpen, match: ["collection", "cards-hall"], testId: "nav-collection" },
-  { tab: "deck", label: "Deck Builder", icon: Layers, match: ["deck"], testId: "nav-deck" },
-  { tab: "summon", label: "Summon", icon: Sparkles, match: ["summon"], testId: "nav-summon" },
-  { tab: "combat-hall", label: "Battle", icon: Swords, match: ["combat-hall", "battle", "pvp", "tournament", "raid"], testId: "nav-battle" },
-  { tab: "shop", label: "Shop", icon: Gift, match: ["shop"], testId: "nav-shop" },
-  { tab: "quests", label: "Quests", icon: ScrollText, match: ["quests"], testId: "nav-quests" },
-  { tab: "pass", label: "Battle Pass", icon: Award, match: ["pass"], testId: "nav-battle-pass" },
-  { tab: "events", label: "Events", icon: Calendar, match: ["events"], testId: "nav-events" },
-  { tab: "guild", label: "Guild", icon: Shield, match: ["guild"], testId: "nav-guild" },
-  { tab: "friends", label: "Friends", icon: Users, match: ["friends", "chat"], testId: "nav-friends" },
-  { tab: "mail", label: "Mail", icon: Mail, match: ["mail"], testId: "nav-mail" },
+type NavSection = {
+  id: string;
+  label: string;
+  hint?: string;
+  defaultOpen: boolean;
+  items: NavItem[];
+};
+
+const NAV_SECTIONS: NavSection[] = [
+  {
+    id: "home",
+    label: "Home",
+    hint: "Daily rewards & quick start",
+    defaultOpen: true,
+    items: [
+      { tab: "daily", label: "Home", icon: Home, match: ["daily"], testId: "nav-home" },
+    ],
+  },
+  {
+    id: "cards",
+    label: "Cards",
+    hint: "Build your roster",
+    defaultOpen: true,
+    items: [
+      { tab: "collection", label: "Collection", icon: BookOpen, match: ["collection", "cards-hall"], testId: "nav-collection" },
+      { tab: "deck", label: "Deck Builder", icon: Layers, match: ["deck"], testId: "nav-deck" },
+      { tab: "summon", label: "Summon", icon: Sparkles, match: ["summon"], testId: "nav-summon" },
+      { tab: "catalog", label: "Card Catalog", icon: BookOpen, match: ["catalog"], testId: "nav-card-catalog" },
+    ],
+  },
+  {
+    id: "play",
+    label: "Play",
+    hint: "Fight in the arena",
+    defaultOpen: true,
+    items: [
+      { tab: "combat-hall", label: "Battle Arena", icon: Swords, match: ["combat-hall", "battle"], testId: "nav-battle" },
+      { tab: "pvp", label: "Ranked PvP", icon: Trophy, match: ["pvp"], testId: "nav-ranked-pvp" },
+      { tab: "raid", label: "Raid", icon: Flame, match: ["raid"], testId: "nav-raid" },
+      { tab: "tournament", label: "Tournament", icon: Flag, match: ["tournament"], testId: "nav-tournament" },
+      { tab: "spectate", label: "Spectate", icon: Eye, match: ["spectate"], testId: "nav-spectate" },
+    ],
+  },
+  {
+    id: "progress",
+    label: "Progress",
+    hint: "Quests & seasons",
+    defaultOpen: false,
+    items: [
+      { tab: "quests", label: "Quests", icon: ScrollText, match: ["quests"], testId: "nav-quests" },
+      { tab: "pass", label: "Battle Pass", icon: Award, match: ["pass"], testId: "nav-battle-pass" },
+      { tab: "events", label: "Events", icon: Calendar, match: ["events"], testId: "nav-events" },
+      { tab: "achievements", label: "Achievements", icon: Star, match: ["achievements"], testId: "nav-achievements" },
+    ],
+  },
+  {
+    id: "social",
+    label: "Social",
+    hint: "Friends & guilds",
+    defaultOpen: false,
+    items: [
+      { tab: "friends", label: "Friends & Duels", icon: Users, match: ["friends"], testId: "nav-friends" },
+      { tab: "guild", label: "Guild", icon: Shield, match: ["guild"], testId: "nav-guild" },
+      { tab: "chat", label: "Chat", icon: MessageCircle, match: ["chat"], testId: "nav-chat" },
+      { tab: "mail", label: "Mail", icon: Mail, match: ["mail"], testId: "nav-mail" },
+      { tab: "trade", label: "Trade", icon: ArrowLeftRight, match: ["trade"], testId: "nav-trade" },
+      { tab: "leaderboard", label: "Leaderboard", icon: BarChart3, match: ["leaderboard"], testId: "nav-leaderboard" },
+    ],
+  },
+  {
+    id: "more",
+    label: "More",
+    hint: "Shop & account",
+    defaultOpen: false,
+    items: [
+      { tab: "shop", label: "Shop", icon: Gift, match: ["shop"], testId: "nav-shop" },
+      { tab: "crafting", label: "Forge", icon: Hammer, match: ["crafting", "workshop"], testId: "nav-crafting" },
+      { tab: "cosmetics", label: "Cosmetics", icon: Sparkles, match: ["cosmetics"], testId: "nav-cosmetics" },
+      { tab: "boost", label: "Boosts", icon: Zap, match: ["boost"], testId: "nav-boosts" },
+      { tab: "profile", label: "Profile", icon: User, match: ["profile"], testId: "nav-profile" },
+    ],
+  },
 ];
 
-const moreNav: NavItem[] = [
-  { tab: "pvp", label: "Ranked PvP", icon: Trophy, match: ["pvp"], testId: "nav-ranked-pvp" },
-  { tab: "raid", label: "Raid", icon: Flame, match: ["raid"], testId: "nav-raid" },
-  { tab: "crafting", label: "Crafting", icon: Hammer, match: ["crafting", "workshop"], testId: "nav-crafting" },
-  { tab: "tournament", label: "Tournament", icon: Flag, match: ["tournament"], testId: "nav-tournament" },
-  { tab: "leaderboard", label: "Leaderboard", icon: BarChart3, match: ["leaderboard"], testId: "nav-leaderboard" },
-  { tab: "trade", label: "Trade", icon: ArrowLeftRight, match: ["trade"], testId: "nav-trade" },
-  { tab: "achievements", label: "Achievements", icon: Star, match: ["achievements"], testId: "nav-achievements" },
-  { tab: "cosmetics", label: "Cosmetics", icon: Sparkles, match: ["cosmetics"], testId: "nav-cosmetics" },
-  { tab: "boost", label: "Boosts", icon: Zap, match: ["boost"], testId: "nav-boosts" },
-  { tab: "chat", label: "Chat", icon: MessageCircle, match: ["chat"], testId: "nav-chat" },
-  { tab: "spectate", label: "Spectate", icon: Eye, match: ["spectate"], testId: "nav-spectate" },
-  { tab: "catalog", label: "Card Catalog", icon: BookOpen, match: ["catalog"], testId: "nav-card-catalog" },
-  { tab: "profile", label: "Profile", icon: User, match: ["profile"], testId: "nav-profile" },
-];
+const NAV_SECTIONS_STORAGE_KEY = "nav-sections-v1";
 
 function isNavActive(activeTab: AppTab, match: AppTab[]): boolean {
   return match.includes(activeTab);
+}
+
+function sectionHasActiveTab(section: NavSection, activeTab: AppTab): boolean {
+  return section.items.some((item) => isNavActive(activeTab, item.match));
+}
+
+function loadSectionOpenState(): Record<string, boolean> {
+  const defaults: Record<string, boolean> = {};
+  for (const s of NAV_SECTIONS) defaults[s.id] = s.defaultOpen;
+  try {
+    const raw = localStorage.getItem(NAV_SECTIONS_STORAGE_KEY);
+    if (!raw) return defaults;
+    const parsed = JSON.parse(raw) as Record<string, boolean>;
+    for (const s of NAV_SECTIONS) {
+      if (typeof parsed[s.id] === "boolean") defaults[s.id] = parsed[s.id];
+    }
+  } catch { /* ignore */ }
+  return defaults;
+}
+
+function saveSectionOpenState(state: Record<string, boolean>): void {
+  try {
+    localStorage.setItem(NAV_SECTIONS_STORAGE_KEY, JSON.stringify(state));
+  } catch { /* ignore */ }
 }
 
 function SidebarPanel({
@@ -147,7 +226,7 @@ function SidebarPanel({
         onNavigate();
       }}
       className={cn(
-        "flex w-full items-center gap-3 px-4 py-2.5 font-heading text-[13px] tracking-wide transition-colors",
+        "flex w-full items-center gap-3 py-2 pl-6 pr-4 font-heading text-[13px] tracking-wide transition-colors",
         "hover:bg-[rgba(245,200,66,0.08)] hover:text-[#f8e4a1]",
         active
           ? "border-l-2 border-[#f5c842] bg-[rgba(245,200,66,0.1)] text-[#f8e4a1] font-semibold"
@@ -172,6 +251,74 @@ function SidebarPanel({
   );
 }
 
+function NavSectionBlock({
+  section,
+  open,
+  onToggle,
+  activeTab,
+  onTab,
+  tabDots,
+  unreadMail,
+  onNavigate,
+}: {
+  section: NavSection;
+  open: boolean;
+  onToggle: () => void;
+  activeTab: AppTab;
+  onTab: (tab: AppTab) => void;
+  tabDots?: Partial<Record<AppTab, boolean>>;
+  unreadMail: number;
+  onNavigate: () => void;
+}) {
+  const sectionActive = sectionHasActiveTab(section, activeTab);
+  const sectionHasDot = section.items.some((item) => item.match.some((t) => tabDots?.[t]));
+
+  return (
+    <div className="pt-2 first:pt-0" data-testid={`nav-section-${section.id}`}>
+      <button
+        type="button"
+        onClick={onToggle}
+        className={cn(
+          "flex w-full items-start gap-2 px-4 py-2 transition-colors",
+          sectionActive || open ? "text-[#f8e4a1]" : "text-[#c9a74a] hover:text-[#f8e4a1]",
+        )}
+        aria-expanded={open}
+      >
+        <ChevronDown
+          size={12}
+          className={cn("mt-0.5 shrink-0 text-[#9a7b3c] transition-transform", open && "rotate-180")}
+        />
+        <span className="flex-1 text-left min-w-0">
+          <span className="block font-heading text-[10px] tracking-[0.22em] uppercase">{section.label}</span>
+          {section.hint && (
+            <span className="block font-stat text-[9px] tracking-[0.12em] text-[#7e6a2e] mt-0.5 normal-case">
+              {section.hint}
+            </span>
+          )}
+        </span>
+        {sectionHasDot && !open && (
+          <span
+            className="w-2 h-2 rounded-full bg-red-500 shrink-0 mt-1"
+            style={{ boxShadow: "0 0 8px rgba(239,68,68,0.6)" }}
+          />
+        )}
+      </button>
+      {open &&
+        section.items.map((item) => (
+          <SidebarPanel
+            key={item.testId}
+            item={item}
+            activeTab={activeTab}
+            onTab={onTab}
+            tabDots={tabDots}
+            unreadMail={unreadMail}
+            onNavigate={onNavigate}
+          />
+        ))}
+    </div>
+  );
+}
+
 function SidebarInner({
   playerState,
   unreadMail,
@@ -189,12 +336,20 @@ function SidebarInner({
   tabDots?: Partial<Record<AppTab, boolean>>;
   onNavigate: () => void;
 }) {
-  const [moreOpen, setMoreOpen] = useState(() => moreNav.some((m) => isNavActive(activeTab, m.match)));
+  const [sectionOpen, setSectionOpen] = useState<Record<string, boolean>>(loadSectionOpenState);
   const [muted, setMuted] = useState(false);
   const prevVolRef = useRef(0.8);
 
   const seasonId = (playerState.battlePass?.activeSeasonId ?? ACTIVE_BATTLE_PASS_SEASON_ID) as string;
   const season = BATTLE_PASS_SEASONS.find((s) => s.id === seasonId) ?? BATTLE_PASS_SEASONS[0];
+
+  const setSectionOpenPersisted = useCallback((updater: (prev: Record<string, boolean>) => Record<string, boolean>) => {
+    setSectionOpen((prev) => {
+      const next = updater(prev);
+      saveSectionOpenState(next);
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     const v = typeof playerState.settings?.sfxVol === "number" ? playerState.settings.sfxVol : 0.8;
@@ -203,17 +358,24 @@ function SidebarInner({
   }, [playerState.settings?.sfxVol]);
 
   useEffect(() => {
-    if (moreNav.some((m) => isNavActive(activeTab, m.match))) setMoreOpen(true);
-  }, [activeTab]);
+    setSectionOpenPersisted((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const section of NAV_SECTIONS) {
+        if (sectionHasActiveTab(section, activeTab) && !next[section.id]) {
+          next[section.id] = true;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [activeTab, setSectionOpenPersisted]);
 
   const toggleMute = () => {
     const nextMuted = !muted;
     setMuted(nextMuted);
     setSfxVolume(nextMuted ? 0 : prevVolRef.current || 0.8);
   };
-
-  const moreHasDot = moreNav.some((m) => m.match.some((t) => tabDots?.[t]));
-  const moreActive = moreNav.some((m) => isNavActive(activeTab, m.match));
 
   return (
     <div className="flex h-full flex-col">
@@ -244,11 +406,18 @@ function SidebarInner({
         </button>
       </div>
 
-      <nav className="flex-1 overflow-y-auto py-1 min-h-0">
-        {primaryNav.map((item) => (
-          <SidebarPanel
-            key={item.testId}
-            item={item}
+      <nav className="flex-1 overflow-y-auto py-1 min-h-0 px-1">
+        {NAV_SECTIONS.map((section) => (
+          <NavSectionBlock
+            key={section.id}
+            section={section}
+            open={sectionOpen[section.id] ?? section.defaultOpen}
+            onToggle={() =>
+              setSectionOpenPersisted((prev) => ({
+                ...prev,
+                [section.id]: !(prev[section.id] ?? section.defaultOpen),
+              }))
+            }
             activeTab={activeTab}
             onTab={onTab}
             tabDots={tabDots}
@@ -256,42 +425,6 @@ function SidebarInner({
             onNavigate={onNavigate}
           />
         ))}
-
-        <div className="px-2 pt-1">
-          <button
-            type="button"
-            data-testid="nav-more"
-            onClick={() => setMoreOpen((o) => !o)}
-            className={cn(
-              "flex w-full items-center gap-2 px-4 py-2.5 font-heading text-[13px] tracking-wide transition-colors",
-              moreActive || moreOpen ? "text-[#f8e4a1]" : "text-[#c9a74a] hover:text-[#f8e4a1]",
-            )}
-          >
-            <ChevronDown
-              size={14}
-              className={cn("transition-transform text-[#9a7b3c]", moreOpen && "rotate-180")}
-            />
-            <span className="flex-1 text-left">More</span>
-            {moreHasDot && (
-              <span
-                className="w-2 h-2 rounded-full bg-red-500"
-                style={{ boxShadow: "0 0 8px rgba(239,68,68,0.6)" }}
-              />
-            )}
-          </button>
-          {moreOpen &&
-            moreNav.map((item) => (
-              <SidebarPanel
-                key={item.testId}
-                item={item}
-                activeTab={activeTab}
-                onTab={onTab}
-                tabDots={tabDots}
-                unreadMail={unreadMail}
-                onNavigate={onNavigate}
-              />
-            ))}
-        </div>
       </nav>
 
       <div className="shrink-0 p-3 space-y-3 border-t border-[rgba(212,175,55,0.18)]">

@@ -54,7 +54,7 @@ import { allGameCards, type CardType, type Rarity } from "@/data/cardIndex";
 
 type Tab = "collection" | "catalog" | "cosmetics" | "deck" | "battle" | "pvp" | "summon" | "shop" | "quests" | "crafting" | "workshop" | "achievements" | "leaderboard" | "trade" | "mail" | "events" | "tournament" | "boost" | "pass" | "profile" | "daily" | "friends" | "chat" | "guild" | "spectate" | "cards-hall" | "combat-hall" | "raid";
 export default function Index() {
-  const [activeTab, setActiveTab] = useState<Tab>("collection");
+  const [activeTab, setActiveTab] = useState<Tab>("daily");
   const [battleDeckIds, setBattleDeckIds] = useState<string[]>([]);
   const [soloRaidBossId, setSoloRaidBossId] = useState<string | null>(null);
   const [deckSelectOpen, setDeckSelectOpen] = useState(false);

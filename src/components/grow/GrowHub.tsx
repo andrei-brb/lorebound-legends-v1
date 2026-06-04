@@ -1,6 +1,6 @@
 import type React from "react";
 import { useState } from "react";
-import { Calendar, ChevronRight, Crown, Flame, Gift, Hammer, Package, Palette, Shield, Sparkles, Star, Swords, Trophy, Zap } from "lucide-react";
+import { Award, ChevronRight, Crown, Flame, Gift, Layers, Package, ScrollText, Sparkles, Swords } from "lucide-react";
 import type { PlayerState } from "@/lib/playerState";
 import EmberLayer from "@/components/EmberLayer";
 import { loadDailyQuests } from "@/lib/questEngine";
@@ -8,68 +8,54 @@ import { toast } from "@/hooks/use-toast";
 import RewardPopup, { type RewardItem } from "@/components/battle3d/RewardPopup";
 import { DAILY_LOGIN_REWARDS, openMysteryBox } from "@/lib/dailyEngine";
 
-type Tab =
-  | "summon"
-  | "combat-hall"
-  | "pvp"
-  | "raid"
-  | "tournament"
-  | "pass"
-  | "events"
-  | "quests"
-  | "shop"
-  | "crafting"
-  | "boost"
-  | "guild"
-  | "cosmetics"
-  | "profile";
+type Tab = "summon" | "deck" | "combat-hall" | "quests" | "pass";
 
-const HALLS: Array<{
+const QUICK_START: Array<{
+  tab: Tab;
+  label: string;
+  desc: string;
+  step: string;
+  Icon: React.ElementType;
+  tint: string;
+  img?: string;
+}> = [
+  {
+    tab: "summon",
+    label: "Summon",
+    desc: "Open packs for new cards",
+    step: "1",
+    Icon: Sparkles,
+    tint: "#ba68c8",
+    img: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?crop=entropy&cs=srgb&fm=jpg&ixlib=rb-4.1.0&q=85",
+  },
+  {
+    tab: "deck",
+    label: "Deck Builder",
+    desc: "Save a 10-card loadout",
+    step: "2",
+    Icon: Layers,
+    tint: "#42a5f5",
+  },
+  {
+    tab: "combat-hall",
+    label: "Battle Arena",
+    desc: "Fight your first skirmish",
+    step: "3",
+    Icon: Swords,
+    tint: "#f5c842",
+    img: "https://images.unsplash.com/photo-1547928578-3a5f40a2b3bd?crop=entropy&cs=srgb&fm=jpg&ixlib=rb-4.1.0&q=85",
+  },
+];
+
+const DAILY_HOOKS: Array<{
   tab: Tab;
   label: string;
   desc: string;
   Icon: React.ElementType;
   tint: string;
-  img?: string;
-  primary?: boolean;
 }> = [
-  {
-    tab: "combat-hall",
-    label: "Combat Hall",
-    desc: "Enter the arena",
-    Icon: Swords,
-    tint: "#f5c842",
-    img: "https://images.unsplash.com/photo-1547928578-3a5f40a2b3bd?crop=entropy&cs=srgb&fm=jpg&ixlib=rb-4.1.0&q=85",
-    primary: true,
-  },
-  { tab: "pvp", label: "Ranked Crucible", desc: "Climb the ladder", Icon: Crown, tint: "#FFC107" },
-  {
-    tab: "raid",
-    label: "Raid Hall",
-    desc: "Slay world bosses",
-    Icon: Flame,
-    tint: "#ff5722",
-    img: "https://images.unsplash.com/photo-1519682577862-22b62b24e493?crop=entropy&cs=srgb&fm=jpg&ixlib=rb-4.1.0&q=85",
-    primary: true,
-  },
-  { tab: "tournament", label: "Tournament", desc: "Round of 8", Icon: Trophy, tint: "#ffb300" },
-  { tab: "pass", label: "Pass Hall", desc: "Season of Embers", Icon: Crown, tint: "#f5c842" },
-  {
-    tab: "events",
-    label: "Events Hall",
-    desc: "Phoenix Rising",
-    Icon: Calendar,
-    tint: "#ba68c8",
-    img: "https://images.unsplash.com/photo-1517694712202-14dd9538aa97?crop=entropy&cs=srgb&fm=jpg&ixlib=rb-4.1.0&q=85",
-    primary: true,
-  },
-  { tab: "shop", label: "Merchant's Altar", desc: "Packs & Tomes", Icon: Package, tint: "#ff9800" },
-  { tab: "crafting", label: "The Forge", desc: "Fuse & sacrifice", Icon: Hammer, tint: "#bcaaa4" },
-  { tab: "guild", label: "Guild Hall", desc: "Obsidian Covenant", Icon: Shield, tint: "#42a5f5" },
-  { tab: "cosmetics", label: "Cosmetics", desc: "Boards & backs", Icon: Palette, tint: "#ba68c8" },
-  { tab: "profile", label: "Profile", desc: "Hall of Summoners", Icon: Star, tint: "#f5c842" },
-  { tab: "quests", label: "Daily Quests", desc: "Trials & rewards", Icon: Gift, tint: "#d4af37" },
-  { tab: "boost", label: "Boost Hall", desc: "Temporary blessings", Icon: Zap, tint: "#42a5f5" },
+  { tab: "quests", label: "Quests", desc: "Daily & weekly trials", Icon: ScrollText, tint: "#d4af37" },
+  { tab: "pass", label: "Battle Pass", desc: "Season rewards", Icon: Award, tint: "#f5c842" },
 ];
 
 export default function GrowHub(props: {
@@ -141,24 +127,32 @@ export default function GrowHub(props: {
             Forge Your Legend
           </h1>
           <p className="font-lore text-[#d6c293] mt-2 text-lg max-w-xl">
-            Every hall of the altar awaits your command, summoner.
+            Claim daily rewards, then follow the quick start path below. Everything else lives in the menu on the left.
           </p>
-          <div className="flex gap-3 mt-5">
+          <div className="flex flex-wrap gap-3 mt-5">
             <button
               className="btn-gold flex items-center gap-2"
-              onClick={() => onNavigate("combat-hall")}
-              data-testid="enter-battle-btn"
-              type="button"
-            >
-              <Swords size={16} /> Enter Battle
-            </button>
-            <button
-              className="btn-ghost flex items-center gap-2"
               onClick={() => onNavigate("summon")}
               data-testid="open-summon-btn"
               type="button"
             >
-              <Sparkles size={14} /> Summon
+              <Sparkles size={16} /> Summon
+            </button>
+            <button
+              className="btn-ghost flex items-center gap-2"
+              onClick={() => onNavigate("deck")}
+              data-testid="open-deck-btn"
+              type="button"
+            >
+              <Layers size={14} /> Build Deck
+            </button>
+            <button
+              className="btn-ghost flex items-center gap-2"
+              onClick={() => onNavigate("combat-hall")}
+              data-testid="enter-battle-btn"
+              type="button"
+            >
+              <Swords size={14} /> Battle
             </button>
           </div>
         </div>
@@ -176,18 +170,19 @@ export default function GrowHub(props: {
         />
       </section>
 
-      {/* Hall Tiles */}
-      <section className="max-w-6xl mx-auto mb-10">
-        <div className="section-heading mb-5">Halls of the Altar</div>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 auto-rows-[140px]">
-          {HALLS.map((h) => (
+      {/* Quick start */}
+      <section className="max-w-6xl mx-auto mb-8">
+        <div className="section-heading mb-2">Quick start</div>
+        <p className="font-lore text-[#9a7b3c] text-sm mb-4 max-w-2xl">
+          New here? Summon cards, build a deck, then enter the Battle Arena. Use the sidebar for ranked PvP, raids, guilds, and more.
+        </p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {QUICK_START.map((h) => (
             <button
               key={h.tab}
               onClick={() => onNavigate(h.tab)}
-              data-testid={`hall-${h.label.toLowerCase().replace(/[^a-z]+/g, "-")}`}
-              className={`group relative panel-gold p-4 text-left flex flex-col justify-end overflow-hidden transition ${
-                h.primary ? "row-span-2" : ""
-              }`}
+              data-testid={`quick-start-${h.tab}`}
+              className="group relative panel-gold p-4 text-left flex flex-col justify-end overflow-hidden min-h-[140px] transition"
               style={{
                 backgroundImage: h.img
                   ? `linear-gradient(180deg, rgba(7,5,10,0.45), rgba(7,5,10,0.95)), url(${h.img})`
@@ -199,6 +194,12 @@ export default function GrowHub(props: {
               type="button"
             >
               <div className="corner-deco absolute inset-0 pointer-events-none" />
+              <span
+                className="absolute top-3 left-3 font-stat text-[10px] tracking-[0.25em] px-2 py-0.5 rounded"
+                style={{ background: `${h.tint}33`, color: h.tint, border: `1px solid ${h.tint}88` }}
+              >
+                STEP {h.step}
+              </span>
               <div
                 className="absolute top-3 right-3 w-9 h-9 rounded-full flex items-center justify-center transition group-hover:scale-110"
                 style={{
@@ -215,10 +216,39 @@ export default function GrowHub(props: {
                 </div>
                 <div className="font-lore text-[#d6c293] text-sm">{h.desc}</div>
                 <div className="mt-2 flex items-center gap-1 text-[#c9a74a] text-xs font-stat tracking-[0.2em] opacity-0 group-hover:opacity-100 transition">
-                  ENTER <ChevronRight size={11} />
+                  GO <ChevronRight size={11} />
                 </div>
               </div>
-              <div className="absolute inset-0 transition opacity-0 group-hover:opacity-100" style={{ boxShadow: `inset 0 0 30px ${h.tint}33` }} />
+            </button>
+          ))}
+        </div>
+      </section>
+
+      {/* Daily hooks */}
+      <section className="max-w-6xl mx-auto mb-10">
+        <div className="section-heading mb-4">Today&apos;s goals</div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {DAILY_HOOKS.map((h) => (
+            <button
+              key={h.tab}
+              onClick={() => onNavigate(h.tab)}
+              data-testid={`daily-hook-${h.tab}`}
+              className="group panel-gold p-4 text-left flex items-center gap-4 transition hover:border-[rgba(245,200,66,0.45)]"
+              type="button"
+            >
+              <div
+                className="w-12 h-12 rounded-full flex items-center justify-center shrink-0"
+                style={{ background: `${h.tint}22`, border: `1px solid ${h.tint}66` }}
+              >
+                <h.Icon size={22} style={{ color: h.tint }} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="font-heading text-sm tracking-wide" style={{ color: h.tint }}>
+                  {h.label}
+                </div>
+                <div className="font-lore text-[#d6c293] text-sm">{h.desc}</div>
+              </div>
+              <ChevronRight size={16} className="text-[#c9a74a] shrink-0 opacity-60 group-hover:opacity-100" />
             </button>
           ))}
         </div>
