@@ -88,6 +88,14 @@ model Player {
   deckPresets                Json?
   /// Streak, last ISO date (UTC) claim, and claimed day indices 1–7 for the weekly path UI.
   dailyLogin                 Json?
+  /// Daily + weekly quest progress (same shape as client DailyQuestState).
+  dailyQuests                Json?
+  lastChestClaimAt           DateTime?
+  /// YYYY-MM-DD (UTC) of last first-win bonus claim.
+  firstWinDate               String?
+  mysteryBoxesPending        Int                  @default(0)
+  /// Active tournament entry session (fee deducted server-side).
+  tournamentSession          Json?
   lastSeenAt                 DateTime?
   guildId                    Int?
   createdAt                  DateTime             @default(now())

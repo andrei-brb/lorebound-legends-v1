@@ -34,7 +34,9 @@ interface CollectionViewProps {
   selectedCardId?: string | null;
   deckCardIds?: string[];
   playerState?: PlayerState;
-  onStateChange?: (state: PlayerState) => void;
+  onStateChange?: (state: PlayerState | ((prev: PlayerState) => PlayerState)) => void;
+  isOnline?: boolean;
+  prestigeCardApi?: (cardId: string) => Promise<PlayerState | null>;
   searchQuery?: string;
   typeFilter?: "all" | CardType;
   rarityFilter?: "all" | Rarity;
@@ -124,10 +126,12 @@ function applyDiscovery({
 const DECK_PICKER_GRID =
   "grid grid-cols-4 gap-1.5 [grid-template-columns:repeat(4,minmax(0,1fr))]";
 
-function CardGridItem({ card, onAddToDeck, onSelectCard, selectedCardId, deckCardIds, playerState, onStateChange, highlighted, onInspect }: {
+function CardGridItem({ card, onAddToDeck, onSelectCard, selectedCardId, deckCardIds, playerState, onStateChange, isOnline, prestigeCardApi, highlighted, onInspect }: {
   card: GameCardType; onAddToDeck?: (id: string) => void; onSelectCard?: (id: string) => void;
   selectedCardId?: string | null; deckCardIds: string[];
-  playerState?: PlayerState; onStateChange?: (state: PlayerState) => void; highlighted?: boolean;
+  playerState?: PlayerState; onStateChange?: (state: PlayerState | ((prev: PlayerState) => PlayerState)) => void;
+  isOnline?: boolean; prestigeCardApi?: (cardId: string) => Promise<PlayerState | null>;
+  highlighted?: boolean;
   onInspect?: (card: GameCardType) => void;
 }) {
   const inDeck = deckCardIds.includes(card.id);
@@ -143,6 +147,10 @@ function CardGridItem({ card, onAddToDeck, onSelectCard, selectedCardId, deckCar
   const handlePrestige = () => {
     if (!playerState || !onStateChange || !progress) return;
     if (!canPrestige(progress)) return;
+    if (isOnline && prestigeCardApi) {
+      void prestigeCardApi(card.id);
+      return;
+    }
     const newProgress = prestige(progress);
     onStateChange({ ...playerState, cardProgress: { ...playerState.cardProgress, [card.id]: newProgress } });
   };
@@ -226,6 +234,8 @@ export default function CollectionView({
   deckCardIds = [],
   playerState,
   onStateChange,
+  isOnline,
+  prestigeCardApi,
   searchQuery,
   typeFilter = "all",
   rarityFilter = "all",
@@ -378,6 +388,8 @@ export default function CollectionView({
                   deckCardIds={deckCardIds}
                   playerState={playerState}
                   onStateChange={onStateChange}
+                  isOnline={isOnline}
+                  prestigeCardApi={prestigeCardApi}
                   highlighted={highlightSet.has(card.id)}
                   onInspect={openInspect}
                 />
@@ -429,6 +441,8 @@ export default function CollectionView({
                         deckCardIds={deckCardIds}
                         playerState={playerState}
                         onStateChange={onStateChange}
+                        isOnline={isOnline}
+                        prestigeCardApi={prestigeCardApi}
                         highlighted={highlightSet.has(card.id)}
                         onInspect={openInspect}
                       />

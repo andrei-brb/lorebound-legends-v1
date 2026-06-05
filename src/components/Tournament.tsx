@@ -2,7 +2,8 @@ import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
 import { Trophy, Swords, Coins, Users, Clock, Crown, Shield } from "lucide-react";
 import type { PlayerState } from "@/lib/playerState";
-import { savePlayerState } from "@/lib/playerState";
+import { savePlayerState, mergeClientOnlyPlayerState, normalizePlayerState } from "@/lib/playerState";
+import { api } from "@/lib/apiClient";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import GlassPanel from "@/components/scene/GlassPanel";
@@ -10,9 +11,10 @@ import { texArena, texGilded, texThrone } from "@/components/scene/panelTextures
 
 interface TournamentProps {
   playerState: PlayerState;
-  onStateChange: (state: PlayerState) => void;
+  onStateChange: (state: PlayerState | ((prev: PlayerState) => PlayerState)) => void;
   isOnline?: boolean;
-  syncEconomyApi?: (gold: number, stardust: number) => Promise<void>;
+  tournamentEnterApi?: () => Promise<PlayerState | null>;
+  tournamentSettleApi?: (placement: 1 | 2) => Promise<{ prize: number; state: PlayerState } | null>;
 }
 
 interface TournamentParticipant {
@@ -99,7 +101,7 @@ function generateBracket(participants: TournamentParticipant[]): BracketMatch[] 
   return matches;
 }
 
-export default function Tournament({ playerState, onStateChange, isOnline, syncEconomyApi }: TournamentProps) {
+export default function Tournament({ playerState, onStateChange, isOnline, tournamentEnterApi, tournamentSettleApi }: TournamentProps) {
   const [status, setStatus] = useState<TournamentStatus>("lobby");
   const [bracket, setBracket] = useState<BracketMatch[]>([]);
   const [currentRound, setCurrentRound] = useState(1);
@@ -114,29 +116,72 @@ export default function Tournament({ playerState, onStateChange, isOnline, syncE
     strength: 50 + Math.min(50, playerState.ownedCardIds.length),
   }), [playerState.ownedCardIds.length]);
 
+  const awardPrize = async (placement: 1 | 2, prize: number, title: string, description: string) => {
+    if (isOnline) {
+      try {
+        const settled = tournamentSettleApi
+          ? await tournamentSettleApi(placement)
+          : await api.tournamentSettle(placement).then((r) => ({ prize: r.prize, state: normalizePlayerState(r.state) }));
+        const result = settled;
+        if (!result) return;
+        onStateChange((prev) => mergeClientOnlyPlayerState(result.state, prev));
+        toast({ title, description });
+      } catch (e) {
+        toast({
+          title: "Prize claim failed",
+          description: e instanceof Error ? e.message : String(e),
+          variant: "destructive",
+        });
+      }
+      return;
+    }
+    onStateChange((prev) => {
+      const newState = { ...prev, gold: prev.gold + prize };
+      savePlayerState(newState);
+      return newState;
+    });
+    toast({ title, description });
+  };
+
   const enterTournament = () => {
     if (playerState.gold < ENTRY_FEE) {
       toast({ title: "Not enough gold!", description: `Entry fee is ${ENTRY_FEE} gold.`, variant: "destructive" });
       return;
     }
 
-    const newState = { ...playerState, gold: playerState.gold - ENTRY_FEE };
-    savePlayerState(newState);
-    onStateChange(newState);
-    if (isOnline && syncEconomyApi) {
-      syncEconomyApi(newState.gold, newState.stardust ?? 0).catch(() => {});
-    }
+    void (async () => {
+      if (isOnline) {
+        try {
+          const enter = tournamentEnterApi
+            ? await tournamentEnterApi()
+            : normalizePlayerState((await api.tournamentEnter()).state);
+          if (!enter) return;
+          onStateChange((prev) => mergeClientOnlyPlayerState(enter, prev));
+        } catch (e) {
+          toast({
+            title: "Tournament entry failed",
+            description: e instanceof Error ? e.message : String(e),
+            variant: "destructive",
+          });
+          return;
+        }
+      } else {
+        const newState = { ...playerState, gold: playerState.gold - ENTRY_FEE };
+        savePlayerState(newState);
+        onStateChange(newState);
+      }
 
-    const aiPlayers = generateAIParticipants(7);
-    const participants = [playerParticipant, ...aiPlayers].sort(() => Math.random() - 0.5);
-    const newBracket = generateBracket(participants);
-    setBracket(newBracket);
-    setStatus("in-progress");
-    setCurrentRound(1);
-    setPlayerEliminated(false);
-    setFinalPlacement(null);
+      const aiPlayers = generateAIParticipants(7);
+      const participants = [playerParticipant, ...aiPlayers].sort(() => Math.random() - 0.5);
+      const newBracket = generateBracket(participants);
+      setBracket(newBracket);
+      setStatus("in-progress");
+      setCurrentRound(1);
+      setPlayerEliminated(false);
+      setFinalPlacement(null);
 
-    toast({ title: "🏆 Tournament Started!", description: "8 players enter, 1 champion emerges!" });
+      toast({ title: "🏆 Tournament Started!", description: "8 players enter, 1 champion emerges!" });
+    })();
   };
 
   const advanceRound = () => {
@@ -186,24 +231,12 @@ export default function Tournament({ playerState, onStateChange, isOnline, syncE
       if (finalMatch?.winner?.isPlayer) {
         setFinalPlacement(1);
         const prize = PRIZE_POOL[0];
-        const newState = { ...playerState, gold: playerState.gold + prize };
-        savePlayerState(newState);
-        onStateChange(newState);
-        if (isOnline && syncEconomyApi) {
-          syncEconomyApi(newState.gold, newState.stardust ?? 0).catch(() => {});
-        }
-        toast({ title: "🏆 CHAMPION!", description: `You won the tournament! +${prize} gold!` });
+        void awardPrize(1, prize, "🏆 CHAMPION!", `You won the tournament! +${prize} gold!`);
       } else if (!playerEliminated) {
         // Player was in finals but lost
         setFinalPlacement(2);
         const prize = PRIZE_POOL[1];
-        const newState = { ...playerState, gold: playerState.gold + prize };
-        savePlayerState(newState);
-        onStateChange(newState);
-        if (isOnline && syncEconomyApi) {
-          syncEconomyApi(newState.gold, newState.stardust ?? 0).catch(() => {});
-        }
-        toast({ title: "🥈 Runner-Up!", description: `Great run! +${prize} gold!` });
+        void awardPrize(2, prize, "🥈 Runner-Up!", `Great run! +${prize} gold!`);
       }
     } else {
       setCurrentRound(currentRound + 1);

@@ -5,6 +5,7 @@ import { allSeasonalCards } from "@/data/seasonalCards";
 import { cn } from "@/lib/utils";
 import { playWhoosh, playChime, playFanfare } from "@/lib/sfx";
 import type { PlayerState } from "@/lib/playerState";
+import BoosterPackArt, { type BoosterPackVariant } from "@/components/summon/BoosterPackArt";
 
 interface PackOpeningProps {
   cardIds: string[];
@@ -12,6 +13,7 @@ interface PackOpeningProps {
   playerState?: PlayerState;
   /** When set (e.g. online pulls), overrides local duplicate detection — required after server merge updates owned cards. */
   cardIsNew?: boolean[];
+  packVariant?: BoosterPackVariant;
 }
 
 const rarityGlowBg: Record<string, string> = {
@@ -21,7 +23,7 @@ const rarityGlowBg: Record<string, string> = {
   common: "shadow-[0_0_20px_10px_hsl(230,10%,50%,0.3)]",
 };
 
-export default function PackOpening({ cardIds, onComplete, playerState, cardIsNew: cardIsNewProp }: PackOpeningProps) {
+export default function PackOpening({ cardIds, onComplete, playerState, cardIsNew: cardIsNewProp, packVariant = "bronze" }: PackOpeningProps) {
   const [phase, setPhase] = useState<"intro" | "spread" | "revealing" | "summary">("intro");
   const [revealedIndices, setRevealedIndices] = useState<Set<number>>(new Set());
   const cardPool = useMemo(() => [...allCards, ...allSeasonalCards], []);
@@ -136,11 +138,11 @@ export default function PackOpening({ cardIds, onComplete, playerState, cardIsNe
             className="text-center"
           >
             <motion.div
-              animate={{ rotate: [0, 5, -5, 0], scale: [1, 1.1, 1] }}
-              transition={{ duration: 1, repeat: 1 }}
-              className="text-8xl mb-4"
+              animate={{ rotate: [0, -3, 3, -2, 2, 0], scale: [1, 1.05, 1.08, 1.02, 1] }}
+              transition={{ duration: 1.2, repeat: 1 }}
+              className="mx-auto mb-4 flex justify-center"
             >
-              ✦
+              <BoosterPackArt variant={packVariant} size="md" />
             </motion.div>
             <h2 className="font-heading text-3xl font-bold text-foreground">Opening Pack...</h2>
           </motion.div>

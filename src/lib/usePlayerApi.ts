@@ -8,6 +8,7 @@ import {
 } from "./playerState";
 import { toast } from "@/hooks/use-toast";
 import { api, isAuthenticated } from "./apiClient";
+import { hydrateQuestsFromPlayer } from "./questEngine";
 
 type LoadingStatus = "loading" | "ready" | "error";
 
@@ -38,7 +39,11 @@ interface UsePlayerApiReturn {
     actionLog?: import("./battleLockstep").BattleLockstepIntent[];
   }) => Promise<{
     goldReward: number;
+    firstWinBonus?: number;
+    mysteryBoxDropped?: boolean;
+    bpXpAwarded?: number;
     levelUps: Array<{ cardId: string; oldLevel: number; newLevel: number }>;
+    state?: PlayerState;
   } | null>;
   syncEconomy: (gold?: number, stardust?: number) => Promise<void>;
   craftFuse: (inputRarity: string, selectedCardIds: string[]) => Promise<{ resultCardId: string } | null>;
@@ -73,6 +78,9 @@ interface UsePlayerApiReturn {
     enemyDeckIds?: string[];
     skipReplayVerification?: boolean;
   } | null>;
+  prestigeCard: (cardId: string) => Promise<PlayerState | null>;
+  tournamentEnter: () => Promise<PlayerState | null>;
+  tournamentSettle: (placement: 1 | 2) => Promise<{ prize: number; state: PlayerState } | null>;
 }
 
 const MIGRATION_KEY = "lorebound-migrated";
@@ -146,6 +154,7 @@ export function usePlayerApi(): UsePlayerApiReturn {
           }
         }
         if (!cancelled) {
+          hydrateQuestsFromPlayer(merged);
           setPlayerStateInternal(merged);
           savePlayerState(merged);
           setStatus("ready");
@@ -171,10 +180,7 @@ export function usePlayerApi(): UsePlayerApiReturn {
           if (bpSyncTimer.current) clearTimeout(bpSyncTimer.current);
           bpSyncTimer.current = setTimeout(() => {
             api.patchPlayer({
-              battlePass: next.battlePass,
-              cosmeticsOwned: next.cosmeticsOwned,
               cosmeticsEquipped: next.cosmeticsEquipped,
-              battlePassXpBoostExpiresAt: next.battlePassXpBoostExpiresAt,
               deckPresets: next.deckPresets,
               tutorialBattlesCompleted: next.tutorialBattlesCompleted ?? 0,
             }).catch(() => {});
@@ -242,10 +248,18 @@ export function usePlayerApi(): UsePlayerApiReturn {
         const server = normalizePlayerState(result.state);
         setPlayerStateInternal((prev) => {
           const merged = mergeClientOnlyPlayerState(server, prev);
+          hydrateQuestsFromPlayer(merged);
           savePlayerState(merged);
           return merged;
         });
-        return { goldReward: result.goldReward, levelUps: result.levelUps };
+        return {
+          goldReward: result.goldReward,
+          levelUps: result.levelUps,
+          firstWinBonus: result.firstWinBonus ?? 0,
+          mysteryBoxDropped: result.mysteryBoxDropped ?? false,
+          bpXpAwarded: result.bpXpAwarded ?? 0,
+          state: normalizePlayerState(result.state),
+        };
       } catch (err) {
         console.error("[usePlayerApi] submitBattleResult failed:", err);
         return null;
@@ -396,6 +410,72 @@ export function usePlayerApi(): UsePlayerApiReturn {
     }
   }, [online]);
 
+  const prestigeCard = useCallback(
+    async (cardId: string) => {
+      if (!online) return null;
+      try {
+        const result = await api.prestigeCard(cardId);
+        const server = normalizePlayerState(result.state);
+        let merged: PlayerState | undefined;
+        setPlayerStateInternal((prev) => {
+          merged = mergeClientOnlyPlayerState(server, prev);
+          savePlayerState(merged);
+          return merged;
+        });
+        return merged ?? null;
+      } catch (err) {
+        console.error("[usePlayerApi] prestigeCard failed:", err);
+        const msg = err instanceof Error ? err.message : "Prestige failed";
+        toast({ title: "Prestige failed", description: msg, variant: "destructive" });
+        return null;
+      }
+    },
+    [online],
+  );
+
+  const tournamentEnter = useCallback(async () => {
+    if (!online) return null;
+    try {
+      const result = await api.tournamentEnter();
+      const server = normalizePlayerState(result.state);
+      let merged: PlayerState | undefined;
+      setPlayerStateInternal((prev) => {
+        merged = mergeClientOnlyPlayerState(server, prev);
+        savePlayerState(merged);
+        return merged;
+      });
+      return merged ?? null;
+    } catch (err) {
+      console.error("[usePlayerApi] tournamentEnter failed:", err);
+      const msg = err instanceof Error ? err.message : "Could not enter tournament";
+      toast({ title: "Tournament entry failed", description: msg, variant: "destructive" });
+      return null;
+    }
+  }, [online]);
+
+  const tournamentSettle = useCallback(
+    async (placement: 1 | 2) => {
+      if (!online) return null;
+      try {
+        const result = await api.tournamentSettle(placement);
+        const server = normalizePlayerState(result.state);
+        let merged: PlayerState | undefined;
+        setPlayerStateInternal((prev) => {
+          merged = mergeClientOnlyPlayerState(server, prev);
+          savePlayerState(merged);
+          return merged;
+        });
+        return { prize: result.prize, state: merged! };
+      } catch (err) {
+        console.error("[usePlayerApi] tournamentSettle failed:", err);
+        const msg = err instanceof Error ? err.message : "Could not settle tournament";
+        toast({ title: "Prize claim failed", description: msg, variant: "destructive" });
+        return null;
+      }
+    },
+    [online],
+  );
+
   return {
     playerState,
     setPlayerState,
@@ -411,5 +491,8 @@ export function usePlayerApi(): UsePlayerApiReturn {
     pullSeasonalPack,
     claimDailyLogin,
     startPveBattle,
+    prestigeCard,
+    tournamentEnter,
+    tournamentSettle,
   };
 }

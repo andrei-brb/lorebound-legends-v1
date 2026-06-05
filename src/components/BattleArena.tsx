@@ -45,6 +45,7 @@ import { loadDailyQuests, progressQuest, saveDailyQuests } from "@/lib/questEngi
 import { toast } from "@/hooks/use-toast";
 import { awardBattlePassXp } from "@/lib/battlePassEngine";
 import { rollMysteryBox, claimFirstWin, FIRST_WIN_GOLD, FIRST_WIN_BP_XP } from "@/lib/dailyEngine";
+import { mergeClientOnlyPlayerState, normalizePlayerState } from "@/lib/playerState";
 import { getCosmeticById } from "@/data/cosmetics";
 import RewardPopup, { type RewardItem } from "@/components/battle3d/RewardPopup";
 import ResponseWindow from "@/components/battle/ResponseWindow";
@@ -109,7 +110,11 @@ interface BattleArenaProps {
     actionLog?: BattleLockstepIntent[];
   }) => Promise<{
     goldReward: number;
+    firstWinBonus?: number;
+    mysteryBoxDropped?: boolean;
+    bpXpAwarded?: number;
     levelUps: Array<{ cardId: string; oldLevel: number; newLevel: number }>;
+    state?: import("@/lib/playerState").PlayerState;
   } | null>;
   /** Live friend PvP: same rules as vs AI; actions sync via server action log. */
   livePvP?: LivePvPBattleConfig;
@@ -380,28 +385,6 @@ export default function BattleArena({
 
     if (livePvP) {
       setRewardsGiven(true);
-      const won = state.winner === "player";
-      onStateChange((prev) => {
-        let s = prev;
-        const prevPending = s.mysteryBoxesPending ?? 0;
-        s = rollMysteryBox(s);
-        if ((s.mysteryBoxesPending ?? 0) > prevPending) {
-          toast({ title: "Mystery box earned!", description: "Open it in You → Daily." });
-        }
-        if (won) {
-          const fw = claimFirstWin(s);
-          if (fw) {
-            s = fw.state;
-            s = awardBattlePassXp(s, FIRST_WIN_BP_XP).state;
-            toast({
-              title: "First win of the day!",
-              description: `+${FIRST_WIN_GOLD} gold & +${FIRST_WIN_BP_XP} Battle Pass XP`,
-            });
-          }
-        }
-        if (isOnline && syncEconomyApi) void syncEconomyApi(s.gold, s.stardust);
-        return s;
-      });
       return;
     }
 
@@ -426,9 +409,11 @@ export default function BattleArena({
             actionLog: rankedActionLogRef.current,
             seed: battleSeed ?? undefined,
           });
+          return;
         }
       } catch (e) {
         toast({ title: "Ranked result failed", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
+        if (onRankedSubmit) return;
       }
 
       let usedOnlinePvE = false;
@@ -459,9 +444,11 @@ export default function BattleArena({
               setRewardPopupSubtitle(
                 won ? "The altar acknowledges your triumph." : isDraw ? "Balance is maintained." : "The altar remembers your resolve.",
               );
+              const firstWinBonus = "firstWinBonus" in result ? (result.firstWinBonus ?? 0) : 0;
+              const totalGold = goldReward + firstWinBonus;
               setRewardPopupItems(
                 [
-                  { kind: "gold", amount: goldReward, label: "Gold", rarity: won ? "legendary" : "rare" },
+                  { kind: "gold", amount: totalGold, label: "Gold", rarity: won ? "legendary" : "rare" },
                   { kind: "xp", amount: xpAmount, label: "Battle XP", rarity: "rare" },
                   { kind: "rune", amount: won ? 1 : 0, label: "Astral Rune", rarity: won ? "mythic" : "common" },
                 ].filter((x) => (typeof x.amount === "number" ? x.amount > 0 : true)),
@@ -479,28 +466,19 @@ export default function BattleArena({
                 const qs = progressQuest(loadDailyQuests(), "level_up_card", mapped.length);
                 saveDailyQuests(qs);
               }
+              if ("mysteryBoxDropped" in result && result.mysteryBoxDropped) {
+                toast({ title: "Mystery box earned!", description: "Open it on Home → Mystery Boxes." });
+              }
+              if (firstWinBonus > 0) {
+                toast({
+                  title: "First win of the day!",
+                  description: `+${FIRST_WIN_GOLD} gold & Battle Pass XP`,
+                });
+              }
+              if ("state" in result && result.state) {
+                onStateChange((prev) => mergeClientOnlyPlayerState(normalizePlayerState(result.state as import("@/lib/playerState").PlayerState), prev));
+              }
             }
-            onStateChange((prev) => {
-              let s = awardBattlePassXp(prev, won ? 120 : isDraw ? 80 : 60).state;
-              const prevPending = s.mysteryBoxesPending ?? 0;
-              s = rollMysteryBox(s);
-              if ((s.mysteryBoxesPending ?? 0) > prevPending) {
-                toast({ title: "Mystery box earned!", description: "Open it in You → Daily." });
-              }
-              if (won) {
-                const fw = claimFirstWin(s);
-                if (fw) {
-                  s = fw.state;
-                  s = awardBattlePassXp(s, FIRST_WIN_BP_XP).state;
-                  toast({
-                    title: "First win of the day!",
-                    description: `+${FIRST_WIN_GOLD} gold & +${FIRST_WIN_BP_XP} Battle Pass XP`,
-                  });
-                }
-              }
-              if (isOnline && syncEconomyApi) void syncEconomyApi(s.gold, s.stardust);
-              return s;
-            });
             usedOnlinePvE = true;
           } catch (e) {
             toast({

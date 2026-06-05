@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { api, getLivePvpWebSocketUrl } from "@/lib/apiClient";
 import { toast } from "@/hooks/use-toast";
 import BattleArena from "./BattleArena";
 import LegacyLivePvPBattleground from "./LegacyLivePvPBattleground";
-import type { PlayerState } from "@/lib/playerState";
+import { mergeClientOnlyPlayerState, normalizePlayerState, type PlayerState } from "@/lib/playerState";
+import { FIRST_WIN_GOLD, FIRST_WIN_BP_XP } from "@/lib/dailyEngine";
 import type { BattleLockstepIntent } from "@/lib/battleLockstep";
 
 function intentsEqual(a: BattleLockstepIntent, b: BattleLockstepIntent): boolean {
@@ -37,6 +38,7 @@ export default function LivePvPBattleground({ matchId, onExit, playerState, onSt
   /** Last intent applied locally before the server confirms; cleared after sync or on error (rollback). */
   const [pendingIntent, setPendingIntent] = useState<BattleLockstepIntent | null>(null);
   const [liveWsConnected, setLiveWsConnected] = useState(false);
+  const rewardsRefreshedRef = useRef(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -132,6 +134,40 @@ export default function LivePvPBattleground({ matchId, onExit, playerState, onSt
     if (!liveMatch) return;
     if (liveMatch.status !== "active") setPendingIntent(null);
   }, [liveMatch]);
+
+  useEffect(() => {
+    if (liveMatch?.status !== "completed") {
+      rewardsRefreshedRef.current = false;
+      return;
+    }
+    if (rewardsRefreshedRef.current) return;
+    rewardsRefreshedRef.current = true;
+
+    void (async () => {
+      try {
+        const prevPending = playerState.mysteryBoxesPending ?? 0;
+        const prevFirstWin = playerState.firstWinDate ?? null;
+        const data = (await api.getPlayer()) as PlayerState;
+        const server = normalizePlayerState(data);
+        onStateChange((prev) => mergeClientOnlyPlayerState(server, prev));
+        if ((server.mysteryBoxesPending ?? 0) > prevPending) {
+          toast({ title: "Mystery box earned!", description: "Open it in You → Daily." });
+        }
+        if (server.firstWinDate && server.firstWinDate !== prevFirstWin) {
+          toast({
+            title: "First win of the day!",
+            description: `+${FIRST_WIN_GOLD} gold & +${FIRST_WIN_BP_XP} Battle Pass XP`,
+          });
+        }
+      } catch (e) {
+        toast({
+          title: "Could not refresh rewards",
+          description: e instanceof Error ? e.message : String(e),
+          variant: "destructive",
+        });
+      }
+    })();
+  }, [liveMatch?.status, onStateChange, playerState.firstWinDate, playerState.mysteryBoxesPending]);
 
   const serverActionLog = useMemo(() => {
     const anyMatch = liveMatch as unknown as Record<string, unknown> | null;

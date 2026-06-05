@@ -2,7 +2,7 @@
  * Path rewards must match `server/lib/dailyPathRewards.mjs` for online claims.
  */
 import { useState, useCallback } from "react";
-import { Gift, Calendar, Sparkles, CheckCircle2, Lock, Star, Package } from "lucide-react";
+import { Gift, Calendar, Sparkles, CheckCircle2, Lock, Star } from "lucide-react";
 import type { PlayerState } from "@/lib/playerState";
 import { getRewardsForPath, type DayRewardDef } from "@/lib/dailyPathRewards";
 import { addCardToCollection } from "@/lib/playerState";
@@ -19,7 +19,7 @@ import GameCard from "@/components/GameCard";
 import { PACK_DEFINITIONS, pullCards } from "@/lib/gachaEngine";
 import { openMysteryBox } from "@/lib/dailyEngine";
 import { mapDailyPreviewToRewards, type DailyClaimPreview } from "@/lib/dailyClaimPreview";
-import bronzePackImg from "@/assets/packs/bronze-pack.jpg";
+import BoosterPackArt from "@/components/summon/BoosterPackArt";
 import RewardPopup, { type RewardItem } from "@/components/battle3d/RewardPopup";
 
 interface Props {
@@ -48,13 +48,8 @@ function RewardTileArt({ r, cardInfo }: { r: DayRewardDef; cardInfo?: GameCard |
   }
   if (r.type === "pack") {
     return (
-      <div className="relative w-full h-full rounded-xl overflow-hidden">
-        <img src={bronzePackImg} alt="" className="absolute inset-0 w-full h-full object-cover opacity-85" />
-        <div className="absolute inset-0 bg-gradient-to-t from-background/80 to-transparent" />
-        <div className="relative flex flex-col items-center justify-end h-full pb-2 gap-0.5">
-          <Package className="w-5 h-5 text-amber-400 drop-shadow" />
-          <span className="text-[9px] uppercase tracking-wide text-foreground/90 font-heading px-1 text-center leading-tight">Bronze</span>
-        </div>
+      <div className="flex h-full w-full items-center justify-center p-2">
+        <BoosterPackArt variant="bronze" size="sm" />
       </div>
     );
   }
@@ -278,7 +273,7 @@ export default function DailyHall({ playerState, onStateChange, isOnline, claimD
                 <div className="flex items-center gap-1 text-[10px] text-muted-foreground text-center leading-tight">
                   {r.type === "gold" && <GoldCurrencyIcon className="w-2.5 h-2.5 shrink-0" />}
                   {r.type === "stardust" && <StardustCurrencyIcon className="w-2.5 h-2.5 shrink-0" />}
-                  {r.type === "pack" && <Package className="w-2.5 h-2.5 shrink-0 text-amber-500" />}
+                  {r.type === "pack" && <Sparkles className="w-2.5 h-2.5 shrink-0 text-amber-500" />}
                   {r.type === "card" && <Star className="w-2.5 h-2.5 shrink-0 text-[hsl(var(--rare))]" />}
                   <span className="truncate">
                     {r.type === "gold" || r.type === "stardust" ? r.amount : r.type === "card" ? (cardInfo?.name ?? r.label) : r.label}
@@ -338,8 +333,8 @@ export default function DailyHall({ playerState, onStateChange, isOnline, claimD
                 )}
                 {preview.kind === "pack" && (
                   <div className="space-y-3">
-                    <div className="rounded-lg overflow-hidden border border-border">
-                      <img src={bronzePackImg} alt="" className="w-full max-h-36 object-cover" />
+                    <div className="flex justify-center py-2">
+                      <BoosterPackArt variant="bronze" size="md" />
                     </div>
                     {preview.pullResults && preview.pullResults.length > 0 && (
                       <div className="grid grid-cols-5 gap-2">

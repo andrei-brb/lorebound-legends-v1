@@ -42,6 +42,24 @@ import { RAID_BOSS_GOLD_MULTIPLIER } from "./lib/raidBossGold.mjs";
 import { pickRandomDropCard, buildDropEmbed, processCardClaim } from "./lib/cardDrop.mjs";
 import { SEASONAL_EVENTS, getSeasonalEventById, isEventActive } from "./lib/seasonalEvents.mjs";
 import { getRewardForNextDay, getRewardsForPath } from "./lib/dailyPathRewards.mjs";
+import {
+  normalizeDailyQuests,
+  progressDailyQuests,
+  claimQuestOnState,
+  canClaimHourlyChest,
+  chestTimeRemaining,
+  openMysteryBoxRewards,
+  FIRST_WIN_GOLD,
+  HOURLY_CHEST_GOLD,
+  HOURLY_CHEST_STARDUST,
+  DEFAULT_BATTLE_PASS,
+  applyPostBattleEngagement,
+} from "./lib/engagementLogic.mjs";
+import {
+  claimBattlePassLevel,
+  purchaseElitePassServer,
+  awardBattlePassXpOnPlayer,
+} from "./lib/battlePassServer.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: join(__dirname, "..", ".env") });
@@ -695,8 +713,54 @@ function playerToClientState(player, cards) {
     battlePassXpBoostExpiresAt: player.battlePassXpBoostExpiresAt ? player.battlePassXpBoostExpiresAt.getTime() : null,
     deckPresets: player.deckPresets ?? undefined,
     dailyLogin: normalizeDailyLoginForClient(player.dailyLogin),
+    dailyQuests: normalizeDailyQuests(player.dailyQuests),
+    lastChestClaimAt: player.lastChestClaimAt ? player.lastChestClaimAt.getTime() : null,
+    firstWinDate: player.firstWinDate ?? null,
+    mysteryBoxesPending: player.mysteryBoxesPending ?? 0,
     battleStats: battleStatsForClient(player),
   };
+}
+
+const TOURNAMENT_ENTRY_FEE = 200;
+const TOURNAMENT_PRIZES = { 1: 800, 2: 400 };
+
+async function applyPvpMatchEngagementForBoth(tx, match, winner) {
+  const outcomeFor = (playerId) => {
+    if (winner == null) return "draw";
+    if (winner === "playerA" && playerId === match.playerAId) return "win";
+    if (winner === "playerB" && playerId === match.playerBId) return "win";
+    return "loss";
+  };
+  const [pa, pb] = await Promise.all([
+    tx.player.findUnique({ where: { id: match.playerAId } }),
+    tx.player.findUnique({ where: { id: match.playerBId } }),
+  ]);
+  if (pa) {
+    await applyPostBattleEngagement(tx, pa, {
+      outcome: outcomeFor(match.playerAId),
+      goldReward: 0,
+      defaultBattlePass: DEFAULT_BATTLE_PASS,
+    });
+  }
+  if (pb) {
+    await applyPostBattleEngagement(tx, pb, {
+      outcome: outcomeFor(match.playerBId),
+      goldReward: 0,
+      defaultBattlePass: DEFAULT_BATTLE_PASS,
+    });
+  }
+}
+
+async function ensureEngagementFields(player) {
+  const data = {};
+  if (!player.dailyQuests) data.dailyQuests = normalizeDailyQuests(null);
+  if (!player.battlePass) data.battlePass = DEFAULT_BATTLE_PASS;
+  if (Object.keys(data).length === 0) return player;
+  return prisma.player.update({
+    where: { id: player.id },
+    data,
+    include: { cards: true, battleStats: true },
+  });
 }
 
 async function findOrCreatePlayer(discordUser) {
@@ -735,7 +799,7 @@ async function findOrCreatePlayer(discordUser) {
     }
   }
 
-  return player;
+  return ensureEngagementFields(player);
 }
 
 async function handleOnboardingComplete(req, res) {
@@ -796,7 +860,8 @@ async function handleGetPlayer(req, res) {
   const user = await requireAuth(req, res);
   if (!user) return;
 
-  const player = await findOrCreatePlayer(user);
+  let player = await findOrCreatePlayer(user);
+  player = await ensureEngagementFields(player);
   const state = playerToClientState(player, player.cards);
   sendJson(res, 200, state);
 }
@@ -866,9 +931,7 @@ async function handlePatchPlayer(req, res) {
 
   const body = await readJsonBody(req);
   const data = {};
-  // Never allow client-controlled economy or pull counters via PATCH (use dedicated endpoints).
-  if (body.battlePass !== undefined) data.battlePass = body.battlePass;
-  if (body.cosmeticsOwned !== undefined) data.cosmeticsOwned = body.cosmeticsOwned;
+  // Never allow client-controlled economy, battle pass, or cosmetics ownership via PATCH.
   if (body.cosmeticsEquipped !== undefined) data.cosmeticsEquipped = body.cosmeticsEquipped;
   if (body.battlePassXpBoostExpiresAt !== undefined) {
     data.battlePassXpBoostExpiresAt = body.battlePassXpBoostExpiresAt ? new Date(body.battlePassXpBoostExpiresAt) : null;
@@ -1846,7 +1909,7 @@ async function finalizeAsyncMatchWithResult(match, resultPayload) {
   const winner = resultPayload.winner;
   const outcomeA = winner === "draw" ? 0.5 : winner === "playerA" ? 1 : 0;
 
-  await prisma.$transaction(async (tx) => {
+  return prisma.$transaction(async (tx) => {
     const ra = await getOrCreateRating(tx, match.playerAId, seasonId);
     const rb = await getOrCreateRating(tx, match.playerBId, seasonId);
     const { na, nb } = applyElo(ra.mmr, rb.mmr, outcomeA);
@@ -1878,6 +1941,9 @@ async function finalizeAsyncMatchWithResult(match, resultPayload) {
       data: { status: "completed", result: resultPayload },
     });
 
+    const pvpWinner = winner === "draw" ? null : winner;
+    await applyPvpMatchEngagementForBoth(tx, match, pvpWinner);
+
     await createNotification(
       tx,
       match.playerAId,
@@ -1894,6 +1960,11 @@ async function finalizeAsyncMatchWithResult(match, resultPayload) {
       "Open PvP → History to view the result.",
       { matchId: match.id, type: "async", seasonId }
     );
+
+    return tx.player.findUnique({
+      where: { id: match.playerAId },
+      include: { cards: true },
+    });
   });
 }
 
@@ -2073,9 +2144,13 @@ async function handleSubmitAsyncBattle(req, res, matchId) {
     resolvedAt: Date.now(),
   };
 
-  await finalizeAsyncMatchWithResult(match, resultPayload);
+  const updatedPlayer = await finalizeAsyncMatchWithResult(match, resultPayload);
 
-  return sendJson(res, 200, { ok: true, result: resultPayload });
+  return sendJson(res, 200, {
+    ok: true,
+    result: resultPayload,
+    state: updatedPlayer ? playerToClientState(updatedPlayer, updatedPlayer.cards) : undefined,
+  });
 }
 
 async function handleResolveAsync(req, res, matchId) {
@@ -2243,6 +2318,7 @@ async function handleLiveBattleTx(tx, match, me, body) {
   });
 
   if (nextStatus === "completed") {
+    await applyPvpMatchEngagementForBoth(tx, match, nextResult?.winner ?? null);
     await createNotification(
       tx,
       match.playerAId,
@@ -2834,6 +2910,7 @@ async function handleLiveAction(req, res, matchId) {
       });
 
       if (nextStatus === "completed") {
+        await applyPvpMatchEngagementForBoth(tx, match, nextResult?.winner ?? null);
         await createNotification(
           tx,
           match.playerAId,
@@ -2860,6 +2937,215 @@ async function handleLiveAction(req, res, matchId) {
   } catch (e) {
     const code = e?.statusCode || 500;
     return sendJson(res, code, { error: e?.message || "Action failed" });
+  }
+}
+
+// ─── Engagement: quests, chest, mystery box, battle pass ─────────────────────
+
+async function handleQuestProgress(req, res) {
+  const user = await requireAuth(req, res);
+  if (!user) return;
+  const body = await readJsonBody(req);
+  const type = body.type;
+  const amount = Math.max(1, Math.min(100, Math.floor(Number(body.amount) || 1)));
+  if (!type || typeof type !== "string") return sendJson(res, 400, { error: "type required" });
+
+  const player = await prisma.player.findUnique({ where: { discordId: user.id } });
+  if (!player) return sendJson(res, 404, { error: "Player not found" });
+
+  const questState = progressDailyQuests(normalizeDailyQuests(player.dailyQuests), type, amount);
+  const updated = await prisma.player.update({
+    where: { id: player.id },
+    data: { dailyQuests: questState },
+    include: { cards: true, battleStats: true },
+  });
+  sendJson(res, 200, { questState, state: playerToClientState(updated, updated.cards) });
+}
+
+async function handleQuestClaim(req, res) {
+  const user = await requireAuth(req, res);
+  if (!user) return;
+  const body = await readJsonBody(req);
+  const questId = body.questId;
+  if (!questId) return sendJson(res, 400, { error: "questId required" });
+
+  try {
+    const updated = await prisma.$transaction(async (tx) => {
+      const p = await tx.player.findUnique({ where: { discordId: user.id } });
+      if (!p) {
+        const err = new Error("Player not found");
+        err.statusCode = 404;
+        throw err;
+      }
+      const questState = normalizeDailyQuests(p.dailyQuests);
+      const result = claimQuestOnState(questState, questId);
+      if (!result.ok) {
+        const err = new Error(result.error);
+        err.statusCode = 400;
+        throw err;
+      }
+      let bpPlayer = { ...p, battlePass: p.battlePass || DEFAULT_BATTLE_PASS };
+      const bpAward = awardBattlePassXpOnPlayer(bpPlayer, result.bpXp);
+      bpPlayer = bpAward.player;
+      return tx.player.update({
+        where: { id: p.id },
+        data: {
+          gold: { increment: result.goldReward },
+          stardust: { increment: result.stardustReward },
+          dailyQuests: result.questState,
+          battlePass: bpPlayer.battlePass,
+        },
+        include: { cards: true, battleStats: true },
+      });
+    });
+    sendJson(res, 200, { state: playerToClientState(updated, updated.cards) });
+  } catch (e) {
+    const code = e?.statusCode || 500;
+    return sendJson(res, code, { error: e.message || "Claim failed" });
+  }
+}
+
+async function handleChestClaim(req, res) {
+  const user = await requireAuth(req, res);
+  if (!user) return;
+
+  const player = await prisma.player.findUnique({ where: { discordId: user.id } });
+  if (!player) return sendJson(res, 404, { error: "Player not found" });
+  if (!canClaimHourlyChest(player.lastChestClaimAt)) {
+    return sendJson(res, 400, {
+      error: "Chest on cooldown",
+      remainingMs: chestTimeRemaining(player.lastChestClaimAt),
+    });
+  }
+
+  const updated = await prisma.player.update({
+    where: { id: player.id },
+    data: {
+      gold: { increment: HOURLY_CHEST_GOLD },
+      stardust: { increment: HOURLY_CHEST_STARDUST },
+      lastChestClaimAt: new Date(),
+    },
+    include: { cards: true, battleStats: true },
+  });
+  sendJson(res, 200, {
+    gold: HOURLY_CHEST_GOLD,
+    stardust: HOURLY_CHEST_STARDUST,
+    state: playerToClientState(updated, updated.cards),
+  });
+}
+
+async function handleMysteryBoxOpen(req, res) {
+  const user = await requireAuth(req, res);
+  if (!user) return;
+
+  try {
+    let boxGold = 0;
+    let boxStardust = 0;
+    const updated = await prisma.$transaction(async (tx) => {
+      const p = await tx.player.findUnique({ where: { discordId: user.id } });
+      if (!p) {
+        const err = new Error("Player not found");
+        err.statusCode = 404;
+        throw err;
+      }
+      if ((p.mysteryBoxesPending ?? 0) <= 0) {
+        const err = new Error("No mystery boxes");
+        err.statusCode = 400;
+        throw err;
+      }
+      const rewards = openMysteryBoxRewards();
+      boxGold = rewards.gold;
+      boxStardust = rewards.stardust;
+      const dec = await tx.player.updateMany({
+        where: { id: p.id, mysteryBoxesPending: { gte: 1 } },
+        data: {
+          mysteryBoxesPending: { decrement: 1 },
+          gold: { increment: boxGold },
+          stardust: { increment: boxStardust },
+        },
+      });
+      if (dec.count !== 1) {
+        const err = new Error("No mystery boxes");
+        err.statusCode = 400;
+        throw err;
+      }
+      return tx.player.findUnique({
+        where: { id: p.id },
+        include: { cards: true, battleStats: true },
+      });
+    });
+    sendJson(res, 200, { gold: boxGold, stardust: boxStardust, state: playerToClientState(updated, updated.cards) });
+  } catch (e) {
+    const code = e?.statusCode || 500;
+    return sendJson(res, code, { error: e.message || "Open failed" });
+  }
+}
+
+async function handleBattlePassClaim(req, res) {
+  const user = await requireAuth(req, res);
+  if (!user) return;
+  const body = await readJsonBody(req);
+  const seasonId = body.seasonId || "season-01";
+  const level = Math.floor(Number(body.level));
+  const track = body.track === "elite" ? "elite" : "free";
+  if (!level || level < 1) return sendJson(res, 400, { error: "level required" });
+
+  try {
+    const updated = await prisma.$transaction(async (tx) => {
+      const p = await tx.player.findUnique({
+        where: { discordId: user.id },
+        include: { cards: true, battleStats: true },
+      });
+      if (!p) {
+        const err = new Error("Player not found");
+        err.statusCode = 404;
+        throw err;
+      }
+      const bp = p.battlePass || DEFAULT_BATTLE_PASS;
+      const result = await claimBattlePassLevel(tx, { ...p, battlePass: bp }, grantCardPullStyle, seasonId, level, track);
+      if (!result.ok) {
+        const err = new Error(result.error);
+        err.statusCode = 400;
+        throw err;
+      }
+      return result.player;
+    });
+    sendJson(res, 200, { state: playerToClientState(updated, updated.cards) });
+  } catch (e) {
+    const code = e?.statusCode || 500;
+    return sendJson(res, code, { error: e.message || "Claim failed" });
+  }
+}
+
+async function handleBattlePassElite(req, res) {
+  const user = await requireAuth(req, res);
+  if (!user) return;
+  const body = await readJsonBody(req);
+  const seasonId = body.seasonId || "season-01";
+
+  try {
+    const updated = await prisma.$transaction(async (tx) => {
+      const p = await tx.player.findUnique({
+        where: { discordId: user.id },
+        include: { cards: true, battleStats: true },
+      });
+      if (!p) {
+        const err = new Error("Player not found");
+        err.statusCode = 404;
+        throw err;
+      }
+      const result = await purchaseElitePassServer(tx, { ...p, battlePass: p.battlePass || DEFAULT_BATTLE_PASS }, seasonId);
+      if (!result.ok) {
+        const err = new Error(result.error);
+        err.statusCode = 400;
+        throw err;
+      }
+      return result.player;
+    });
+    sendJson(res, 200, { state: playerToClientState(updated, updated.cards) });
+  } catch (e) {
+    const code = e?.statusCode || 500;
+    return sendJson(res, code, { error: e.message || "Purchase failed" });
   }
 }
 
@@ -3324,11 +3610,15 @@ async function handlePatchCard(req, res, cardId) {
     if (card.level < 20 || card.prestigeLevel >= 3) {
       return sendJson(res, 400, { error: "Cannot prestige" });
     }
-    const updated = await prisma.cardProgress.update({
+    await prisma.cardProgress.update({
       where: { id: card.id },
       data: { level: 1, xp: 0, prestigeLevel: card.prestigeLevel + 1 },
     });
-    return sendJson(res, 200, { card: updated });
+    const updatedPlayer = await prisma.player.findUnique({
+      where: { id: player.id },
+      include: { cards: true },
+    });
+    return sendJson(res, 200, { state: playerToClientState(updatedPlayer, updatedPlayer.cards) });
   }
 
   if (body.action === "addXp") {
@@ -3549,6 +3839,68 @@ async function handleBattleStart(req, res) {
   });
 }
 
+async function handleTournamentEnter(req, res) {
+  const user = await requireAuth(req, res);
+  if (!user) return;
+
+  const player = await prisma.player.findUnique({
+    where: { discordId: user.id },
+    include: { cards: true },
+  });
+  if (!player) return sendJson(res, 404, { error: "Player not found" });
+
+  const session = player.tournamentSession;
+  if (session && typeof session === "object" && session.active) {
+    return sendJson(res, 409, { error: "Already in an active tournament" });
+  }
+  if (player.gold < TOURNAMENT_ENTRY_FEE) {
+    return sendJson(res, 400, { error: `Entry fee is ${TOURNAMENT_ENTRY_FEE} gold` });
+  }
+
+  const updated = await prisma.player.update({
+    where: { id: player.id },
+    data: {
+      gold: { decrement: TOURNAMENT_ENTRY_FEE },
+      tournamentSession: { active: true, enteredAt: new Date().toISOString() },
+    },
+    include: { cards: true },
+  });
+  return sendJson(res, 200, { state: playerToClientState(updated, updated.cards) });
+}
+
+async function handleTournamentSettle(req, res) {
+  const user = await requireAuth(req, res);
+  if (!user) return;
+
+  const body = await readJsonBody(req);
+  const placement = Number(body.placement);
+  if (placement !== 1 && placement !== 2) {
+    return sendJson(res, 400, { error: "placement must be 1 or 2" });
+  }
+
+  const player = await prisma.player.findUnique({
+    where: { discordId: user.id },
+    include: { cards: true },
+  });
+  if (!player) return sendJson(res, 404, { error: "Player not found" });
+
+  const session = player.tournamentSession;
+  if (!session || typeof session !== "object" || !session.active) {
+    return sendJson(res, 400, { error: "No active tournament session" });
+  }
+
+  const prize = TOURNAMENT_PRIZES[placement];
+  const updated = await prisma.player.update({
+    where: { id: player.id },
+    data: {
+      gold: { increment: prize },
+      tournamentSession: null,
+    },
+    include: { cards: true },
+  });
+  return sendJson(res, 200, { prize, state: playerToClientState(updated, updated.cards) });
+}
+
 async function handleBattleResult(req, res) {
   const user = await requireAuth(req, res);
   if (!user) return;
@@ -3618,6 +3970,7 @@ async function handleBattleResult(req, res) {
 
   const allLevelUps = [];
   const todayStart = utcStartOfToday();
+  const battleExtras = { firstWinBonus: 0, mysteryBoxDropped: false, bpXpAwarded: 0 };
 
   try {
     await prisma.$transaction(async (tx) => {
@@ -3659,12 +4012,17 @@ async function handleBattleResult(req, res) {
         }
       }
 
-      await tx.player.update({
-        where: { id: p.id },
-        data: { gold: { increment: goldReward } },
+      const engagement = await applyPostBattleEngagement(tx, p, {
+        outcome,
+        goldReward,
+        progressWinQuest: true,
+        defaultBattlePass: DEFAULT_BATTLE_PASS,
       });
+      battleExtras.firstWinBonus = engagement.firstWinBonus;
+      battleExtras.mysteryBoxDropped = engagement.mysteryBoxDropped;
+      battleExtras.bpXpAwarded = engagement.bpXpAwarded;
 
-      const statsUpdate = { lastBattleAt: new Date(), goldEarned: { increment: goldReward } };
+      const statsUpdate = { lastBattleAt: new Date(), goldEarned: { increment: goldReward + engagement.extraGold } };
       if (outcome === "win") statsUpdate.wins = { increment: 1 };
       else if (outcome === "draw") statsUpdate.draws = { increment: 1 };
       else statsUpdate.losses = { increment: 1 };
@@ -3703,6 +4061,9 @@ async function handleBattleResult(req, res) {
 
   sendJson(res, 200, {
     goldReward,
+    firstWinBonus: battleExtras.firstWinBonus,
+    mysteryBoxDropped: battleExtras.mysteryBoxDropped,
+    bpXpAwarded: battleExtras.bpXpAwarded,
     levelUps: allLevelUps,
     state: playerToClientState(updatedPlayer, updatedPlayer.cards),
   });
@@ -4340,10 +4701,18 @@ const server = http.createServer(async (req, res) => {
     if (method === "POST" && path === "/api/cards/apply-dub") return await handleApplyDub(req, res);
     if (method === "POST" && path === "/api/player/daily-login-claim") return await handleDailyLoginClaim(req, res);
     if (method === "POST" && path === "/api/player/daily-login-repair") return await handleDailyLoginRepair(req, res);
+    if (method === "POST" && path === "/api/quests/progress") return await handleQuestProgress(req, res);
+    if (method === "POST" && path === "/api/quests/claim") return await handleQuestClaim(req, res);
+    if (method === "POST" && path === "/api/engagement/chest-claim") return await handleChestClaim(req, res);
+    if (method === "POST" && path === "/api/engagement/mystery-box-open") return await handleMysteryBoxOpen(req, res);
+    if (method === "POST" && path === "/api/battle-pass/claim") return await handleBattlePassClaim(req, res);
+    if (method === "POST" && path === "/api/battle-pass/purchase-elite") return await handleBattlePassElite(req, res);
     if (method === "GET" && path === "/api/decks") return await handleGetDecks(req, res);
     if (method === "POST" && path === "/api/decks") return await handlePostDeck(req, res);
     if (method === "POST" && path === "/api/battle/start") return await handleBattleStart(req, res);
     if (method === "POST" && path === "/api/battle/result") return await handleBattleResult(req, res);
+    if (method === "POST" && path === "/api/tournament/enter") return await handleTournamentEnter(req, res);
+    if (method === "POST" && path === "/api/tournament/settle") return await handleTournamentSettle(req, res);
     if (method === "POST" && path === "/api/import") return await handleImport(req, res);
     if (method === "POST" && path === "/api/seasonal/pull") return await handleSeasonalPull(req, res);
     if (method === "POST" && path === "/api/craft/fuse") return await handleCraftFuse(req, res);

@@ -8,25 +8,16 @@ import {
   savePlayerState,
   type PlayerState,
 } from "@/lib/playerState";
-import bronzePackImg from "@/assets/packs/bronze-pack.jpg";
-import silverPackImg from "@/assets/packs/silver-pack.jpg";
-import goldPackImg from "@/assets/packs/gold-pack.jpg";
+import BoosterPackArt, { type BoosterPackVariant } from "@/components/summon/BoosterPackArt";
 import { allGameCards } from "@/data/cardIndex";
 import { cn } from "@/lib/utils";
-
-const packImages: Record<string, string> = {
-  bronze: bronzePackImg,
-  silver: silverPackImg,
-  gold: goldPackImg,
-};
 
 type PackTile = {
   id: string;
   label: string;
   cost: number;
   currency: "gold" | "stardust";
-  tint: string;
-  implPackId: "bronze" | "silver" | "gold" | "arcane";
+  implPackId: BoosterPackVariant;
   disabled?: boolean;
 };
 
@@ -40,7 +31,11 @@ export default function SummonAltar(props: {
   } | null>;
 }) {
   const { playerState, onStateChange, isOnline, pullCardsApi } = props;
-  const [openingPack, setOpeningPack] = useState<{ cardIds: string[]; cardIsNew?: boolean[] } | null>(null);
+  const [openingPack, setOpeningPack] = useState<{
+    cardIds: string[];
+    cardIsNew?: boolean[];
+    packVariant: BoosterPackVariant;
+  } | null>(null);
   const pullInFlightRef = useRef(false);
   const playerStateRef = useRef(playerState);
   playerStateRef.current = playerState;
@@ -52,10 +47,10 @@ export default function SummonAltar(props: {
     const gold = byId.get("gold")!;
     const arcane = byId.get("arcane")!;
     const tiles: PackTile[] = [
-      { id: "bronze", label: "Bronze Tome", cost: bronze.cost, currency: "gold", tint: "#8D6E63", implPackId: "bronze" },
-      { id: "silver", label: "Silver Tome", cost: silver.cost, currency: "gold", tint: "#BDBDBD", implPackId: "silver" },
-      { id: "gold", label: "Gold Tome", cost: gold.cost, currency: "gold", tint: "#f5c842", implPackId: "gold" },
-      { id: "arcane", label: "Arcane Tome", cost: arcane.cost, currency: "stardust", tint: "#9c27b0", implPackId: "arcane" },
+      { id: "bronze", label: "Bronze Pack", cost: bronze.cost, currency: "gold", implPackId: "bronze" },
+      { id: "silver", label: "Silver Pack", cost: silver.cost, currency: "gold", implPackId: "silver" },
+      { id: "gold", label: "Gold Pack", cost: gold.cost, currency: "gold", implPackId: "gold" },
+      { id: "arcane", label: "Arcane Pack", cost: arcane.cost, currency: "stardust", implPackId: "arcane" },
     ];
     return { tiles, bronze, silver, gold, arcane };
   }, []);
@@ -75,6 +70,7 @@ export default function SummonAltar(props: {
         setOpeningPack({
           cardIds: result.pullResults.map((r) => r.cardId),
           cardIsNew: result.pullResults.map((r) => !r.isDuplicate),
+          packVariant: tile.implPackId,
         });
         return;
       }
@@ -90,7 +86,7 @@ export default function SummonAltar(props: {
         totalPulls: ps.totalPulls + pack.cardCount,
       };
       onStateChange(newState);
-      setOpeningPack({ cardIds });
+      setOpeningPack({ cardIds, packVariant: tile.implPackId });
     } finally {
       pullInFlightRef.current = false;
     }
@@ -127,6 +123,7 @@ export default function SummonAltar(props: {
         <PackOpening
           cardIds={openingPack.cardIds}
           cardIsNew={openingPack.cardIsNew}
+          packVariant={openingPack.packVariant}
           onComplete={handlePackOpeningComplete}
           playerState={playerState}
         />
@@ -138,7 +135,6 @@ export default function SummonAltar(props: {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-6 max-w-5xl mx-auto mb-10">
         {defs.tiles.map((t) => {
           const ok = affordability(t);
-          const img = packImages[t.implPackId] ?? packImages.gold;
           return (
             <button
               key={t.id}
@@ -152,24 +148,8 @@ export default function SummonAltar(props: {
               data-testid={`pack-${t.id}`}
             >
               <div className="corner-deco absolute inset-0" />
-              <div
-                className="relative mx-auto my-3 w-[140px] h-[200px] rounded-md"
-                style={{
-                  background: `linear-gradient(180deg, ${t.tint}, #0a0604), url(${img}) center/cover`,
-                  backgroundBlendMode: "multiply",
-                  border: "2px solid rgba(245,200,66,0.7)",
-                  boxShadow: "0 0 30px rgba(245,200,66,0.4), inset 0 0 30px rgba(0,0,0,0.7)",
-                }}
-              >
-                <div
-                  className="absolute inset-0 opacity-60 mix-blend-screen"
-                  style={{
-                    background:
-                      "linear-gradient(115deg,transparent 40%, rgba(255,255,255,0.25) 50%, transparent 60%)",
-                    backgroundSize: "200% 100%",
-                    animation: "holographic-pass 4s linear infinite",
-                  }}
-                />
+              <div className="relative mx-auto my-3 flex justify-center">
+                <BoosterPackArt variant={t.implPackId} size="md" />
               </div>
 
               <div className="font-heading text-[#f5c842] tracking-[0.2em] text-sm">{t.label}</div>
@@ -211,4 +191,3 @@ export default function SummonAltar(props: {
     </div>
   );
 }
-

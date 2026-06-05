@@ -19,9 +19,10 @@ import { toast } from "@/hooks/use-toast";
 interface Props {
   playerState: PlayerState;
   onStateChange: (s: PlayerState) => void;
+  isOnline?: boolean;
 }
 
-export default function PassHall({ playerState, onStateChange }: Props) {
+export default function PassHall({ playerState, onStateChange, isOnline }: Props) {
   const seasonId = (playerState.battlePass?.activeSeasonId ?? ACTIVE_BATTLE_PASS_SEASON_ID) as BattlePassSeasonId;
   const sp = getBattlePassSeasonProgress(playerState, seasonId);
   const currentLevel = getBattlePassLevelFromXp(sp.xp);
@@ -72,7 +73,7 @@ export default function PassHall({ playerState, onStateChange }: Props) {
       }
     >
       <GlassPanel hue="var(--legendary)" glow={0.35} padding="md" bg={texGilded} bgTint={0.72}>
-        <BattlePass playerState={playerState} onStateChange={onStateChange} />
+        <BattlePass playerState={playerState} onStateChange={onStateChange} isOnline={isOnline} />
       </GlassPanel>
     </HallLayout>
   );

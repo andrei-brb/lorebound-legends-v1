@@ -16,7 +16,7 @@ export const TUTORIALS: Record<string, TutorialStep[]> = {
   ],
   summon: [
     { icon: "✨", title: "Summon cards", body: "Spend gold or stardust to open packs. Each pack has its own pull rates." },
-    { icon: "⏰", title: "Free pack daily", body: "Don't miss the free starter pack — it resets every 24 hours." },
+    { icon: "⏰", title: "Free pack daily", body: "Claim a free Bronze pack every 24 hours from the Shop tab." },
     { icon: "🎯", title: "Pity protection", body: "After enough pulls without a Legendary, your next one is guaranteed." },
   ],
   deck: [
@@ -29,7 +29,7 @@ export const TUTORIALS: Record<string, TutorialStep[]> = {
     { icon: "🎯", title: "Tap then act", body: "Tap a card on the field to open the radial menu — attack, ability, or info." },
     { icon: "🔚", title: "End your turn", body: "When you're done, end your turn. Wins grant gold, XP, and BP progress." },
   ],
-  workshop: [
+  crafting: [
     { icon: "🔨", title: "Crafting Workshop", body: "Fuse low-rarity duplicates into higher rarities, or sacrifice cards for Stardust." },
     { icon: "💎", title: "Stardust economy", body: "Stardust unlocks special seasonal packs and boosts in the shop." },
   ],
@@ -37,7 +37,6 @@ export const TUTORIALS: Record<string, TutorialStep[]> = {
     { icon: "👑", title: "Player vs Player", body: "Set a ranked deck, then queue async or challenge a friend live." },
     { icon: "📈", title: "Ranked seasons", body: "Win matches to climb tiers and earn season-end rewards." },
   ],
-  workshop_legacy: [],
   daily: [
     { icon: "🏠", title: "Welcome Home", body: "This is your daily hub: login rewards, quest progress, and mystery boxes live here." },
     { icon: "✨", title: "Quick start", body: "Follow the three steps — Summon, Deck Builder, Battle Arena — then explore the sidebar (Cards, Play, Progress, Social)." },
@@ -47,18 +46,18 @@ export const TUTORIALS: Record<string, TutorialStep[]> = {
     { icon: "🧙", title: "Your Profile", body: "Pick an avatar and title, then watch your stats grow as you play." },
     { icon: "🏆", title: "Unlock as you go", body: "Most avatars and titles unlock automatically when you earn achievements." },
   ],
-  social_friends: [
+  friends: [
     { icon: "👥", title: "Friends", body: "Add players by username. Accepted friends show their online status." },
     { icon: "⚡", title: "Live invites", body: "From a friend's row you can challenge them to a live PvP match." },
   ],
-  social_chat: [
+  chat: [
     { icon: "💬", title: "Global Chat", body: "Talk with everyone playing right now. Be kind, be curious." },
-    { icon: "🛡️", title: "Guild Chat", body: "Join or create a guild for a private channel with your crew." },
+    { icon: "🛡️", title: "Guild channel", body: "Join a guild to unlock a private channel with your crew in the Guild tab." },
   ],
-  social_guild: [
+  guild: [
     { icon: "🛡️", title: "Guilds", body: "Team up with up to 30 players. Each week the guild shares a goal worth bonus rewards." },
   ],
-  social_spectate: [
+  spectate: [
     { icon: "👀", title: "Spectate", body: "Watch live PvP matches in progress. Great for learning new strategies." },
   ],
 };

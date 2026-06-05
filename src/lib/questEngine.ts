@@ -1,4 +1,5 @@
 import type { PlayerState } from "./playerState";
+import { isAuthenticated, api } from "./apiClient";
 
 export type QuestType = "win_battles" | "pull_packs" | "level_up_card" | "play_cards_in_battle" | "open_free_pack" | "craft_card";
 
@@ -120,7 +121,16 @@ function buildFreshWeekly(): Pick<DailyQuestState, "weeklyQuests" | "weeklyQuest
   };
 }
 
-export function loadDailyQuests(): DailyQuestState {
+/** Sync local quest storage from server player state after GET /api/player. */
+export function hydrateQuestsFromPlayer(state: PlayerState): void {
+  if (state.dailyQuests) saveDailyQuests(state.dailyQuests);
+}
+
+export function loadDailyQuests(playerState?: PlayerState | null): DailyQuestState {
+  if (playerState?.dailyQuests) {
+    saveDailyQuests(playerState.dailyQuests);
+    return playerState.dailyQuests;
+  }
   const today = getTodayString();
   const weekStart = getWeekStartString();
   try {
@@ -181,7 +191,20 @@ export function progressQuest(state: DailyQuestState, type: QuestType, amount: n
     weeklyQuests: applyProgressToBucket(state.weeklyQuests, state.weeklyQuestDefinitions, type, amount),
   };
   saveDailyQuests(newState);
+  if (isAuthenticated()) {
+    api.questProgress(type, amount).catch(() => {});
+  }
   return newState;
+}
+
+export async function claimQuestRewardOnline(questId: string): Promise<PlayerState | null> {
+  try {
+    const res = await api.claimQuest(questId);
+    if (res.state.dailyQuests) saveDailyQuests(res.state.dailyQuests);
+    return res.state;
+  } catch {
+    return null;
+  }
 }
 
 export function claimQuestReward(

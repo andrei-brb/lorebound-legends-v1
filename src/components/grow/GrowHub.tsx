@@ -5,7 +5,19 @@ import EmberLayer from "@/components/EmberLayer";
 import { loadDailyQuests } from "@/lib/questEngine";
 import { toast } from "@/hooks/use-toast";
 import RewardPopup, { type RewardItem } from "@/components/battle3d/RewardPopup";
-import { claimDailyLogin as claimDailyLoginOffline, DAILY_LOGIN_REWARDS, openMysteryBox } from "@/lib/dailyEngine";
+import {
+  claimDailyLogin as claimDailyLoginOffline,
+  DAILY_LOGIN_REWARDS,
+  openMysteryBox,
+  canClaimChest,
+  chestTimeRemaining,
+  claimHourlyChest,
+  formatDuration,
+  getNextLoginDay,
+} from "@/lib/dailyEngine";
+import { getRewardsForPath } from "@/lib/dailyPathRewards";
+import { api } from "@/lib/apiClient";
+import { mergeClientOnlyPlayerState, normalizePlayerState } from "@/lib/playerState";
 import { mapDailyPreviewToRewards, type DailyClaimPreview } from "@/lib/dailyClaimPreview";
 import { savePlayerState, type PlayerState } from "@/lib/playerState";
 
@@ -73,12 +85,13 @@ export default function GrowHub(props: {
   const [rewardSubtitle, setRewardSubtitle] = useState("The altar grants its favor.");
   const [claiming, setClaiming] = useState(false);
   const [openingBox, setOpeningBox] = useState(false);
+  const [claimingChest, setClaimingChest] = useState(false);
   const today = new Date().toISOString().slice(0, 10);
   const daily = playerState.dailyLogin ?? { streak: 0, lastClaimDate: null, claimedDays: [] };
   const claimedToday = daily.lastClaimDate === today;
   const claimedThisCycle = daily.claimedDays?.length ?? 0;
 
-  const questState = loadDailyQuests();
+  const questState = loadDailyQuests(playerState);
   const quests = questState.quests
     .map((q) => {
       const def = questState.questDefinitions.find((d) => d.id === q.questId);
@@ -86,16 +99,24 @@ export default function GrowHub(props: {
     })
     .filter(Boolean) as Array<{ id: string; name: string; progress: number; total: number; reward: string; claimed: boolean }>;
 
-  const dayOfWeek = ((new Date().getDay() + 6) % 7) + 1; // Mon=1 ... Sun=7
-  const rewardPath: Array<{ day: number; icon: string; name: string; unlocked: boolean; current: boolean }> = [
-    { day: 1, icon: "🎁", name: "Bronze Pack", unlocked: daily.streak >= 1, current: dayOfWeek === 1 },
-    { day: 2, icon: "💰", name: "Gold Cache", unlocked: daily.streak >= 2, current: dayOfWeek === 2 },
-    { day: 3, icon: "✨", name: "Stardust", unlocked: daily.streak >= 3, current: dayOfWeek === 3 },
-    { day: 4, icon: "🃏", name: "Card Tome", unlocked: daily.streak >= 4, current: dayOfWeek === 4 },
-    { day: 5, icon: "🎁", name: "Silver Pack", unlocked: daily.streak >= 5, current: dayOfWeek === 5 },
-    { day: 6, icon: "🔥", name: "Ember Relic", unlocked: daily.streak >= 6, current: dayOfWeek === 6 },
-    { day: 7, icon: "🏆", name: "Legend Token", unlocked: daily.streak >= 7, current: dayOfWeek === 7 },
-  ];
+  const pathRewards = getRewardsForPath(playerState.selectedPath ?? null);
+  const claimedDays = daily.claimedDays ?? [];
+  const nextDay = getNextLoginDay(daily);
+  const rewardIcons: Record<string, string> = {
+    gold: "💰",
+    stardust: "✨",
+    pack: "🎁",
+    card: "🃏",
+  };
+  const rewardPath = pathRewards.map((r) => ({
+    day: r.day,
+    icon: rewardIcons[r.type] ?? "🎁",
+    name: r.label,
+    unlocked: claimedDays.includes(r.day),
+    current: !claimedToday && nextDay === r.day,
+  }));
+  const chestReady = canClaimChest(playerState);
+  const chestRemaining = chestTimeRemaining(playerState);
 
   const pathLabel = playerState.selectedPath ? playerState.selectedPath[0].toUpperCase() + playerState.selectedPath.slice(1) : "Fire";
 
@@ -314,7 +335,7 @@ export default function GrowHub(props: {
 
       {/* Weekly Cycle */}
       <section className="max-w-6xl mx-auto mb-8">
-        <div className="section-heading mb-5">Weekly Cycle · Day {dayOfWeek}</div>
+        <div className="section-heading mb-5">Weekly Reward Path · Next: Day {Math.min(7, nextDay)}</div>
         <div className="panel-gold p-5 relative">
           <div className="corner-deco absolute inset-0" />
           <div className="grid grid-cols-7 gap-3 relative z-10">
@@ -342,7 +363,9 @@ export default function GrowHub(props: {
                 <div className="text-3xl">{r.icon}</div>
                 <div className="font-heading text-xs text-[#f8e4a1] text-center leading-tight">{r.name}</div>
                 {r.unlocked ? (
-                  <div className="font-stat text-[9px] tracking-[0.2em] text-[#4CAF50]">UNLOCKED</div>
+                  <div className="font-stat text-[9px] tracking-[0.2em] text-[#4CAF50]">CLAIMED</div>
+                ) : r.current ? (
+                  <div className="font-stat text-[9px] tracking-[0.2em] text-[#f5c842]">TODAY</div>
                 ) : (
                   <div className="font-stat text-[9px] tracking-[0.2em] text-[#7e6a2e]">LOCKED</div>
                 )}
@@ -364,8 +387,42 @@ export default function GrowHub(props: {
           <StatRow label="Claimed this Cycle" value={`${claimedThisCycle} / 7`} />
           <StatRow label="Claimed Today" value={claimedToday ? "Yes" : "No"} highlight={claimedToday} />
           <StatRow label="Path" value={<span className="flex items-center gap-1"><Flame size={12} /> {pathLabel}</span>} />
+          <div className="mt-4 pt-4 border-t border-[rgba(212,175,55,0.15)]">
+            <div className="font-stat text-[10px] tracking-[0.2em] uppercase text-[#c9a74a] mb-2">Hourly Chest</div>
+            <p className="font-lore text-xs text-[#d6c293] mb-3">
+              {chestReady ? "Your chest is ready." : `Next chest in ${formatDuration(chestRemaining)}`}
+            </p>
+            <button
+              type="button"
+              className="btn-ghost w-full text-sm disabled:opacity-50 mb-2"
+              disabled={!chestReady || claimingChest}
+              onClick={async () => {
+                if (!chestReady || claimingChest) return;
+                setClaimingChest(true);
+                try {
+                  if (isOnline) {
+                    const res = await api.claimHourlyChest();
+                    onStateChange(mergeClientOnlyPlayerState(normalizePlayerState(res.state), playerState));
+                    toast({ title: "Hourly chest opened", description: `+${res.gold} gold, +${res.stardust} stardust` });
+                  } else {
+                    const result = claimHourlyChest(playerState);
+                    if (!result) return;
+                    onStateChange(result.state);
+                    savePlayerState(result.state);
+                    toast({ title: "Hourly chest opened", description: `+${result.gold} gold, +${result.stardust} stardust` });
+                  }
+                } catch (e) {
+                  toast({ title: "Chest unavailable", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
+                } finally {
+                  setClaimingChest(false);
+                }
+              }}
+            >
+              {claimingChest ? "Opening…" : chestReady ? "Open Hourly Chest" : "On Cooldown"}
+            </button>
+          </div>
           <button
-            className="btn-gold w-full mt-4 disabled:opacity-60"
+            className="btn-gold w-full mt-2 disabled:opacity-60"
             data-testid="claim-daily-btn"
             type="button"
             disabled={claimedToday || claiming}
@@ -438,17 +495,26 @@ export default function GrowHub(props: {
             data-testid="open-mystery-btn"
             type="button"
             disabled={(playerState.mysteryBoxesPending ?? 0) === 0 || openingBox}
-            onClick={() => {
+            onClick={async () => {
               if (openingBox || (playerState.mysteryBoxesPending ?? 0) <= 0) return;
               setOpeningBox(true);
               try {
-                const result = openMysteryBox(playerState);
-                if (!result) {
-                  toast({ title: "No boxes", description: "Win battles to earn mystery boxes.", variant: "destructive" });
-                  return;
+                if (isOnline) {
+                  const res = await api.openMysteryBox();
+                  onStateChange(mergeClientOnlyPlayerState(normalizePlayerState(res.state), playerState));
+                  toast({ title: "Mystery box opened", description: `+${res.gold} gold${res.stardust > 0 ? `, +${res.stardust} stardust` : ""}` });
+                } else {
+                  const result = openMysteryBox(playerState);
+                  if (!result) {
+                    toast({ title: "No boxes", description: "Win battles to earn mystery boxes.", variant: "destructive" });
+                    return;
+                  }
+                  onStateChange(result.state);
+                  savePlayerState(result.state);
+                  toast({ title: "Mystery box opened", description: `+${result.gold} gold${result.stardust > 0 ? `, +${result.stardust} stardust` : ""}` });
                 }
-                onStateChange(result.state);
-                toast({ title: "Mystery box opened", description: `+${result.gold} gold${result.stardust > 0 ? `, +${result.stardust} stardust` : ""}` });
+              } catch (e) {
+                toast({ title: "Could not open", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
               } finally {
                 setOpeningBox(false);
               }

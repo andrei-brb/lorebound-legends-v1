@@ -15,6 +15,8 @@ import {
 import type { PlayerState, BattlePassSeasonId } from "@/lib/playerState";
 import { BP_XP_PER_LEVEL, ELITE_PASS_STARDUST_COST, awardBattlePassXp, claimBattlePassLevelReward, getBattlePassLevelFromXp, getBattlePassSeasonProgress, getBattlePassXpToNextLevel, normalizeBattlePassDaily, purchaseElitePass, setBattlePassActiveSeason, setCosmeticEquipped } from "@/lib/battlePassEngine";
 import { toast } from "@/hooks/use-toast";
+import { api } from "@/lib/apiClient";
+import { mergeClientOnlyPlayerState, normalizePlayerState } from "@/lib/playerState";
 import { getCosmeticById } from "@/data/cosmetics";
 import { getCardById } from "@/data/cardIndex";
 import GameCard from "@/components/GameCard";
@@ -50,7 +52,7 @@ interface BattlePassProps {
   isOnline?: boolean;
 }
 
-export default function BattlePass({ playerState, onStateChange }: BattlePassProps) {
+export default function BattlePass({ playerState, onStateChange, isOnline }: BattlePassProps) {
   const normalizedState = useMemo(() => normalizeBattlePassDaily(playerState), [playerState]);
   const activeSeasonId = (normalizedState.battlePass?.activeSeasonId ?? ACTIVE_BATTLE_PASS_SEASON_ID) as BattlePassSeasonId;
   const [seasonId, setSeasonIdLocal] = useState<BattlePassSeasonId>(activeSeasonId);
@@ -72,6 +74,7 @@ export default function BattlePass({ playerState, onStateChange }: BattlePassPro
   const [rewardItems, setRewardItems] = useState<RewardItem[]>([]);
   const [rewardTitle, setRewardTitle] = useState("Reward Bestowed");
   const [rewardSubtitle, setRewardSubtitle] = useState("The altar grants its favor.");
+  const [claimingKey, setClaimingKey] = useState<string | null>(null);
 
   const isMilestone = (lvl: number) => MILESTONES.has(lvl);
 
@@ -81,8 +84,19 @@ export default function BattlePass({ playerState, onStateChange }: BattlePassPro
     onStateChange(next);
   };
 
-  const handlePurchaseElite = () => {
+  const handlePurchaseElite = async () => {
     if (!window.confirm(`Unlock Elite Pass for ${ELITE_PASS_STARDUST_COST} stardust?`)) return;
+    if (isOnline) {
+      try {
+        const res = await api.purchaseBattlePassElite(seasonId);
+        const merged = mergeClientOnlyPlayerState(normalizePlayerState(res.state), normalizedState);
+        onStateChange(merged);
+        toast({ title: "Elite Pass unlocked", description: "Claim premium rewards on every level you reach." });
+      } catch (e) {
+        toast({ title: "Cannot unlock Elite", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
+      }
+      return;
+    }
     const res = purchaseElitePass(normalizedState, seasonId);
     if (!res.ok) {
       toast({ title: "Cannot unlock Elite", description: res.error, variant: "destructive" });
@@ -92,10 +106,31 @@ export default function BattlePass({ playerState, onStateChange }: BattlePassPro
     toast({ title: "Elite Pass unlocked", description: "Claim premium rewards on every level you reach." });
   };
 
-  const handleClaim = (level: number, track: "free" | "elite") => {
-    const res = claimBattlePassLevelReward(normalizedState, seasonId, level, track);
-    if (!res.ok) { toast({ title: "Cannot claim", description: (res as { error: string }).error, variant: "destructive" }); return; }
-    onStateChange(res.state);
+  const handleClaim = async (level: number, track: "free" | "elite") => {
+    const key = `${track}-${level}`;
+    if (claimingKey) return;
+    setClaimingKey(key);
+    try {
+      if (isOnline) {
+        try {
+          const res = await api.claimBattlePassLevel(seasonId, level, track);
+          const merged = mergeClientOnlyPlayerState(normalizePlayerState(res.state), normalizedState);
+          onStateChange(merged);
+        } catch (e) {
+          toast({ title: "Cannot claim", description: e instanceof Error ? e.message : String(e), variant: "destructive" });
+          return;
+        }
+      } else {
+        const res = claimBattlePassLevelReward(normalizedState, seasonId, level, track);
+        if (!res.ok) {
+          toast({ title: "Cannot claim", description: (res as { error: string }).error, variant: "destructive" });
+          return;
+        }
+        onStateChange(res.state);
+      }
+    } finally {
+      setClaimingKey(null);
+    }
     const row = passData.find((x) => x.level === level);
     const reward = row ? (track === "free" ? row.free : row.elite) : null;
     const items: RewardItem[] = [];

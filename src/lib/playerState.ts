@@ -59,6 +59,8 @@ export interface PlayerState {
   unlockedTitles?: string[];
   // Daily engagement
   dailyLogin?: DailyLoginState;
+  /** Server-synced daily + weekly quest state (online). */
+  dailyQuests?: import("@/lib/questEngine").DailyQuestState;
   lastChestClaimAt?: number | null;
   firstWinDate?: string | null; // YYYY-MM-DD of last claimed first-win bonus
   mysteryBoxesPending?: number;
@@ -293,9 +295,6 @@ export const CLIENT_ONLY_PLAYER_KEYS: (keyof PlayerState)[] = [
   "profile",
   "unlockedAvatars",
   "unlockedTitles",
-  "lastChestClaimAt",
-  "firstWinDate",
-  "mysteryBoxesPending",
   "settings",
   "tutorialsCompleted",
 ];
@@ -374,6 +373,7 @@ export function normalizePlayerState(state: PlayerState): PlayerState {
       : ["default"],
     unlockedTitles: Array.isArray(state.unlockedTitles) ? state.unlockedTitles : [],
     dailyLogin: normalizeDailyLogin(state.dailyLogin),
+    dailyQuests: state.dailyQuests,
     lastChestClaimAt: typeof state.lastChestClaimAt === "number" ? state.lastChestClaimAt : null,
     firstWinDate: state.firstWinDate ?? null,
     mysteryBoxesPending: Number(state.mysteryBoxesPending) || 0,

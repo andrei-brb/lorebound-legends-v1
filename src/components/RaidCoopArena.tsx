@@ -25,7 +25,7 @@ import BattleRadialMenu from "./BattleRadialMenu";
 import HeroPortrait from "./HeroPortrait";
 import BattleInfoPanel from "./BattleInfoPanel";
 import CardLevelUp from "./CardLevelUp";
-import { type PlayerState, getCardProgress } from "@/lib/playerState";
+import { type PlayerState, getCardProgress, mergeClientOnlyPlayerState, normalizePlayerState } from "@/lib/playerState";
 import { awardXp, type LevelUpResult } from "@/lib/progressionEngine";
 import { loadDailyQuests, progressQuest, saveDailyQuests } from "@/lib/questEngine";
 import { toast } from "@/hooks/use-toast";
@@ -249,24 +249,19 @@ export default function RaidCoopArena({
               setLevelUps(result.levelUps.map((lu) => ({ ...lu, milestone: null as string | null })));
               if (result.levelUps.length > 0) setShowLevelUps(true);
             }
-            onStateChange((prev) => {
-              let s = awardBattlePassXp(prev, won ? 120 : isDraw ? 80 : 60).state;
-              const prevPending = s.mysteryBoxesPending ?? 0;
-              s = rollMysteryBox(s);
-              if ((s.mysteryBoxesPending ?? 0) > prevPending) {
-                toast({ title: "Mystery box earned!", description: "Open it in You → Daily." });
-              }
-              if (won) {
-                const fw = claimFirstWin(s);
-                if (fw) {
-                  s = fw.state;
-                  s = awardBattlePassXp(s, FIRST_WIN_BP_XP).state;
-                  toast({ title: "First win of the day!", description: `+${FIRST_WIN_GOLD} gold & +${FIRST_WIN_BP_XP} Battle Pass XP` });
-                }
-              }
-              if (isOnline && syncEconomyApi) void syncEconomyApi(s.gold, s.stardust);
-              return s;
-            });
+            if ("state" in result && result.state) {
+              onStateChange((prev) => mergeClientOnlyPlayerState(normalizePlayerState(result.state as import("@/lib/playerState").PlayerState), prev));
+            }
+            if ("mysteryBoxDropped" in result && result.mysteryBoxDropped) {
+              toast({ title: "Mystery box earned!", description: "Open it in You → Daily." });
+            }
+            const firstWinBonus = "firstWinBonus" in result ? (result.firstWinBonus ?? 0) : 0;
+            if (firstWinBonus > 0) {
+              toast({
+                title: "First win of the day!",
+                description: `+${FIRST_WIN_GOLD} gold & +${FIRST_WIN_BP_XP} Battle Pass XP`,
+              });
+            }
             usedOnline = true;
           } catch (e) {
             toast({

@@ -7,11 +7,13 @@ import { texCodex, texParchment, texVelvet } from "@/components/scene/panelTextu
 import { cn } from "@/lib/utils";
 import {
   claimQuestReward,
+  claimQuestRewardOnline,
   getQuestTimeUntilReset,
   getWeeklyQuestTimeUntilReset,
   loadDailyQuests,
   type DailyQuestState,
 } from "@/lib/questEngine";
+import { mergeClientOnlyPlayerState, normalizePlayerState } from "@/lib/playerState";
 import RewardPopup, { type RewardItem } from "@/components/battle3d/RewardPopup";
 
 interface Quest {
@@ -26,7 +28,7 @@ interface Quest {
   claimed?: boolean;
 }
 
-interface Props { playerState: PlayerState; onStateChange: (s: PlayerState) => void }
+interface Props { playerState: PlayerState; onStateChange: (s: PlayerState) => void; isOnline?: boolean }
 
 function fmtCountdown(ms: number) {
   const s = Math.max(0, Math.floor(ms / 1000));
@@ -35,9 +37,9 @@ function fmtCountdown(ms: number) {
   return `${h}h ${m}m`;
 }
 
-export default function QuestsHall({ playerState, onStateChange }: Props) {
+export default function QuestsHall({ playerState, onStateChange, isOnline }: Props) {
   const [filter, setFilter] = useState<"all" | "daily" | "weekly">("all");
-  const [questState, setQuestState] = useState<DailyQuestState>(() => loadDailyQuests());
+  const [questState, setQuestState] = useState<DailyQuestState>(() => loadDailyQuests(playerState));
   const [rewardOpen, setRewardOpen] = useState(false);
   const [rewardItems, setRewardItems] = useState<RewardItem[]>([]);
   const [rewardTitle, setRewardTitle] = useState("Reward Bestowed");
@@ -153,14 +155,22 @@ export default function QuestsHall({ playerState, onStateChange }: Props) {
           <QuestCard
             key={q.id}
             quest={q}
-            onClaim={() => {
+            onClaim={async () => {
               if (claimingId) return;
               setClaimingId(q.id);
               try {
-                const res = claimQuestReward(questState, q.id, playerState);
-                if (!res) return;
-                setQuestState(res.questState);
-                onStateChange(res.playerState);
+                if (isOnline) {
+                  const serverState = await claimQuestRewardOnline(q.id);
+                  if (!serverState) return;
+                  const merged = mergeClientOnlyPlayerState(normalizePlayerState(serverState), playerState);
+                  if (serverState.dailyQuests) setQuestState(serverState.dailyQuests);
+                  onStateChange(merged);
+                } else {
+                  const res = claimQuestReward(questState, q.id, playerState);
+                  if (!res) return;
+                  setQuestState(res.questState);
+                  onStateChange(res.playerState);
+                }
                 const items: RewardItem[] = [];
                 if (q.reward.gold) items.push({ kind: "gold", amount: q.reward.gold, label: "Gold", rarity: "legendary" });
                 if (q.reward.stardust) items.push({ kind: "gem", amount: q.reward.stardust, label: "Stardust", rarity: "rare" });

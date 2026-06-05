@@ -14,15 +14,7 @@ import { Progress } from "@/components/ui/progress";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { toast } from "@/hooks/use-toast";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import bronzePackImg from "@/assets/packs/bronze-pack.jpg";
-import silverPackImg from "@/assets/packs/silver-pack.jpg";
-import goldPackImg from "@/assets/packs/gold-pack.jpg";
-
-const packImages: Record<string, string> = {
-  bronze: bronzePackImg,
-  silver: silverPackImg,
-  gold: goldPackImg,
-};
+import BoosterPackArt, { packVariantFromId, type BoosterPackVariant } from "@/components/summon/BoosterPackArt";
 
 interface PackShopProps {
   playerState: PlayerState;
@@ -43,7 +35,11 @@ function formatTime(ms: number): string {
 }
 
 export default function PackShop({ playerState, onStateChange, isOnline, pullCardsApi }: PackShopProps) {
-  const [openingPack, setOpeningPack] = useState<{ cardIds: string[]; cardIsNew?: boolean[] } | null>(null);
+  const [openingPack, setOpeningPack] = useState<{
+    cardIds: string[];
+    cardIsNew?: boolean[];
+    packVariant: BoosterPackVariant;
+  } | null>(null);
   const [freeTimer, setFreeTimer] = useState(freePackTimeRemaining(playerState));
   const [confirmPack, setConfirmPack] = useState<PackDefinition | null>(null);
   const playerStateRef = useRef(playerState);
@@ -77,6 +73,7 @@ export default function PackShop({ playerState, onStateChange, isOnline, pullCar
           setOpeningPack({
             cardIds: result.pullResults.map((r) => r.cardId),
             cardIsNew: result.pullResults.map((r) => !r.isDuplicate),
+            packVariant: packVariantFromId(pack.id),
           });
           trackPackQuests(false);
         }
@@ -100,7 +97,7 @@ export default function PackShop({ playerState, onStateChange, isOnline, pullCar
         totalPulls: ps.totalPulls + pack.cardCount,
       };
       onStateChange(newState);
-      setOpeningPack({ cardIds });
+      setOpeningPack({ cardIds, packVariant: packVariantFromId(pack.id) });
       trackPackQuests(false);
     } finally {
       pullInFlightRef.current = false;
@@ -124,6 +121,7 @@ export default function PackShop({ playerState, onStateChange, isOnline, pullCar
           setOpeningPack({
             cardIds: result.pullResults.map((r) => r.cardId),
             cardIsNew: result.pullResults.map((r) => !r.isDuplicate),
+            packVariant: "bronze",
           });
           trackPackQuests(true);
         }
@@ -148,7 +146,7 @@ export default function PackShop({ playerState, onStateChange, isOnline, pullCar
         totalPulls: ps.totalPulls + FREE_PACK_CARD_COUNT,
       };
       onStateChange(newState);
-      setOpeningPack({ cardIds });
+      setOpeningPack({ cardIds, packVariant: "bronze" });
       trackPackQuests(true);
     } finally {
       pullInFlightRef.current = false;
@@ -174,6 +172,7 @@ export default function PackShop({ playerState, onStateChange, isOnline, pullCar
           <PackOpening
             cardIds={openingPack.cardIds}
             cardIsNew={openingPack.cardIsNew}
+            packVariant={openingPack.packVariant}
             onComplete={handlePackOpeningComplete}
             playerState={playerState}
           />
@@ -298,10 +297,14 @@ export default function PackShop({ playerState, onStateChange, isOnline, pullCar
                 )}
                 <div className={`bg-card border rounded-xl overflow-hidden transition-all pack-shimmer-hover ${isGold ? "border-[hsl(var(--legendary))]/40 hover:border-[hsl(var(--legendary))]/70" : "border-border hover:border-primary/50"}`}>
                   {/* Pack Visual */}
-                  <div className="h-40 relative overflow-hidden">
-                    <img src={packImages[pack.id]} alt={pack.name} className="w-full h-full object-cover" loading="lazy" />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                    <div className="absolute bottom-3 left-0 right-0 text-center">
+                  <div className="h-48 relative overflow-hidden flex items-center justify-center bg-black/30">
+                    <BoosterPackArt
+                      variant={packVariantFromId(pack.id)}
+                      size="md"
+                      className="h-[168px] w-auto !max-w-none shadow-none"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent pointer-events-none" />
+                    <div className="absolute bottom-3 left-0 right-0 text-center pointer-events-none">
                       <span className="font-heading font-bold text-white text-lg drop-shadow-lg">{pack.name}</span>
                     </div>
                   </div>
@@ -327,8 +330,12 @@ export default function PackShop({ playerState, onStateChange, isOnline, pullCar
                           : "bg-secondary text-muted-foreground cursor-not-allowed"
                       }`}
                     >
-                      <GoldCurrencyIcon className="w-[18px] h-[18px]" />
-                      {pack.cost} Gold
+                      {pack.currency === "stardust" ? (
+                        <StardustCurrencyIcon className="w-[18px] h-[18px]" />
+                      ) : (
+                        <GoldCurrencyIcon className="w-[18px] h-[18px]" />
+                      )}
+                      {pack.cost} {pack.currency === "stardust" ? "Stardust" : "Gold"}
                     </button>
                   </div>
                 </div>

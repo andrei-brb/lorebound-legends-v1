@@ -25,9 +25,7 @@ import ChatHall from "@/components/halls/ChatHall";
 import GuildHall from "@/components/halls/GuildHall";
 import SpectateHall from "@/components/halls/SpectateHall";
 import ProfileHall from "@/components/halls/ProfileHall";
-import DailyHall from "@/components/halls/DailyHall";
 import GrowHub from "@/components/grow/GrowHub";
-import CardsHall from "@/components/halls/CardsHall";
 import CombatHall from "@/components/halls/CombatHall";
 const LivePvPBattleground = lazy(() => import("@/components/LivePvPBattleground"));
 const RaidCoopArena = lazy(() => import("@/components/RaidCoopArena"));
@@ -41,6 +39,7 @@ import { loadAchievementState, checkNewAchievements, saveAchievementState } from
 import { getBattlePassLevelFromXp, getBattlePassSeasonProgress } from "@/lib/battlePassEngine";
 import { toast } from "@/hooks/use-toast";
 import { api } from "@/lib/apiClient";
+import { mergeClientOnlyPlayerState, normalizePlayerState } from "@/lib/playerState";
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 import { setSfxVolume } from "@/lib/sfx";
 import { GoldCurrencyIcon, StardustCurrencyIcon } from "@/components/CurrencyIcons";
@@ -52,7 +51,7 @@ import ShopScreen from "@/components/shop/ShopScreen";
 import CraftingScreen from "@/components/crafting/CraftingScreen";
 import { allGameCards, type CardType, type Rarity } from "@/data/cardIndex";
 
-type Tab = "collection" | "catalog" | "cosmetics" | "deck" | "battle" | "pvp" | "summon" | "shop" | "quests" | "crafting" | "workshop" | "achievements" | "leaderboard" | "trade" | "mail" | "events" | "tournament" | "boost" | "pass" | "profile" | "daily" | "friends" | "chat" | "guild" | "spectate" | "cards-hall" | "combat-hall" | "raid";
+type Tab = "collection" | "catalog" | "cosmetics" | "deck" | "battle" | "pvp" | "summon" | "shop" | "quests" | "crafting" | "achievements" | "leaderboard" | "trade" | "mail" | "events" | "tournament" | "boost" | "pass" | "profile" | "daily" | "friends" | "chat" | "guild" | "spectate" | "combat-hall" | "raid";
 export default function Index() {
   const [activeTab, setActiveTab] = useState<Tab>("daily");
   const [battleDeckIds, setBattleDeckIds] = useState<string[]>([]);
@@ -92,7 +91,7 @@ export default function Index() {
   const [collectionQuery, setCollectionQuery] = useState("");
   const [collectionType, setCollectionType] = useState<"all" | CardType>("all");
   const [collectionRarity, setCollectionRarity] = useState<"all" | Rarity>("all");
-  const { playerState, setPlayerState, status, isOnline, pullCards, submitBattleResult, completeOnboarding, syncEconomy, craftFuse, craftSacrifice, applyDub, pullSeasonalPack, claimDailyLogin, startPveBattle } = usePlayerApi();
+  const { playerState, setPlayerState, status, isOnline, pullCards, submitBattleResult, completeOnboarding, syncEconomy, craftFuse, craftSacrifice, applyDub, pullSeasonalPack, claimDailyLogin, startPveBattle, prestigeCard, tournamentEnter, tournamentSettle } = usePlayerApi();
   const isDiscordActivityHost = typeof window !== "undefined" && window.location.hostname.endsWith("discordsays.com");
   const discordOverlayInset = "calc(64px + env(safe-area-inset-top))";
   const ambientParticles = useMemo(
@@ -625,6 +624,8 @@ export default function Index() {
                   <CollectionView
                     playerState={playerState}
                     onStateChange={setPlayerState}
+                    isOnline={isOnline}
+                    prestigeCardApi={prestigeCard}
                     searchQuery={collectionQuery}
                     typeFilter={collectionType}
                     rarityFilter={collectionRarity}
@@ -712,34 +713,7 @@ export default function Index() {
                   <p className="text-center font-lore mb-6">
                     Complete objectives and earn rewards.
                   </p>
-                  <QuestsHall playerState={playerState} onStateChange={setPlayerState} />
-                </div>
-              </div>
-            )}
-            {activeTab === "workshop" && (
-              <div
-                data-testid="workshop-screen"
-                className="relative rounded-2xl p-5 md:p-8 overflow-hidden"
-                style={{
-                  background: "linear-gradient(180deg, rgba(7,5,10,0.78), rgba(7,5,10,0.92))",
-                  border: "1px solid rgba(212,175,55,0.18)",
-                  boxShadow: "0 18px 60px rgba(0,0,0,0.55)",
-                }}
-              >
-                <div className="corner-deco absolute inset-0" />
-                <div className="relative z-10">
-                  <div className="section-heading mb-2">Workshop</div>
-                  <p className="text-center font-lore mb-6">
-                    Fuse, sacrifice, and refine your collection.
-                  </p>
-                  <WorkshopHall
-                    playerState={playerState}
-                    onStateChange={setPlayerState}
-                    isOnline={isOnline}
-                    craftFuse={craftFuse}
-                    craftSacrifice={craftSacrifice}
-                    applyDub={applyDub}
-                  />
+                  <QuestsHall playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} />
                 </div>
               </div>
             )}
@@ -846,7 +820,13 @@ export default function Index() {
                 <div className="relative z-10">
                   <div className="section-heading mb-2">Tournament</div>
                   <p className="text-center font-lore mb-6">Enter brackets and fight for glory.</p>
-                  <Tournament playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} syncEconomyApi={syncEconomy} />
+                  <Tournament
+                    playerState={playerState}
+                    onStateChange={setPlayerState}
+                    isOnline={isOnline}
+                    tournamentEnterApi={tournamentEnter}
+                    tournamentSettleApi={tournamentSettle}
+                  />
                 </div>
               </div>
             )}
@@ -868,7 +848,7 @@ export default function Index() {
                 <div className="relative z-10">
                   <div className="section-heading mb-2">Battle Pass</div>
                   <p className="text-center font-lore mb-6">Progress through seasons and claim rewards.</p>
-                  <PassHall playerState={playerState} onStateChange={setPlayerState} />
+                  <PassHall playerState={playerState} onStateChange={setPlayerState} isOnline={isOnline} />
                 </div>
               </div>
             )}
@@ -938,7 +918,6 @@ export default function Index() {
                 </div>
               </div>
             )}
-            {activeTab === "cards-hall" && <CardsHall playerState={playerState} />}
             {activeTab === "combat-hall" && (
               <CombatHall
                 playerState={playerState}
@@ -1008,7 +987,10 @@ export default function Index() {
                   onRankedSubmit={
                     rankedBattle
                       ? async (data) => {
-                          await api.pvpAsyncSubmit(rankedBattle.matchId, data);
+                          const result = await api.pvpAsyncSubmit(rankedBattle.matchId, data);
+                          if (result.state) {
+                            setPlayerState((prev) => mergeClientOnlyPlayerState(normalizePlayerState(result.state!), prev));
+                          }
                         }
                       : undefined
                   }

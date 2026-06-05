@@ -172,6 +172,33 @@ export const api = {
     return handleResponse(res);
   },
 
+  async prestigeCard(cardId: string) {
+    const res = await fetch(`${getApiBase()}/api/cards/${cardId}`, {
+      method: "PATCH",
+      headers: getHeaders(),
+      body: JSON.stringify({ action: "prestige" }),
+    });
+    return handleResponse<{ state: import("./playerState").PlayerState }>(res);
+  },
+
+  async tournamentEnter() {
+    const res = await fetch(`${getApiBase()}/api/tournament/enter`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({}),
+    });
+    return handleResponse<{ state: import("./playerState").PlayerState }>(res);
+  },
+
+  async tournamentSettle(placement: 1 | 2) {
+    const res = await fetch(`${getApiBase()}/api/tournament/settle`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({ placement }),
+    });
+    return handleResponse<{ prize: number; state: import("./playerState").PlayerState }>(res);
+  },
+
   async getDecks() {
     const res = await fetch(`${getApiBase()}/api/decks`, { headers: getHeaders() });
     return handleResponse(res);
@@ -239,9 +266,66 @@ export const api = {
     });
     return handleResponse<{
       goldReward: number;
+      firstWinBonus?: number;
+      mysteryBoxDropped?: boolean;
+      bpXpAwarded?: number;
       levelUps: Array<{ cardId: string; oldLevel: number; newLevel: number }>;
       state: import("./playerState").PlayerState;
     }>(res);
+  },
+
+  async questProgress(type: string, amount = 1) {
+    const res = await fetch(`${getApiBase()}/api/quests/progress`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({ type, amount }),
+    });
+    return handleResponse<{ state: import("./playerState").PlayerState }>(res);
+  },
+
+  async claimQuest(questId: string) {
+    const res = await fetch(`${getApiBase()}/api/quests/claim`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({ questId }),
+    });
+    return handleResponse<{ state: import("./playerState").PlayerState }>(res);
+  },
+
+  async claimHourlyChest() {
+    const res = await fetch(`${getApiBase()}/api/engagement/chest-claim`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({}),
+    });
+    return handleResponse<{ gold: number; stardust: number; state: import("./playerState").PlayerState }>(res);
+  },
+
+  async openMysteryBox() {
+    const res = await fetch(`${getApiBase()}/api/engagement/mystery-box-open`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({}),
+    });
+    return handleResponse<{ gold: number; stardust: number; state: import("./playerState").PlayerState }>(res);
+  },
+
+  async claimBattlePassLevel(seasonId: string, level: number, track: "free" | "elite") {
+    const res = await fetch(`${getApiBase()}/api/battle-pass/claim`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({ seasonId, level, track }),
+    });
+    return handleResponse<{ state: import("./playerState").PlayerState }>(res);
+  },
+
+  async purchaseBattlePassElite(seasonId: string) {
+    const res = await fetch(`${getApiBase()}/api/battle-pass/purchase-elite`, {
+      method: "POST",
+      headers: getHeaders(),
+      body: JSON.stringify({ seasonId }),
+    });
+    return handleResponse<{ state: import("./playerState").PlayerState }>(res);
   },
 
   async importLocalState(state: import("./playerState").PlayerState) {
@@ -501,7 +585,7 @@ export const api = {
       headers: getHeaders(),
       body: JSON.stringify(body),
     });
-    return handleResponse<{ ok: true; result: unknown }>(res);
+    return handleResponse<{ ok: true; result: unknown; state?: import("./playerState").PlayerState }>(res);
   },
 
   async pvpHistory() {
