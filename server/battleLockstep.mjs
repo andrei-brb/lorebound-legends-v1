@@ -8300,8 +8300,8 @@ function damageNumber(d) {
   return m ? parseInt(m[1], 10) : null;
 }
 function scaledFallback(card) {
-  const cost2 = card.specialAbility.cost ?? 3;
-  const v = Math.max(2, Math.round(card.attack * 1.2 + cost2));
+  const cost = card.specialAbility.cost ?? 3;
+  const v = Math.max(2, Math.round(card.attack * 1.2 + cost));
   return { kind: "damage_single", target: "highest_hp", value: v };
 }
 function inferAbilityEffect(card) {
@@ -8553,10 +8553,11 @@ function inferAbilityEffect(card) {
   if (/ignores?\s+(\d+)%\s+defense|ignoring defense|ignore defense|bypass/i.test(d)) {
     const n = damageNumber(d) ?? firstInt(d);
     const frac = /50%/.test(d) ? 0.5 : /ignoring defense/i.test(d) ? 1 : 0.25;
+    const apCost = card.specialAbility.cost ?? 3;
     return {
       kind: "damage_single",
       target: "highest_hp",
-      value: n ?? Math.max(2, Math.round(card.attack * 1.2 + cost)),
+      value: n ?? Math.max(2, Math.round(card.attack * 1.2 + apCost)),
       ignoreDefenseFrac: frac
     };
   }
@@ -8877,6 +8878,7 @@ function tryPlaceToken(state, side, tokenId, duration, meta) {
     }
     otherSide.hp = Math.max(0, otherSide.hp - dmg);
     addLog(state, `\u{1FAB6} ${base.name} enters and strikes directly for ${raw}!`, "token");
+    checkWinCondition(state);
   } else {
     enemies.sort((a, b) => a.fc.currentHp - b.fc.currentHp);
     const { fc: target, i: idx } = enemies[0];
@@ -8931,6 +8933,7 @@ function processTokenAutoStrikes(state, side, otherSide) {
         "token",
         { source: tok.name, ruleTag: "token_strike" }
       );
+      checkWinCondition(state);
       continue;
     }
     enemies.sort((a, b) => a.fc.currentHp - b.fc.currentHp);
@@ -9039,6 +9042,8 @@ function startTurn(state) {
   }
   applyWeaponTurnStartPassives(state, side);
   processTokenAutoStrikes(state, side, otherSide);
+  checkWinCondition(state);
+  if (state.phase === "game-over") return state;
   state.turnPhase = "main";
   if (state.ruleset === "ygoHybrid") {
     state.turnPhase = "draw";
@@ -9049,13 +9054,13 @@ function startTurn(state) {
 function getApCapForTurn(turnNumber) {
   return Math.min(6, 1 + turnNumber);
 }
-function canSpendAp(state, cost2) {
+function canSpendAp(state, cost) {
   const side = getActiveSide(state);
-  return side.ap >= cost2;
+  return side.ap >= cost;
 }
-function spendAp(state, cost2) {
+function spendAp(state, cost) {
   const side = getActiveSide(state);
-  side.ap = Math.max(0, side.ap - cost2);
+  side.ap = Math.max(0, side.ap - cost);
 }
 function maybeAutoEndTurn(state) {
   const side = getActiveSide(state);
@@ -9065,7 +9070,8 @@ function maybeAutoEndTurn(state) {
   return endTurn(state);
 }
 function endTurnAction(state) {
-  const newState = deepCopy(state);
+  const newState = checkWinCondition(deepCopy(state));
+  if (newState.phase === "game-over") return newState;
   if (newState.ruleset === "ygoHybrid") {
     return advancePhase(newState);
   }
@@ -9135,12 +9141,12 @@ function advancePhase(state) {
     case "main": {
       s.turnPhase = "battle";
       addLog(s, `\u2694\uFE0F ${sideLabel} enters Battle Phase.`, "info", { ruleTag: "ygo_phase" });
-      return s;
+      return checkWinCondition(s);
     }
     case "battle": {
       s.turnPhase = "end";
       addLog(s, `\u{1F3C1} ${sideLabel} enters End Phase.`, "info", { ruleTag: "ygo_phase" });
-      return s;
+      return checkWinCondition(s);
     }
     case "end": {
       return endTurn(s);
@@ -9297,6 +9303,15 @@ function activateTrapFromResponseWindow(state, trapIndex) {
         casterCards[0].stunTurnsRemaining = effect.duration ?? 1;
         addLog(s, `\u{1FAA4} ${responderLabel} activated ${trap.card.name}! ${casterCards[0].card.name} is stunned!`, "trap");
       }
+    } else if (effect.effect === "reflect_damage") {
+      let dmg = effect.value;
+      if (actingSide.shield > 0) {
+        const abs = Math.min(actingSide.shield, dmg);
+        actingSide.shield -= abs;
+        dmg -= abs;
+      }
+      actingSide.hp = Math.max(0, actingSide.hp - dmg);
+      addLog(s, `\u{1FAA4} ${responderLabel} activated ${trap.card.name}! Reflects ${effect.value} damage to the caster!`, "trap");
     } else if (effect.effect === "shield") {
       responderSide.shield += effect.value;
       addLog(s, `\u{1FAA4} ${responderLabel} activated ${trap.card.name}! +${effect.value} shield.`, "trap");
@@ -9406,8 +9421,8 @@ function playCard(state, handIndex) {
       if (newState.turnPhase !== "main") return state;
       if (side.normalSummonUsed) return state;
     }
-    const cost2 = newState.ruleset === "ygoHybrid" ? 0 : 1;
-    if (!canSpendAp(newState, cost2)) return state;
+    const cost = newState.ruleset === "ygoHybrid" ? 0 : 1;
+    if (!canSpendAp(newState, cost)) return state;
     const slotIndex = side.field.findIndex((s) => s === null);
     if (slotIndex === -1) {
       addLog(newState, "\u274C Field is full! Max 4 cards.", "info");
@@ -9431,7 +9446,7 @@ function playCard(state, handIndex) {
     }
     side.field[slotIndex] = fc;
     side.hand.splice(handIndex, 1);
-    spendAp(newState, cost2);
+    spendAp(newState, cost);
     if (newState.ruleset === "ygoHybrid") side.normalSummonUsed = true;
     const sideLabel = newState.turn === "player" ? "You" : "Enemy";
     addLog(newState, `\u{1F0CF} ${sideLabel} played ${card.name} to the field!`, "info");
@@ -9448,8 +9463,8 @@ function playCard(state, handIndex) {
     return maybeAutoEndTurn(recalcFieldStats(newState));
   }
   if (card.type === "trap") {
-    const cost2 = newState.ruleset === "ygoHybrid" ? 0 : 1;
-    if (!canSpendAp(newState, cost2)) return state;
+    const cost = newState.ruleset === "ygoHybrid" ? 0 : 1;
+    if (!canSpendAp(newState, cost)) return state;
     const trapSlot = side.traps.findIndex((s) => s === null);
     if (trapSlot === -1) {
       addLog(newState, "\u274C Trap slots full! Max 2 traps.", "info");
@@ -9457,7 +9472,7 @@ function playCard(state, handIndex) {
     }
     side.traps[trapSlot] = { card, faceDown: true };
     side.hand.splice(handIndex, 1);
-    spendAp(newState, cost2);
+    spendAp(newState, cost);
     const sideLabel = newState.turn === "player" ? "You" : "Enemy";
     addLog(newState, `\u{1FAA4} ${sideLabel} set a trap face-down!`, "trap");
     return maybeAutoEndTurn(newState);
@@ -9471,15 +9486,15 @@ function equipWeapon(state, handIndex, fieldIndex) {
   const card = side.hand[handIndex];
   const target = side.field[fieldIndex];
   if (!card || card.type !== "weapon" || !target) return state;
-  const cost2 = newState.ruleset === "ygoHybrid" ? 0 : 1;
-  if (!canSpendAp(newState, cost2)) return state;
+  const cost = newState.ruleset === "ygoHybrid" ? 0 : 1;
+  if (!canSpendAp(newState, cost)) return state;
   if (target.equippedWeapon) {
     addLog(newState, "\u274C This card already has a weapon equipped!", "info");
     return state;
   }
   target.equippedWeapon = card;
   side.hand.splice(handIndex, 1);
-  spendAp(newState, cost2);
+  spendAp(newState, cost);
   const sideLabel = newState.turn === "player" ? "You" : "Enemy";
   addLog(newState, `\u2694\uFE0F ${sideLabel} equipped ${card.name} to ${target.card.name}! (+${card.weaponBonus?.attack || 0} ATK, +${card.weaponBonus?.defense || 0} DEF)`, "weapon");
   return maybeAutoEndTurn(recalcFieldStats(newState));
@@ -10500,7 +10515,7 @@ function performAITurnLegacyOneStep(state) {
   const difficulty = s.aiDifficulty ?? "normal";
   if (s.phase === "game-over") return s;
   if (s.turn !== "enemy") return s;
-  if (s.enemy.ap <= 0) return s;
+  if (s.ruleset !== "ygoHybrid" && s.enemy.ap <= 0) return s;
   const side = s.enemy;
   if (difficulty === "easy") {
     const playableCards = side.hand.map((c, idx) => ({ c, idx }));
@@ -10581,8 +10596,10 @@ function performAITurnLegacyOneStep(state) {
   return s;
 }
 function performAITurn(state) {
+  const pre = checkWinCondition(deepCopy(state));
+  if (pre.phase === "game-over") return pre;
   if (state.ruleset === "ygoHybrid") {
-    let s2 = state;
+    let s2 = pre;
     const MAX_STEPS = 10;
     for (let i = 0; i < MAX_STEPS; i++) {
       if (s2.phase === "game-over") return s2;
@@ -10929,6 +10946,8 @@ function applyBattleLockstepIntent(state, intent) {
       return activateAbility(state, intent.fieldIndex);
     case "end-turn":
       return endTurnAction(state);
+    case "pass-response":
+      return passResponseWindow(state);
     default:
       return state;
   }
@@ -10942,11 +10961,13 @@ function replayBattleFromActions(seed, deckA, deckB, actions) {
 }
 function toViewerBattleState(state, viewerIsA) {
   if (viewerIsA) return state;
+  const flippedResponder = state.responseWindow?.responder === "player" ? "enemy" : state.responseWindow?.responder === "enemy" ? "player" : state.responseWindow?.responder;
   return {
     ...state,
     player: state.enemy,
     enemy: state.player,
     turn: state.turn === "enemy" ? "player" : "enemy",
+    responseWindow: state.responseWindow ? { ...state.responseWindow, responder: flippedResponder ?? state.responseWindow.responder } : null,
     winner: state.winner === "player" ? "enemy" : state.winner === "enemy" ? "player" : state.winner,
     activeSynergies: {
       player: state.activeSynergies.enemy,

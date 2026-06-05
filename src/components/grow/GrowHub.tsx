@@ -16,6 +16,8 @@ import {
   getNextLoginDay,
 } from "@/lib/dailyEngine";
 import { getRewardsForPath } from "@/lib/dailyPathRewards";
+import { getCardById } from "@/data/cardIndex";
+import RewardTileArt from "@/components/rewards/RewardTileArt";
 import { api } from "@/lib/apiClient";
 import { mergeClientOnlyPlayerState, normalizePlayerState } from "@/lib/playerState";
 import { mapDailyPreviewToRewards, type DailyClaimPreview } from "@/lib/dailyClaimPreview";
@@ -102,19 +104,6 @@ export default function GrowHub(props: {
   const pathRewards = getRewardsForPath(playerState.selectedPath ?? null);
   const claimedDays = daily.claimedDays ?? [];
   const nextDay = getNextLoginDay(daily);
-  const rewardIcons: Record<string, string> = {
-    gold: "💰",
-    stardust: "✨",
-    pack: "🎁",
-    card: "🃏",
-  };
-  const rewardPath = pathRewards.map((r) => ({
-    day: r.day,
-    icon: rewardIcons[r.type] ?? "🎁",
-    name: r.label,
-    unlocked: claimedDays.includes(r.day),
-    current: !claimedToday && nextDay === r.day,
-  }));
   const chestReady = canClaimChest(playerState);
   const chestRemaining = chestTimeRemaining(playerState);
 
@@ -339,38 +328,45 @@ export default function GrowHub(props: {
         <div className="panel-gold p-5 relative">
           <div className="corner-deco absolute inset-0" />
           <div className="grid grid-cols-7 gap-3 relative z-10">
-            {rewardPath.map((r) => (
-              <div
-                key={r.day}
-                data-testid={`reward-day-${r.day}`}
-                className="relative flex flex-col items-center gap-2 p-3 rounded-lg transition"
-                style={{
-                  background: r.current
-                    ? "linear-gradient(180deg, rgba(245,200,66,0.12), rgba(212,175,55,0.04))"
-                    : r.unlocked
-                      ? "linear-gradient(180deg, rgba(22,15,8,0.9), rgba(10,6,3,0.9))"
-                      : "linear-gradient(180deg, rgba(15,10,6,0.6), rgba(8,5,3,0.6))",
-                  border: r.current
-                    ? "1.5px solid #f5c842"
-                    : r.unlocked
-                      ? "1px solid rgba(212,175,55,0.35)"
-                      : "1px dashed rgba(212,175,55,0.15)",
-                  boxShadow: r.current ? "0 0 22px rgba(245,200,66,0.5)" : "none",
-                  opacity: r.unlocked ? 1 : 0.5,
-                }}
-              >
-                <div className="font-stat text-[10px] tracking-[0.25em] text-[#c9a74a]">DAY {r.day}</div>
-                <div className="text-3xl">{r.icon}</div>
-                <div className="font-heading text-xs text-[#f8e4a1] text-center leading-tight">{r.name}</div>
-                {r.unlocked ? (
-                  <div className="font-stat text-[9px] tracking-[0.2em] text-[#4CAF50]">CLAIMED</div>
-                ) : r.current ? (
-                  <div className="font-stat text-[9px] tracking-[0.2em] text-[#f5c842]">TODAY</div>
-                ) : (
-                  <div className="font-stat text-[9px] tracking-[0.2em] text-[#7e6a2e]">LOCKED</div>
-                )}
-              </div>
-            ))}
+            {pathRewards.map((r) => {
+              const unlocked = claimedDays.includes(r.day);
+              const current = !claimedToday && nextDay === r.day;
+              const cardInfo = r.type === "card" && r.cardId ? getCardById(r.cardId) : null;
+              return (
+                <div
+                  key={r.day}
+                  data-testid={`reward-day-${r.day}`}
+                  className="relative flex flex-col items-center gap-2 p-3 rounded-lg transition"
+                  style={{
+                    background: current
+                      ? "linear-gradient(180deg, rgba(245,200,66,0.12), rgba(212,175,55,0.04))"
+                      : unlocked
+                        ? "linear-gradient(180deg, rgba(22,15,8,0.9), rgba(10,6,3,0.9))"
+                        : "linear-gradient(180deg, rgba(15,10,6,0.6), rgba(8,5,3,0.6))",
+                    border: current
+                      ? "1.5px solid #f5c842"
+                      : unlocked
+                        ? "1px solid rgba(212,175,55,0.35)"
+                        : "1px dashed rgba(212,175,55,0.15)",
+                    boxShadow: current ? "0 0 22px rgba(245,200,66,0.5)" : "none",
+                    opacity: unlocked ? 1 : 0.55,
+                  }}
+                >
+                  <div className="font-stat text-[10px] tracking-[0.25em] text-[#c9a74a]">DAY {r.day}</div>
+                  <div className="relative h-16 w-16 overflow-hidden rounded-lg">
+                    <RewardTileArt r={r} cardInfo={cardInfo} />
+                  </div>
+                  <div className="font-heading text-xs text-[#f8e4a1] text-center leading-tight">{r.label}</div>
+                  {unlocked ? (
+                    <div className="font-stat text-[9px] tracking-[0.2em] text-[#4CAF50]">CLAIMED</div>
+                  ) : current ? (
+                    <div className="font-stat text-[9px] tracking-[0.2em] text-[#f5c842]">TODAY</div>
+                  ) : (
+                    <div className="font-stat text-[9px] tracking-[0.2em] text-[#7e6a2e]">LOCKED</div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       </section>

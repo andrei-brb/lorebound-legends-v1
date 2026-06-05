@@ -22,6 +22,7 @@ import {
   activateTrapFromResponseWindow,
   activateQuickSpellFromResponseWindow,
   resolveAiResponseWindow,
+  finalizeBattleState,
 } from "@/lib/battleEngine";
 import { getOneEffectForCard } from "@/lib/cardOneEffect";
 import {
@@ -333,6 +334,14 @@ export default function BattleArena({
     return () => window.clearTimeout(t);
   }, [state, livePvP, animating]);
 
+  /** Safety net: hero HP at 0 must always end the battle (catches missed checkWinCondition paths). */
+  useEffect(() => {
+    if (livePvP || !state || state.phase === "game-over") return;
+    if (state.enemy.hp <= 0 || state.player.hp <= 0) {
+      setSoloState((prev) => (prev ? finalizeBattleState(prev) : prev));
+    }
+  }, [state?.enemy.hp, state?.player.hp, state?.phase, livePvP]);
+
   useEffect(() => {
     if (!state) return;
     const last = state.logs[state.logs.length - 1];
@@ -367,9 +376,14 @@ export default function BattleArena({
     setSoloState((prev) => {
       if (!prev) return prev;
       let s = prev;
-      if (s.ruleset === "ygoHybrid" && s.responseWindow?.responder === "enemy") {
+      // Open response windows block phase advance — resolve before continuing.
+      if (s.responseWindow?.responder === "enemy") {
         s = resolveAiResponseWindow(s);
+      } else if (s.responseWindow?.responder === "player") {
+        s = passResponseWindow(s);
       }
+      s = finalizeBattleState(s);
+      if (s.phase === "game-over") return s;
       return endTurnAction(s);
     });
     setActionMode("none");

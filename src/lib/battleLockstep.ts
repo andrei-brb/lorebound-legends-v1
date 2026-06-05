@@ -12,6 +12,7 @@ import {
   simulateBattle,
   generateEnemyDeck,
   createSeededRng,
+  passResponseWindow,
 } from "./battleEngine";
 
 export { simulateBattle, generateEnemyDeck, createSeededRng };
@@ -64,7 +65,8 @@ export type BattleLockstepIntent =
   | { kind: "cast-spell"; handIndex: number; targetFieldIndex?: number }
   | { kind: "attack"; attackerFieldIndex: number; targetFieldIndex: number | "direct" }
   | { kind: "ability"; fieldIndex: number }
-  | { kind: "end-turn" };
+  | { kind: "end-turn" }
+  | { kind: "pass-response" };
 
 export function applyBattleLockstepIntent(state: BattleState, intent: BattleLockstepIntent): BattleState {
   switch (intent.kind) {
@@ -80,6 +82,8 @@ export function applyBattleLockstepIntent(state: BattleState, intent: BattleLock
       return activateAbility(state, intent.fieldIndex);
     case "end-turn":
       return endTurnAction(state);
+    case "pass-response":
+      return passResponseWindow(state);
     default:
       return state;
   }
@@ -104,11 +108,20 @@ export function replayBattleFromActions(
  */
 export function toViewerBattleState(state: BattleState, viewerIsA: boolean): BattleState {
   if (viewerIsA) return state;
+  const flippedResponder =
+    state.responseWindow?.responder === "player"
+      ? ("enemy" as const)
+      : state.responseWindow?.responder === "enemy"
+        ? ("player" as const)
+        : state.responseWindow?.responder;
   return {
     ...state,
     player: state.enemy,
     enemy: state.player,
     turn: state.turn === "enemy" ? "player" : "enemy",
+    responseWindow: state.responseWindow
+      ? { ...state.responseWindow, responder: flippedResponder ?? state.responseWindow.responder }
+      : null,
     winner:
       state.winner === "player"
         ? "enemy"

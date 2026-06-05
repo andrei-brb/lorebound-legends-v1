@@ -20,6 +20,7 @@ import { PACK_DEFINITIONS, pullCards } from "@/lib/gachaEngine";
 import { openMysteryBox } from "@/lib/dailyEngine";
 import { mapDailyPreviewToRewards, type DailyClaimPreview } from "@/lib/dailyClaimPreview";
 import BoosterPackArt from "@/components/summon/BoosterPackArt";
+import RewardTileArt from "@/components/rewards/RewardTileArt";
 import RewardPopup, { type RewardItem } from "@/components/battle3d/RewardPopup";
 
 interface Props {
@@ -27,36 +28,6 @@ interface Props {
   onStateChange: (s: PlayerState) => void;
   isOnline?: boolean;
   claimDailyLogin?: () => Promise<{ preview: DailyClaimPreview; state: PlayerState } | null>;
-}
-
-function RewardTileArt({ r, cardInfo }: { r: DayRewardDef; cardInfo?: GameCard | null }) {
-  if (r.type === "gold") {
-    return (
-      <div className="flex flex-col items-center justify-center gap-1 p-2">
-        <GoldCurrencyIcon className="w-10 h-10 drop-shadow-md" />
-        <span className="font-heading text-sm text-[hsl(var(--legendary))]">{r.amount}</span>
-      </div>
-    );
-  }
-  if (r.type === "stardust") {
-    return (
-      <div className="flex flex-col items-center justify-center gap-1 p-2">
-        <StardustCurrencyIcon className="w-10 h-10 drop-shadow-md" />
-        <span className="font-heading text-sm text-[hsl(var(--rare))]">{r.amount}</span>
-      </div>
-    );
-  }
-  if (r.type === "pack") {
-    return (
-      <div className="flex h-full w-full items-center justify-center p-2">
-        <BoosterPackArt variant="bronze" size="sm" />
-      </div>
-    );
-  }
-  if (cardInfo?.image) {
-    return <img src={cardInfo.image} alt={cardInfo.name} className="w-full h-full object-cover rounded-xl opacity-80" />;
-  }
-  return null;
 }
 
 export default function DailyHall({ playerState, onStateChange, isOnline, claimDailyLogin }: Props) {

@@ -331,10 +331,11 @@ export function inferAbilityEffect(card: GameCard): AbilityEffect {
   if (/ignores?\s+(\d+)%\s+defense|ignoring defense|ignore defense|bypass/i.test(d)) {
     const n = damageNumber(d) ?? firstInt(d);
     const frac = /50%/.test(d) ? 0.5 : /ignoring defense/i.test(d) ? 1 : 0.25;
+    const apCost = card.specialAbility.cost ?? 3;
     return {
       kind: "damage_single",
       target: "highest_hp",
-      value: n ?? Math.max(2, Math.round(card.attack * 1.2 + cost)),
+      value: n ?? Math.max(2, Math.round(card.attack * 1.2 + apCost)),
       ignoreDefenseFrac: frac,
     };
   }

@@ -11,6 +11,7 @@ import {
   generateEnemyDeck,
   endTurnAction,
   passResponseWindow,
+  finalizeBattleState,
   type BattleState,
 } from "@/lib/battleEngine";
 
@@ -126,6 +127,16 @@ function runOneBattle(seedLabel: string): BattleState {
 }
 
 describe("battleEngine simulation", () => {
+  it("ends battle immediately when enemy hero HP reaches 0", () => {
+    const playerDeck = pickPlayerDeck(10);
+    const enemyDeck = generateEnemyDeck(10);
+    let state = initBattle(playerDeck, enemyDeck, { ruleset: "ygoHybrid" });
+    state.enemy.hp = 0;
+    state = finalizeBattleState(state);
+    expect(state.phase).toBe("game-over");
+    expect(state.winner).toBe("player");
+  });
+
   it("runs a full battle to completion (sample)", () => {
     const finalState = runOneBattle("sample-1");
     expect(finalState.phase).toBe("game-over");

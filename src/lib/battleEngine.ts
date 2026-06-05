@@ -409,6 +409,7 @@ function tryPlaceToken(
     }
     otherSide.hp = Math.max(0, otherSide.hp - dmg);
     addLog(state, `🪶 ${base.name} enters and strikes directly for ${raw}!`, "token");
+    checkWinCondition(state);
   } else {
     enemies.sort((a, b) => a.fc.currentHp - b.fc.currentHp);
     const { fc: target, i: idx } = enemies[0];
@@ -470,6 +471,7 @@ function processTokenAutoStrikes(state: BattleState, side: PlayerSide, otherSide
         "token",
         { source: tok.name, ruleTag: "token_strike" },
       );
+      checkWinCondition(state);
       continue;
     }
     enemies.sort((a, b) => a.fc.currentHp - b.fc.currentHp);
@@ -597,6 +599,8 @@ export function startTurn(state: BattleState): BattleState {
 
   applyWeaponTurnStartPassives(state, side);
   processTokenAutoStrikes(state, side, otherSide);
+  checkWinCondition(state);
+  if (state.phase === "game-over") return state;
 
   state.turnPhase = "main";
 
@@ -644,7 +648,8 @@ function maybeAutoEndTurn(state: BattleState): BattleState {
 }
 
 export function endTurnAction(state: BattleState): BattleState {
-  const newState = deepCopy(state);
+  const newState = checkWinCondition(deepCopy(state));
+  if (newState.phase === "game-over") return newState;
   if (newState.ruleset === "ygoHybrid") {
     return advancePhase(newState);
   }
@@ -711,6 +716,11 @@ function checkWinCondition(state: BattleState): BattleState {
   return state;
 }
 
+/** Public alias — call after any action that may reduce hero HP to 0. */
+export function finalizeBattleState(state: BattleState): BattleState {
+  return checkWinCondition(deepCopy(state));
+}
+
 // =================== Phase Control (ygoHybrid) ===================
 
 function applyHandCap7(state: BattleState, side: PlayerSide): void {
@@ -752,12 +762,12 @@ export function advancePhase(state: BattleState): BattleState {
     case "main": {
       s.turnPhase = "battle";
       addLog(s, `⚔️ ${sideLabel} enters Battle Phase.`, "info", { ruleTag: "ygo_phase" });
-      return s;
+      return checkWinCondition(s);
     }
     case "battle": {
       s.turnPhase = "end";
       addLog(s, `🏁 ${sideLabel} enters End Phase.`, "info", { ruleTag: "ygo_phase" });
-      return s;
+      return checkWinCondition(s);
     }
     case "end": {
       // Reuse existing endTurn logic to flip turn + cleanup, then we will be in draw.
@@ -950,6 +960,15 @@ export function activateTrapFromResponseWindow(state: BattleState, trapIndex: nu
         casterCards[0].stunTurnsRemaining = effect.duration ?? 1;
         addLog(s, `🪤 ${responderLabel} activated ${trap.card.name}! ${casterCards[0].card.name} is stunned!`, "trap");
       }
+    } else if (effect.effect === "reflect_damage") {
+      let dmg = effect.value;
+      if (actingSide.shield > 0) {
+        const abs = Math.min(actingSide.shield, dmg);
+        actingSide.shield -= abs;
+        dmg -= abs;
+      }
+      actingSide.hp = Math.max(0, actingSide.hp - dmg);
+      addLog(s, `🪤 ${responderLabel} activated ${trap.card.name}! Reflects ${effect.value} damage to the caster!`, "trap");
     } else if (effect.effect === "shield") {
       responderSide.shield += effect.value;
       addLog(s, `🪤 ${responderLabel} activated ${trap.card.name}! +${effect.value} shield.`, "trap");
@@ -2363,7 +2382,7 @@ function performAITurnLegacyOneStep(state: BattleState): BattleState {
   const difficulty = s.aiDifficulty ?? "normal";
   if (s.phase === "game-over") return s;
   if (s.turn !== "enemy") return s;
-  if (s.enemy.ap <= 0) return s;
+  if (s.ruleset !== "ygoHybrid" && s.enemy.ap <= 0) return s;
 
   const side = s.enemy;
 
@@ -2468,9 +2487,12 @@ function performAITurnLegacyOneStep(state: BattleState): BattleState {
 }
 
 export function performAITurn(state: BattleState): BattleState {
+  const pre = checkWinCondition(deepCopy(state));
+  if (pre.phase === "game-over") return pre;
+
   // ygoHybrid: AI advances phases when stuck (Main → Battle → End → turn switch).
   if (state.ruleset === "ygoHybrid") {
-    let s = state;
+    let s = pre;
     const MAX_STEPS = 10;
     for (let i = 0; i < MAX_STEPS; i++) {
       if (s.phase === "game-over") return s;
