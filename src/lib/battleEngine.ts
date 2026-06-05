@@ -2086,8 +2086,10 @@ function applyResolvedAbility(
             const ally = side.field[i];
             if (!ally) continue;
             ally.currentHp = Math.min(ally.maxHp, ally.currentHp + e.value);
+            if (e.curePoison && ally.poison) delete ally.poison;
           }
-          addLog(newState, `✨ ${fc.card.name} uses ${ability.name}! Heals all allies for ${e.value} HP.`, "ability");
+          const cureMsg = e.curePoison ? " and cures poison" : "";
+          addLog(newState, `✨ ${fc.card.name} uses ${ability.name}! Heals all allies for ${e.value} HP${cureMsg}.`, "ability");
         } else {
           const ai = pickAllyFieldIndex(side.field, "lowest", fieldIndex);
           if (ai >= 0 && side.field[ai]) {
@@ -2219,6 +2221,18 @@ function applyResolvedAbility(
         addLog(
           newState,
           `✨ ${fc.card.name} uses ${ability.name}! Poisons ${t.card.name} (${e.damagePerTurn}/turn, ${e.duration} turns).`,
+          "ability",
+        );
+        break;
+      }
+      case "poison_all_enemies": {
+        for (const t of otherSide.field) {
+          if (!t) continue;
+          t.poison = { damagePerTurn: e.damagePerTurn, turnsRemaining: e.duration };
+        }
+        addLog(
+          newState,
+          `✨ ${fc.card.name} uses ${ability.name}! Poisons all enemies (${e.damagePerTurn}/turn, ${e.duration} turns).`,
           "ability",
         );
         break;

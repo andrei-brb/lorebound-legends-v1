@@ -107,11 +107,121 @@ export function inferAbilityEffect(card: GameCard): AbilityEffect {
     return steps.length === 1 ? steps[0]! : { kind: "sequence", steps };
   }
 
+  // --- Poison (DoT) ---
+  // "Poisons all enemies for 3 damage/turn for 2 turns."
+  const poisonAllSlash = d.match(/poisons?\s+all\s+enemies\s+for\s+(\d+)\s+damage\s*\/\s*turn\s+for\s+(\d+)\s*turn/i);
+  if (poisonAllSlash) {
+    return {
+      kind: "poison_all_enemies",
+      damagePerTurn: clamp(parseInt(poisonAllSlash[1], 10), 1, 20),
+      duration: clamp(parseInt(poisonAllSlash[2], 10), 1, 6),
+    };
+  }
+  const poisonAll = d.match(/poisons?\s+all\s+enemies\s+for\s+(\d+)\s+damage\s+per\s+turn\s+for\s+(\d+)\s*turn/i);
+  if (poisonAll) {
+    return {
+      kind: "poison_all_enemies",
+      damagePerTurn: clamp(parseInt(poisonAll[1], 10), 1, 20),
+      duration: clamp(parseInt(poisonAll[2], 10), 1, 6),
+    };
+  }
+
+  // Volley + poison on last hit (myth-thalwen)
+  const volleyPoisonNum = d.match(
+    /(\d+)\s+(?:glowing\s+)?arrows?:\s*(\d+)\s+damage each.*?poison.*?\((\d+)\s*dmg\/turn\s+for\s+(\d+)\s*turn/i,
+  );
+  if (volleyPoisonNum) {
+    return {
+      kind: "sequence",
+      steps: [
+        {
+          kind: "damage_multi",
+          hits: clamp(parseInt(volleyPoisonNum[1], 10), 1, 6),
+          damageEach: clamp(parseInt(volleyPoisonNum[2], 10), 1, 25),
+          randomTargets: false,
+        },
+        {
+          kind: "poison_enemy",
+          which: "highest_hp",
+          damagePerTurn: clamp(parseInt(volleyPoisonNum[3], 10), 1, 20),
+          duration: clamp(parseInt(volleyPoisonNum[4], 10), 1, 6),
+        },
+      ],
+    };
+  }
+  const volleyPoisonWord = d.match(
+    /three\s+(?:glowing\s+)?arrows?:\s*(\d+)\s+damage each.*?poison.*?\((\d+)\s*dmg\/turn\s+for\s+(\d+)\s*turn/i,
+  );
+  if (volleyPoisonWord) {
+    return {
+      kind: "sequence",
+      steps: [
+        {
+          kind: "damage_multi",
+          hits: 3,
+          damageEach: clamp(parseInt(volleyPoisonWord[1], 10), 1, 25),
+          randomTargets: false,
+        },
+        {
+          kind: "poison_enemy",
+          which: "highest_hp",
+          damagePerTurn: clamp(parseInt(volleyPoisonWord[2], 10), 1, 20),
+          duration: clamp(parseInt(volleyPoisonWord[3], 10), 1, 6),
+        },
+      ],
+    };
+  }
+
+  // "Deals 4 damage and poisons for 2 damage per turn."
+  const dmgAndPoison = d.match(/deals?\s+(\d+)\s+damage\s+and\s+poisons?\s+for\s+(\d+)\s+damage\s+per\s+turn/i);
+  if (dmgAndPoison) {
+    const dmg = clamp(parseInt(dmgAndPoison[1], 10), 1, 25);
+    const per = clamp(parseInt(dmgAndPoison[2], 10), 1, 20);
+    const turns = (() => {
+      const tm = d.match(/for\s+(\d+)\s*turn/i);
+      return tm ? clamp(parseInt(tm[1], 10), 1, 6) : 2;
+    })();
+    return {
+      kind: "sequence",
+      steps: [
+        { kind: "damage_single", target: "highest_hp", value: dmg },
+        { kind: "poison_enemy", which: "highest_hp", damagePerTurn: per, duration: turns },
+      ],
+    };
+  }
+
+  // "Poisons one enemy, dealing 3 damage per turn for 3 turns."
+  const poisonOne = d.match(/poisons?\s+(?:one|the)\s+enemy.*?(\d+)\s+damage\s+per\s+turn\s+for\s+(\d+)\s*turn/i);
+  if (poisonOne) {
+    const which: AbilityTarget = /weakest|lowest/.test(d) ? "lowest_hp" : "highest_hp";
+    return {
+      kind: "poison_enemy",
+      which,
+      damagePerTurn: clamp(parseInt(poisonOne[1], 10), 1, 20),
+      duration: clamp(parseInt(poisonOne[2], 10), 1, 6),
+    };
+  }
+  const poisonPerTurn = d.match(/poisons?\s+for\s+(\d+)\s+damage\s+per\s+turn/i);
+  if (poisonPerTurn && /strongest|target|weakest|one enemy/.test(d)) {
+    const which: AbilityTarget = /weakest|lowest/.test(d) ? "lowest_hp" : "highest_hp";
+    const turns = (() => {
+      const tm = d.match(/for\s+(\d+)\s*turn/i);
+      return tm ? clamp(parseInt(tm[1], 10), 1, 6) : 2;
+    })();
+    return {
+      kind: "poison_enemy",
+      which,
+      damagePerTurn: clamp(parseInt(poisonPerTurn[1], 10), 1, 20),
+      duration: turns,
+    };
+  }
+
   // --- Composites (heal + something) ---
   const healAllMatch = d.match(/heals?\s+all\s+allies\s+for\s+(\d+)\s*hp/);
   if (healAllMatch) {
     const h = parseInt(healAllMatch[1], 10);
-    const steps: AbilityEffect[] = [{ kind: "heal", scope: "all_allies", value: h }];
+    const curePoison = /cures?\s+poison/i.test(d);
+    const steps: AbilityEffect[] = [{ kind: "heal", scope: "all_allies", value: h, curePoison: curePoison || undefined }];
     if (/invisibility|ethereal|barrier|defense/.test(d) && /grants?|granting|\+(\d+)\s*def/.test(d)) {
       const dm = d.match(/\+(\d+)\s*def/i);
       steps.push({ kind: "buff_allies", stat: "defense", value: dm ? parseInt(dm[1], 10) : 2, duration: 2 });

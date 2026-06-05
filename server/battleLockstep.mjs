@@ -8371,10 +8371,111 @@ function inferAbilityEffect(card) {
     steps.push({ kind: "burn_enemy", which, damagePerTurn: per, duration: turns });
     return steps.length === 1 ? steps[0] : { kind: "sequence", steps };
   }
+  const poisonAllSlash = d.match(/poisons?\s+all\s+enemies\s+for\s+(\d+)\s+damage\s*\/\s*turn\s+for\s+(\d+)\s*turn/i);
+  if (poisonAllSlash) {
+    return {
+      kind: "poison_all_enemies",
+      damagePerTurn: clamp(parseInt(poisonAllSlash[1], 10), 1, 20),
+      duration: clamp(parseInt(poisonAllSlash[2], 10), 1, 6)
+    };
+  }
+  const poisonAll = d.match(/poisons?\s+all\s+enemies\s+for\s+(\d+)\s+damage\s+per\s+turn\s+for\s+(\d+)\s*turn/i);
+  if (poisonAll) {
+    return {
+      kind: "poison_all_enemies",
+      damagePerTurn: clamp(parseInt(poisonAll[1], 10), 1, 20),
+      duration: clamp(parseInt(poisonAll[2], 10), 1, 6)
+    };
+  }
+  const volleyPoisonNum = d.match(
+    /(\d+)\s+(?:glowing\s+)?arrows?:\s*(\d+)\s+damage each.*?poison.*?\((\d+)\s*dmg\/turn\s+for\s+(\d+)\s*turn/i
+  );
+  if (volleyPoisonNum) {
+    return {
+      kind: "sequence",
+      steps: [
+        {
+          kind: "damage_multi",
+          hits: clamp(parseInt(volleyPoisonNum[1], 10), 1, 6),
+          damageEach: clamp(parseInt(volleyPoisonNum[2], 10), 1, 25),
+          randomTargets: false
+        },
+        {
+          kind: "poison_enemy",
+          which: "highest_hp",
+          damagePerTurn: clamp(parseInt(volleyPoisonNum[3], 10), 1, 20),
+          duration: clamp(parseInt(volleyPoisonNum[4], 10), 1, 6)
+        }
+      ]
+    };
+  }
+  const volleyPoisonWord = d.match(
+    /three\s+(?:glowing\s+)?arrows?:\s*(\d+)\s+damage each.*?poison.*?\((\d+)\s*dmg\/turn\s+for\s+(\d+)\s*turn/i
+  );
+  if (volleyPoisonWord) {
+    return {
+      kind: "sequence",
+      steps: [
+        {
+          kind: "damage_multi",
+          hits: 3,
+          damageEach: clamp(parseInt(volleyPoisonWord[1], 10), 1, 25),
+          randomTargets: false
+        },
+        {
+          kind: "poison_enemy",
+          which: "highest_hp",
+          damagePerTurn: clamp(parseInt(volleyPoisonWord[2], 10), 1, 20),
+          duration: clamp(parseInt(volleyPoisonWord[3], 10), 1, 6)
+        }
+      ]
+    };
+  }
+  const dmgAndPoison = d.match(/deals?\s+(\d+)\s+damage\s+and\s+poisons?\s+for\s+(\d+)\s+damage\s+per\s+turn/i);
+  if (dmgAndPoison) {
+    const dmg = clamp(parseInt(dmgAndPoison[1], 10), 1, 25);
+    const per = clamp(parseInt(dmgAndPoison[2], 10), 1, 20);
+    const turns = (() => {
+      const tm = d.match(/for\s+(\d+)\s*turn/i);
+      return tm ? clamp(parseInt(tm[1], 10), 1, 6) : 2;
+    })();
+    return {
+      kind: "sequence",
+      steps: [
+        { kind: "damage_single", target: "highest_hp", value: dmg },
+        { kind: "poison_enemy", which: "highest_hp", damagePerTurn: per, duration: turns }
+      ]
+    };
+  }
+  const poisonOne = d.match(/poisons?\s+(?:one|the)\s+enemy.*?(\d+)\s+damage\s+per\s+turn\s+for\s+(\d+)\s*turn/i);
+  if (poisonOne) {
+    const which = /weakest|lowest/.test(d) ? "lowest_hp" : "highest_hp";
+    return {
+      kind: "poison_enemy",
+      which,
+      damagePerTurn: clamp(parseInt(poisonOne[1], 10), 1, 20),
+      duration: clamp(parseInt(poisonOne[2], 10), 1, 6)
+    };
+  }
+  const poisonPerTurn = d.match(/poisons?\s+for\s+(\d+)\s+damage\s+per\s+turn/i);
+  if (poisonPerTurn && /strongest|target|weakest|one enemy/.test(d)) {
+    const which = /weakest|lowest/.test(d) ? "lowest_hp" : "highest_hp";
+    const turns = (() => {
+      const tm = d.match(/for\s+(\d+)\s*turn/i);
+      return tm ? clamp(parseInt(tm[1], 10), 1, 6) : 2;
+    })();
+    return {
+      kind: "poison_enemy",
+      which,
+      damagePerTurn: clamp(parseInt(poisonPerTurn[1], 10), 1, 20),
+      duration: turns
+    };
+  }
   const healAllMatch = d.match(/heals?\s+all\s+allies\s+for\s+(\d+)\s*hp/);
   if (healAllMatch) {
     const h = parseInt(healAllMatch[1], 10);
-    const steps = [{ kind: "heal", scope: "all_allies", value: h }];
+    const curePoison = /cures?\s+poison/i.test(d);
+    const steps = [{ kind: "heal", scope: "all_allies", value: h, curePoison: curePoison || void 0 }];
     if (/invisibility|ethereal|barrier|defense/.test(d) && /grants?|granting|\+(\d+)\s*def/.test(d)) {
       const dm = d.match(/\+(\d+)\s*def/i);
       steps.push({ kind: "buff_allies", stat: "defense", value: dm ? parseInt(dm[1], 10) : 2, duration: 2 });
@@ -10247,8 +10348,10 @@ function applyResolvedAbility(newState, fc, fieldIndex, effect) {
             const ally = side.field[i];
             if (!ally) continue;
             ally.currentHp = Math.min(ally.maxHp, ally.currentHp + e.value);
+            if (e.curePoison && ally.poison) delete ally.poison;
           }
-          addLog(newState, `\u2728 ${fc.card.name} uses ${ability.name}! Heals all allies for ${e.value} HP.`, "ability");
+          const cureMsg = e.curePoison ? " and cures poison" : "";
+          addLog(newState, `\u2728 ${fc.card.name} uses ${ability.name}! Heals all allies for ${e.value} HP${cureMsg}.`, "ability");
         } else {
           const ai = pickAllyFieldIndex(side.field, "lowest", fieldIndex);
           if (ai >= 0 && side.field[ai]) {
@@ -10380,6 +10483,18 @@ function applyResolvedAbility(newState, fc, fieldIndex, effect) {
         addLog(
           newState,
           `\u2728 ${fc.card.name} uses ${ability.name}! Poisons ${t.card.name} (${e.damagePerTurn}/turn, ${e.duration} turns).`,
+          "ability"
+        );
+        break;
+      }
+      case "poison_all_enemies": {
+        for (const t of otherSide.field) {
+          if (!t) continue;
+          t.poison = { damagePerTurn: e.damagePerTurn, turnsRemaining: e.duration };
+        }
+        addLog(
+          newState,
+          `\u2728 ${fc.card.name} uses ${ability.name}! Poisons all enemies (${e.damagePerTurn}/turn, ${e.duration} turns).`,
           "ability"
         );
         break;

@@ -22,7 +22,7 @@ export type AbilityEffect =
   | { kind: "damage_aoe"; value: number; debuff?: AbilityDebuff }
   /** Volley / meteors: N separate hits */
   | { kind: "damage_multi"; hits: number; damageEach: number; randomTargets?: boolean }
-  | { kind: "heal"; scope: "self" | "all_allies" | "lowest_ally"; value: number }
+  | { kind: "heal"; scope: "self" | "all_allies" | "lowest_ally"; value: number; curePoison?: boolean }
   | { kind: "buff_allies"; stat: "attack" | "defense"; value: number; duration: number }
   | { kind: "buff_self"; stat: "attack" | "defense"; value: number; duration: number }
   | { kind: "debuff_all_enemies"; stat: "attack" | "defense"; value: number; duration: number }
@@ -34,6 +34,7 @@ export type AbilityEffect =
   | { kind: "revive_from_graveyard"; hpPercent: number }
   | { kind: "taunt_self"; duration: number }
   | { kind: "poison_enemy"; which: AbilityTarget; damagePerTurn: number; duration: number }
+  | { kind: "poison_all_enemies"; damagePerTurn: number; duration: number }
   | { kind: "burn_enemy"; which: AbilityTarget; damagePerTurn: number; duration: number }
   | { kind: "burn_all_enemies"; damagePerTurn: number; duration: number }
   | { kind: "blind_enemy"; which: AbilityTarget; missChance: number; duration: number }

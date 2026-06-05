@@ -25,6 +25,7 @@ const ABILITY_KINDS = new Set([
   "revive_from_graveyard",
   "taunt_self",
   "poison_enemy",
+  "poison_all_enemies",
   "burn_enemy",
   "burn_all_enemies",
   "blind_enemy",
