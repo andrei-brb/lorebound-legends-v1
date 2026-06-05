@@ -5,7 +5,6 @@
 import { describe, it, expect } from "vitest";
 import { allGameCards } from "@/data/cardIndex";
 import { resolveAbilityEffect } from "@/lib/abilityInference";
-import { getOneEffectForCard } from "@/lib/cardOneEffect";
 import type { AbilityEffect } from "@/lib/abilityEffectTypes";
 
 function flatten(e: AbilityEffect): AbilityEffect[] {
@@ -20,8 +19,6 @@ describe("ability activation audit (diagnostic)", () => {
     const genericScaled: string[] = [];
     const poisonTextNoPoison: string[] = [];
     const explicitRules: string[] = [];
-    const soloActivateConflict: string[] = [];
-
     for (const card of units) {
       const resolved = resolveAbilityEffect(card);
       byKind[resolved.kind] = (byKind[resolved.kind] ?? 0) + 1;
@@ -36,9 +33,6 @@ describe("ability activation audit (diagnostic)", () => {
       if (/poison/i.test(desc) && !satisfiesPoisonText) poisonTextNoPoison.push(card.id);
 
       if (card.cardRules?.abilityEffect) explicitRules.push(card.id);
-
-      const oe = getOneEffectForCard(card);
-      if (oe?.timing === "activate") soloActivateConflict.push(card.id);
     }
 
     // Log for manual review (shown when test runs with --reporter=verbose)
@@ -48,7 +42,6 @@ describe("ability activation audit (diagnostic)", () => {
     console.log(`Resolved kinds:`, byKind);
     console.log(`generic_scaled fallback: ${genericScaled.length}`, genericScaled.slice(0, 20));
     console.log(`Poison in text but not resolved: ${poisonTextNoPoison.length}`, poisonTextNoPoison);
-    console.log(`Procedural activate timing (solo≠PvP path): ${soloActivateConflict.length}`);
 
     expect(units.length).toBeGreaterThan(0);
     // Legendaries must not use generic_scaled (enforced in cardRules.validation.test.ts)

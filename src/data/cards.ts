@@ -336,6 +336,15 @@ const godCards: GameCard[] = [
     attack: 14, defense: 15, hp: 43,
     tags: ["divine", "lunar", "healer"],
     specialAbility: { name: "Moonlight Veil", description: "Heals all allies for 4 HP and grants invisibility for 1 turn.", cost: 5 },
+    cardRules: {
+      abilityEffect: {
+        kind: "sequence",
+        steps: [
+          { kind: "heal", scope: "all_allies", value: 4 },
+          { kind: "shield_side", value: 8 },
+        ],
+      },
+    },
     passiveAbility: { name: "Moon's Grace", description: "+1 DEF to all healer cards on field", stat: "defense", value: 3, targetTag: "healer" },
     lore: "Lunara watches over the night, weaving silver threads of fate. Her tears became the moonstone gems scattered across the realm.",
     synergies: [
@@ -374,6 +383,7 @@ const godCards: GameCard[] = [
     attack: 14, defense: 16, hp: 47,
     tags: ["divine", "water", "olympus"],
     specialAbility: { name: "Tidal Wrath", description: "Summons a massive wave dealing 7 damage and pushing enemies back.", cost: 5 },
+    cardRules: { abilityEffect: { kind: "damage_aoe", value: 7 } },
     passiveAbility: { name: "Ocean's Blessing", description: "+1 DEF to all water cards on field", stat: "defense", value: 3, targetTag: "water" },
     lore: "Thalassia commands the endless depths. Ships pray to her for safe passage, knowing her fury drowns empires.",
     synergies: [
@@ -387,6 +397,15 @@ const godCards: GameCard[] = [
     attack: 14, defense: 16, hp: 50,
     tags: ["divine", "earth", "nature"],
     specialAbility: { name: "Primordial Growth", description: "Heals all allies for 6 HP and summons vine barriers.", cost: 5 },
+    cardRules: {
+      abilityEffect: {
+        kind: "sequence",
+        steps: [
+          { kind: "heal", scope: "all_allies", value: 6 },
+          { kind: "shield_side", value: 10 },
+        ],
+      },
+    },
     passiveAbility: { name: "Earth Shield", description: "+1 DEF to all nature cards on field", stat: "defense", value: 3, targetTag: "nature" },
     lore: "From Gaiara's body grew the first forests. She nurtures all living things, but her wrath shakes continents.",
     synergies: [
@@ -930,6 +949,15 @@ const heroCards: GameCard[] = [
     attack: 18, defense: 12, hp: 40,
     tags: ["dragon", "fire"],
     specialAbility: { name: "Inferno Breath", description: "Deals 8 fire damage to all enemies. Burns for 2 turns.", cost: 6 },
+    cardRules: {
+      abilityEffect: {
+        kind: "sequence",
+        steps: [
+          { kind: "damage_aoe", value: 8 },
+          { kind: "burn_all_enemies", damagePerTurn: 3, duration: 2 },
+        ],
+      },
+    },
     lore: "Born in volcanic Mount Ashkaar, Ignathar is the last ancient dragon seeking to protect the balance.",
     synergies: [
       { partnerId: "forest-druid", name: "Elemental Fusion", description: "Flames become healing fire, damaging foes while healing allies.", boostedStat: "attack", boostValue: 4 },

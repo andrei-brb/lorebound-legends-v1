@@ -12,7 +12,6 @@ import {
   castSpell,
   attackTarget,
   activateAbility,
-  activateOneEffect,
   performAITurn,
   generateEnemyDeck,
   endTurnAction,
@@ -24,7 +23,6 @@ import {
   resolveAiResponseWindow,
   finalizeBattleState,
 } from "@/lib/battleEngine";
-import { getOneEffectForCard } from "@/lib/cardOneEffect";
 import {
   replayBattleFromActions,
   toViewerBattleState,
@@ -129,8 +127,7 @@ type ActionMode =
   | "none"
   | "select-attack-target"
   | "select-equip-target"
-  | "select-spell-target"
-  | "select-effect-target";
+  | "select-spell-target";
 
 type Rect = { x: number; y: number; w: number; h: number };
 type FlyingCard = { id: number; img: string; name: string; from: Rect; to: Rect };
@@ -190,7 +187,6 @@ export default function BattleArena({
   const [actionMode, setActionMode] = useState<ActionMode>("none");
   const [selectedHandIndex, setSelectedHandIndex] = useState<number | null>(null);
   const [selectedFieldIndex, setSelectedFieldIndex] = useState<number | null>(null);
-  const [effectSourceFieldIndex, setEffectSourceFieldIndex] = useState<number | null>(null);
   const cardsPlayedRef = useRef(0);
   const rankedActionLogRef = useRef<BattleLockstepIntent[]>([]);
   const pveActionLogRef = useRef<BattleLockstepIntent[]>([]);
@@ -390,8 +386,6 @@ export default function BattleArena({
     setSelectedFieldIndex(null);
     setSelectedHandIndex(null);
   };
-
-  const canPlayerRespond = Boolean(state?.responseWindow && state.responseWindow.responder === "player");
 
   // Award rewards on game over (ranked MMR submit first when applicable)
   useEffect(() => {
@@ -761,16 +755,6 @@ export default function BattleArena({
         setActionMode("none");
         setSelectedHandIndex(null);
       }, 150);
-    } else if (actionMode === "select-effect-target" && side === "enemy" && effectSourceFieldIndex !== null) {
-      queueBattleIntent({ kind: "ability", fieldIndex: effectSourceFieldIndex });
-      setAnimating(true);
-      setTimeout(() => {
-        setSoloState((prev) => (prev ? activateOneEffect(prev, effectSourceFieldIndex, index) : prev));
-        setAnimating(false);
-        setActionMode("none");
-        setEffectSourceFieldIndex(null);
-        setSelectedFieldIndex(null);
-      }, 150);
     } else if (actionMode === "select-spell-target") {
       if (selectedHandIndex === null) return;
       const spell = state.player.hand[selectedHandIndex];
@@ -870,22 +854,12 @@ export default function BattleArena({
   const handleUseAbility = (fieldIndex: number) => {
     if (!state || animating) return;
     if (livePvP?.isSubmitting || livePvP?.spectator) return;
-    const unit = state.player.field[fieldIndex] ?? null;
-    const oneEff = unit ? getOneEffectForCard(unit.card) : null;
-    if (!livePvP && oneEff?.timing === "activate") {
-      if (oneEff.requiresTarget) {
-        setEffectSourceFieldIndex(fieldIndex);
-        setActionMode("select-effect-target");
-        return;
-      }
-      queueBattleIntent({ kind: "ability", fieldIndex });
-      setAnimating(true);
-      setTimeout(() => {
-        setSoloState((prev) => (prev ? activateOneEffect(prev, fieldIndex) : prev));
-        setAnimating(false);
-        setActionMode("none");
-        setSelectedFieldIndex(null);
-      }, 150);
+    if (state.ruleset === "ygoHybrid" && state.responseWindow) {
+      toast({
+        title: "Response window",
+        description: "Resolve the response window before activating abilities.",
+        variant: "destructive",
+      });
       return;
     }
     if (livePvP) {
@@ -1017,14 +991,14 @@ export default function BattleArena({
           : "Next Turn"
       : "End Turn";
 
+  const responseWindowActive = state.ruleset === "ygoHybrid" && Boolean(state.responseWindow);
   const selectedPlayerUnit = selectedFieldIndex != null ? state.player.field[selectedFieldIndex] : null;
   const selectedPlayerAbility = selectedPlayerUnit?.card.specialAbility ?? null;
-  const selectedPlayerOneEffect = selectedPlayerUnit ? getOneEffectForCard(selectedPlayerUnit.card) : null;
   const selectedPlayerAbilityCost = Math.max(1, Math.min(selectedPlayerAbility?.cost ?? 1, 6));
-  const selectedPlayerOneEffectHpCost = selectedPlayerOneEffect?.timing === "activate" ? (selectedPlayerOneEffect.hpCost ?? 6) : null;
   const canShowAbilityButton = Boolean(
     selectedFieldIndex != null &&
-      (selectedPlayerAbility || (selectedPlayerOneEffect && selectedPlayerOneEffect.timing === "activate")),
+      selectedPlayerAbility &&
+      (selectedPlayerUnit?.card.type === "hero" || selectedPlayerUnit?.card.type === "god"),
   );
   const selectedPlayerAbilityHpCost = Math.max(4, Math.min(10, Math.round((selectedPlayerAbility?.cost ?? 1) * 1.5)));
   const canUseSelectedAbility =
@@ -1033,14 +1007,13 @@ export default function BattleArena({
         selectedPlayerUnit &&
         !selectedPlayerUnit.stunned &&
         !selectedPlayerUnit.abilityUsed &&
-        selectedPlayerUnit.abilityRechargeIn === undefined,
+        selectedPlayerUnit.abilityRechargeIn === undefined &&
+        !responseWindowActive,
     ) &&
-    (selectedPlayerOneEffect?.timing === "activate"
-      ? (state.player.hp ?? 0) > (selectedPlayerOneEffectHpCost ?? 6)
-      : Boolean(selectedPlayerAbility) &&
-        (selectedPlayerUnit?.card.type === "hero" || selectedPlayerUnit?.card.type === "god"
-          ? (state.player.hp ?? 0) > selectedPlayerAbilityHpCost
-          : (state.player.ap ?? 0) >= selectedPlayerAbilityCost));
+    Boolean(selectedPlayerAbility) &&
+    (selectedPlayerUnit?.card.type === "hero" || selectedPlayerUnit?.card.type === "god"
+      ? (state.player.hp ?? 0) > selectedPlayerAbilityHpCost
+      : (state.player.ap ?? 0) >= selectedPlayerAbilityCost);
 
   const toSideState = (side: BattleState["player"]): SideState => {
     const monsters = Array.from({ length: 5 }).map((_, i) => {
@@ -1078,7 +1051,6 @@ export default function BattleArena({
     if (hoveredHandIndex3d != null) {
       const c = state.player.hand[hoveredHandIndex3d];
       if (!c) return null;
-      const eff = c.type === "hero" || c.type === "god" ? getOneEffectForCard(c) : null;
       return {
         id: `hand-${c.id}-${hoveredHandIndex3d}`,
         image: c.image,
@@ -1088,8 +1060,8 @@ export default function BattleArena({
         def: c.type === "hero" || c.type === "god" ? c.defense : undefined,
         hp: c.type === "hero" || c.type === "god" ? c.hp : undefined,
         hpMax: c.type === "hero" || c.type === "god" ? c.hp : undefined,
-        abilityName: eff?.name ?? (c.type === "hero" || c.type === "god" ? undefined : c.specialAbility?.name),
-        abilityDescription: eff?.description ?? (c.type === "hero" || c.type === "god" ? undefined : c.specialAbility?.description),
+        abilityName: c.specialAbility?.name,
+        abilityDescription: c.specialAbility?.description,
         passives:
           state.playerCardProgress?.[c.id]
             ? getPassiveAbilities(state.playerCardProgress[c.id]!).map((p) => ({ name: p.name, description: p.description }))
@@ -1102,7 +1074,6 @@ export default function BattleArena({
       if (!fc) return null;
       const progress =
         hoveredZone3d.side === "player" ? state.playerCardProgress?.[fc.card.id] ?? null : null;
-      const eff = fc.card.type === "hero" || fc.card.type === "god" ? getOneEffectForCard(fc.card) : null;
       return {
         id: `field-${hoveredZone3d.side}-${fc.card.id}-${hoveredZone3d.index}`,
         image: fc.card.image,
@@ -1112,10 +1083,10 @@ export default function BattleArena({
         def: fc.defense,
         hp: fc.currentHp,
         hpMax: fc.maxHp,
-        abilityName:
-          eff?.name ??
-          (progress ? getAbilityEvolutionName(fc.card.specialAbility?.name ?? "Ability", progress.level) : fc.card.specialAbility?.name),
-        abilityDescription: eff?.description ?? fc.card.specialAbility?.description,
+        abilityName: progress
+          ? getAbilityEvolutionName(fc.card.specialAbility?.name ?? "Ability", progress.level)
+          : fc.card.specialAbility?.name,
+        abilityDescription: fc.card.specialAbility?.description,
         passives: progress ? getPassiveAbilities(progress).map((p) => ({ name: p.name, description: p.description })) : [],
       };
     }
@@ -1283,23 +1254,21 @@ export default function BattleArena({
                       title={
                         !selectedPlayerUnit
                           ? ""
-                          : selectedPlayerUnit.stunned
-                            ? "Stunned"
-                            : selectedPlayerUnit.abilityUsed
-                              ? "Already used"
-                              : selectedPlayerUnit.abilityRechargeIn !== undefined
-                                ? "Recharging"
-                                : selectedPlayerOneEffect?.timing === "activate"
-                                  ? (state.player.hp ?? 0) <= (selectedPlayerOneEffectHpCost ?? 6)
-                                    ? `Need >${selectedPlayerOneEffectHpCost ?? 6} HP`
-                                    : `Cost: ${selectedPlayerOneEffectHpCost ?? 6} HP`
+                          : responseWindowActive
+                            ? "Response window open"
+                            : selectedPlayerUnit.stunned
+                              ? "Stunned"
+                              : selectedPlayerUnit.abilityUsed
+                                ? "Already used"
+                                : selectedPlayerUnit.abilityRechargeIn !== undefined
+                                  ? "Recharging"
                                   : (selectedPlayerUnit.card.type === "hero" || selectedPlayerUnit.card.type === "god")
                                     ? (state.player.hp ?? 0) <= selectedPlayerAbilityHpCost
                                       ? `Need >${selectedPlayerAbilityHpCost} HP`
-                                      : `Cost: ${selectedPlayerAbilityHpCost} HP`
-                                  : (state.player.ap ?? 0) < selectedPlayerAbilityCost
-                                    ? `Need ${selectedPlayerAbilityCost} AP`
-                                  : ""
+                                      : `${selectedPlayerAbility?.name ?? "Ability"}: ${selectedPlayerAbility?.description ?? ""} (Cost: ${selectedPlayerAbilityHpCost} HP)`
+                                    : (state.player.ap ?? 0) < selectedPlayerAbilityCost
+                                      ? `Need ${selectedPlayerAbilityCost} AP`
+                                      : `${selectedPlayerAbility?.name ?? "Ability"}: ${selectedPlayerAbility?.description ?? ""} (Cost: ${selectedPlayerAbilityCost} AP)`
                       }
                     >
                       Activate
@@ -1309,7 +1278,6 @@ export default function BattleArena({
                       onClick={() => {
                         setActionMode("none");
                         setSelectedFieldIndex(null);
-                        setEffectSourceFieldIndex(null);
                       }}
                       className="altar-panel rounded-full px-4 py-2 text-[10px] font-bold uppercase tracking-wider altar-text-gold opacity-80 hover:opacity-100"
                     >

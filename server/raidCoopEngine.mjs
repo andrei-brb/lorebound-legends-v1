@@ -2129,6 +2129,15 @@ var mythicCards = [
     tags: ["fire", "divine", "infernal", "mythic"],
     element: "fire",
     specialAbility: { name: "Cataclysmic Eruption", description: "Erupts in molten fury, dealing 14 damage to all enemies and granting +3 ATK to all fire allies for 2 turns.", cost: 7 },
+    cardRules: {
+      abilityEffect: {
+        kind: "sequence",
+        steps: [
+          { kind: "damage_aoe", value: 14 },
+          { kind: "buff_allies", stat: "attack", value: 3, duration: 2 }
+        ]
+      }
+    },
     passiveAbility: { name: "Forge Aura", description: "+3 ATK to all fire cards on field", stat: "attack", value: 3, targetTag: "fire" },
     lore: "Pyrahkan forged the first sun in the heart of a dying volcano. To draw breath in his presence is to inhale flame.",
     synergies: [{ partnerId: "myth-vyraka", name: "Forge Bond", description: "Vyraka gains +5 ATK and lifesteal.", boostedStat: "attack", boostValue: 5 }],
@@ -2149,6 +2158,15 @@ var mythicCards = [
     tags: ["fire", "warrior", "flame", "mythic"],
     element: "fire",
     specialAbility: { name: "Twin Flame Dance", description: "Strikes twice this turn, each hit dealing 10 damage and applying burn (3 dmg/turn for 2 turns).", cost: 5 },
+    cardRules: {
+      abilityEffect: {
+        kind: "sequence",
+        steps: [
+          { kind: "damage_multi", hits: 2, damageEach: 10, randomTargets: false },
+          { kind: "burn_enemy", which: "highest_hp", damagePerTurn: 3, duration: 2 }
+        ]
+      }
+    },
     lore: "Born of a battlefield where the dead burned for nine days, Vyraka inherited the flame as her birthright.",
     synergies: [{ partnerId: "myth-pyrahkan", name: "Forge Bond", description: "Gains +5 ATK and lifesteal.", boostedStat: "attack", boostValue: 5 }],
     level: 1,
@@ -2225,6 +2243,15 @@ var mythicCards = [
     tags: ["water", "divine", "ocean", "mythic"],
     element: "water",
     specialAbility: { name: "Abyssal Tide", description: "Summons a crushing tide dealing 12 damage to all enemies and healing all water allies for 8 HP.", cost: 7 },
+    cardRules: {
+      abilityEffect: {
+        kind: "sequence",
+        steps: [
+          { kind: "damage_aoe", value: 12 },
+          { kind: "heal", scope: "all_allies", value: 8 }
+        ]
+      }
+    },
     passiveAbility: { name: "Tidal Aura", description: "+3 DEF to all water cards on field", stat: "defense", value: 3, targetTag: "water" },
     lore: "She does not rule the ocean. She IS the ocean \u2014 and the ocean remembers every drowned ship.",
     synergies: [{ partnerId: "myth-marenthil", name: "Tide's Blessing", description: "Marenthil gains a 12-point shield each turn.", boostedStat: "defense", boostValue: 6 }],
@@ -2245,6 +2272,7 @@ var mythicCards = [
     tags: ["water", "tidal", "warrior", "mythic"],
     element: "water",
     specialAbility: { name: "Coral Lance Surge", description: "Pierces an enemy line for 12 damage and heals self for 6 HP.", cost: 5 },
+    cardRules: { abilityEffect: { kind: "drain", target: "highest_hp", damage: 12, healSelf: 6 } },
     lore: "Heir to the drowned crown. The waves rise when he steps onto the shore.",
     synergies: [{ partnerId: "myth-thalassor", name: "Tide's Blessing", description: "Gains a 12-point shield each turn.", boostedStat: "defense", boostValue: 6 }],
     level: 1,
@@ -2321,6 +2349,15 @@ var mythicCards = [
     tags: ["nature", "divine", "verdant", "mythic"],
     element: "nature",
     specialAbility: { name: "Worldroot Embrace", description: "Heals all allies for 12 HP and grants +4 DEF for 3 turns.", cost: 7 },
+    cardRules: {
+      abilityEffect: {
+        kind: "sequence",
+        steps: [
+          { kind: "heal", scope: "all_allies", value: 12 },
+          { kind: "buff_allies", stat: "defense", value: 4, duration: 3 }
+        ]
+      }
+    },
     passiveAbility: { name: "Heartwood Aura", description: "+3 DEF to all nature cards on field", stat: "defense", value: 3, targetTag: "nature" },
     lore: "He stood before the first season. Every forest is his memory made manifest.",
     synergies: [{ partnerId: "myth-thalwen", name: "Wildbond", description: "Thalwen's arrows root enemies in place.", boostedStat: "attack", boostValue: 5 }],
@@ -2341,6 +2378,15 @@ var mythicCards = [
     tags: ["nature", "ranger", "beast", "mythic"],
     element: "nature",
     specialAbility: { name: "Thornvolley", description: "Looses three glowing arrows: 6 damage each, with the third applying poison (4 dmg/turn for 3 turns).", cost: 5 },
+    cardRules: {
+      abilityEffect: {
+        kind: "sequence",
+        steps: [
+          { kind: "damage_multi", hits: 3, damageEach: 6, randomTargets: false },
+          { kind: "poison_enemy", which: "highest_hp", damagePerTurn: 4, duration: 3 }
+        ]
+      }
+    },
     lore: "Raised by wolves under a green moon. She does not miss.",
     synergies: [{ partnerId: "myth-sylvarion", name: "Wildbond", description: "Arrows root enemies in place.", boostedStat: "attack", boostValue: 5 }],
     level: 1,
@@ -2417,6 +2463,15 @@ var mythicCards = [
     tags: ["shadow", "divine", "void", "mythic"],
     element: "shadow",
     specialAbility: { name: "Eclipse Verdict", description: "Drains 7 HP from each enemy and heals self for the total drained.", cost: 7 },
+    cardRules: {
+      abilityEffect: {
+        kind: "sequence",
+        steps: [
+          { kind: "damage_aoe", value: 7 },
+          { kind: "heal", scope: "self", value: 21 }
+        ]
+      }
+    },
     passiveAbility: { name: "Voidcrown Aura", description: "+3 ATK to all shadow cards on field", stat: "attack", value: 3, targetTag: "shadow" },
     lore: "He sat upon a throne of broken stars. The constellations shifted to make room.",
     synergies: [{ partnerId: "myth-vexar", name: "Veil of the King", description: "Vexar becomes untargetable for 2 turns.", boostedStat: "attack", boostValue: 6 }],
@@ -2533,6 +2588,15 @@ var mythicCards = [
     tags: ["light", "paladin", "divine", "mythic"],
     element: "light",
     specialAbility: { name: "Sunblade Vow", description: "Strikes for 11 damage and grants a 10-point shield to all allies.", cost: 5 },
+    cardRules: {
+      abilityEffect: {
+        kind: "sequence",
+        steps: [
+          { kind: "damage_single", target: "highest_hp", value: 11 },
+          { kind: "shield_side", value: 10 }
+        ]
+      }
+    },
     lore: "Her sword was forged on the morning the sun first wept.",
     synergies: [{ partnerId: "myth-aurelia", name: "Vow of the Dawn", description: "Reflects 50% of damage taken.", boostedStat: "defense", boostValue: 6 }],
     level: 1,
@@ -2609,6 +2673,15 @@ var mythicCards = [
     tags: ["divine", "cosmic", "balance", "mythic"],
     element: "neutral",
     specialAbility: { name: "Cosmic Equilibrium", description: "Equalizes the field: deals 10 damage to the strongest enemy and heals the weakest ally for 10 HP.", cost: 6 },
+    cardRules: {
+      abilityEffect: {
+        kind: "sequence",
+        steps: [
+          { kind: "damage_single", target: "highest_hp", value: 10 },
+          { kind: "heal", scope: "lowest_ally", value: 10 }
+        ]
+      }
+    },
     passiveAbility: { name: "Balance Aura", description: "+2 ATK and +2 DEF to all neutral cards on field", stat: "attack", value: 2 },
     lore: "Half stone, half cosmos. Equilix does not choose sides \u2014 only outcomes.",
     synergies: [{ partnerId: "myth-kaidran", name: "Steady Resolve", description: "Kaidran gains +4 ATK and +4 DEF.", boostedStat: "attack", boostValue: 4 }],
@@ -2629,6 +2702,15 @@ var mythicCards = [
     tags: ["warrior", "knight", "balance", "mythic"],
     element: "neutral",
     specialAbility: { name: "Greatsword Sweep", description: "Cleaves all enemies for 8 damage and gains +3 DEF for 2 turns.", cost: 5 },
+    cardRules: {
+      abilityEffect: {
+        kind: "sequence",
+        steps: [
+          { kind: "damage_aoe", value: 8 },
+          { kind: "buff_self", stat: "defense", value: 3, duration: 2 }
+        ]
+      }
+    },
     lore: "He has walked every road. He has buried every comrade. He has not stopped walking.",
     synergies: [{ partnerId: "myth-equilix", name: "Steady Resolve", description: "Gains +4 ATK and +4 DEF.", boostedStat: "attack", boostValue: 4 }],
     level: 1,
@@ -3029,6 +3111,15 @@ var godCards = [
     hp: 43,
     tags: ["divine", "lunar", "healer"],
     specialAbility: { name: "Moonlight Veil", description: "Heals all allies for 4 HP and grants invisibility for 1 turn.", cost: 5 },
+    cardRules: {
+      abilityEffect: {
+        kind: "sequence",
+        steps: [
+          { kind: "heal", scope: "all_allies", value: 4 },
+          { kind: "shield_side", value: 8 }
+        ]
+      }
+    },
     passiveAbility: { name: "Moon's Grace", description: "+1 DEF to all healer cards on field", stat: "defense", value: 3, targetTag: "healer" },
     lore: "Lunara watches over the night, weaving silver threads of fate. Her tears became the moonstone gems scattered across the realm.",
     synergies: [
@@ -3094,6 +3185,7 @@ var godCards = [
     hp: 47,
     tags: ["divine", "water", "olympus"],
     specialAbility: { name: "Tidal Wrath", description: "Summons a massive wave dealing 7 damage and pushing enemies back.", cost: 5 },
+    cardRules: { abilityEffect: { kind: "damage_aoe", value: 7 } },
     passiveAbility: { name: "Ocean's Blessing", description: "+1 DEF to all water cards on field", stat: "defense", value: 3, targetTag: "water" },
     lore: "Thalassia commands the endless depths. Ships pray to her for safe passage, knowing her fury drowns empires.",
     synergies: [
@@ -3116,6 +3208,15 @@ var godCards = [
     hp: 50,
     tags: ["divine", "earth", "nature"],
     specialAbility: { name: "Primordial Growth", description: "Heals all allies for 6 HP and summons vine barriers.", cost: 5 },
+    cardRules: {
+      abilityEffect: {
+        kind: "sequence",
+        steps: [
+          { kind: "heal", scope: "all_allies", value: 6 },
+          { kind: "shield_side", value: 10 }
+        ]
+      }
+    },
     passiveAbility: { name: "Earth Shield", description: "+1 DEF to all nature cards on field", stat: "defense", value: 3, targetTag: "nature" },
     lore: "From Gaiara's body grew the first forests. She nurtures all living things, but her wrath shakes continents.",
     synergies: [
@@ -4061,6 +4162,15 @@ var heroCards = [
     hp: 40,
     tags: ["dragon", "fire"],
     specialAbility: { name: "Inferno Breath", description: "Deals 8 fire damage to all enemies. Burns for 2 turns.", cost: 6 },
+    cardRules: {
+      abilityEffect: {
+        kind: "sequence",
+        steps: [
+          { kind: "damage_aoe", value: 8 },
+          { kind: "burn_all_enemies", damagePerTurn: 3, duration: 2 }
+        ]
+      }
+    },
     lore: "Born in volcanic Mount Ashkaar, Ignathar is the last ancient dragon seeking to protect the balance.",
     synergies: [
       { partnerId: "forest-druid", name: "Elemental Fusion", description: "Flames become healing fire, damaging foes while healing allies.", boostedStat: "attack", boostValue: 4 },
@@ -8283,8 +8393,12 @@ function getStatBonuses(progress) {
 
 // src/lib/abilityOverrides.ts
 var ABILITY_OVERRIDES = {
-  // Examples (add as needed):
-  // "temporal-rift": { kind: "heal", scope: "lowest_ally", value: 8 },
+  // Rewind has no effect kind — heal lowest ally as pragmatic proxy
+  chronos: { kind: "heal", scope: "lowest_ally", value: 20 },
+  // Buff text missed by inference ("gain +N attack" without "all allies" phrasing)
+  "warrior-king": { kind: "buff_allies", stat: "attack", value: 2, duration: 3 },
+  // Execute threshold not modeled — heavy drain on weakest as proxy
+  thanatos: { kind: "drain", target: "lowest_hp", damage: 50, healSelf: 50 }
 };
 
 // src/lib/abilityInference.ts
@@ -8749,7 +8863,7 @@ function getOneEffectForCard(card) {
   const noneRoll = seed % 10;
   if (card.rarity === "common" && noneRoll < 5) return null;
   if (card.rarity === "rare" && noneRoll < 2) return null;
-  const timingPool = card.rarity === "legendary" || card.rarity === "mythic" ? ["on_summon", "on_death", "activate", "react"] : ["on_summon", "on_death", "activate"];
+  const timingPool = card.rarity === "legendary" || card.rarity === "mythic" ? ["on_summon", "on_death", "react"] : ["on_summon", "on_death"];
   const timing = choose(timingPool, seed);
   const base = card.rarity === "mythic" ? 5 : card.rarity === "legendary" ? 4 : card.rarity === "rare" ? 3 : 2;
   const dur = card.rarity === "mythic" ? 3 : card.rarity === "legendary" ? 2 : 1;

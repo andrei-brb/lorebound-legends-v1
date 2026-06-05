@@ -3,8 +3,6 @@ import type { GameCard } from "@/data/cards";
 import { cn } from "@/lib/utils";
 import { elementEmoji } from "@/lib/elementSystem";
 import { Sword, Shield, Heart, Zap, Swords as SwordsIcon } from "lucide-react";
-import { getOneEffectForCard } from "@/lib/cardOneEffect";
-
 type Inspect =
   | { kind: "none" }
   | { kind: "hand"; card: GameCard }
@@ -42,9 +40,8 @@ export default function BattleCardInspectPanel({ inspect, className }: Props) {
   const hpMax = inspect.kind === "field" ? inspect.fieldCard.maxHp : (card.hp ?? 0);
   const weapon = inspect.kind === "field" ? inspect.fieldCard.equippedWeapon : null;
   const abilityUsed = inspect.kind === "field" ? inspect.fieldCard.abilityUsed : false;
-  const oneEff = card.type === "hero" || card.type === "god" ? getOneEffectForCard(card) : null;
-  const effName = oneEff?.name ?? card.specialAbility?.name ?? null;
-  const effDesc = oneEff?.description ?? card.specialAbility?.description ?? null;
+  const effName = card.specialAbility?.name ?? null;
+  const effDesc = card.specialAbility?.description ?? null;
 
   return (
     <div

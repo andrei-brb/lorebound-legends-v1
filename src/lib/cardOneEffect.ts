@@ -62,8 +62,8 @@ export function getOneEffectForCard(card: GameCard): OneEffectDef | null {
   // Timing: react is rare and only for a small subset.
   const timingPool: OneEffectTiming[] =
     card.rarity === "legendary" || card.rarity === "mythic"
-      ? ["on_summon", "on_death", "activate", "react"]
-      : ["on_summon", "on_death", "activate"];
+      ? ["on_summon", "on_death", "react"]
+      : ["on_summon", "on_death"];
   const timing = choose(timingPool, seed);
 
   const base = card.rarity === "mythic" ? 5 : card.rarity === "legendary" ? 4 : card.rarity === "rare" ? 3 : 2;

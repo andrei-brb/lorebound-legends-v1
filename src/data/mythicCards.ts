@@ -52,6 +52,15 @@ export const mythicCards: GameCard[] = [
     image: godFire, attack: 18, defense: 12, hp: 42,
     tags: ["fire", "divine", "infernal", "mythic"], element: "fire",
     specialAbility: { name: "Cataclysmic Eruption", description: "Erupts in molten fury, dealing 14 damage to all enemies and granting +3 ATK to all fire allies for 2 turns.", cost: 7 },
+    cardRules: {
+      abilityEffect: {
+        kind: "sequence",
+        steps: [
+          { kind: "damage_aoe", value: 14 },
+          { kind: "buff_allies", stat: "attack", value: 3, duration: 2 },
+        ],
+      },
+    },
     passiveAbility: { name: "Forge Aura", description: "+3 ATK to all fire cards on field", stat: "attack", value: 3, targetTag: "fire" },
     lore: "Pyrahkan forged the first sun in the heart of a dying volcano. To draw breath in his presence is to inhale flame.",
     synergies: [{ partnerId: "myth-vyraka", name: "Forge Bond", description: "Vyraka gains +5 ATK and lifesteal.", boostedStat: "attack", boostValue: 5 }],
@@ -62,6 +71,15 @@ export const mythicCards: GameCard[] = [
     image: heroFire, attack: 16, defense: 9, hp: 30,
     tags: ["fire", "warrior", "flame", "mythic"], element: "fire",
     specialAbility: { name: "Twin Flame Dance", description: "Strikes twice this turn, each hit dealing 10 damage and applying burn (3 dmg/turn for 2 turns).", cost: 5 },
+    cardRules: {
+      abilityEffect: {
+        kind: "sequence",
+        steps: [
+          { kind: "damage_multi", hits: 2, damageEach: 10, randomTargets: false },
+          { kind: "burn_enemy", which: "highest_hp", damagePerTurn: 3, duration: 2 },
+        ],
+      },
+    },
     lore: "Born of a battlefield where the dead burned for nine days, Vyraka inherited the flame as her birthright.",
     synergies: [{ partnerId: "myth-pyrahkan", name: "Forge Bond", description: "Gains +5 ATK and lifesteal.", boostedStat: "attack", boostValue: 5 }],
     level: 1, xp: 0, xpToNext: 200,
@@ -98,6 +116,15 @@ export const mythicCards: GameCard[] = [
     image: godWater, attack: 13, defense: 16, hp: 46,
     tags: ["water", "divine", "ocean", "mythic"], element: "water",
     specialAbility: { name: "Abyssal Tide", description: "Summons a crushing tide dealing 12 damage to all enemies and healing all water allies for 8 HP.", cost: 7 },
+    cardRules: {
+      abilityEffect: {
+        kind: "sequence",
+        steps: [
+          { kind: "damage_aoe", value: 12 },
+          { kind: "heal", scope: "all_allies", value: 8 },
+        ],
+      },
+    },
     passiveAbility: { name: "Tidal Aura", description: "+3 DEF to all water cards on field", stat: "defense", value: 3, targetTag: "water" },
     lore: "She does not rule the ocean. She IS the ocean — and the ocean remembers every drowned ship.",
     synergies: [{ partnerId: "myth-marenthil", name: "Tide's Blessing", description: "Marenthil gains a 12-point shield each turn.", boostedStat: "defense", boostValue: 6 }],
@@ -108,6 +135,7 @@ export const mythicCards: GameCard[] = [
     image: heroWater, attack: 13, defense: 13, hp: 32,
     tags: ["water", "tidal", "warrior", "mythic"], element: "water",
     specialAbility: { name: "Coral Lance Surge", description: "Pierces an enemy line for 12 damage and heals self for 6 HP.", cost: 5 },
+    cardRules: { abilityEffect: { kind: "drain", target: "highest_hp", damage: 12, healSelf: 6 } },
     lore: "Heir to the drowned crown. The waves rise when he steps onto the shore.",
     synergies: [{ partnerId: "myth-thalassor", name: "Tide's Blessing", description: "Gains a 12-point shield each turn.", boostedStat: "defense", boostValue: 6 }],
     level: 1, xp: 0, xpToNext: 200,
@@ -143,6 +171,15 @@ export const mythicCards: GameCard[] = [
     image: godNature, attack: 11, defense: 18, hp: 50,
     tags: ["nature", "divine", "verdant", "mythic"], element: "nature",
     specialAbility: { name: "Worldroot Embrace", description: "Heals all allies for 12 HP and grants +4 DEF for 3 turns.", cost: 7 },
+    cardRules: {
+      abilityEffect: {
+        kind: "sequence",
+        steps: [
+          { kind: "heal", scope: "all_allies", value: 12 },
+          { kind: "buff_allies", stat: "defense", value: 4, duration: 3 },
+        ],
+      },
+    },
     passiveAbility: { name: "Heartwood Aura", description: "+3 DEF to all nature cards on field", stat: "defense", value: 3, targetTag: "nature" },
     lore: "He stood before the first season. Every forest is his memory made manifest.",
     synergies: [{ partnerId: "myth-thalwen", name: "Wildbond", description: "Thalwen's arrows root enemies in place.", boostedStat: "attack", boostValue: 5 }],
@@ -153,6 +190,15 @@ export const mythicCards: GameCard[] = [
     image: heroNature, attack: 15, defense: 10, hp: 30,
     tags: ["nature", "ranger", "beast", "mythic"], element: "nature",
     specialAbility: { name: "Thornvolley", description: "Looses three glowing arrows: 6 damage each, with the third applying poison (4 dmg/turn for 3 turns).", cost: 5 },
+    cardRules: {
+      abilityEffect: {
+        kind: "sequence",
+        steps: [
+          { kind: "damage_multi", hits: 3, damageEach: 6, randomTargets: false },
+          { kind: "poison_enemy", which: "highest_hp", damagePerTurn: 4, duration: 3 },
+        ],
+      },
+    },
     lore: "Raised by wolves under a green moon. She does not miss.",
     synergies: [{ partnerId: "myth-sylvarion", name: "Wildbond", description: "Arrows root enemies in place.", boostedStat: "attack", boostValue: 5 }],
     level: 1, xp: 0, xpToNext: 200,
@@ -188,6 +234,15 @@ export const mythicCards: GameCard[] = [
     image: godShadow, attack: 17, defense: 11, hp: 40,
     tags: ["shadow", "divine", "void", "mythic"], element: "shadow",
     specialAbility: { name: "Eclipse Verdict", description: "Drains 7 HP from each enemy and heals self for the total drained.", cost: 7 },
+    cardRules: {
+      abilityEffect: {
+        kind: "sequence",
+        steps: [
+          { kind: "damage_aoe", value: 7 },
+          { kind: "heal", scope: "self", value: 21 },
+        ],
+      },
+    },
     passiveAbility: { name: "Voidcrown Aura", description: "+3 ATK to all shadow cards on field", stat: "attack", value: 3, targetTag: "shadow" },
     lore: "He sat upon a throne of broken stars. The constellations shifted to make room.",
     synergies: [{ partnerId: "myth-vexar", name: "Veil of the King", description: "Vexar becomes untargetable for 2 turns.", boostedStat: "attack", boostValue: 6 }],
@@ -243,6 +298,15 @@ export const mythicCards: GameCard[] = [
     image: heroLight, attack: 14, defense: 14, hp: 32,
     tags: ["light", "paladin", "divine", "mythic"], element: "light",
     specialAbility: { name: "Sunblade Vow", description: "Strikes for 11 damage and grants a 10-point shield to all allies.", cost: 5 },
+    cardRules: {
+      abilityEffect: {
+        kind: "sequence",
+        steps: [
+          { kind: "damage_single", target: "highest_hp", value: 11 },
+          { kind: "shield_side", value: 10 },
+        ],
+      },
+    },
     lore: "Her sword was forged on the morning the sun first wept.",
     synergies: [{ partnerId: "myth-aurelia", name: "Vow of the Dawn", description: "Reflects 50% of damage taken.", boostedStat: "defense", boostValue: 6 }],
     level: 1, xp: 0, xpToNext: 200,
@@ -278,6 +342,15 @@ export const mythicCards: GameCard[] = [
     image: godNeutral, attack: 15, defense: 15, hp: 42,
     tags: ["divine", "cosmic", "balance", "mythic"], element: "neutral",
     specialAbility: { name: "Cosmic Equilibrium", description: "Equalizes the field: deals 10 damage to the strongest enemy and heals the weakest ally for 10 HP.", cost: 6 },
+    cardRules: {
+      abilityEffect: {
+        kind: "sequence",
+        steps: [
+          { kind: "damage_single", target: "highest_hp", value: 10 },
+          { kind: "heal", scope: "lowest_ally", value: 10 },
+        ],
+      },
+    },
     passiveAbility: { name: "Balance Aura", description: "+2 ATK and +2 DEF to all neutral cards on field", stat: "attack", value: 2 },
     lore: "Half stone, half cosmos. Equilix does not choose sides — only outcomes.",
     synergies: [{ partnerId: "myth-kaidran", name: "Steady Resolve", description: "Kaidran gains +4 ATK and +4 DEF.", boostedStat: "attack", boostValue: 4 }],
@@ -288,6 +361,15 @@ export const mythicCards: GameCard[] = [
     image: heroNeutral, attack: 14, defense: 13, hp: 34,
     tags: ["warrior", "knight", "balance", "mythic"], element: "neutral",
     specialAbility: { name: "Greatsword Sweep", description: "Cleaves all enemies for 8 damage and gains +3 DEF for 2 turns.", cost: 5 },
+    cardRules: {
+      abilityEffect: {
+        kind: "sequence",
+        steps: [
+          { kind: "damage_aoe", value: 8 },
+          { kind: "buff_self", stat: "defense", value: 3, duration: 2 },
+        ],
+      },
+    },
     lore: "He has walked every road. He has buried every comrade. He has not stopped walking.",
     synergies: [{ partnerId: "myth-equilix", name: "Steady Resolve", description: "Gains +4 ATK and +4 DEF.", boostedStat: "attack", boostValue: 4 }],
     level: 1, xp: 0, xpToNext: 200,
