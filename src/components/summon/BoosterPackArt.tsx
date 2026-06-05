@@ -26,13 +26,6 @@ const sizeClasses = {
   lg: "w-full h-full min-h-[160px]",
 } as const;
 
-const borderGlow: Record<BoosterPackVariant, string> = {
-  bronze: "border-[rgba(141,110,99,0.85)] shadow-[0_0_24px_rgba(141,110,99,0.45)]",
-  silver: "border-[rgba(189,189,189,0.85)] shadow-[0_0_24px_rgba(189,189,189,0.4)]",
-  gold: "border-[rgba(245,200,66,0.85)] shadow-[0_0_30px_rgba(245,200,66,0.5)]",
-  arcane: "border-[rgba(156,39,176,0.85)] shadow-[0_0_30px_rgba(156,39,176,0.5)]",
-};
-
 export default function BoosterPackArt({
   variant,
   size = "md",
@@ -46,18 +39,13 @@ export default function BoosterPackArt({
 }) {
   return (
     <div
-      className={cn(
-        "relative overflow-hidden rounded-md border-2",
-        sizeClasses[size],
-        borderGlow[variant],
-        className,
-      )}
+      className={cn("relative", sizeClasses[size], className)}
       aria-label={packLabels[variant]}
     >
       <img
         src={packImages[variant]}
         alt={packLabels[variant]}
-        className="absolute inset-0 h-full w-full object-cover"
+        className="h-full w-full object-contain"
         loading="lazy"
         draggable={false}
       />
